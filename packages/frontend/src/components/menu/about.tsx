@@ -196,15 +196,15 @@ function Content() {
   const { mode, setMode, isFirstTime } = useMode();
   const modeSelectModal = useDisclosure(isFirstTime);
   const addonName =
-    userData.addonName || status?.settings?.addonName || 'AIOStreams';
+    userData.addonName || status?.settings?.addonName || 'AIOLiveTV';
   const defaultDescription = `
-AIOStreams consolidates multiple Stremio addons and debrid services - including its own suite of exclusive built-in addons - into a single, highly customisable super-addon. 
+AIOLiveTV combines live channel metadata and stream sources into one configurable Stremio addon.
   `;
   const addonDescription = userData.addonDescription || defaultDescription;
   const version = status?.tag || 'Unknown';
   const channel: 'stable' | 'nightly' | 'dev' =
     status?.channel ?? (version.startsWith('v') ? 'stable' : 'nightly');
-  const githubUrl = 'https://github.com/Viren070/AIOStreams';
+  const githubUrl = 'https://github.com/mrcanelas/aiolivetv';
   const discordUrl = 'https://discord.viren070.me';
   const donationModal = useDisclosure(false);
   const customizeModal = useDisclosure(false);
@@ -411,7 +411,7 @@ AIOStreams consolidates multiple Stremio addons and debrid services - including 
                 {version}{' '}
                 {channel === 'nightly' || channel === 'dev' ? (
                   <a
-                    href={`https://github.com/Viren070/AIOStreams/commit/${status?.commit}`}
+                    href={`${githubUrl}/commit/${status?.commit}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[--brand] hover:underline"
@@ -622,9 +622,7 @@ AIOStreams consolidates multiple Stremio addons and debrid services - including 
 
         <div className="flex flex-col items-center">
           <div className="flex flex-col items-center gap-0.5 text-xs text-gray-500">
-            <span>
-              © {new Date().getFullYear()} AIOStreams. Developed by Viren070.
-            </span>
+            <span>© {new Date().getFullYear()} AIOLiveTV.</span>
             <span>
               This beautiful UI would not be possible without{' '}
               <a

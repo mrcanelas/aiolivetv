@@ -9,7 +9,7 @@ const nullableString = z.string().nullable();
 export const brandingSchema = {
   addonName: {
     schema: z.string(),
-    default: 'AIOStreams',
+    default: 'AIOLiveTV',
     label: 'Addon name',
     description: 'Display name shown in the manifest and UI.',
     env: 'ADDON_NAME',
@@ -18,7 +18,7 @@ export const brandingSchema = {
   },
   addonId: {
     schema: z.string(),
-    default: 'com.aiostreams.viren070',
+    default: 'com.aiolivetv',
     label: 'Addon ID',
     description: 'Reverse-DNS identifier published in the manifest.',
     env: 'ADDON_ID',

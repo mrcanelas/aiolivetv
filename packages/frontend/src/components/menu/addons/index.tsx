@@ -18,7 +18,7 @@ import { MenuTabs } from '../../shared/menu-tabs';
 import { useMode } from '@/context/mode';
 import { useSubTab } from '@/context/sub-tab';
 import { IoExtensionPuzzle } from 'react-icons/io5';
-import { MdOutlineDataset, MdSubtitles } from 'react-icons/md';
+import { MdOutlineDataset } from 'react-icons/md';
 import { RiFolderDownloadFill } from 'react-icons/ri';
 import { APIError, fetchCatalogs } from '@/lib/api';
 import { toast } from 'sonner';
@@ -151,7 +151,15 @@ function Content() {
   const filteredPresets = useMemo(() => {
     if (!status?.settings?.presets) return [];
     let filtered = [
-      ...status.settings.presets.filter((n) => !n.DISABLED?.removed),
+      ...status.settings.presets.filter(
+        (n) =>
+          !n.DISABLED?.removed &&
+          [
+            constants.PresetCategory.STREAMS,
+            constants.PresetCategory.META_CATALOGS,
+            constants.PresetCategory.MISC,
+          ].includes(n.CATEGORY ?? constants.PresetCategory.STREAMS)
+      ),
     ];
     if (marketplaceCategoryFilter !== 'all') {
       filtered = filtered.filter(
@@ -288,9 +296,6 @@ function Content() {
   // Group presets by category
   const streamPresets = filteredPresets.filter(
     (n) => n.CATEGORY === constants.PresetCategory.STREAMS || !n.CATEGORY
-  );
-  const subtitlePresets = filteredPresets.filter(
-    (n) => n.CATEGORY === constants.PresetCategory.SUBTITLES
   );
   const metaCatalogPresets = filteredPresets.filter(
     (n) => n.CATEGORY === constants.PresetCategory.META_CATALOGS
@@ -441,16 +446,6 @@ function Content() {
                       ),
                   },
                   {
-                    name: 'Subtitles',
-                    isCurrent:
-                      marketplaceCategoryFilter ===
-                      constants.PresetCategory.SUBTITLES,
-                    onClick: () =>
-                      setMarketplaceCategoryFilter(
-                        constants.PresetCategory.SUBTITLES
-                      ),
-                  },
-                  {
                     name: 'Metadata & Catalogs',
                     isCurrent:
                       marketplaceCategoryFilter ===
@@ -522,23 +517,6 @@ function Content() {
                   </h3>
                   <div className={addonGridClassName}>
                     {streamPresets.map((preset: any) => (
-                      <AddonCard
-                        key={preset.ID}
-                        preset={preset}
-                        onAdd={() => handleAddPreset(preset)}
-                      />
-                    ))}
-                  </div>
-                </Card>
-              )}
-
-              {!!subtitlePresets?.length && (
-                <Card className="p-4 space-y-6">
-                  <h3 className="flex gap-3 items-center">
-                    <MdSubtitles /> Subtitles
-                  </h3>
-                  <div className={addonGridClassName}>
-                    {subtitlePresets.map((preset: any) => (
                       <AddonCard
                         key={preset.ID}
                         preset={preset}
