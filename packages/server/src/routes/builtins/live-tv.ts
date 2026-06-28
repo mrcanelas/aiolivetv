@@ -24,6 +24,13 @@ function config(encodedConfig: string): LiveTvSourceConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
+function skip(extras?: string) {
+  return Math.max(
+    0,
+    Number.parseInt(new URLSearchParams(extras).get('skip') ?? '0', 10) || 0
+  );
+}
+
 router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
   try {
     const sourceConfig = config(req.params.encodedConfig);
@@ -46,7 +53,7 @@ router.get(
     try {
       const metas = await new XmltvAddon(
         config(req.params.encodedConfig)
-      ).getCatalog();
+      ).getCatalog(skip(req.params.extras));
       res.json({ metas });
     } catch (error) {
       next(error);
@@ -74,7 +81,7 @@ router.get(
     try {
       const metas = await new M3uAddon(
         config(req.params.encodedConfig)
-      ).getCatalog();
+      ).getCatalog(skip(req.params.extras));
       res.json({ metas });
     } catch (error) {
       next(error);

@@ -10,6 +10,7 @@ import {
 
 const SOURCE_CACHE_TTL = 300;
 const CHANNEL_ID_PREFIX = 'aiolivetv:';
+export const LIVE_TV_CATALOG_PAGE_SIZE = 20;
 const sourceCache = Cache.getInstance<string, XmltvData | M3uEntry[]>(
   'live-tv-sources'
 );
@@ -273,23 +274,30 @@ export class XmltvAddon {
         { name: 'meta', types: ['channel'], idPrefixes: [CHANNEL_ID_PREFIX] },
       ],
       catalogs: [
-        { id: 'aiolivetv-channels', type: 'channel', name: 'Channels' },
+        {
+          id: 'aiolivetv-channels',
+          type: 'channel',
+          name: 'Channels',
+          extra: [{ name: 'skip' }],
+        },
       ],
       behaviorHints: { epgProvider: true },
     };
   }
 
-  async getCatalog(): Promise<MetaPreview[]> {
-    return (await loadXmltv(this.config)).channels.map((channel) => ({
-      id: encodeChannelId(channel.id),
-      type: 'channel',
-      name: channel.name,
-      poster: channel.logo,
-      posterShape: 'square',
-      tvgId: channel.id,
-      aliases: channel.aliases,
-      language: channel.language,
-    }));
+  async getCatalog(skip = 0): Promise<MetaPreview[]> {
+    return (await loadXmltv(this.config)).channels
+      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
+      .map((channel) => ({
+        id: encodeChannelId(channel.id),
+        type: 'channel',
+        name: channel.name,
+        poster: channel.logo,
+        posterShape: 'square',
+        tvgId: channel.id,
+        aliases: channel.aliases,
+        language: channel.language,
+      }));
   }
 
   async getMeta(id: string): Promise<Meta> {
@@ -347,12 +355,17 @@ export class M3uAddon {
         { name: 'stream', types: ['channel'], idPrefixes: [CHANNEL_ID_PREFIX] },
       ],
       catalogs: [
-        { id: 'aiolivetv-channels', type: 'channel', name: 'Channels' },
+        {
+          id: 'aiolivetv-channels',
+          type: 'channel',
+          name: 'Channels',
+          extra: [{ name: 'skip' }],
+        },
       ],
     };
   }
 
-  async getCatalog(): Promise<MetaPreview[]> {
+  async getCatalog(skip = 0): Promise<MetaPreview[]> {
     const entries = await loadM3u(this.config);
     return [
       ...new Map(
@@ -374,7 +387,8 @@ export class M3uAddon {
         (a.name ?? a.id).localeCompare(b.name ?? b.id, undefined, {
           sensitivity: 'base',
         })
-      );
+      )
+      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE);
   }
 
   async getMeta(id: string): Promise<Meta> {

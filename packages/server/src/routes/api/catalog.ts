@@ -19,6 +19,7 @@ import {
 const router: Router = Router();
 
 const logger = createLogger('server');
+const MAX_CHANNELS_PER_CATALOG = 10_000;
 router.use(catalogApiRateLimiter);
 router.use(attachSession);
 
@@ -161,26 +162,47 @@ router.post(
         const canStream =
           supportsStream &&
           (!addon.resources?.length || addon.resources.includes('stream'));
-        const response = await aio.getCatalog(catalog.type, catalog.id);
-        for (const item of response.data) {
-          const key = `${addonId}\0${item.id}`;
-          if (candidates.has(key)) continue;
-          candidates.set(key, {
-            id: item.id,
-            name: item.name ?? item.id,
-            poster: item.poster,
-            addonId,
-            addonName: addon.name,
-            epgProvider: manifest.behaviorHints?.epgProvider === true,
-            canStream,
-            tvgId: typeof item.tvgId === 'string' ? item.tvgId : undefined,
-            aliases: Array.isArray(item.aliases) ? item.aliases : undefined,
-            country:
-              typeof item.country === 'string' ? item.country : undefined,
-            language:
-              typeof item.language === 'string' ? item.language : undefined,
-            categories: Array.isArray(item.genres) ? item.genres : undefined,
-          });
+        const paginated = catalog.extra?.some((extra) => extra.name === 'skip');
+        let skip = 0;
+        const seenCatalogItems = new Set<string>();
+        while (true) {
+          const response = await aio.getCatalog(
+            catalog.type,
+            catalog.id,
+            paginated ? `skip=${skip}` : undefined
+          );
+          let added = 0;
+          for (const item of response.data) {
+            if (seenCatalogItems.has(item.id)) continue;
+            seenCatalogItems.add(item.id);
+            added++;
+            const key = `${addonId}\0${item.id}`;
+            if (candidates.has(key)) continue;
+            candidates.set(key, {
+              id: item.id,
+              name: item.name ?? item.id,
+              poster: item.poster,
+              addonId,
+              addonName: addon.name,
+              epgProvider: manifest.behaviorHints?.epgProvider === true,
+              canStream,
+              tvgId: typeof item.tvgId === 'string' ? item.tvgId : undefined,
+              aliases: Array.isArray(item.aliases) ? item.aliases : undefined,
+              country:
+                typeof item.country === 'string' ? item.country : undefined,
+              language:
+                typeof item.language === 'string' ? item.language : undefined,
+              categories: Array.isArray(item.genres) ? item.genres : undefined,
+            });
+          }
+          if (
+            !paginated ||
+            response.data.length === 0 ||
+            added === 0 ||
+            skip + response.data.length >= MAX_CHANNELS_PER_CATALOG
+          )
+            break;
+          skip += response.data.length;
         }
       }
 

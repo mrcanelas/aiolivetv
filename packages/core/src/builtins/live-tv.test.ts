@@ -45,6 +45,7 @@ describe('live TV sources', () => {
     });
 
     expect(addon.getManifest().behaviorHints?.epgProvider).toBe(true);
+    expect(addon.getManifest().catalogs[0].extra).toEqual([{ name: 'skip' }]);
     expect(await addon.getCatalog()).toHaveLength(1);
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
@@ -79,6 +80,27 @@ describe('live TV sources', () => {
     expect(channel.name).toBe('BBC One');
     expect(meta.name).toBe('BBC One');
     expect(meta.videos).toBeUndefined();
+  });
+
+  it('paginates Live TV catalogs in groups of twenty channels', async () => {
+    const playlist = [
+      '#EXTM3U',
+      ...Array.from({ length: 25 }, (_, index) => {
+        const number = String(index + 1).padStart(2, '0');
+        return `#EXTINF:-1 tvg-id="channel.${number}",Channel ${number}\nhttps://example.com/${number}.m3u8`;
+      }),
+    ].join('\n');
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      text: async () => playlist,
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    const addon = new M3uAddon({
+      sourceUrl: 'https://example.com/large.m3u',
+      timeout: 1000,
+    });
+
+    expect(await addon.getCatalog()).toHaveLength(20);
+    expect(await addon.getCatalog(20)).toHaveLength(5);
   });
 });
 
