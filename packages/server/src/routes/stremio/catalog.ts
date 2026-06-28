@@ -38,15 +38,20 @@ router.get(
     try {
       const { type, id, extras } = req.params;
 
-      res
-        .status(200)
-        .json(
-          transformer.transformCatalog(
-            await (
-              await new AIOStreams(req.userData).initialise()
-            ).getCatalog(type, id, extras)
-          )
-        );
+      const result = await (
+        await new AIOStreams(req.userData).initialise()
+      ).getCatalog(type, id, extras);
+      const catalog = transformer.transformCatalog(result);
+      res.status(200).json(
+        result.success
+          ? {
+              ...catalog,
+              cacheMaxAge: 300,
+              staleRevalidate: 1800,
+              staleError: 604800,
+            }
+          : catalog
+      );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       const errors = [

@@ -54,7 +54,12 @@ router.get(
       const metas = await new XmltvAddon(
         config(req.params.encodedConfig)
       ).getCatalog(skip(req.params.extras));
-      res.json({ metas });
+      res.json({
+        metas,
+        cacheMaxAge: 300,
+        staleRevalidate: 1800,
+        staleError: 604800,
+      });
     } catch (error) {
       next(error);
     }
@@ -68,7 +73,12 @@ router.get(
       const meta = await new XmltvAddon(
         config(req.params.encodedConfig)
       ).getMeta(req.params.id);
-      res.json({ meta });
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
     } catch (error) {
       next(error);
     }
@@ -82,7 +92,12 @@ router.get(
       const metas = await new M3uAddon(
         config(req.params.encodedConfig)
       ).getCatalog(skip(req.params.extras));
-      res.json({ metas });
+      res.json({
+        metas,
+        cacheMaxAge: 300,
+        staleRevalidate: 1800,
+        staleError: 604800,
+      });
     } catch (error) {
       next(error);
     }
@@ -96,7 +111,12 @@ router.get(
       const meta = await new M3uAddon(config(req.params.encodedConfig)).getMeta(
         req.params.id
       );
-      res.json({ meta });
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
     } catch (error) {
       next(error);
     }

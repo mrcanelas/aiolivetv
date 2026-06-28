@@ -78,7 +78,12 @@ router.get(
           })
         );
       } else {
-        res.status(200).json(transformed);
+        res.status(200).json({
+          ...transformed,
+          cacheMaxAge: 900,
+          staleRevalidate: 3600,
+          staleError: 604800,
+        });
       }
     } catch (error) {
       next(error);

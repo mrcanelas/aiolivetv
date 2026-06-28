@@ -1200,9 +1200,15 @@ export type ParsedMeta = z.infer<typeof ParsedMetaSchema>;
 
 export const MetaResponseSchema = z.object({
   meta: MetaSchema,
+  cacheMaxAge: z.number().int().nonnegative().optional(),
+  staleRevalidate: z.number().int().nonnegative().optional(),
+  staleError: z.number().int().nonnegative().optional(),
 });
 export const CatalogResponseSchema = z.object({
   metas: z.array(MetaPreviewSchema),
+  cacheMaxAge: z.number().int().nonnegative().optional(),
+  staleRevalidate: z.number().int().nonnegative().optional(),
+  staleError: z.number().int().nonnegative().optional(),
 });
 export type MetaResponse = z.infer<typeof MetaResponseSchema>;
 export type CatalogResponse = z.infer<typeof CatalogResponseSchema>;
