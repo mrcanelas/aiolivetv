@@ -752,16 +752,26 @@ export async function getCatalog(
     shuffleCacheKey
   );
 
-  const channelMappings = new Map(
-    ctx.userData.channelMappings?.map((channel) => [channel.id, channel]) ?? []
-  );
   return {
     success: true,
     data:
       type === constants.CHANNEL_TYPE
-        ? catalog.filter(
-            (item) => channelMappings.get(item.id)?.enabled !== false
-          )
+        ? catalog.filter((item) => {
+            const mapping = ctx.userData.channelMappings?.find((channel) =>
+              channel.streams?.some(
+                (source) =>
+                  source.addonId === addonInstanceId &&
+                  source.channelId === item.id
+              )
+            );
+            if (!mapping) return true;
+            return (
+              mapping.enabled !== false &&
+              mapping.id === item.id &&
+              (!mapping.canonicalAddonId ||
+                mapping.canonicalAddonId === addonInstanceId)
+            );
+          })
         : catalog,
     errors: [],
   };

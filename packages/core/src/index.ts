@@ -44,3 +44,4 @@ export {
   isNzbRetryableError,
 } from './main/nzbFailover.js';
 export type { NzbFallback } from './main/nzbFailover.js';
+export * from './main/channelMappings.js';

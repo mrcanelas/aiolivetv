@@ -246,12 +246,19 @@ export interface ChannelInfo {
   id: string;
   name: string;
   poster?: string | null;
+  canonicalAddonId: string;
   enabled: boolean;
   mappings: Array<{
+    id: string;
     addonId: string;
     addonName: string;
-    count: number;
+    channelId: string;
+    name: string;
+    poster?: string | null;
+    confidence: number;
     enabled: boolean;
+    epgProvider: boolean;
+    canStream: boolean;
   }>;
 }
 

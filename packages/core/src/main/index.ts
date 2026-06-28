@@ -127,6 +127,26 @@ export class AIOStreams {
     return this.ctx.addons.find((a) => a.instanceId === instanceId);
   }
 
+  public getManifest(instanceId: string): Manifest | null | undefined {
+    this.checkInitialised();
+    return this.ctx.manifests[instanceId];
+  }
+
+  public hasEpgProvider(): boolean {
+    this.checkInitialised();
+    return this.ctx.addons.some((addon) => {
+      const resources = addon.resources;
+      const enabled = (resource: 'catalog' | 'meta') =>
+        !resources?.length || resources.includes(resource);
+      return (
+        this.ctx.manifests[addon.instanceId!]?.behaviorHints?.epgProvider ===
+          true &&
+        enabled('catalog') &&
+        enabled('meta')
+      );
+    });
+  }
+
   public async shouldStopAutoPlay(type: string, id: string) {
     if (
       !this.ctx.userData.areYouStillThere?.enabled ||

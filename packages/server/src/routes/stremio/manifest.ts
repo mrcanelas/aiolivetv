@@ -25,6 +25,7 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
   let catalogs: Manifest['catalogs'] = [];
   let resources: Manifest['resources'] = [];
   let addonCatalogs: Manifest['addonCatalogs'] = [];
+  let epgProvider = false;
   if (config) {
     const aiostreams = new AIOStreams(config, { skipFailedAddons: true });
 
@@ -33,6 +34,7 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
     catalogs = aiostreams.getCatalogs();
     resources = aiostreams.getResources();
     addonCatalogs = aiostreams.getAddonCatalogs();
+    epgProvider = aiostreams.hasEpgProvider();
   }
   return {
     name: config?.addonName || appConfig.branding.addonName,
@@ -57,6 +59,7 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
     behaviorHints: {
       configurable: true,
       configurationRequired: config ? false : true,
+      epgProvider: epgProvider || undefined,
     },
     addonCatalogs,
     stremioAddonsConfig:

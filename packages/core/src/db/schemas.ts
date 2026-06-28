@@ -393,11 +393,14 @@ export type CatalogModification = z.infer<typeof CatalogModification>;
 
 const ChannelMapping = z.object({
   id: z.string().min(1),
+  canonicalAddonId: z.string().min(1).optional(),
   enabled: z.boolean().optional(),
   streams: z
     .array(
       z.object({
         addonId: z.string().min(1),
+        channelId: z.string().min(1).optional(),
+        confidence: z.number().min(0).max(1).optional(),
         enabled: z.boolean().optional(),
       })
     )
@@ -885,6 +888,7 @@ export const ManifestSchema = z
         p2p: z.boolean().optional(),
         configurable: z.boolean().optional(),
         configurationRequired: z.boolean().optional(),
+        epgProvider: z.boolean().optional(),
       })
       .optional(),
     // not part of the manifest scheme, but needed for stremio-addons.net

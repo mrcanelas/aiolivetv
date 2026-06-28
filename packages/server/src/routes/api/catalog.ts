@@ -12,6 +12,8 @@ import {
   constants,
   UserRepository,
   mergeConfigs,
+  getChannelMatchConfidence,
+  isHighConfidenceChannelMatch,
 } from '@aiostreams/core';
 
 const router: Router = Router();
@@ -114,74 +116,173 @@ router.post(
       validatedUserData.channelMappings = undefined;
 
       const aio = await new AIOStreams(validatedUserData).initialise();
-      const channels = new Map<
-        string,
-        {
-          id: string;
-          name: string;
-          poster?: string | null;
-          enabled: boolean;
-          mappings: Array<{
-            addonId: string;
-            addonName: string;
-            count: number;
+      type Candidate = {
+        id: string;
+        name: string;
+        poster?: string | null;
+        addonId: string;
+        addonName: string;
+        epgProvider: boolean;
+        canStream: boolean;
+        tvgId?: string;
+        aliases?: string[];
+        country?: string;
+        language?: string;
+        categories?: string[];
+      };
+      type Channel = {
+        id: string;
+        name: string;
+        poster?: string | null;
+        canonicalAddonId: string;
+        enabled: boolean;
+        mappings: Array<
+          Candidate & {
+            channelId: string;
+            confidence: number;
             enabled: boolean;
-          }>;
-        }
-      >();
+          }
+        >;
+      };
+      const candidates = new Map<string, Candidate>();
 
       for (const catalog of aio
         .getCatalogs()
         .filter((item) => item.type === constants.CHANNEL_TYPE)) {
+        const addonId = catalog.id.split('.', 1)[0];
+        const addon = aio.getAddon(addonId);
+        const manifest = aio.getManifest(addonId);
+        if (!addon || !manifest) continue;
+        const supportsStream = manifest.resources.some((resource) =>
+          typeof resource === 'string'
+            ? resource === 'stream'
+            : resource.name === 'stream'
+        );
+        const canStream =
+          supportsStream &&
+          (!addon.resources?.length || addon.resources.includes('stream'));
         const response = await aio.getCatalog(catalog.type, catalog.id);
         for (const item of response.data) {
-          if (channels.has(item.id)) continue;
-          const configured = configuredMappings.find(
-            (channel) => channel.id === item.id
-          );
-          channels.set(item.id, {
+          const key = `${addonId}\0${item.id}`;
+          if (candidates.has(key)) continue;
+          candidates.set(key, {
             id: item.id,
             name: item.name ?? item.id,
             poster: item.poster,
-            enabled: configured?.enabled !== false,
-            mappings: [],
+            addonId,
+            addonName: addon.name,
+            epgProvider: manifest.behaviorHints?.epgProvider === true,
+            canStream,
+            tvgId: typeof item.tvgId === 'string' ? item.tvgId : undefined,
+            aliases: Array.isArray(item.aliases) ? item.aliases : undefined,
+            country:
+              typeof item.country === 'string' ? item.country : undefined,
+            language:
+              typeof item.language === 'string' ? item.language : undefined,
+            categories: Array.isArray(item.genres) ? item.genres : undefined,
           });
         }
       }
 
-      // ponytail: sequential requests keep the shared AIOStreams context safe;
-      // isolate contexts in a worker pool only if large guides prove too slow.
-      for (const channel of channels.values()) {
-        const response = await aio.getStreams(
-          channel.id,
-          constants.CHANNEL_TYPE
-        );
-        const grouped = new Map<string, { name: string; count: number }>();
-        for (const stream of response.data.streams) {
-          const addonId = stream.addon.instanceId!;
-          const current = grouped.get(addonId);
-          grouped.set(addonId, {
-            name: stream.addon.name,
-            count: (current?.count ?? 0) + 1,
-          });
+      const channels: Channel[] = [];
+      const assigned = new Set<string>();
+      const addSource = (
+        channel: Channel,
+        candidate: Candidate,
+        confidence: number,
+        enabled = true
+      ) => {
+        channel.mappings.push({
+          ...candidate,
+          channelId: candidate.id,
+          confidence,
+          enabled,
+        });
+        assigned.add(`${candidate.addonId}\0${candidate.id}`);
+      };
+
+      for (const configured of configuredMappings) {
+        const sources =
+          configured.streams?.flatMap((source) => {
+            const candidate = source.channelId
+              ? candidates.get(`${source.addonId}\0${source.channelId}`)
+              : undefined;
+            return candidate ? [{ candidate, source }] : [];
+          }) ?? [];
+        if (!sources.length) continue;
+        const canonical =
+          sources.find(
+            ({ candidate }) =>
+              candidate.id === configured.id &&
+              (!configured.canonicalAddonId ||
+                candidate.addonId === configured.canonicalAddonId)
+          )?.candidate ?? sources[0].candidate;
+        const channel: Channel = {
+          id: canonical.id,
+          name: canonical.name,
+          poster: canonical.poster,
+          canonicalAddonId: canonical.addonId,
+          enabled: configured.enabled !== false,
+          mappings: [],
+        };
+        for (const { candidate, source } of sources) {
+          addSource(
+            channel,
+            candidate,
+            source.confidence ?? (candidate === canonical ? 1 : 0),
+            source.enabled !== false
+          );
         }
-        const configured = configuredMappings.find(
-          (item) => item.id === channel.id
-        );
-        channel.mappings = [...grouped.entries()].map(([addonId, mapping]) => ({
-          addonId,
-          addonName: mapping.name,
-          count: mapping.count,
-          enabled:
-            configured?.streams?.find((stream) => stream.addonId === addonId)
-              ?.enabled !== false,
-        }));
+        channels.push(channel);
+      }
+
+      // ponytail: O(n²) is adequate for configuration-time channel lists;
+      // index normalized fields only if real guides make this measurably slow.
+      for (const candidate of [...candidates.values()].sort(
+        (a, b) => Number(b.epgProvider) - Number(a.epgProvider)
+      )) {
+        if (assigned.has(`${candidate.addonId}\0${candidate.id}`)) continue;
+        let best: { channel: Channel; confidence: number } | undefined;
+        for (const channel of channels) {
+          if (
+            channel.mappings.some(
+              (mapping) => mapping.addonId === candidate.addonId
+            )
+          )
+            continue;
+          const canonical = channel.mappings.find(
+            (mapping) => mapping.addonId === channel.canonicalAddonId
+          )!;
+          const confidence = getChannelMatchConfidence(
+            { ...candidate, logo: candidate.poster ?? undefined },
+            { ...canonical, logo: canonical.poster ?? undefined }
+          );
+          if (
+            isHighConfidenceChannelMatch(confidence) &&
+            (!best || confidence > best.confidence)
+          )
+            best = { channel, confidence };
+        }
+        if (best) {
+          addSource(best.channel, candidate, best.confidence);
+        } else {
+          const channel: Channel = {
+            id: candidate.id,
+            name: candidate.name,
+            poster: candidate.poster,
+            canonicalAddonId: candidate.addonId,
+            enabled: true,
+            mappings: [],
+          };
+          addSource(channel, candidate, 1);
+          channels.push(channel);
+        }
       }
 
       res.status(200).json(
         createResponse({
           success: true,
-          data: [...channels.values()].sort((a, b) =>
+          data: channels.sort((a, b) =>
             a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
           ),
         })

@@ -69,6 +69,34 @@ router.get(
 );
 
 router.get(
+  '/m3u/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const metas = await new M3uAddon(
+        config(req.params.encodedConfig)
+      ).getCatalog();
+      res.json({ metas });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/m3u/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new M3uAddon(config(req.params.encodedConfig)).getMeta(
+        req.params.id
+      );
+      res.json({ meta });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
   '/m3u/:encodedConfig/stream/:type/:id.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {

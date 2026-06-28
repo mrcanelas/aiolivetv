@@ -19,7 +19,23 @@ class LiveTvStreamParser extends StreamParser {
   }
 }
 
-const sourceOptions = (name: string): Option[] => [
+const sourceOptions = (
+  name: string,
+  resources: ('catalog' | 'meta' | 'stream')[]
+): Option[] => [
+  {
+    id: 'resources',
+    name: 'Resources',
+    description: 'Choose what to use from this addon',
+    type: 'multi-select',
+    required: false,
+    showInSimpleMode: false,
+    default: resources,
+    options: resources.map((resource) => ({
+      label: constants.RESOURCE_LABELS[resource],
+      value: resource,
+    })),
+  },
   {
     id: 'name',
     name: 'Name',
@@ -64,7 +80,7 @@ function generateAddon(
     name: options.name || name,
     manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/${type}/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
     enabled: true,
-    resources,
+    resources: options.resources || resources,
     timeout: config.timeout,
     resultPassthrough: true,
     preset: { id: '', type, options },
@@ -84,7 +100,7 @@ export class XmltvPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION: 'Channel metadata and catalogs from an XMLTV guide.',
-      OPTIONS: sourceOptions('XMLTV'),
+      OPTIONS: sourceOptions('XMLTV', resources),
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,
       BUILTIN: true,
@@ -113,7 +129,11 @@ export class M3uPreset extends Preset {
   }
 
   static override get METADATA() {
-    const resources = [constants.STREAM_RESOURCE];
+    const resources = [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ];
     return {
       ID: 'm3u',
       NAME: 'M3U',
@@ -122,8 +142,8 @@ export class M3uPreset extends Preset {
       TIMEOUT: appConfig.presets.defaultTimeout,
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
-      DESCRIPTION: 'Live TV streams from an M3U playlist.',
-      OPTIONS: sourceOptions('M3U'),
+      DESCRIPTION: 'Live TV channels and streams from an M3U playlist.',
+      OPTIONS: sourceOptions('M3U', resources),
       SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: resources,
       BUILTIN: true,

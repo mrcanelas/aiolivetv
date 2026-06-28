@@ -1,11 +1,19 @@
 import React from 'react';
-import { BiRefresh, BiSearch } from 'react-icons/bi';
+import {
+  BiChevronDown,
+  BiChevronUp,
+  BiGitMerge,
+  BiRefresh,
+  BiSearch,
+  BiUnlink,
+} from 'react-icons/bi';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageControls } from '../shared/page-controls';
 import { PageWrapper } from '../shared/page-wrapper';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { LoadingSpinner } from '../ui/loading-spinner';
+import { Select } from '../ui/select';
 import { Switch } from '../ui/switch';
 import { TextInput } from '../ui/text-input';
 import { useUserData } from '@/context/userData';
@@ -14,6 +22,9 @@ import { fetchChannels, type ChannelInfo } from '@/lib/api';
 export function ChannelsMenu() {
   const { userData, setUserData } = useUserData();
   const [search, setSearch] = React.useState('');
+  const [mergeTargets, setMergeTargets] = React.useState<
+    Record<string, string>
+  >({});
   const queryClient = useQueryClient();
   const queryKey = [
     'channels',
@@ -29,27 +40,144 @@ export function ChannelsMenu() {
     staleTime: Infinity,
   });
   const channels = query.data ?? [];
-  const setChannels = (update: (channels: ChannelInfo[]) => ChannelInfo[]) =>
-    queryClient.setQueryData<ChannelInfo[]>(queryKey, (current) =>
-      update(current ?? [])
-    );
+  const persistChannels = React.useCallback(
+    (channels: ChannelInfo[]) => {
+      const channelMappings = channels.map((channel) => ({
+        id: channel.id,
+        canonicalAddonId: channel.canonicalAddonId,
+        enabled: channel.enabled,
+        streams: channel.mappings.map((mapping) => ({
+          addonId: mapping.addonId,
+          channelId: mapping.channelId,
+          confidence: mapping.confidence,
+          enabled: mapping.enabled,
+        })),
+      }));
+      setUserData((current) => {
+        if (
+          JSON.stringify(current.channelMappings ?? []) ===
+          JSON.stringify(channelMappings)
+        )
+          return current;
+        return { ...current, channelMappings };
+      });
+    },
+    [setUserData]
+  );
 
-  const updateMapping = (
-    channelId: string,
-    update: (
-      channel: NonNullable<typeof userData.channelMappings>[number]
-    ) => void
-  ) => {
-    setUserData((current) => {
-      const mappings = structuredClone(current.channelMappings ?? []);
-      let channel = mappings.find((item) => item.id === channelId);
-      if (!channel) {
-        channel = { id: channelId, streams: [] };
-        mappings.push(channel);
-      }
-      update(channel);
-      return { ...current, channelMappings: mappings };
+  const setChannels = (update: (channels: ChannelInfo[]) => ChannelInfo[]) => {
+    const channels = update(
+      queryClient.getQueryData<ChannelInfo[]>(queryKey) ?? []
+    );
+    queryClient.setQueryData(queryKey, channels);
+    persistChannels(channels);
+  };
+
+  React.useEffect(() => {
+    if (query.data) persistChannels(query.data);
+  }, [persistChannels, query.data]);
+
+  const moveMapping = (channelId: string, index: number, direction: -1 | 1) => {
+    setChannels((current) =>
+      current.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        const target = index + direction;
+        if (target < 0 || target >= channel.mappings.length) return channel;
+        const mappings = [...channel.mappings];
+        [mappings[index], mappings[target]] = [
+          mappings[target],
+          mappings[index],
+        ];
+        return { ...channel, mappings };
+      })
+    );
+  };
+
+  const splitMapping = (channelId: string, addonId: string) => {
+    setChannels((current) => {
+      const channel = current.find((item) => item.id === channelId);
+      const mapping = channel?.mappings.find(
+        (item) => item.addonId === addonId
+      );
+      if (!channel || !mapping || channel.mappings.length === 1) return current;
+      return [
+        ...current.map((item) =>
+          item.id === channelId
+            ? {
+                ...item,
+                mappings: item.mappings.filter(
+                  (candidate) => candidate.addonId !== addonId
+                ),
+              }
+            : item
+        ),
+        {
+          id: mapping.channelId,
+          name: mapping.name,
+          poster: mapping.poster,
+          canonicalAddonId: mapping.addonId,
+          enabled: true,
+          mappings: [{ ...mapping, confidence: 1 }],
+        },
+      ].sort((a, b) => a.name.localeCompare(b.name));
     });
+  };
+
+  const mergeChannel = (channelId: string) => {
+    const targetId = mergeTargets[channelId];
+    if (!targetId) return;
+    setChannels((current) => {
+      const target = current.find((item) => item.id === targetId);
+      if (!target) return current;
+      return current
+        .filter((item) => item.id !== targetId)
+        .map((item) =>
+          item.id === channelId
+            ? {
+                ...item,
+                mappings: [
+                  ...item.mappings,
+                  ...target.mappings.map((mapping) => ({
+                    ...mapping,
+                    confidence: 0,
+                  })),
+                ],
+              }
+            : item
+        );
+    });
+    setMergeTargets((current) => ({ ...current, [channelId]: '' }));
+  };
+
+  const setCanonical = (channelId: string, addonId: string) => {
+    setChannels((current) =>
+      current.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        const mapping = channel.mappings.find(
+          (candidate) => candidate.addonId === addonId
+        );
+        return mapping
+          ? {
+              ...channel,
+              id: mapping.channelId,
+              name: mapping.name,
+              poster: mapping.poster,
+              canonicalAddonId: mapping.addonId,
+            }
+          : channel;
+      })
+    );
+  };
+
+  const updateChannel = (
+    channelId: string,
+    update: (channel: ChannelInfo) => ChannelInfo
+  ) => {
+    setChannels((current) =>
+      current.map((channel) =>
+        channel.id === channelId ? update(channel) : channel
+      )
+    );
   };
 
   const visibleChannels = channels.filter((channel) =>
@@ -100,7 +228,7 @@ export function ChannelsMenu() {
       ) : visibleChannels.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center text-[--muted]">
-            Add an XMLTV metadata source and an M3U stream source on the Addons
+            Add a Live TV addon, XMLTV guide, or M3U playlist on the Addons
             page.
           </CardContent>
         </Card>
@@ -121,7 +249,7 @@ export function ChannelsMenu() {
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate font-semibold">{channel.name}</h3>
                       <p className="text-xs text-[--muted]">
-                        {channel.mappings.length} mapping
+                        {channel.mappings.length} source
                         {channel.mappings.length === 1 ? '' : 's'}
                       </p>
                     </div>
@@ -129,63 +257,140 @@ export function ChannelsMenu() {
                       aria-label={`Enable ${channel.name}`}
                       value={channel.enabled}
                       onValueChange={(enabled) => {
-                        setChannels((current) =>
-                          current.map((item) =>
-                            item.id === channel.id ? { ...item, enabled } : item
-                          )
-                        );
-                        updateMapping(channel.id, (item) => {
-                          item.enabled = enabled;
-                        });
+                        updateChannel(channel.id, (item) => ({
+                          ...item,
+                          enabled,
+                        }));
                       }}
                     />
                   </div>
 
-                  {channel.mappings.map((mapping) => (
+                  {channels.length > 1 ? (
+                    <div className="flex items-end gap-2">
+                      <div className="min-w-0 flex-1">
+                        <Select
+                          label="Manual mapping"
+                          placeholder="Select a channel"
+                          value={mergeTargets[channel.id]}
+                          onValueChange={(value) =>
+                            setMergeTargets((current) => ({
+                              ...current,
+                              [channel.id]: String(value ?? ''),
+                            }))
+                          }
+                          options={channels
+                            .filter(
+                              (candidate) =>
+                                candidate.id !== channel.id &&
+                                !candidate.mappings.some((mapping) =>
+                                  channel.mappings.some(
+                                    (source) =>
+                                      source.addonId === mapping.addonId
+                                  )
+                                )
+                            )
+                            .map((candidate) => ({
+                              value: candidate.id,
+                              label: candidate.name,
+                            }))}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        leftIcon={<BiGitMerge />}
+                        disabled={!mergeTargets[channel.id]}
+                        onClick={() => mergeChannel(channel.id)}
+                      >
+                        Merge
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {channel.mappings.map((mapping, index) => (
                     <div
-                      key={mapping.addonId}
+                      key={`${mapping.addonId}:${mapping.channelId}`}
                       className="flex items-center gap-3 rounded border border-[--border] p-3"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm">{mapping.addonName}</p>
+                        <p className="truncate text-sm">
+                          {mapping.addonName}
+                          {mapping.addonId === channel.canonicalAddonId ? (
+                            <span className="ml-2 text-xs text-blue-400">
+                              Canonical
+                            </span>
+                          ) : null}
+                          {mapping.epgProvider ? (
+                            <span className="ml-2 text-xs text-emerald-400">
+                              EPG
+                            </span>
+                          ) : null}
+                        </p>
                         <p className="text-xs text-[--muted]">
-                          {mapping.count} stream{mapping.count === 1 ? '' : 's'}
+                          {mapping.name} ·{' '}
+                          {mapping.confidence === 0
+                            ? 'manual'
+                            : `${Math.round(mapping.confidence * 100)}% match`}
+                          {mapping.canStream ? ' · streams' : ''}
                         </p>
                       </div>
-                      <Switch
-                        aria-label={`Enable ${mapping.addonName} for ${channel.name}`}
-                        value={mapping.enabled}
-                        disabled={!channel.enabled}
-                        onValueChange={(enabled) => {
-                          setChannels((current) =>
-                            current.map((item) =>
-                              item.id !== channel.id
-                                ? item
-                                : {
-                                    ...item,
-                                    mappings: item.mappings.map((candidate) =>
-                                      candidate.addonId === mapping.addonId
-                                        ? { ...candidate, enabled }
-                                        : candidate
-                                    ),
-                                  }
-                            )
-                          );
-                          updateMapping(channel.id, (item) => {
-                            item.streams ??= [];
-                            const stream = item.streams.find(
-                              (candidate) =>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          aria-label={`Move ${mapping.addonName} up`}
+                          disabled={index === 0}
+                          onClick={() => moveMapping(channel.id, index, -1)}
+                        >
+                          <BiChevronUp />
+                        </Button>
+                        <Button
+                          size="sm"
+                          aria-label={`Move ${mapping.addonName} down`}
+                          disabled={index === channel.mappings.length - 1}
+                          onClick={() => moveMapping(channel.id, index, 1)}
+                        >
+                          <BiChevronDown />
+                        </Button>
+                        {mapping.addonId !== channel.canonicalAddonId ? (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              setCanonical(channel.id, mapping.addonId)
+                            }
+                          >
+                            Canonical
+                          </Button>
+                        ) : null}
+                        {channel.mappings.length > 1 &&
+                        mapping.addonId !== channel.canonicalAddonId ? (
+                          <Button
+                            size="sm"
+                            aria-label={`Reject mapping from ${mapping.addonName}`}
+                            leftIcon={<BiUnlink />}
+                            onClick={() =>
+                              splitMapping(channel.id, mapping.addonId)
+                            }
+                          >
+                            Split
+                          </Button>
+                        ) : null}
+                      </div>
+                      {mapping.canStream ? (
+                        <Switch
+                          aria-label={`Enable ${mapping.addonName} for ${channel.name}`}
+                          value={mapping.enabled}
+                          disabled={!channel.enabled}
+                          onValueChange={(enabled) => {
+                            updateChannel(channel.id, (item) => ({
+                              ...item,
+                              mappings: item.mappings.map((candidate) =>
                                 candidate.addonId === mapping.addonId
-                            );
-                            if (stream) stream.enabled = enabled;
-                            else
-                              item.streams.push({
-                                addonId: mapping.addonId,
-                                enabled,
-                              });
-                          });
-                        }}
-                      />
+                                  ? { ...candidate, enabled }
+                                  : candidate
+                              ),
+                            }));
+                          }}
+                        />
+                      ) : null}
                     </div>
                   ))}
                 </div>

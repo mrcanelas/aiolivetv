@@ -44,7 +44,11 @@ import {
   type AnalyticsServiceBreakdown,
 } from '../analytics/index.js';
 import type { AddonDispositionMap } from '../streams/fetcher.js';
-import { getChannelMapping, isChannelAddonEnabled } from './channelMappings.js';
+import {
+  getCanonicalChannelId,
+  getChannelMapping,
+  isChannelAddonEnabled,
+} from './channelMappings.js';
 
 const logger = createLogger('core');
 
@@ -608,14 +612,31 @@ export async function getStreams(
   const statistics: { title: string; description: string; forced?: boolean }[] =
     [];
 
+  const channelId =
+    type === constants.CHANNEL_TYPE ? getCanonicalChannelId(id) : id;
   const channelMapping =
     type === constants.CHANNEL_TYPE
-      ? getChannelMapping(ctx.userData, id)
+      ? getChannelMapping(ctx.userData, channelId)
       : undefined;
-  let supportedAddons = getAddonsForResource(ctx, 'stream', type, id);
+  let supportedAddons =
+    channelMapping?.streams?.flatMap((source) => {
+      const mappedId = source.channelId ?? channelId;
+      const addon = getAddonsForResource(ctx, 'stream', type, mappedId).find(
+        (candidate) => candidate.instanceId === source.addonId
+      );
+      return addon ? [addon] : [];
+    }) ?? getAddonsForResource(ctx, 'stream', type, channelId);
   if (channelMapping?.streams) {
     supportedAddons = supportedAddons.filter((addon) =>
-      isChannelAddonEnabled(ctx.userData, id, addon.instanceId!)
+      isChannelAddonEnabled(ctx.userData, channelId, addon.instanceId!)
+    );
+    const priority = new Map(
+      channelMapping.streams.map((stream, index) => [stream.addonId, index])
+    );
+    supportedAddons.sort(
+      (a, b) =>
+        (priority.get(a.instanceId!) ?? Number.MAX_SAFE_INTEGER) -
+        (priority.get(b.instanceId!) ?? Number.MAX_SAFE_INTEGER)
     );
   }
 
@@ -627,7 +648,7 @@ export async function getStreams(
     'found addons for stream resource'
   );
 
-  const context = StreamContext.create(type, id, ctx.userData);
+  const context = StreamContext.create(type, channelId, ctx.userData);
   ctx.streamContext = context;
 
   if (channelMapping?.enabled === false) {
@@ -642,12 +663,23 @@ export async function getStreams(
   ctx.precomputer.resetPrecomputeTimings();
 
   const fetchStart = Date.now();
+  const channelAddonIds =
+    type === constants.CHANNEL_TYPE
+      ? new Map(
+          supportedAddons.map((addon) => [
+            addon.instanceId!,
+            channelMapping?.streams?.find(
+              (stream) => stream.addonId === addon.instanceId
+            )?.channelId ?? channelId,
+          ])
+        )
+      : undefined;
   const {
     streams,
     errors,
     statistics: addonStatistics,
     dispositions,
-  } = await ctx.fetcher.fetch(supportedAddons, context);
+  } = await ctx.fetcher.fetch(supportedAddons, context, channelAddonIds);
   const fetchMs = Date.now() - fetchStart;
 
   if (
@@ -882,12 +914,33 @@ export async function getMeta(
 
   if (
     type === constants.CHANNEL_TYPE &&
-    getChannelMapping(ctx.userData, id)?.enabled === false
+    getChannelMapping(ctx.userData, getCanonicalChannelId(id))?.enabled ===
+      false
   ) {
     return { success: false, data: null, errors: [] };
   }
 
-  const candidates = getMetaCandidates(ctx, type, id);
+  const channelId =
+    type === constants.CHANNEL_TYPE ? getCanonicalChannelId(id) : id;
+  const channelMapping =
+    type === constants.CHANNEL_TYPE
+      ? getChannelMapping(ctx.userData, channelId)
+      : undefined;
+  const candidates = (
+    channelMapping?.streams
+      ? channelMapping.streams.flatMap((source) =>
+          getMetaCandidates(ctx, type, source.channelId ?? channelId).filter(
+            (candidate) => candidate.instanceId === source.addonId
+          )
+        )
+      : getMetaCandidates(ctx, type, channelId)
+  ).sort((a, b) =>
+    a.instanceId === channelMapping?.canonicalAddonId
+      ? -1
+      : b.instanceId === channelMapping?.canonicalAddonId
+        ? 1
+        : 0
+  );
 
   if (candidates.length === 0) {
     logger.warn({ type, id }, 'no supported addon found for meta request');
@@ -906,7 +959,19 @@ export async function getMeta(
       'trying addon for meta resource'
     );
     try {
-      const meta = await new Wrapper(candidate.addon).getMeta(type, id);
+      const mappedId =
+        channelMapping?.streams?.find(
+          (stream) => stream.addonId === candidate.instanceId
+        )?.channelId ?? channelId;
+      const meta = await new Wrapper(candidate.addon).getMeta(type, mappedId);
+      if (type === constants.CHANNEL_TYPE) {
+        meta.id = channelId;
+        meta.videos = meta.videos?.map((video) =>
+          video.startTime
+            ? { ...video, id: `${channelId}:epg:${video.startTime}` }
+            : video
+        );
+      }
       logger.debug(
         { addon: candidate.addon.name, instanceId: candidate.instanceId },
         'successfully got meta from addon'

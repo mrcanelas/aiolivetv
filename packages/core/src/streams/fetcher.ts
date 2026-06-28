@@ -63,7 +63,8 @@ class StreamFetcher {
 
   public async fetch(
     addons: Addon[],
-    context: StreamContext
+    context: StreamContext,
+    addonIds?: Map<string, string>
   ): Promise<{
     streams: ParsedStream[];
     errors: {
@@ -134,7 +135,10 @@ class StreamFetcher {
       const start = Date.now();
 
       try {
-        const streams = await new Wrapper(addon).getStreams(type, id);
+        const streams = await new Wrapper(addon).getStreams(
+          type,
+          addonIds?.get(addon.instanceId!) ?? id
+        );
         const errorStreams = streams.filter(
           (s) => s.type === constants.ERROR_STREAM_TYPE
         );
