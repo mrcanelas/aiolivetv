@@ -37,7 +37,7 @@ describe('live TV sources', () => {
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
       text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><date>20260627</date><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     const addon = new XmltvAddon({
       sourceUrl: 'https://example.com/guide.xml',
@@ -50,13 +50,34 @@ describe('live TV sources', () => {
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
       text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><date>20260627</date><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     const meta = await addon.getMeta(encodeChannelId('bbc.one'));
     expect(meta.videos?.[0]).toMatchObject({
       title: 'News',
+      subtitle: 'Evening',
+      overview: 'Latest news',
+      thumbnail: 'https://example.com/news.jpg',
       startTime: '2026-06-28T12:00:00.000Z',
       endTime: '2026-06-28T13:00:00.000Z',
+      released: '2026-06-27T00:00:00.000Z',
+      releaseInfo: '2026',
+      runtime: '60 min',
+      genres: ['News'],
+      cast: ['Jane Doe'],
+      directors: ['John Doe'],
+      links: [
+        {
+          category: 'Genres',
+          name: 'News',
+          url: 'stremio:///search?search=News',
+        },
+        {
+          category: 'Cast',
+          name: 'Jane Doe',
+          url: 'stremio:///search?search=Jane%20Doe',
+        },
+      ],
     });
   });
 

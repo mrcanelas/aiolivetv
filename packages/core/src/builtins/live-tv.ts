@@ -33,11 +33,16 @@ export interface XmltvChannel {
 interface XmltvProgram {
   channelId: string;
   title: string;
+  subtitle?: string;
   startTime: string;
   endTime: string;
+  released?: string;
+  runtime?: string;
   description?: string;
   thumbnail?: string;
   categories?: string[];
+  cast?: string[];
+  directors?: string[];
 }
 
 interface XmltvData {
@@ -66,8 +71,17 @@ export function decodeChannelId(id: string): string {
   return fromUrlSafeBase64(id.slice(CHANNEL_ID_PREFIX.length));
 }
 
-function value(value: unknown): string | undefined {
-  return typeof value === 'string' ? value.trim() || undefined : undefined;
+function value(input: unknown): string | undefined {
+  if (typeof input === 'string') return input.trim() || undefined;
+  if (input && typeof input === 'object' && '_' in input)
+    return value((input as { _: unknown })._);
+  return undefined;
+}
+
+function values(input: unknown): string[] {
+  return (Array.isArray(input) ? input : input ? [input] : [])
+    .map(value)
+    .filter((entry): entry is string => Boolean(entry));
 }
 
 function parseXmltvDate(input: unknown): string | undefined {
@@ -92,6 +106,49 @@ function parseXmltvDate(input: unknown): string | undefined {
   }
   const date = new Date(timestamp);
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function parseProgramDate(input: unknown): string | undefined {
+  const raw = value(input);
+  if (!raw) return undefined;
+  const compact = raw.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compact) {
+    const year = Number(compact[1]);
+    const month = Number(compact[2]) - 1;
+    const day = Number(compact[3]);
+    const date = new Date(Date.UTC(year, month, day));
+    return date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month &&
+      date.getUTCDate() === day
+      ? date.toISOString()
+      : undefined;
+  }
+  const timestamp = Date.parse(raw);
+  return Number.isNaN(timestamp)
+    ? undefined
+    : new Date(timestamp).toISOString();
+}
+
+function programLinks(genres: string[] = [], cast: string[] = []) {
+  return [
+    ...genres.map((name) => ({
+      category: 'Genres',
+      name,
+      url: `stremio:///search?search=${encodeURIComponent(name)}`,
+    })),
+    ...cast.map((name) => ({
+      category: 'Cast',
+      name,
+      url: `stremio:///search?search=${encodeURIComponent(name)}`,
+    })),
+  ];
+}
+
+function programRuntime(startTime: string, endTime: string) {
+  const minutes = Math.round(
+    (Date.parse(endTime) - Date.parse(startTime)) / 60_000
+  );
+  return minutes > 0 ? `${minutes} min` : undefined;
 }
 
 async function parseXmltvData(xml: string): Promise<XmltvData> {
@@ -144,15 +201,18 @@ async function parseXmltvData(xml: string): Promise<XmltvData> {
       return {
         channelId,
         title,
+        subtitle: value(
+          program?.['sub-title']?.[0]?._ ?? program?.['sub-title']?.[0]
+        ),
         startTime,
         endTime,
+        released: parseProgramDate(program?.date?.[0]),
+        runtime: programRuntime(startTime, endTime),
         description: value(program?.desc?.[0]?._ ?? program?.desc?.[0]),
         thumbnail: value(program?.icon?.[0]?.$?.src),
-        categories: (program?.category ?? [])
-          .map((entry: any) => value(entry?._ ?? entry))
-          .filter((entry: string | undefined): entry is string =>
-            Boolean(entry)
-          ),
+        categories: values(program?.category),
+        cast: values(program?.credits?.[0]?.actor),
+        directors: values(program?.credits?.[0]?.director),
       };
     })
     .filter((program: XmltvProgram | undefined): program is XmltvProgram =>
@@ -320,13 +380,20 @@ export class XmltvAddon {
         .map((program) => ({
           id: `${id.split(':epg:', 1)[0]}:epg:${program.startTime}`,
           title: program.title,
+          subtitle: program.subtitle,
           overview: program.description,
           thumbnail: program.thumbnail,
           genres: program.categories,
-          released: program.startTime,
+          cast: program.cast,
+          directors: program.directors,
+          links: programLinks(program.categories, program.cast),
+          released: program.released,
+          releaseInfo: program.released?.slice(0, 4),
+          runtime: program.runtime,
           startTime: program.startTime,
           endTime: program.endTime,
-        })),
+        }))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
     };
   }
 }
