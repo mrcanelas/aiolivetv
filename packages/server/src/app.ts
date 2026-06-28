@@ -43,6 +43,7 @@ import {
   seadex,
   easynews,
   library,
+  liveTv,
 } from './routes/builtins/index.js';
 import {
   ipMiddleware,
@@ -192,6 +193,7 @@ builtinsRouter.use('/torrent-galaxy', torrentGalaxy);
 builtinsRouter.use('/seadex', seadex);
 builtinsRouter.use('/easynews', easynews);
 builtinsRouter.use('/library', library);
+builtinsRouter.use('/live-tv', liveTv);
 app.use('/builtins', builtinsRouter);
 
 // Content-hashed build assets. These filenames change on every content

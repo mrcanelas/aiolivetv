@@ -33,6 +33,9 @@ export {
   LibraryAddon,
   preWarmLibraryCaches,
   refreshLibraryCacheForService,
+  M3uAddon,
+  XmltvAddon,
+  type LiveTvSourceConfig,
 } from './builtins/index.js';
 export { PresetManager } from './presets/index.js';
 export {

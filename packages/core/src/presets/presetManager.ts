@@ -79,8 +79,11 @@ import { StreamNZBPreset } from './streamnzb.js';
 import { HdHubPreset } from './hdhub.js';
 import { BaguettioPreset } from './baguettio.js';
 import { Preset } from './index.js';
+import { M3uPreset, XmltvPreset } from './liveTv.js';
 
 let PRESET_LIST: string[] = [
+  'm3u',
+  'xmltv',
   'custom',
   'torznab',
   'newznab',
@@ -181,6 +184,10 @@ export class PresetManager {
 
   static fromId(id: string): typeof Preset {
     switch (id) {
+      case 'm3u':
+        return M3uPreset;
+      case 'xmltv':
+        return XmltvPreset;
       case 'torrentio':
         return TorrentioPreset;
       case 'stremthruStore':
