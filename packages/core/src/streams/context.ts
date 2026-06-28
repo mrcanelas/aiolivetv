@@ -468,6 +468,7 @@ export class StreamContext {
    * Call this when starting addon fetches to maximize parallelism.
    */
   public startAllFetches(): void {
+    if (this.type === 'channel') return;
     this.startMetadataFetch();
     this.startSeaDexFetch();
     this.startReleaseDatesFetch();

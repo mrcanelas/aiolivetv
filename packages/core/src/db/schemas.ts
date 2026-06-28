@@ -391,6 +391,19 @@ const CatalogModification = z.object({
 
 export type CatalogModification = z.infer<typeof CatalogModification>;
 
+const ChannelMapping = z.object({
+  id: z.string().min(1),
+  enabled: z.boolean().optional(),
+  streams: z
+    .array(
+      z.object({
+        addonId: z.string().min(1),
+        enabled: z.boolean().optional(),
+      })
+    )
+    .optional(),
+});
+
 const MergedCatalog = z.object({
   id: z.string().min(1), // unique id for the merged catalog
   name: z.string().min(1), // name of the merged catalog
@@ -784,6 +797,7 @@ export const UserDataSchema = z.object({
   presets: PresetList,
   addonCategoryColors: z.record(z.string(), z.string()).optional(), // maps custom category name → colour key
   catalogModifications: z.array(CatalogModification).optional(),
+  channelMappings: z.array(ChannelMapping).optional(),
   mergedCatalogs: z.array(MergedCatalog).optional(),
   externalDownloads: z.boolean().optional(),
   cacheAndPlay: CacheAndPlaySchema.optional(),

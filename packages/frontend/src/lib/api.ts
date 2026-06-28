@@ -242,6 +242,19 @@ interface CatalogInfo {
   addonName: string;
 }
 
+export interface ChannelInfo {
+  id: string;
+  name: string;
+  poster?: string | null;
+  enabled: boolean;
+  mappings: Array<{
+    addonId: string;
+    addonName: string;
+    count: number;
+    enabled: boolean;
+  }>;
+}
+
 interface GDriveTokenResponse {
   accessToken: string;
   refreshToken: string;
@@ -412,6 +425,12 @@ export async function getFormattedStream(stream: ParsedStream, context?: any) {
  */
 export async function fetchCatalogs(userData: UserData) {
   return api<CatalogInfo[]>('POST /catalogs', {
+    body: { userData },
+  });
+}
+
+export async function fetchChannels(userData: UserData) {
+  return api<ChannelInfo[]>('POST /catalogs/channels', {
     body: { userData },
   });
 }

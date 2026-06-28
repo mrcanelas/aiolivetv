@@ -24,6 +24,7 @@ import {
   BiSearch,
   BiGridAlt,
   BiBarChartAlt2,
+  BiTv,
 } from 'react-icons/bi';
 import { useCommandPalette } from '@/context/command-palette';
 import { useRegisterQuickAction } from '@/context/quick-actions';
@@ -154,6 +155,12 @@ export function MainSidebar() {
       iconType: BiExtension,
       isCurrent: selectedMenu === 'addons',
       id: 'addons',
+    },
+    {
+      name: 'Channels',
+      iconType: BiTv,
+      isCurrent: selectedMenu === 'channels',
+      id: 'channels',
     },
     {
       name: 'Filters',

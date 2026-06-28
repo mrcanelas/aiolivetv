@@ -4,6 +4,7 @@ import {
   ExtrasParser,
   getSimpleTextHash,
   maskSensitiveInfo,
+  constants,
 } from '../utils/index.js';
 import { Wrapper } from './wrapper.js';
 import { createPosterService } from '../poster/index.js';
@@ -751,5 +752,17 @@ export async function getCatalog(
     shuffleCacheKey
   );
 
-  return { success: true, data: catalog, errors: [] };
+  const channelMappings = new Map(
+    ctx.userData.channelMappings?.map((channel) => [channel.id, channel]) ?? []
+  );
+  return {
+    success: true,
+    data:
+      type === constants.CHANNEL_TYPE
+        ? catalog.filter(
+            (item) => channelMappings.get(item.id)?.enabled !== false
+          )
+        : catalog,
+    errors: [],
+  };
 }

@@ -82,6 +82,7 @@ const MENU_LABELS: Record<MenuId, string> = {
   about: 'About',
   services: 'Services',
   addons: 'Addons',
+  channels: 'Channels',
   filters: 'Filters',
   sorting: 'Sorting',
   stats: 'Stats',

@@ -9,6 +9,7 @@ import { SaveInstallMenu } from './menu/save-install';
 import { FormatterMenu } from './menu/formatter';
 import { ProxyMenu } from './menu/proxy';
 import { StatsMenu } from './menu/stats';
+import { ChannelsMenu } from './menu/channels';
 
 export function MenuContent() {
   const { selectedMenu } = useMenu();
@@ -20,6 +21,8 @@ export function MenuContent() {
       return <ServicesMenu />;
     case 'addons':
       return <AddonsMenu />;
+    case 'channels':
+      return <ChannelsMenu />;
     case 'filters':
       return <FiltersMenu />;
     case 'sorting':

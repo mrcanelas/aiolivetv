@@ -44,6 +44,7 @@ import {
   type AnalyticsServiceBreakdown,
 } from '../analytics/index.js';
 import type { AddonDispositionMap } from '../streams/fetcher.js';
+import { getChannelMapping, isChannelAddonEnabled } from './channelMappings.js';
 
 const logger = createLogger('core');
 
@@ -607,7 +608,16 @@ export async function getStreams(
   const statistics: { title: string; description: string; forced?: boolean }[] =
     [];
 
-  const supportedAddons = getAddonsForResource(ctx, 'stream', type, id);
+  const channelMapping =
+    type === constants.CHANNEL_TYPE
+      ? getChannelMapping(ctx.userData, id)
+      : undefined;
+  let supportedAddons = getAddonsForResource(ctx, 'stream', type, id);
+  if (channelMapping?.streams) {
+    supportedAddons = supportedAddons.filter((addon) =>
+      isChannelAddonEnabled(ctx.userData, id, addon.instanceId!)
+    );
+  }
 
   logger.debug(
     {
@@ -619,6 +629,14 @@ export async function getStreams(
 
   const context = StreamContext.create(type, id, ctx.userData);
   ctx.streamContext = context;
+
+  if (channelMapping?.enabled === false) {
+    return {
+      success: true,
+      data: { streams: [], statistics: [] },
+      errors: [],
+    };
+  }
 
   ctx.filterer.resetFilterTimings();
   ctx.precomputer.resetPrecomputeTimings();
@@ -861,6 +879,13 @@ export async function getMeta(
   id: string
 ): Promise<AIOStreamsResponse<ParsedMeta | null>> {
   logger.debug({ type, id }, 'handling meta request');
+
+  if (
+    type === constants.CHANNEL_TYPE &&
+    getChannelMapping(ctx.userData, id)?.enabled === false
+  ) {
+    return { success: false, data: null, errors: [] };
+  }
 
   const candidates = getMetaCandidates(ctx, type, id);
 
