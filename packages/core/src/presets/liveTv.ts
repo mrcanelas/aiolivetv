@@ -123,6 +123,107 @@ export class XmltvPreset extends Preset {
   }
 }
 
+function generateVivoAddon(
+  options: Record<string, any>
+): Addon {
+  const config = {
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    days: options.days ?? 3,
+  };
+  return {
+    name: options.name || 'Vivo TV',
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/vivo-tv/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    enabled: true,
+    resources: options.resources || [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+    ],
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: 'vivo-tv', options },
+    headers: { 'User-Agent': appConfig.http.defaultUserAgent },
+  };
+}
+
+function vivoTvOptions(
+  resources: ('catalog' | 'meta')[]
+): Option[] {
+  return [
+    {
+      id: 'resources',
+      name: 'Resources',
+      description: 'Choose what to use from this addon',
+      type: 'multi-select',
+      required: false,
+      showInSimpleMode: false,
+      default: resources,
+      options: resources.map((resource) => ({
+        label: constants.RESOURCE_LABELS[resource],
+        value: resource,
+      })),
+    },
+    {
+      id: 'name',
+      name: 'Name',
+      description: 'What to call this addon',
+      type: 'string',
+      required: true,
+      default: 'Vivo TV',
+    },
+    {
+      id: 'days',
+      name: 'EPG days',
+      description: 'How many days of programming to fetch per channel',
+      type: 'number',
+      required: true,
+      default: 3,
+      constraints: { min: 1, max: 7, forceInUi: false },
+    },
+    {
+      id: 'timeout',
+      name: 'Timeout (ms)',
+      description: 'Timeout for API requests',
+      type: 'number',
+      required: true,
+      default: appConfig.presets.defaultTimeout,
+      constraints: {
+        min: appConfig.userLimits.timeouts.minTimeout,
+        max: appConfig.userLimits.timeouts.maxTimeout,
+        forceInUi: false,
+      },
+    },
+  ];
+}
+
+export class VivoTvPreset extends Preset {
+  static override get METADATA() {
+    const resources = [constants.CATALOG_RESOURCE, constants.META_RESOURCE];
+    return {
+      ID: 'vivo-tv',
+      NAME: 'Vivo TV',
+      LOGO: '/assets/vivotv_logo.png',
+      URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/vivo-tv`],
+      TIMEOUT: appConfig.presets.defaultTimeout,
+      USER_AGENT: appConfig.http.defaultUserAgent,
+      SUPPORTED_SERVICES: [],
+      DESCRIPTION:
+        'Canais e programação EPG da Vivo Play via API Telefónica Brasil.',
+      OPTIONS: vivoTvOptions(resources),
+      SUPPORTED_STREAM_TYPES: [],
+      SUPPORTED_RESOURCES: resources,
+      BUILTIN: true,
+      CATEGORY: constants.PresetCategory.META_CATALOGS,
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    return [generateVivoAddon(options)];
+  }
+}
+
 export class M3uPreset extends Preset {
   static override getParser(): typeof StreamParser {
     return LiveTvStreamParser;

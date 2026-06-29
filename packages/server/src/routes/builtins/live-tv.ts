@@ -8,7 +8,9 @@ import {
   fromUrlSafeBase64,
   M3uAddon,
   XmltvAddon,
+  VivoTvAddon,
   type LiveTvSourceConfig,
+  type VivoTvConfig,
 } from '@aiostreams/core';
 
 const router: Router = Router();
@@ -24,6 +26,10 @@ function config(encodedConfig: string): LiveTvSourceConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
+function vivoConfig(encodedConfig: string): VivoTvConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
 function skip(extras?: string) {
   return Math.max(
     0,
@@ -33,13 +39,14 @@ function skip(extras?: string) {
 
 router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
   try {
-    const sourceConfig = config(req.params.encodedConfig);
     const addon =
       req.params.source === 'xmltv'
-        ? new XmltvAddon(sourceConfig)
+        ? new XmltvAddon(config(req.params.encodedConfig))
         : req.params.source === 'm3u'
-          ? new M3uAddon(sourceConfig)
-          : undefined;
+          ? new M3uAddon(config(req.params.encodedConfig))
+          : req.params.source === 'vivo-tv'
+            ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
+            : undefined;
     if (!addon) throw new Error(`Unsupported source: ${req.params.source}`);
     res.json(addon.getManifest());
   } catch (error) {
@@ -131,6 +138,44 @@ router.get(
         config(req.params.encodedConfig)
       ).getStreams(req.params.id);
       res.json({ streams });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/vivo-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const metas = await new VivoTvAddon(
+        vivoConfig(req.params.encodedConfig)
+      ).getCatalog(skip(req.params.extras));
+      res.json({
+        metas,
+        cacheMaxAge: 300,
+        staleRevalidate: 1800,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/vivo-tv/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new VivoTvAddon(
+        vivoConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
     } catch (error) {
       next(error);
     }
