@@ -3,6 +3,7 @@ import * as constants from '../../../../../core/src/utils/constants';
 import { ParsedStream } from '../../../../../core/src/db/schemas';
 import FileParser from '../../../../../core/src/parser/file';
 import { mergeParsedFiles } from '../../../../../core/src/parser/merge';
+import { parseDeclaredStreamInfo } from '../../../../../core/src/streams/declared';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../shared/settings-card';
 import { TextInput } from '../../ui/text-input';
@@ -74,6 +75,7 @@ export function FormatterPreview() {
   const [filename, setFilename] = useState(
     'Movie.Title.2023.2160p.BluRay.HEVC.DV.TrueHD.Atmos.7.1.iTA.ENG-GROUP.mkv'
   );
+  const [streamLabel, setStreamLabel] = useState('AXN H265 FHD LEG');
   const [folder, setFolder] = useState(
     'Movie.Title.2023.2160p.BluRay.HEVC.DV.TrueHD.Atmos.7.1.iTA.ENG-GROUP'
   );
@@ -117,10 +119,17 @@ export function FormatterPreview() {
     if (isFormatting) return;
     try {
       setIsFormatting(true);
-      const fileParsed = FileParser.parse(filename);
-      const folderParsed = folder ? FileParser.parse(folder) : undefined;
+      const isLive = type === 'live';
+      const declared = isLive
+        ? parseDeclaredStreamInfo({ name: streamLabel })
+        : undefined;
+      const fileParsed = isLive ? undefined : FileParser.parse(filename);
+      const folderParsed =
+        isLive || !folder ? undefined : FileParser.parse(folder);
       const parsedFile =
-        mergeParsedFiles(fileParsed, folderParsed) || fileParsed;
+        declared?.parsedFile ||
+        mergeParsedFiles(fileParsed, folderParsed) ||
+        fileParsed;
 
       const stream: ParsedStream = {
         id: 'preview',
@@ -134,29 +143,32 @@ export function FormatterPreview() {
         },
         library,
         parsedFile,
-        filename,
-        folderName: folder,
-        folderSize,
-        indexer,
+        filename: isLive ? streamLabel : filename,
+        folderName: isLive ? undefined : folder,
+        folderSize: isLive ? undefined : folderSize,
+        indexer: isLive ? undefined : indexer,
         regexMatched: { name: regexMatched, index: 0 },
-        torrent: {
-          infoHash: type === 'p2p' ? '1234567890' : undefined,
-          seeders,
-          private: privateTorrent,
-        },
+        torrent: isLive
+          ? undefined
+          : {
+              infoHash: type === 'p2p' ? '1234567890' : undefined,
+              seeders,
+              private: privateTorrent,
+            },
         service:
           providerId === 'none'
             ? undefined
             : { id: providerId, cached: isCached },
-        age: parseAgeToHours(age),
-        duration,
-        size: fileSize,
+        age: isLive ? undefined : parseAgeToHours(age),
+        duration: isLive ? undefined : duration,
+        size: isLive ? undefined : fileSize,
         bitrate:
-          fileSize && duration
+          !isLive && fileSize && duration
             ? Math.floor((fileSize * 8) / (duration / 1000))
             : undefined,
         proxied,
-        message,
+        message: isLive ? streamLabel : message,
+        originalName: isLive ? streamLabel : undefined,
         seadex: { isSeadex: seadex, isBest: seadex && seadexBest },
         streamExpressionScore,
         streamExpressionMatched: seMatched
@@ -188,6 +200,7 @@ export function FormatterPreview() {
     }
   }, [
     filename,
+    streamLabel,
     folder,
     indexer,
     seeders,
@@ -220,6 +233,7 @@ export function FormatterPreview() {
     formatQueueRef.current.enqueue(formatStream);
   }, [
     filename,
+    streamLabel,
     folder,
     indexer,
     seeders,
@@ -259,72 +273,84 @@ export function FormatterPreview() {
             description={formattedStream?.description}
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {type === 'live' ? (
             <TextInput
-              label={<span className="truncate block">Filename</span>}
-              value={filename}
-              onValueChange={(v) => setFilename(v || '')}
+              label={<span className="truncate block">Stream label</span>}
+              value={streamLabel}
+              onValueChange={(v) => setStreamLabel(v || '')}
               className="w-full"
+              placeholder="AXN H265 FHD LEG"
             />
-            <TextInput
-              label={<span className="truncate block">Folder Name</span>}
-              value={folder}
-              onValueChange={(v) => setFolder(v || '')}
-              className="w-full"
-            />
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <TextInput
+                label={<span className="truncate block">Filename</span>}
+                value={filename}
+                onValueChange={(v) => setFilename(v || '')}
+                className="w-full"
+              />
+              <TextInput
+                label={<span className="truncate block">Folder Name</span>}
+                value={folder}
+                onValueChange={(v) => setFolder(v || '')}
+                className="w-full"
+              />
+            </div>
+          )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
-            <TextInput
-              label={<span className="truncate block">Indexer</span>}
-              value={indexer}
-              onValueChange={(v) => setIndexer(v || '')}
-              className="w-full"
-            />
-            <NumberInput
-              label={<span className="truncate block">Seeders</span>}
-              value={seeders}
-              onValueChange={(v) => setSeeders(v || undefined)}
-              className="w-full"
-              min={0}
-              defaultValue={0}
-            />
-            <TextInput
-              label={<span className="truncate block">Age</span>}
-              value={age}
-              onValueChange={(v) => setAge(v || '')}
-              className="w-full"
-            />
-            <NumberInput
-              label={<span className="truncate block">Duration (s)</span>}
-              value={duration ? duration / 1000 : undefined}
-              onValueChange={(v) => setDuration(v ? v * 1000 : undefined)}
-              className="w-full"
-              min={0}
-              step={1000}
-              defaultValue={0}
-            />
-            <NumberInput
-              label={<span className="truncate block">File Size (bytes)</span>}
-              value={fileSize}
-              onValueChange={(v) => setFileSize(v || undefined)}
-              className="w-full"
-              step={1000000000}
-              defaultValue={0}
-              min={0}
-            />
-            <NumberInput
-              label={
-                <span className="truncate block">Folder Size (bytes)</span>
-              }
-              value={folderSize}
-              onValueChange={(v) => setFolderSize(v || undefined)}
-              className="w-full"
-              step={1000000000}
-              defaultValue={0}
-              min={0}
-            />
-          </div>
+          {type !== 'live' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+              <TextInput
+                label={<span className="truncate block">Indexer</span>}
+                value={indexer}
+                onValueChange={(v) => setIndexer(v || '')}
+                className="w-full"
+              />
+              <NumberInput
+                label={<span className="truncate block">Seeders</span>}
+                value={seeders}
+                onValueChange={(v) => setSeeders(v || undefined)}
+                className="w-full"
+                min={0}
+                defaultValue={0}
+              />
+              <TextInput
+                label={<span className="truncate block">Age</span>}
+                value={age}
+                onValueChange={(v) => setAge(v || '')}
+                className="w-full"
+              />
+              <NumberInput
+                label={<span className="truncate block">Duration (s)</span>}
+                value={duration ? duration / 1000 : undefined}
+                onValueChange={(v) => setDuration(v ? v * 1000 : undefined)}
+                className="w-full"
+                min={0}
+                step={1000}
+                defaultValue={0}
+              />
+              <NumberInput
+                label={<span className="truncate block">File Size (bytes)</span>}
+                value={fileSize}
+                onValueChange={(v) => setFileSize(v || undefined)}
+                className="w-full"
+                step={1000000000}
+                defaultValue={0}
+                min={0}
+              />
+              <NumberInput
+                label={
+                  <span className="truncate block">Folder Size (bytes)</span>
+                }
+                value={folderSize}
+                onValueChange={(v) => setFolderSize(v || undefined)}
+                className="w-full"
+                step={1000000000}
+                defaultValue={0}
+                min={0}
+              />
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <Select
@@ -366,13 +392,15 @@ export function FormatterPreview() {
             />
           </div>
 
-          <TextInput
-            label={<span className="truncate block">Message</span>}
-            value={message}
-            onValueChange={(v) => setMessage(v || '')}
-            className="w-full"
-            placeholder="This is a message"
-          />
+          {type !== 'live' ? (
+            <TextInput
+              label={<span className="truncate block">Message</span>}
+              value={message}
+              onValueChange={(v) => setMessage(v || '')}
+              className="w-full"
+              placeholder="This is a message"
+            />
+          ) : null}
 
           <div className="flex justify-center pt-2">
             <Button
@@ -385,21 +413,25 @@ export function FormatterPreview() {
           </div>
 
           <div className="flex justify-center flex-wrap gap-4 pt-2">
-            <Switch
-              label={<span className="truncate block">Cached</span>}
-              value={isCached}
-              onValueChange={setIsCached}
-            />
-            <Switch
-              label={<span className="truncate block">Library</span>}
-              value={library}
-              onValueChange={setLibrary}
-            />
-            <Switch
-              label={<span className="truncate block">Private</span>}
-              value={privateTorrent}
-              onValueChange={setPrivateTorrent}
-            />
+            {type !== 'live' ? (
+              <>
+                <Switch
+                  label={<span className="truncate block">Cached</span>}
+                  value={isCached}
+                  onValueChange={setIsCached}
+                />
+                <Switch
+                  label={<span className="truncate block">Library</span>}
+                  value={library}
+                  onValueChange={setLibrary}
+                />
+                <Switch
+                  label={<span className="truncate block">Private</span>}
+                  value={privateTorrent}
+                  onValueChange={setPrivateTorrent}
+                />
+              </>
+            ) : null}
             <Switch
               label={<span className="truncate block">Proxied</span>}
               value={proxied}

@@ -9,21 +9,18 @@ import {
 import { Preset, baseOptions } from './preset.js';
 import { constants, LIVE_STREAM_TYPE } from '../utils/index.js';
 import { config as appConfig } from '../config/index.js';
-import { FileParser, StreamParser } from '../parser/index.js';
+import { StreamParser } from '../parser/index.js';
+import { parseDeclaredStreamInfo } from '../streams/declared.js';
 
 class MinhaTvStreamParser extends StreamParser {
   protected override getParsedFile(
     stream: Stream,
-    parsedStream: ParsedStream
+    _parsedStream: ParsedStream
   ): ParsedFile | undefined {
-    const parsed = stream.name ? FileParser.parse(stream.name) : undefined;
-    if (!parsed) {
-      return undefined;
-    }
-    return {
-      ...parsed,
-      title: undefined,
-    };
+    return parseDeclaredStreamInfo({
+      name: stream.name,
+      description: stream.description,
+    })?.parsedFile;
   }
 
   protected override getFilename(

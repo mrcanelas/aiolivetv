@@ -20,6 +20,8 @@ import {
   MANUAL_STREAM_ADDON_ID,
   isManualStreamSource,
   isLiveChannelType,
+  parseDeclaredStreamInfo,
+  type DeclaredStreamInfo,
 } from '@aiostreams/core';
 
 const router: Router = Router();
@@ -157,6 +159,7 @@ router.post(
             confidence: number;
             enabled: boolean;
             url?: string;
+            declared?: DeclaredStreamInfo | null;
           }
         >;
         availableStreamSources: Array<{
@@ -287,6 +290,11 @@ router.post(
           contributesChannels: true,
         };
       };
+      const declaredForCandidate = (candidate: Pick<Candidate, 'name' | 'categories'>) =>
+        parseDeclaredStreamInfo({
+          name: candidate.name,
+          group: candidate.categories?.[0],
+        }) ?? null;
       const addStreamSource = (
         channel: Channel,
         candidate: Candidate,
@@ -299,6 +307,7 @@ router.post(
           channelId: candidate.id,
           confidence,
           enabled,
+          declared: declaredForCandidate(candidate),
         });
         assigned.add(candidateKey(candidate.addonId, candidate.id));
       };
@@ -325,6 +334,9 @@ router.post(
           contributesChannels: false,
           confidence: source.confidence ?? 0,
           enabled: source.enabled !== false,
+          declared:
+            parseDeclaredStreamInfo({ name: source.name ?? 'Manual HLS' }) ??
+            null,
         });
       };
       const markChannelAssigned = (candidate: Candidate) => {

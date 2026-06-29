@@ -20,6 +20,7 @@ import {
   isManualStreamMapping,
   isValidStreamUrl,
 } from '../utils';
+import { formatDeclaredSummary } from '../declared-summary';
 
 function streamSourceKey(addonId: string, channelId: string) {
   return `${addonId}:${channelId}`;
@@ -186,6 +187,7 @@ export function ChannelMappingModal({
           {channel.mappings.map((mapping, index) => {
             const suggestion = isChannelSuggestion(mapping.confidence);
             const manual = isManualStreamMapping(mapping);
+            const declaredSummary = formatDeclaredSummary(mapping.declared);
             return (
               <div
                 key={`${mapping.addonId}:${mapping.channelId}`}
@@ -209,9 +211,7 @@ export function ChannelMappingModal({
                       </span>
                     ) : null}
                     {mapping.epgProvider ? (
-                      <span className="ml-2 text-xs text-emerald-400">
-                        EPG
-                      </span>
+                      <span className="ml-2 text-xs text-emerald-400">EPG</span>
                     ) : null}
                     {suggestion ? (
                       <span className="ml-2 text-xs text-amber-400">
@@ -228,6 +228,11 @@ export function ChannelMappingModal({
                         : 'accepted'}
                     {mapping.canStream ? ' · streams' : ''}
                   </p>
+                  {declaredSummary ? (
+                    <p className="truncate text-xs text-sky-400/90">
+                      {declaredSummary}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap justify-end gap-1">
                   {suggestion ? (
@@ -236,10 +241,7 @@ export function ChannelMappingModal({
                         size="sm"
                         leftIcon={<BiCheck />}
                         onClick={() =>
-                          onAcceptSuggestion(
-                            mapping.addonId,
-                            mapping.channelId
-                          )
+                          onAcceptSuggestion(mapping.addonId, mapping.channelId)
                         }
                       >
                         Accept
@@ -248,10 +250,7 @@ export function ChannelMappingModal({
                         size="sm"
                         leftIcon={<BiX />}
                         onClick={() =>
-                          onRejectSuggestion(
-                            mapping.addonId,
-                            mapping.channelId
-                          )
+                          onRejectSuggestion(mapping.addonId, mapping.channelId)
                         }
                       >
                         Reject
@@ -292,10 +291,7 @@ export function ChannelMappingModal({
                           aria-label={`Split mapping from ${mapping.addonName}`}
                           leftIcon={<BiUnlink />}
                           onClick={() =>
-                            onSplitMapping(
-                              mapping.addonId,
-                              mapping.channelId
-                            )
+                            onSplitMapping(mapping.addonId, mapping.channelId)
                           }
                         >
                           Split

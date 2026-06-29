@@ -17,5 +17,14 @@ export {
 };
 
 export type { ExtendedMetadata };
-
 export type { PrecomputeSubTimings } from './precomputer.js';
+export {
+  buildDeclaredStreamLabel,
+  formatDeclaredStreamSummary,
+  parseDeclaredStreamInfo,
+} from './declared.js';
+export type {
+  DeclaredStreamInfo,
+  DeclaredStreamInput,
+  DeclaredStreamSource,
+} from './declared.js';

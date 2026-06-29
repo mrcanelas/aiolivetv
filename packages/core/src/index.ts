@@ -48,3 +48,13 @@ export {
 export type { NzbFallback } from './main/nzbFailover.js';
 export * from './main/channelMappings.js';
 export { catalogSupportsSkip, getCatalogExtras } from './main/catalog.js';
+export {
+  buildDeclaredStreamLabel,
+  formatDeclaredStreamSummary,
+  parseDeclaredStreamInfo,
+} from './streams/declared.js';
+export type {
+  DeclaredStreamInfo,
+  DeclaredStreamInput,
+  DeclaredStreamSource,
+} from './streams/declared.js';

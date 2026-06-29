@@ -250,6 +250,21 @@ export interface ChannelStreamSource {
   poster?: string | null;
 }
 
+export interface DeclaredStreamInfo {
+  parsedFile: {
+    resolution?: string;
+    quality?: string;
+    encode?: string;
+    audioChannels: string[];
+    audioTags: string[];
+    visualTags: string[];
+    languages: string[];
+    subtitles?: string[];
+  };
+  source: 'name' | 'description' | 'm3u' | 'catalog' | 'combined';
+  label: string;
+}
+
 export interface ChannelInfo {
   id: string;
   name: string;
@@ -270,6 +285,7 @@ export interface ChannelInfo {
     epgProvider: boolean;
     canStream: boolean;
     url?: string | null;
+    declared?: DeclaredStreamInfo | null;
   }>;
 }
 
