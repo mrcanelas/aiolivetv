@@ -48,6 +48,8 @@ import {
   getCanonicalChannelId,
   getChannelMapping,
   isChannelAddonEnabled,
+  buildManualParsedStreams,
+  orderLiveStreamsByMapping,
 } from './channelMappings.js';
 
 const logger = createLogger('core');
@@ -682,6 +684,15 @@ export async function getStreams(
   } = await ctx.fetcher.fetch(supportedAddons, context, channelAddonIds);
   const fetchMs = Date.now() - fetchStart;
 
+  let fetchedStreams =
+    type === constants.CHANNEL_TYPE
+      ? orderLiveStreamsByMapping(
+          streams,
+          buildManualParsedStreams(ctx.userData, channelId),
+          channelMapping?.streams
+        )
+      : streams;
+
   if (
     ctx.userData.statistics?.enabled &&
     ctx.userData.statistics?.statsToShow?.includes('addon')
@@ -698,7 +709,7 @@ export async function getStreams(
 
   const processResults = await processStreams(
     ctx,
-    streams,
+    fetchedStreams,
     context,
     false,
     ctx.userData.nzbFailover?.enabled && !preCaching

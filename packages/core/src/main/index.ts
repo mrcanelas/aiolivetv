@@ -127,6 +127,11 @@ export class AIOStreams {
     return this.ctx.addons.find((a) => a.instanceId === instanceId);
   }
 
+  public getAddons(): Addon[] {
+    this.checkInitialised();
+    return this.ctx.addons;
+  }
+
   public getManifest(instanceId: string): Manifest | null | undefined {
     this.checkInitialised();
     return this.ctx.manifests[instanceId];

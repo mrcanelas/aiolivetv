@@ -242,6 +242,14 @@ interface CatalogInfo {
   addonName: string;
 }
 
+export interface ChannelStreamSource {
+  addonId: string;
+  addonName: string;
+  channelId: string;
+  name: string;
+  poster?: string | null;
+}
+
 export interface ChannelInfo {
   id: string;
   name: string;
@@ -249,6 +257,7 @@ export interface ChannelInfo {
   canonicalAddonId: string;
   enabled: boolean;
   rejectedStreams?: Array<{ addonId: string; channelId: string }>;
+  availableStreamSources?: ChannelStreamSource[];
   mappings: Array<{
     id: string;
     addonId: string;
@@ -260,6 +269,7 @@ export interface ChannelInfo {
     enabled: boolean;
     epgProvider: boolean;
     canStream: boolean;
+    url?: string | null;
   }>;
 }
 

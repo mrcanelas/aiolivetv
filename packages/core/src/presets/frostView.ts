@@ -62,13 +62,27 @@ export class FrostViewPreset extends Preset {
     ];
 
     const options: Option[] = [
+      {
+        id: 'resources',
+        name: 'Resources',
+        description:
+          'Choose what to use from this addon. Select only Stream to match streams to channels from other providers without listing its channels.',
+        type: 'multi-select',
+        required: false,
+        showInSimpleMode: true,
+        default: supportedResources,
+        options: supportedResources.map((resource) => ({
+          label: constants.RESOURCE_LABELS[resource],
+          value: resource,
+        })),
+      },
       ...baseOptions(
         'FrostView TV',
         supportedResources,
         appConfig.presets.frostView.defaultTimeout ??
           appConfig.presets.defaultTimeout,
         appConfig.presets.frostView.url
-      ),
+      ).filter((option) => option.id !== 'resources'),
     ];
 
     return {

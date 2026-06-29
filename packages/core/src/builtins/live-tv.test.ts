@@ -24,6 +24,7 @@ const {
   getChannelMatchConfidence,
   isChannelAddonEnabled,
   isHighConfidenceChannelMatch,
+  isChannelMappingSuggestion,
 } = await import('../main/channelMappings.js');
 const { makeRequest } = await import('../utils/index.js');
 
@@ -185,5 +186,25 @@ describe('channel mappings', () => {
         )
       )
     ).toBe(false);
+  });
+
+  it('treats partial matches below 90% as suggestions', () => {
+    const aliasConfidence = getChannelMatchConfidence(
+      { id: 'one', name: 'News', aliases: ['World News'] },
+      { id: 'two', name: 'World News' }
+    );
+    expect(aliasConfidence).toBe(0.88);
+    expect(isChannelMappingSuggestion(aliasConfidence)).toBe(true);
+    expect(isChannelMappingSuggestion(1)).toBe(false);
+    expect(isChannelMappingSuggestion(0)).toBe(false);
+  });
+
+  it('matches channels when one side uses encoded HTML entities', () => {
+    const confidence = getChannelMatchConfidence(
+      { id: 'one', name: 'A&amp;E' },
+      { id: 'two', name: 'A&E' }
+    );
+    expect(confidence).toBeGreaterThanOrEqual(0.9);
+    expect(isHighConfidenceChannelMatch(confidence)).toBe(true);
   });
 });

@@ -1,4 +1,6 @@
-import type { UserData } from '../db/index.js';
+import type { ParsedStream, UserData } from '../db/index.js';
+import { LIVE_STREAM_TYPE } from '../utils/constants.js';
+import { decodeHtmlEntities } from '../utils/text.js';
 
 export interface ChannelMatchCandidate {
   id: string;
@@ -15,14 +17,23 @@ export function getCanonicalChannelId(id: string) {
   return id.split(':epg:', 1)[0];
 }
 
+export const MANUAL_STREAM_ADDON_ID = 'manual' as const;
+
+export function isManualStreamSource(source: {
+  addonId?: string;
+  url?: string;
+}) {
+  return Boolean(source.url) || source.addonId === MANUAL_STREAM_ADDON_ID;
+}
+
 export function getChannelMapping(userData: UserData, channelId: string) {
   channelId = getCanonicalChannelId(channelId);
   return userData.channelMappings?.find((channel) => channel.id === channelId);
 }
 
 function normalise(value?: string) {
-  return value
-    ?.normalize('NFKD')
+  return decodeHtmlEntities(value ?? '')
+    .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
@@ -59,17 +70,85 @@ export function getChannelMatchConfidence(
   return Math.min(score, 0.99);
 }
 
+export const CHANNEL_AUTO_MERGE_CONFIDENCE = 0.9;
+
 export const isHighConfidenceChannelMatch = (confidence: number) =>
-  confidence >= 0.9;
+  confidence >= CHANNEL_AUTO_MERGE_CONFIDENCE;
+
+export const isChannelMappingSuggestion = (confidence: number) =>
+  confidence > 0 && confidence < CHANNEL_AUTO_MERGE_CONFIDENCE;
 
 export function isChannelAddonEnabled(
   userData: UserData,
   channelId: string,
-  addonId: string
+  addonId: string,
+  streamChannelId?: string
 ) {
   return (
-    getChannelMapping(userData, channelId)?.streams?.find(
-      (stream) => stream.addonId === addonId
+    getChannelMapping(userData, channelId)?.streams?.find((stream) =>
+      streamChannelId
+        ? stream.channelId === streamChannelId
+        : stream.addonId === addonId
     )?.enabled !== false
   );
+}
+
+export function buildManualParsedStreams(
+  userData: UserData,
+  channelId: string
+): ParsedStream[] {
+  const mapping = getChannelMapping(userData, channelId);
+  if (!mapping?.streams) return [];
+  return mapping.streams
+    .filter(
+      (source) =>
+        source.url &&
+        source.addonId === MANUAL_STREAM_ADDON_ID &&
+        source.enabled !== false
+    )
+    .map((source, index) => ({
+      id: `manual-${channelId}-${source.channelId ?? index}`,
+      type: LIVE_STREAM_TYPE,
+      url: source.url!,
+      message: source.name ?? 'Manual HLS',
+      addon: {
+        instanceId: MANUAL_STREAM_ADDON_ID,
+        name: 'Manual HLS',
+        manifestUrl: 'https://aiolivetv.local/manual',
+        enabled: true,
+        timeout: 10_000,
+        preset: { id: '', type: 'manual', options: {} },
+      },
+    }));
+}
+
+export function orderLiveStreamsByMapping(
+  fetched: ParsedStream[],
+  manual: ParsedStream[],
+  sources: NonNullable<ReturnType<typeof getChannelMapping>>['streams']
+): ParsedStream[] {
+  if (!sources?.length) return [...manual, ...fetched];
+  const fetchedByAddon = new Map<string, ParsedStream[]>();
+  for (const stream of fetched) {
+    const addonId = stream.addon.instanceId ?? stream.addon.preset.id;
+    const list = fetchedByAddon.get(addonId) ?? [];
+    list.push(stream);
+    fetchedByAddon.set(addonId, list);
+  }
+  const manualByUrl = new Map(
+    manual
+      .filter((stream) => stream.url)
+      .map((stream) => [stream.url!, stream] as const)
+  );
+  const ordered: ParsedStream[] = [];
+  for (const source of sources) {
+    if (isManualStreamSource(source) && source.url) {
+      const stream = manualByUrl.get(source.url);
+      if (stream) ordered.push(stream);
+      continue;
+    }
+    if (!source.addonId) continue;
+    ordered.push(...(fetchedByAddon.get(source.addonId) ?? []));
+  }
+  return ordered.length ? ordered : [...manual, ...fetched];
 }

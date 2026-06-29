@@ -26,10 +26,11 @@ const sourceOptions = (
   {
     id: 'resources',
     name: 'Resources',
-    description: 'Choose what to use from this addon',
+    description:
+      'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
     type: 'multi-select',
     required: false,
-    showInSimpleMode: false,
+    showInSimpleMode: true,
     default: resources,
     options: resources.map((resource) => ({
       label: constants.RESOURCE_LABELS[resource],
@@ -152,10 +153,11 @@ function vivoTvOptions(
     {
       id: 'resources',
       name: 'Resources',
-      description: 'Choose what to use from this addon',
+      description:
+        'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
       type: 'multi-select',
       required: false,
-      showInSimpleMode: false,
+      showInSimpleMode: true,
       default: resources,
       options: resources.map((resource) => ({
         label: constants.RESOURCE_LABELS[resource],

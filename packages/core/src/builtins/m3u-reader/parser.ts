@@ -1,3 +1,5 @@
+import { decodeHtmlEntities } from '../../utils/text.js';
+
 export interface M3uEntry {
   channelId: string;
   name: string;
@@ -42,7 +44,7 @@ export function parseM3u(playlist: string): M3uEntry[] {
         metadata[match[1].toLowerCase()] = match[2].replace(/^["']|["']$/g, '');
       }
     } else if (line && !line.startsWith('#') && metadata) {
-      const name = metadata['tvg-name'] || displayName;
+      const name = decodeHtmlEntities(metadata['tvg-name'] || displayName);
       const channelId = metadata['tvg-id'] || name;
       if (name && channelId) {
         entries.push({

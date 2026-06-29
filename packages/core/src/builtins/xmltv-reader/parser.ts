@@ -1,4 +1,5 @@
 import { parseStringPromise } from 'xml2js';
+import { decodeHtmlEntities } from '../../utils/text.js';
 
 export interface XmltvChannel {
   id: string;
@@ -29,10 +30,13 @@ export interface XmltvData {
 }
 
 function value(input: unknown): string | undefined {
-  if (typeof input === 'string') return input.trim() || undefined;
-  if (input && typeof input === 'object' && '_' in input)
-    return value((input as { _: unknown })._);
-  return undefined;
+  const raw =
+    typeof input === 'string'
+      ? input.trim() || undefined
+      : input && typeof input === 'object' && '_' in input
+        ? value((input as { _: unknown })._)
+        : undefined;
+  return raw ? decodeHtmlEntities(raw) : undefined;
 }
 
 function values(input: unknown): string[] {

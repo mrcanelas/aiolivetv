@@ -2,8 +2,8 @@
 import { createLogger } from '../logging/logger.js';
 import { Time } from './time.js';
 import path from 'path';
-import { Addon, Preset } from '../db/schemas.js';
 import { URL } from 'url';
+import { Addon, Preset, type Resource } from '../db/schemas.js';
 const logger = createLogger('utils-general');
 
 export function getDataFolder(): string {
@@ -173,4 +173,11 @@ export function fromUrlSafeBase64(data: string): string {
     paddedData.replace(/-/g, '+').replace(/_/g, '/'),
     'base64'
   ).toString('utf-8');
+}
+
+export function addonProvidesResource(
+  addon: Pick<Addon, 'resources'>,
+  resource: Resource
+): boolean {
+  return !addon.resources?.length || addon.resources.includes(resource);
 }

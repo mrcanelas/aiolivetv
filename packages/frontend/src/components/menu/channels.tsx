@@ -1,47 +1,55 @@
 import React from 'react';
+import { BiRefresh } from 'react-icons/bi';
 import {
-  BiCheck,
-  BiChevronDown,
-  BiChevronUp,
-  BiGitMerge,
-  BiRefresh,
-  BiSearch,
-  BiUnlink,
-  BiX,
-} from 'react-icons/bi';
+  LuArrowDownAZ,
+  LuLayers,
+  LuPower,
+  LuPowerOff,
+  LuSquareCheck,
+  LuTrash2,
+} from 'react-icons/lu';
+import { SearchIcon } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageControls } from '../shared/page-controls';
 import { PageWrapper } from '../shared/page-wrapper';
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
+import { SettingsCard } from '../shared/settings-card';
+import { IconButton } from '../ui/button';
 import { LoadingSpinner } from '../ui/loading-spinner';
-import { Select } from '../ui/select';
-import { Switch } from '../ui/switch';
 import { TextInput } from '../ui/text-input';
 import { useUserData } from '@/context/userData';
 import { fetchChannels, type ChannelInfo } from '@/lib/api';
-
-function isChannelSuggestion(confidence: number) {
-  return confidence > 0 && confidence < 1;
-}
-
-function countSuggestions(channels: ChannelInfo[]) {
-  return channels.reduce(
-    (total, channel) =>
-      total +
-      channel.mappings.filter((mapping) =>
-        isChannelSuggestion(mapping.confidence)
-      ).length,
-    0
-  );
-}
+import { useDisclosure } from '@/hooks/disclosure';
+import { ChannelListItem } from './channels/_components/channel-list-item';
+import { ChannelMappingModal } from './channels/_components/channel-mapping-modal';
+import { ChannelEditModal } from './channels/_components/channel-edit-modal';
+import {
+  countSuggestions,
+  groupChannelsBySource,
+  isChannelSuggestion,
+  sortChannels,
+  MANUAL_STREAM_ADDON_ID,
+  buildManualStreamChannelId,
+  isManualStreamMapping,
+  type ChannelSortMode,
+} from './channels/utils';
 
 export function ChannelsMenu() {
   const { userData, setUserData } = useUserData();
   const [search, setSearch] = React.useState('');
-  const [mergeTargets, setMergeTargets] = React.useState<
+  const [sortMode, setSortMode] = React.useState<ChannelSortMode>('alphabetical');
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [linkStreamTargets, setLinkStreamTargets] = React.useState<
     Record<string, string>
   >({});
+  const [customizedIds, setCustomizedIds] = React.useState<Set<string>>(
+    new Set()
+  );
+  const [mappingChannelId, setMappingChannelId] = React.useState<string | null>(
+    null
+  );
+  const [editChannelId, setEditChannelId] = React.useState<string | null>(null);
+  const mappingModal = useDisclosure(false);
+  const editModal = useDisclosure(false);
   const queryClient = useQueryClient();
   const queryKey = [
     'channels',
@@ -60,58 +68,101 @@ export function ChannelsMenu() {
   const channels = query.data ?? [];
   const suggestionCount = countSuggestions(channels);
 
-  const persistChannels = React.useCallback(
-    (channels: ChannelInfo[]) => {
-      const channelMappings = channels
-        .map((channel) => ({
-          id: channel.id,
-          canonicalAddonId: channel.canonicalAddonId,
-          enabled: channel.enabled,
-          rejectedStreams: channel.rejectedStreams?.length
-            ? channel.rejectedStreams
-            : undefined,
-          streams: channel.mappings
-            .filter((mapping) => !isChannelSuggestion(mapping.confidence))
-            .map((mapping) => ({
-              addonId: mapping.addonId,
-              channelId: mapping.channelId,
-              confidence: mapping.confidence,
-              enabled: mapping.enabled,
-            })),
-        }))
+  const buildVisibleMappings = React.useCallback(
+    (
+      nextChannels: ChannelInfo[],
+      currentMappings: typeof userData.channelMappings
+    ) =>
+      nextChannels
+        .map((channel) => {
+          const existing = currentMappings?.find(
+            (mapping) => mapping.id === channel.id
+          );
+          const customized =
+            customizedIds.has(channel.id) || existing?.name || existing?.poster;
+          return {
+            id: channel.id,
+            canonicalAddonId: channel.canonicalAddonId,
+            enabled: channel.enabled,
+            ...(customized
+              ? {
+                  name: channel.name,
+                  poster: channel.poster ?? undefined,
+                }
+              : {}),
+            rejectedStreams: channel.rejectedStreams?.length
+              ? channel.rejectedStreams
+              : undefined,
+            streams: channel.mappings
+              .filter((mapping) => !isChannelSuggestion(mapping.confidence))
+              .map((mapping) => ({
+                addonId: mapping.addonId,
+                channelId: mapping.channelId,
+                confidence: mapping.confidence,
+                enabled: mapping.enabled,
+                ...(mapping.url
+                  ? { url: mapping.url, name: mapping.name }
+                  : {}),
+              })),
+          };
+        })
         .filter(
           (channel) =>
             channel.streams.length > 0 ||
-            (channel.rejectedStreams?.length ?? 0) > 0
-        );
+            (channel.rejectedStreams?.length ?? 0) > 0 ||
+            customizedIds.has(channel.id)
+        ),
+    [customizedIds]
+  );
+
+  const persistChannels = React.useCallback(
+    (nextChannels: ChannelInfo[]) => {
       setUserData((current) => {
+        const visibleMappings = buildVisibleMappings(
+          nextChannels,
+          current.channelMappings
+        );
+        const hidden = (current.channelMappings ?? []).filter(
+          (mapping) =>
+            mapping.hidden &&
+            !visibleMappings.some((item) => item.id === mapping.id)
+        );
+        const channelMappings = [...visibleMappings, ...hidden];
         if (
           JSON.stringify(current.channelMappings ?? []) ===
           JSON.stringify(channelMappings)
-        )
+        ) {
           return current;
+        }
         return { ...current, channelMappings };
       });
     },
-    [setUserData]
+    [buildVisibleMappings, setUserData]
   );
 
-  const setChannels = (update: (channels: ChannelInfo[]) => ChannelInfo[]) => {
-    const channels = update(
+  const setChannels = (
+    update: (channels: ChannelInfo[]) => ChannelInfo[]
+  ) => {
+    const next = update(
       queryClient.getQueryData<ChannelInfo[]>(queryKey) ?? []
     );
-    queryClient.setQueryData(queryKey, channels);
-    persistChannels(channels);
+    queryClient.setQueryData(queryKey, next);
+    persistChannels(next);
   };
 
-  const acceptSuggestion = (channelId: string, addonId: string) => {
+  const acceptSuggestion = (
+    channelId: string,
+    addonId: string,
+    streamChannelId: string
+  ) => {
     setChannels((current) =>
       current.map((channel) =>
         channel.id === channelId
           ? {
               ...channel,
               mappings: channel.mappings.map((mapping) =>
-                mapping.addonId === addonId
+                mapping.addonId === addonId &&
+                mapping.channelId === streamChannelId
                   ? { ...mapping, confidence: 1 }
                   : mapping
               ),
@@ -121,18 +172,27 @@ export function ChannelsMenu() {
     );
   };
 
-  const rejectSuggestion = (channelId: string, addonId: string) => {
+  const rejectSuggestion = (
+    channelId: string,
+    addonId: string,
+    streamChannelId: string
+  ) => {
     setChannels((current) =>
       current.map((channel) => {
         if (channel.id !== channelId) return channel;
         const mapping = channel.mappings.find(
-          (item) => item.addonId === addonId
+          (item) =>
+            item.addonId === addonId && item.channelId === streamChannelId
         );
         if (!mapping) return channel;
         return {
           ...channel,
           mappings: channel.mappings.filter(
-            (item) => item.addonId !== addonId
+            (item) =>
+              !(
+                item.addonId === addonId &&
+                item.channelId === streamChannelId
+              )
           ),
           rejectedStreams: [
             ...(channel.rejectedStreams ?? []),
@@ -143,20 +203,28 @@ export function ChannelsMenu() {
     );
   };
 
-  const acceptAllSuggestions = () => {
+  const acceptAllSuggestions = (channelId: string) => {
     setChannels((current) =>
-      current.map((channel) => ({
-        ...channel,
-        mappings: channel.mappings.map((mapping) =>
-          isChannelSuggestion(mapping.confidence)
-            ? { ...mapping, confidence: 1 }
-            : mapping
-        ),
-      }))
+      current.map((channel) =>
+        channel.id === channelId
+          ? {
+              ...channel,
+              mappings: channel.mappings.map((mapping) =>
+                isChannelSuggestion(mapping.confidence)
+                  ? { ...mapping, confidence: 1 }
+                  : mapping
+              ),
+            }
+          : channel
+      )
     );
   };
 
-  const moveMapping = (channelId: string, index: number, direction: -1 | 1) => {
+  const moveMapping = (
+    channelId: string,
+    index: number,
+    direction: -1 | 1
+  ) => {
     setChannels((current) =>
       current.map((channel) => {
         if (channel.id !== channelId) return channel;
@@ -172,20 +240,45 @@ export function ChannelsMenu() {
     );
   };
 
-  const splitMapping = (channelId: string, addonId: string) => {
+  const splitMapping = (
+    channelId: string,
+    addonId: string,
+    streamChannelId: string
+  ) => {
     setChannels((current) => {
       const channel = current.find((item) => item.id === channelId);
       const mapping = channel?.mappings.find(
-        (item) => item.addonId === addonId
+        (item) =>
+          item.addonId === addonId && item.channelId === streamChannelId
       );
       if (!channel || !mapping || channel.mappings.length === 1) return current;
+      if (isManualStreamMapping(mapping)) {
+        return current.map((item) =>
+          item.id === channelId
+            ? {
+                ...item,
+                mappings: item.mappings.filter(
+                  (candidate) =>
+                    !(
+                      candidate.addonId === addonId &&
+                      candidate.channelId === streamChannelId
+                    )
+                ),
+              }
+            : item
+        );
+      }
       return [
         ...current.map((item) =>
           item.id === channelId
             ? {
                 ...item,
                 mappings: item.mappings.filter(
-                  (candidate) => candidate.addonId !== addonId
+                  (candidate) =>
+                    !(
+                      candidate.addonId === addonId &&
+                      candidate.channelId === streamChannelId
+                    )
                 ),
               }
             : item
@@ -203,34 +296,82 @@ export function ChannelsMenu() {
     });
   };
 
-  const mergeChannel = (channelId: string) => {
-    const targetId = mergeTargets[channelId];
-    if (!targetId) return;
-    setChannels((current) => {
-      const target = current.find((item) => item.id === targetId);
-      if (!target) return current;
-      return current
-        .filter((item) => item.id !== targetId)
-        .map((item) =>
-          item.id === channelId
-            ? {
-                ...item,
-                mappings: [
-                  ...item.mappings,
-                  ...target.mappings.map((mapping) => ({
-                    ...mapping,
-                    confidence: 0,
-                  })),
-                ],
-                rejectedStreams: [
-                  ...(item.rejectedStreams ?? []),
-                  ...(target.rejectedStreams ?? []),
-                ],
-              }
-            : item
+  const linkStreamSource = (channelId: string) => {
+    const sourceKey = linkStreamTargets[channelId];
+    if (!sourceKey) return;
+    const [addonId, streamChannelId] = sourceKey.split(':', 2);
+    if (!addonId || !streamChannelId) return;
+    setChannels((current) =>
+      current.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        const source = channel.availableStreamSources?.find(
+          (item) =>
+            item.addonId === addonId && item.channelId === streamChannelId
         );
-    });
-    setMergeTargets((current) => ({ ...current, [channelId]: '' }));
+        if (!source) return channel;
+        return {
+          ...channel,
+          mappings: [
+            ...channel.mappings,
+            {
+              id: source.channelId,
+              addonId: source.addonId,
+              addonName: source.addonName,
+              channelId: source.channelId,
+              name: source.name,
+              poster: source.poster,
+              confidence: 0,
+              enabled: true,
+              epgProvider: false,
+              canStream: true,
+            },
+          ],
+          availableStreamSources: channel.availableStreamSources?.filter(
+            (item) =>
+              !(
+                item.addonId === addonId && item.channelId === streamChannelId
+              )
+          ),
+        };
+      })
+    );
+    setLinkStreamTargets((current) => ({ ...current, [channelId]: '' }));
+  };
+
+  const addManualStream = (channelId: string, url: string, name: string) => {
+    const streamChannelId = buildManualStreamChannelId(url);
+    setChannels((current) =>
+      current.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        if (
+          channel.mappings.some(
+            (mapping) =>
+              isManualStreamMapping(mapping) && mapping.url === url
+          )
+        ) {
+          return channel;
+        }
+        return {
+          ...channel,
+          mappings: [
+            ...channel.mappings,
+            {
+              id: streamChannelId,
+              addonId: MANUAL_STREAM_ADDON_ID,
+              addonName: 'Manual HLS',
+              channelId: streamChannelId,
+              name,
+              url,
+              poster: null,
+              confidence: 0,
+              enabled: true,
+              epgProvider: false,
+              canStream: true,
+            },
+          ],
+        };
+      })
+    );
   };
 
   const setCanonical = (channelId: string, addonId: string) => {
@@ -264,13 +405,131 @@ export function ChannelsMenu() {
     );
   };
 
-  const visibleChannels = channels.filter((channel) =>
-    channel.name.toLowerCase().includes(search.trim().toLowerCase())
+  const removeChannels = (channelIds: Iterable<string>) => {
+    const ids = new Set(channelIds);
+    const nextChannels = channels.filter((channel) => !ids.has(channel.id));
+    queryClient.setQueryData(queryKey, nextChannels);
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+    setUserData((current) => {
+      const visibleMappings = buildVisibleMappings(
+        nextChannels,
+        current.channelMappings
+      );
+      const hidden = [
+        ...(current.channelMappings ?? []).filter(
+          (mapping) => mapping.hidden && !ids.has(mapping.id)
+        ),
+        ...[...ids].map((id) => ({
+          id,
+          hidden: true as const,
+          enabled: false,
+        })),
+      ];
+      return { ...current, channelMappings: [...visibleMappings, ...hidden] };
+    });
+  };
+
+  const removeChannel = (channelId: string) => {
+    removeChannels([channelId]);
+  };
+
+  const saveChannelEdit = (
+    channelId: string,
+    name: string,
+    poster: string
+  ) => {
+    setCustomizedIds((current) => new Set(current).add(channelId));
+    updateChannel(channelId, (channel) => ({
+      ...channel,
+      name,
+      poster: poster || null,
+    }));
+  };
+
+  const filteredChannels = sortChannels(
+    channels.filter((channel) =>
+      channel.name.toLowerCase().includes(search.trim().toLowerCase())
+    ),
+    sortMode
+  );
+  const groupedChannels =
+    sortMode === 'source' ? groupChannelsBySource(filteredChannels) : null;
+  const visibleIds = filteredChannels.map((channel) => channel.id);
+  const isAllSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const hasSelection = selectedIds.size > 0;
+  const selectedChannels = channels.filter((channel) =>
+    selectedIds.has(channel.id)
+  );
+  const toggleWillEnable = selectedChannels.some((channel) => !channel.enabled);
+  const mappingChannel =
+    channels.find((channel) => channel.id === mappingChannelId) ?? null;
+  const editChannel =
+    channels.find((channel) => channel.id === editChannelId) ?? null;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(visibleIds));
+  };
+
+  const toggleSelection = (channelId: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(channelId)) next.delete(channelId);
+      else next.add(channelId);
+      return next;
+    });
+  };
+
+  const batchToggleEnabled = () => {
+    const nextValue = toggleWillEnable;
+    setChannels((current) =>
+      current.map((channel) =>
+        selectedIds.has(channel.id) ? { ...channel, enabled: nextValue } : channel
+      )
+    );
+  };
+
+  const batchRemove = () => {
+    removeChannels(selectedIds);
+    setSelectedIds(new Set());
+  };
+
+  const openMappings = (channelId: string) => {
+    setMappingChannelId(channelId);
+    mappingModal.open();
+  };
+
+  const openEdit = (channelId: string) => {
+    setEditChannelId(channelId);
+    editModal.open();
+  };
+
+  const renderChannel = (channel: ChannelInfo) => (
+    <ChannelListItem
+      key={channel.id}
+      channel={channel}
+      isSelected={selectedIds.has(channel.id)}
+      onToggleSelect={() => toggleSelection(channel.id)}
+      onToggleEnabled={(enabled) => {
+        updateChannel(channel.id, (item) => ({ ...item, enabled }));
+      }}
+      onOpenMappings={() => openMappings(channel.id)}
+      onEdit={() => openEdit(channel.id)}
+      onRemove={() => removeChannel(channel.id)}
+    />
   );
 
   return (
     <PageWrapper className="space-y-4 p-4 sm:p-8">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex w-full items-center">
         <div>
           <h2>Channels</h2>
           <p className="text-[--muted]">
@@ -278,277 +537,218 @@ export function ChannelsMenu() {
             draft until you accept them.
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          {suggestionCount > 0 ? (
-            <Button
-              size="sm"
-              onClick={acceptAllSuggestions}
-              leftIcon={<BiCheck />}
-            >
-              Accept all ({suggestionCount})
-            </Button>
-          ) : null}
-          <Button
-            onClick={() => query.refetch()}
-            disabled={query.isFetching}
-            leftIcon={<BiRefresh />}
-          >
-            Refresh
-          </Button>
-          <div className="hidden lg:block">
-            <PageControls />
-          </div>
+        <div className="hidden lg:ml-auto lg:block">
+          <PageControls />
         </div>
       </div>
 
-      <TextInput
-        aria-label="Search channels"
-        placeholder="Search channels"
-        value={search}
-        onValueChange={setSearch}
-        leftIcon={<BiSearch />}
+      <SettingsCard
+        title="My Channels"
+        description="Manage merged channels, review mappings, and control stream priority."
+        action={
+          <div className="flex items-center gap-2">
+            <IconButton
+              rounded
+              intent={sortMode === 'source' ? 'primary' : 'primary-subtle'}
+              icon={<LuLayers className="h-5 w-5" />}
+              onClick={() => setSortMode('source')}
+              disabled={channels.length === 0}
+              title="Group by source"
+            />
+            <IconButton
+              rounded
+              intent={
+                sortMode === 'alphabetical' ? 'primary' : 'primary-subtle'
+              }
+              icon={<LuArrowDownAZ className="h-5 w-5" />}
+              onClick={() => setSortMode('alphabetical')}
+              disabled={channels.length === 0}
+              title="Sort alphabetically"
+            />
+            <IconButton
+              rounded
+              intent={isAllSelected ? 'primary' : 'primary-subtle'}
+              icon={<LuSquareCheck className="h-5 w-5" />}
+              onClick={toggleSelectAll}
+              disabled={filteredChannels.length === 0}
+              title={isAllSelected ? 'Deselect all' : 'Select all'}
+            />
+            <IconButton
+              rounded
+              intent="primary-subtle"
+              icon={<BiRefresh className="h-5 w-5" />}
+              onClick={() => query.refetch()}
+              disabled={query.isFetching}
+              title="Refresh channels"
+            />
+          </div>
+        }
+      >
+        {channels.length > 0 ? (
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="min-w-[140px] flex-1">
+                <TextInput
+                  value={search}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setSearch(e.target.value)
+                  }
+                  placeholder="Search channels..."
+                  leftIcon={<SearchIcon className="h-4 w-4" />}
+                  aria-label="Search channels"
+                />
+              </div>
+              {hasSelection ? (
+                <div className="flex animate-in fade-in items-center gap-1.5 duration-150">
+                  <span className="whitespace-nowrap text-xs font-semibold text-[--brand]">
+                    {selectedIds.size} selected
+                  </span>
+                  <IconButton
+                    size="sm"
+                    rounded
+                    intent="primary-subtle"
+                    icon={
+                      toggleWillEnable ? (
+                        <LuPower className="h-3.5 w-3.5" />
+                      ) : (
+                        <LuPowerOff className="h-3.5 w-3.5" />
+                      )
+                    }
+                    onClick={batchToggleEnabled}
+                    title={
+                      toggleWillEnable ? 'Enable selected' : 'Disable selected'
+                    }
+                  />
+                  <IconButton
+                    size="sm"
+                    rounded
+                    intent="alert-subtle"
+                    icon={<LuTrash2 className="h-3.5 w-3.5" />}
+                    onClick={batchRemove}
+                    title="Remove selected"
+                  />
+                </div>
+              ) : null}
+            </div>
+            {suggestionCount > 0 ? (
+              <p className="text-xs text-amber-400">
+                {suggestionCount} mapping suggestion
+                {suggestionCount === 1 ? '' : 's'} pending review across all
+                channels.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {query.isLoading ? (
+          <div className="flex justify-center py-16">
+            <LoadingSpinner />
+          </div>
+        ) : query.error ? (
+          <p className="py-8 text-center text-red-400">{query.error.message}</p>
+        ) : filteredChannels.length === 0 ? (
+          <p className="py-8 text-center text-[--muted]">
+            {channels.length === 0
+              ? 'Add a Live TV addon, XMLTV guide, or M3U playlist on the Addons page.'
+              : 'No channels match your search.'}
+          </p>
+        ) : groupedChannels ? (
+          <div className="space-y-5">
+            {groupedChannels.map(([source, sourceChannels]) => (
+              <div key={source} className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  <p className="text-xs font-semibold uppercase tracking-widest text-[--muted]">
+                    {source} ({sourceChannels.length})
+                  </p>
+                </div>
+                <ul className="space-y-2">{sourceChannels.map(renderChannel)}</ul>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ul className="space-y-2">{filteredChannels.map(renderChannel)}</ul>
+        )}
+      </SettingsCard>
+
+      <ChannelMappingModal
+        channel={mappingChannel}
+        open={mappingModal.isOpen}
+        onOpenChange={(open) => {
+          if (open) mappingModal.open();
+          else {
+            mappingModal.close();
+            setMappingChannelId(null);
+          }
+        }}
+        linkStreamTarget={
+          mappingChannelId ? linkStreamTargets[mappingChannelId] ?? '' : ''
+        }
+        onLinkStreamTargetChange={(value) => {
+          if (!mappingChannelId) return;
+          setLinkStreamTargets((current) => ({
+            ...current,
+            [mappingChannelId]: value,
+          }));
+        }}
+        onAcceptSuggestion={(addonId, streamChannelId) => {
+          if (!mappingChannelId) return;
+          acceptSuggestion(mappingChannelId, addonId, streamChannelId);
+        }}
+        onRejectSuggestion={(addonId, streamChannelId) => {
+          if (!mappingChannelId) return;
+          rejectSuggestion(mappingChannelId, addonId, streamChannelId);
+        }}
+        onAcceptAllSuggestions={() => {
+          if (!mappingChannelId) return;
+          acceptAllSuggestions(mappingChannelId);
+        }}
+        onMoveMapping={(index, direction) => {
+          if (!mappingChannelId) return;
+          moveMapping(mappingChannelId, index, direction);
+        }}
+        onSplitMapping={(addonId, streamChannelId) => {
+          if (!mappingChannelId) return;
+          splitMapping(mappingChannelId, addonId, streamChannelId);
+        }}
+        onLinkStreamSource={() => {
+          if (!mappingChannelId) return;
+          linkStreamSource(mappingChannelId);
+        }}
+        onAddManualStream={(url, name) => {
+          if (!mappingChannelId) return;
+          addManualStream(mappingChannelId, url, name);
+        }}
+        onSetCanonical={(addonId) => {
+          if (!mappingChannelId) return;
+          setCanonical(mappingChannelId, addonId);
+        }}
+        onToggleStream={(addonId, enabled, streamChannelId) => {
+          if (!mappingChannelId) return;
+          updateChannel(mappingChannelId, (item) => ({
+            ...item,
+            mappings: item.mappings.map((candidate) =>
+              candidate.addonId === addonId &&
+              candidate.channelId === streamChannelId
+                ? { ...candidate, enabled }
+                : candidate
+            ),
+          }));
+        }}
       />
 
-      {query.isLoading ? (
-        <div className="flex justify-center py-16">
-          <LoadingSpinner />
-        </div>
-      ) : query.error ? (
-        <Card>
-          <CardContent className="p-6 text-center text-red-400">
-            {query.error.message}
-          </CardContent>
-        </Card>
-      ) : visibleChannels.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-[--muted]">
-            Add a Live TV addon, XMLTV guide, or M3U playlist on the Addons
-            page.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          {visibleChannels.map((channel) => (
-            <Card key={channel.id}>
-              <CardContent className="flex gap-4 p-4">
-                {channel.poster ? (
-                  <img
-                    src={channel.poster}
-                    alt=""
-                    className="h-16 w-16 rounded object-contain bg-black/20"
-                  />
-                ) : null}
-                <div className="min-w-0 flex-1 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate font-semibold">{channel.name}</h3>
-                      <p className="text-xs text-[--muted]">
-                        {channel.mappings.length} source
-                        {channel.mappings.length === 1 ? '' : 's'}
-                        {channel.mappings.some((mapping) =>
-                          isChannelSuggestion(mapping.confidence)
-                        )
-                          ? ' · pending suggestions'
-                          : ''}
-                      </p>
-                    </div>
-                    <Switch
-                      aria-label={`Enable ${channel.name}`}
-                      value={channel.enabled}
-                      onValueChange={(enabled) => {
-                        updateChannel(channel.id, (item) => ({
-                          ...item,
-                          enabled,
-                        }));
-                      }}
-                    />
-                  </div>
-
-                  {channels.length > 1 ? (
-                    <div className="flex items-end gap-2">
-                      <div className="min-w-0 flex-1">
-                        <Select
-                          label="Manual mapping"
-                          placeholder="Select a channel"
-                          value={mergeTargets[channel.id]}
-                          onValueChange={(value) =>
-                            setMergeTargets((current) => ({
-                              ...current,
-                              [channel.id]: String(value ?? ''),
-                            }))
-                          }
-                          options={channels
-                            .filter(
-                              (candidate) =>
-                                candidate.id !== channel.id &&
-                                !candidate.mappings.some((mapping) =>
-                                  channel.mappings.some(
-                                    (source) =>
-                                      source.addonId === mapping.addonId
-                                  )
-                                )
-                            )
-                            .map((candidate) => ({
-                              value: candidate.id,
-                              label: candidate.name,
-                            }))}
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        leftIcon={<BiGitMerge />}
-                        disabled={!mergeTargets[channel.id]}
-                        onClick={() => mergeChannel(channel.id)}
-                      >
-                        Merge
-                      </Button>
-                    </div>
-                  ) : null}
-
-                  {channel.mappings.map((mapping, index) => {
-                    const suggestion = isChannelSuggestion(mapping.confidence);
-                    return (
-                      <div
-                        key={`${mapping.addonId}:${mapping.channelId}`}
-                        className={`flex items-center gap-3 rounded border p-3 ${
-                          suggestion
-                            ? 'border-amber-500/40 bg-amber-500/5'
-                            : 'border-[--border]'
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm">
-                            {mapping.addonName}
-                            {mapping.addonId === channel.canonicalAddonId ? (
-                              <span className="ml-2 text-xs text-blue-400">
-                                Canonical
-                              </span>
-                            ) : null}
-                            {mapping.epgProvider ? (
-                              <span className="ml-2 text-xs text-emerald-400">
-                                EPG
-                              </span>
-                            ) : null}
-                            {suggestion ? (
-                              <span className="ml-2 text-xs text-amber-400">
-                                Suggested
-                              </span>
-                            ) : null}
-                          </p>
-                          <p className="text-xs text-[--muted]">
-                            {mapping.name} ·{' '}
-                            {mapping.confidence === 0
-                              ? 'manual'
-                              : suggestion
-                                ? `${Math.round(mapping.confidence * 100)}% match`
-                                : 'accepted'}
-                            {mapping.canStream ? ' · streams' : ''}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {suggestion ? (
-                            <>
-                              <Button
-                                size="sm"
-                                leftIcon={<BiCheck />}
-                                onClick={() =>
-                                  acceptSuggestion(
-                                    channel.id,
-                                    mapping.addonId
-                                  )
-                                }
-                              >
-                                Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                leftIcon={<BiX />}
-                                onClick={() =>
-                                  rejectSuggestion(
-                                    channel.id,
-                                    mapping.addonId
-                                  )
-                                }
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                size="sm"
-                                aria-label={`Move ${mapping.addonName} up`}
-                                disabled={index === 0}
-                                onClick={() =>
-                                  moveMapping(channel.id, index, -1)
-                                }
-                              >
-                                <BiChevronUp />
-                              </Button>
-                              <Button
-                                size="sm"
-                                aria-label={`Move ${mapping.addonName} down`}
-                                disabled={
-                                  index === channel.mappings.length - 1
-                                }
-                                onClick={() =>
-                                  moveMapping(channel.id, index, 1)
-                                }
-                              >
-                                <BiChevronDown />
-                              </Button>
-                              {mapping.addonId !== channel.canonicalAddonId ? (
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    setCanonical(channel.id, mapping.addonId)
-                                  }
-                                >
-                                  Canonical
-                                </Button>
-                              ) : null}
-                              {channel.mappings.length > 1 &&
-                              mapping.addonId !== channel.canonicalAddonId ? (
-                                <Button
-                                  size="sm"
-                                  aria-label={`Split mapping from ${mapping.addonName}`}
-                                  leftIcon={<BiUnlink />}
-                                  onClick={() =>
-                                    splitMapping(channel.id, mapping.addonId)
-                                  }
-                                >
-                                  Split
-                                </Button>
-                              ) : null}
-                            </>
-                          )}
-                        </div>
-                        {mapping.canStream && !suggestion ? (
-                          <Switch
-                            aria-label={`Enable ${mapping.addonName} for ${channel.name}`}
-                            value={mapping.enabled}
-                            disabled={!channel.enabled}
-                            onValueChange={(enabled) => {
-                              updateChannel(channel.id, (item) => ({
-                                ...item,
-                                mappings: item.mappings.map((candidate) =>
-                                  candidate.addonId === mapping.addonId
-                                    ? { ...candidate, enabled }
-                                    : candidate
-                                ),
-                              }));
-                            }}
-                          />
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <ChannelEditModal
+        channel={editChannel}
+        open={editModal.isOpen}
+        onOpenChange={(open) => {
+          if (open) editModal.open();
+          else {
+            editModal.close();
+            setEditChannelId(null);
+          }
+        }}
+        onSave={saveChannelEdit}
+      />
     </PageWrapper>
   );
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
-import { Cache, makeRequest } from '../../utils/index.js';
+import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
 import {
   CHANNEL_ID_PREFIX,
   decodeChannelId,
@@ -80,7 +80,7 @@ interface VivoReferenceData {
 }
 
 function normalizeChannelTitle(title: string): string {
-  return title.replace(/HD | HD/g, '').replace(/&/g, '&amp;').trim();
+  return decodeHtmlEntities(title.replace(/HD | HD/g, '').trim());
 }
 
 function channelLogoUrl(iconUrl: string): string {
