@@ -9,8 +9,16 @@ vi.mock('../utils/index.js', () => ({
   toUrlSafeBase64: (value: string) => Buffer.from(value).toString('base64url'),
 }));
 
-const { encodeChannelId, M3uAddon, parseM3u, parseXmltv, XmltvAddon } =
-  await import('./live-tv.js');
+const { encodeChannelId, M3uAddon, parseM3u, XmltvAddon, parseXmltv } =
+  await Promise.all([
+    import('./live-tv/index.js'),
+    import('./m3u-reader/index.js'),
+    import('./xmltv-reader/index.js'),
+  ]).then(([liveTv, m3u, xmltv]) => ({
+    ...liveTv,
+    ...m3u,
+    ...xmltv,
+  }));
 const {
   getChannelMapping,
   getChannelMatchConfidence,

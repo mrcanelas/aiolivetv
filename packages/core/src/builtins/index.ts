@@ -9,4 +9,7 @@ export * from './torrent-galaxy/index.js';
 export * from './seadex/index.js';
 export * from './easynews-search/index.js';
 export * from './library/index.js';
-export * from './live-tv.js';
+export * from './live-tv/index.js';
+export * from './xmltv-reader/index.js';
+export * from './m3u-reader/index.js';
+export * from './vivotv/index.js';
