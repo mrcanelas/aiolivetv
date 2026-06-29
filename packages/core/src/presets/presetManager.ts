@@ -40,6 +40,7 @@ import { TorrentsDbPreset } from './torrentsDb.js';
 import { USATVPreset } from './usaTv.js';
 import { ArgentinaTVPreset } from './argentinaTv.js';
 import { FrostViewPreset } from './frostView.js';
+import { MinhaTvPreset } from './minhaTv.js';
 import { OpenSubtitlesV3PlusPreset } from './opensubtitles-v3-plus.js';
 import { SubSourcePreset } from './subsource.js';
 import { SubDLPreset } from './subdl.js';
@@ -87,6 +88,7 @@ let PRESET_LIST: string[] = [
   'xmltv',
   'vivo-tv',
   'frost-view',
+  'minha-tv',
   'custom',
   'torznab',
   'newznab',
@@ -281,6 +283,8 @@ export class PresetManager {
         return ArgentinaTVPreset;
       case 'frost-view':
         return FrostViewPreset;
+      case 'minha-tv':
+        return MinhaTvPreset;
       case 'brazuca-torrents':
         return BrazucaTorrentsPreset;
       case 'opensubtitles-v3-plus':

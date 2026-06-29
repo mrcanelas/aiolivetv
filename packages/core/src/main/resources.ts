@@ -48,6 +48,7 @@ import {
   getCanonicalChannelId,
   getChannelMapping,
   isChannelAddonEnabled,
+  isLiveChannelType,
   buildManualParsedStreams,
   orderLiveStreamsByMapping,
 } from './channelMappings.js';
@@ -133,6 +134,58 @@ function getAddonsForResource(
     }
   }
   return addons;
+}
+
+const LIVE_CHANNEL_STREAM_TYPES = [
+  constants.CHANNEL_TYPE,
+  constants.TV_TYPE,
+] as const;
+
+function resolveAddonStreamType(
+  ctx: Pick<AIOStreamsContext, 'supportedResources'>,
+  instanceId: string,
+  preferredType: string
+): string | undefined {
+  const resources = ctx.supportedResources[instanceId];
+  const stream = resources?.find((resource) => resource.name === 'stream');
+  if (!stream) return undefined;
+  if (stream.types.includes(preferredType)) return preferredType;
+  for (const fallbackType of LIVE_CHANNEL_STREAM_TYPES) {
+    if (stream.types.includes(fallbackType)) return fallbackType;
+  }
+  return stream.types[0];
+}
+
+function findMappedStreamAddon(
+  ctx: Pick<AIOStreamsContext, 'supportedResources' | 'addons'>,
+  preferredType: string,
+  mappedId: string,
+  addonId: string
+): Addon | undefined {
+  for (const type of [preferredType, ...LIVE_CHANNEL_STREAM_TYPES]) {
+    const addon = getAddonsForResource(ctx, 'stream', type, mappedId).find(
+      (candidate) => candidate.instanceId === addonId
+    );
+    if (addon) return addon;
+  }
+  return undefined;
+}
+
+function buildAddonStreamTypes(
+  ctx: Pick<AIOStreamsContext, 'supportedResources'>,
+  addons: Addon[],
+  preferredType: string
+): Map<string, string> {
+  const types = new Map<string, string>();
+  for (const addon of addons) {
+    const resolved = resolveAddonStreamType(
+      ctx,
+      addon.instanceId!,
+      preferredType
+    );
+    if (resolved) types.set(addon.instanceId!, resolved);
+  }
+  return types;
 }
 
 /**
@@ -614,17 +667,19 @@ export async function getStreams(
   const statistics: { title: string; description: string; forced?: boolean }[] =
     [];
 
-  const channelId =
-    type === constants.CHANNEL_TYPE ? getCanonicalChannelId(id) : id;
-  const channelMapping =
-    type === constants.CHANNEL_TYPE
-      ? getChannelMapping(ctx.userData, channelId)
-      : undefined;
+  const isLiveChannel = isLiveChannelType(type);
+  const channelId = isLiveChannel ? getCanonicalChannelId(id) : id;
+  const channelMapping = isLiveChannel
+    ? getChannelMapping(ctx.userData, channelId)
+    : undefined;
   let supportedAddons =
     channelMapping?.streams?.flatMap((source) => {
       const mappedId = source.channelId ?? channelId;
-      const addon = getAddonsForResource(ctx, 'stream', type, mappedId).find(
-        (candidate) => candidate.instanceId === source.addonId
+      const addon = findMappedStreamAddon(
+        ctx,
+        type,
+        mappedId,
+        source.addonId
       );
       return addon ? [addon] : [];
     }) ?? getAddonsForResource(ctx, 'stream', type, channelId);
@@ -665,8 +720,7 @@ export async function getStreams(
   ctx.precomputer.resetPrecomputeTimings();
 
   const fetchStart = Date.now();
-  const channelAddonIds =
-    type === constants.CHANNEL_TYPE
+  const channelAddonIds = isLiveChannel
       ? new Map(
           supportedAddons.map((addon) => [
             addon.instanceId!,
@@ -676,16 +730,23 @@ export async function getStreams(
           ])
         )
       : undefined;
+  const addonStreamTypes = isLiveChannel
+    ? buildAddonStreamTypes(ctx, supportedAddons, type)
+    : undefined;
   const {
     streams,
     errors,
     statistics: addonStatistics,
     dispositions,
-  } = await ctx.fetcher.fetch(supportedAddons, context, channelAddonIds);
+  } = await ctx.fetcher.fetch(
+    supportedAddons,
+    context,
+    channelAddonIds,
+    addonStreamTypes
+  );
   const fetchMs = Date.now() - fetchStart;
 
-  let fetchedStreams =
-    type === constants.CHANNEL_TYPE
+  let fetchedStreams = isLiveChannel
       ? orderLiveStreamsByMapping(
           streams,
           buildManualParsedStreams(ctx.userData, channelId),

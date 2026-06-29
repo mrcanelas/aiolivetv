@@ -19,6 +19,7 @@ import {
   decodeHtmlEntities,
   MANUAL_STREAM_ADDON_ID,
   isManualStreamSource,
+  isLiveChannelType,
 } from '@aiostreams/core';
 
 const router: Router = Router();
@@ -191,8 +192,8 @@ router.post(
         const canStream =
           supportsStream && addonProvidesResource(addon, 'stream');
 
-        for (const catalog of manifest.catalogs.filter(
-          (item) => item.type === constants.CHANNEL_TYPE
+        for (const catalog of manifest.catalogs.filter((item) =>
+          isLiveChannelType(item.type)
         )) {
           const addonId = instanceId;
           const catalogId = `${addonId}.${catalog.id}`;

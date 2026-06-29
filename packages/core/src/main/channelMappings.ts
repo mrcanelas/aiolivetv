@@ -1,5 +1,5 @@
 import type { ParsedStream, UserData } from '../db/index.js';
-import { LIVE_STREAM_TYPE } from '../utils/constants.js';
+import { CHANNEL_TYPE, LIVE_STREAM_TYPE, TV_TYPE } from '../utils/constants.js';
 import { decodeHtmlEntities } from '../utils/text.js';
 
 export interface ChannelMatchCandidate {
@@ -24,6 +24,10 @@ export function isManualStreamSource(source: {
   url?: string;
 }) {
   return Boolean(source.url) || source.addonId === MANUAL_STREAM_ADDON_ID;
+}
+
+export function isLiveChannelType(type: string) {
+  return type === CHANNEL_TYPE || type === TV_TYPE;
 }
 
 export function getChannelMapping(userData: UserData, channelId: string) {

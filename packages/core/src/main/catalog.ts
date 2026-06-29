@@ -17,6 +17,7 @@ import type {
 } from '../db/schemas.js';
 import type { Manifest } from '../db/index.js';
 import type { AIOStreamsContext, AIOStreamsResponse } from './types.js';
+import { isLiveChannelType } from './channelMappings.js';
 import {
   shuffleCache,
   mergedCatalogCache,
@@ -761,7 +762,7 @@ export async function getCatalog(
   return {
     success: true,
     data:
-      type === constants.CHANNEL_TYPE
+      isLiveChannelType(type)
         ? catalog.filter((item) => {
             const mapping = ctx.userData.channelMappings?.find((channel) =>
               channel.streams?.some(
