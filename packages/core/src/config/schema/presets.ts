@@ -505,6 +505,13 @@ export const presetsSchema = {
     timeoutEnv: 'DEFAULT_ARGENTINA_TV_TIMEOUT',
     userAgentEnv: 'DEFAULT_ARGENTINA_TV_USER_AGENT',
   }),
+  frostView: basicPreset({
+    label: 'FrostView TV',
+    default: ['https://frostview.cloutteam.com'],
+    envBase: 'FROSTVIEW_URL',
+    timeoutEnv: 'DEFAULT_FROSTVIEW_TIMEOUT',
+    userAgentEnv: 'DEFAULT_FROSTVIEW_USER_AGENT',
+  }),
   brazucaTorrents: basicPreset({
     label: 'Brazuca Torrents',
     default: ['https://94c8cb9f702d-brazuca-torrents.baby-beamup.club'],

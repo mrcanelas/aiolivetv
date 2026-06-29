@@ -39,6 +39,7 @@ import { TMDBAddonPreset } from './tmdb.js';
 import { TorrentsDbPreset } from './torrentsDb.js';
 import { USATVPreset } from './usaTv.js';
 import { ArgentinaTVPreset } from './argentinaTv.js';
+import { FrostViewPreset } from './frostView.js';
 import { OpenSubtitlesV3PlusPreset } from './opensubtitles-v3-plus.js';
 import { SubSourcePreset } from './subsource.js';
 import { SubDLPreset } from './subdl.js';
@@ -79,11 +80,13 @@ import { StreamNZBPreset } from './streamnzb.js';
 import { HdHubPreset } from './hdhub.js';
 import { BaguettioPreset } from './baguettio.js';
 import { Preset } from './index.js';
-import { M3uPreset, XmltvPreset } from './liveTv.js';
+import { M3uPreset, VivoTvPreset, XmltvPreset } from './liveTv.js';
 
 let PRESET_LIST: string[] = [
   'm3u',
   'xmltv',
+  'vivo-tv',
+  'frost-view',
   'custom',
   'torznab',
   'newznab',
@@ -188,6 +191,8 @@ export class PresetManager {
         return M3uPreset;
       case 'xmltv':
         return XmltvPreset;
+      case 'vivo-tv':
+        return VivoTvPreset;
       case 'torrentio':
         return TorrentioPreset;
       case 'stremthruStore':
@@ -274,6 +279,8 @@ export class PresetManager {
         return USATVPreset;
       case 'argentina-tv':
         return ArgentinaTVPreset;
+      case 'frost-view':
+        return FrostViewPreset;
       case 'brazuca-torrents':
         return BrazucaTorrentsPreset;
       case 'opensubtitles-v3-plus':
