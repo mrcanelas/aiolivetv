@@ -35,15 +35,87 @@ export function normalizeChannelName(name: string): string {
     /\b720p?\b/g,
     /\b2160p?\b/g,
     /\bfull\s+hd\b/g,
+    /\bh26[456]\b/g,
+    /\bx26[45]\b/g,
+    /\bhevc\b/g,
+    /\bavc\b/g,
+    /\bav1\b/g,
+    /\bvp9\b/g,
+    /\bmpeg(?:2|4)?\b/g,
   ];
 
   for (const regex of wordsToRemove) {
     normalized = normalized.replace(regex, '');
   }
 
+  normalized = normalized.replace(/&/g, ' ');
   normalized = normalized.replace(/[^a-z0-9\s]/g, ' ');
   normalized = normalized.replace(/\s+/g, ' ').trim();
   return normalized;
+}
+
+export function compactChannelName(name: string): string {
+  return normalizeChannelName(name).replace(/\s+/g, '');
+}
+
+function tokenizeChannelName(name: string) {
+  return name.split(/\s+/).filter(Boolean);
+}
+
+/** True when shorter appears as consecutive words inside longer. */
+export function containsAsWordSequence(longer: string, shorter: string) {
+  const haystack = tokenizeChannelName(longer);
+  const needle = tokenizeChannelName(shorter);
+  if (!needle.length || !haystack.length) return false;
+  if (needle.some((token) => token.length < 2)) return false;
+  if (needle.length === 1) return haystack.includes(needle[0]!);
+  for (let index = 0; index <= haystack.length - needle.length; index++) {
+    if (needle.every((token, offset) => haystack[index + offset] === token)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks whether a stream-like name refers to the same channel label.
+ * Avoids substring traps such as matching "a e" (A&E) inside unrelated titles.
+ */
+export function containsNormalizedChannelName(
+  haystackName: string,
+  needleName: string
+) {
+  const haystack = normalizeChannelName(haystackName);
+  const needle = normalizeChannelName(needleName);
+  if (!haystack || !needle) return false;
+  if (haystack === needle) return true;
+
+  const haystackCompact = compactChannelName(haystackName);
+  const needleCompact = compactChannelName(needleName);
+  if (haystackCompact === needleCompact) return true;
+
+  const shorterNorm = haystack.length <= needle.length ? haystack : needle;
+  const longerNorm = haystack.length > needle.length ? haystack : needle;
+  const shorterCompact =
+    haystackCompact.length <= needleCompact.length
+      ? haystackCompact
+      : needleCompact;
+  const longerCompact =
+    haystackCompact.length > needleCompact.length
+      ? haystackCompact
+      : needleCompact;
+
+  if (shorterCompact.length < 4) return false;
+
+  if (
+    shorterCompact.length >= 5 &&
+    longerCompact.length >= 5 &&
+    longerCompact.includes(shorterCompact)
+  ) {
+    return true;
+  }
+
+  return containsAsWordSequence(longerNorm, shorterNorm);
 }
 
 /** Sørensen–Dice coefficient for fuzzy name comparison. */

@@ -231,4 +231,51 @@ describe('channel mappings', () => {
       ).toBe(true);
     }
   });
+
+  it('does not suggest unrelated channels for short names like A&E', () => {
+    const channel = { id: 'a-and-e', name: 'A&E' };
+    for (const streamName of [
+      'Record TV Franca e Ribeirão Preto',
+      'Record Tv Tv Vitória ESPIRITO SANTO',
+      'NBA EXTRA',
+      'Pestinha e Feroz',
+      'A Vaca e o Frango',
+    ]) {
+      const confidence = getChannelMatchConfidence(
+        { id: 'stream', name: streamName },
+        channel
+      );
+      expect(
+        confidence,
+        `expected no match for ${streamName}`
+      ).toBe(0);
+    }
+    for (const streamName of ['A&E FHD', 'A&E HD', 'A&E SD']) {
+      const confidence = getChannelMatchConfidence(
+        { id: 'stream', name: streamName },
+        channel
+      );
+      expect(isHighConfidenceChannelMatch(confidence)).toBe(true);
+    }
+  });
+
+  it('matches streams with codec suffixes to the base channel', () => {
+    const channel = { id: 'axn', name: 'AXN' };
+    for (const streamName of [
+      'AXN H265',
+      'AXN H264',
+      'AXN HEVC',
+      'AXN x265',
+      'Minha TV · AXN H265',
+    ]) {
+      const confidence = getChannelMatchConfidence(
+        { id: 'stream', name: streamName },
+        channel
+      );
+      expect(
+        isHighConfidenceChannelMatch(confidence),
+        `expected auto-match for ${streamName}`
+      ).toBe(true);
+    }
+  });
 });

@@ -1,6 +1,8 @@
 import type { ParsedStream, UserData } from '../db/index.js';
 import { CHANNEL_TYPE, LIVE_STREAM_TYPE, TV_TYPE } from '../utils/constants.js';
 import {
+  compactChannelName,
+  containsNormalizedChannelName,
   getChannelNameSimilarity,
   normalizeChannelName,
 } from '../utils/channelName.js';
@@ -80,17 +82,29 @@ function scoreNamePair(
   if (!leftNorm || !rightNorm) return 0;
 
   const aliasMatch = left.alias || right.alias;
+  const leftCompact = compactChannelName(left.value);
+  const rightCompact = compactChannelName(right.value);
+  const minCompact = Math.min(leftCompact.length, rightCompact.length);
 
-  if (leftNorm === rightNorm) {
+  if (
+    leftNorm === rightNorm ||
+    (leftCompact.length >= 2 && leftCompact === rightCompact)
+  ) {
     return aliasMatch ? 0.88 : 0.9;
   }
 
-  let score = getChannelNameSimilarity(leftNorm, rightNorm);
-  const shortest = Math.min(leftNorm.length, rightNorm.length);
-  if (shortest >= 3) {
-    if (leftNorm.includes(rightNorm) || rightNorm.includes(leftNorm)) {
-      score = Math.max(score, 0.85);
-    }
+  if (minCompact <= 3) return 0;
+
+  let score = Math.max(
+    getChannelNameSimilarity(leftNorm, rightNorm),
+    getChannelNameSimilarity(leftCompact, rightCompact)
+  );
+
+  if (
+    containsNormalizedChannelName(left.value, right.value) ||
+    containsNormalizedChannelName(right.value, left.value)
+  ) {
+    score = Math.max(score, 0.85);
   }
 
   if (!score) return 0;
