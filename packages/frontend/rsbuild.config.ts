@@ -7,7 +7,7 @@ const { publicVars, parsed } = loadEnv({ prefixes: ['PUBLIC_'] });
 
 const devServerPort = Number(parsed.PORT) || 21456;
 const backendBaseUrl =
-  parsed.PUBLIC_BACKEND_BASE_URL || 'http://localhost:3001';
+  parsed.PUBLIC_BACKEND_BASE_URL || 'http://localhost:3000';
 
 export default defineConfig({
   // @aiostreams/core resolves via its built dist (self-consistent .js
