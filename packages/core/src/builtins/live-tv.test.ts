@@ -37,7 +37,7 @@ describe('live TV sources', () => {
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
       text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><date>20260627</date><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     const addon = new XmltvAddon({
       sourceUrl: 'https://example.com/guide.xml',
@@ -50,7 +50,7 @@ describe('live TV sources', () => {
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
       text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><date>20260627</date><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     const meta = await addon.getMeta(encodeChannelId('bbc.one'));
     expect(meta.videos?.[0]).toMatchObject({
@@ -60,7 +60,7 @@ describe('live TV sources', () => {
       thumbnail: 'https://example.com/news.jpg',
       startTime: '2026-06-28T12:00:00.000Z',
       endTime: '2026-06-28T13:00:00.000Z',
-      released: '2026-06-27T00:00:00.000Z',
+      released: '2026-06-28T12:00:00.000Z',
       releaseInfo: '2026',
       runtime: '60 min',
       genres: ['News'],
@@ -76,6 +76,11 @@ describe('live TV sources', () => {
           category: 'Cast',
           name: 'Jane Doe',
           url: 'stremio:///search?search=Jane%20Doe',
+        },
+        {
+          category: 'Director',
+          name: 'John Doe',
+          url: 'stremio:///search?search=John%20Doe',
         },
       ],
     });
@@ -122,6 +127,21 @@ describe('live TV sources', () => {
 
     expect(await addon.getCatalog()).toHaveLength(20);
     expect(await addon.getCatalog(20)).toHaveLength(5);
+  });
+
+  it('falls back program released to startTime when XMLTV date is missing', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: true,
+      text: async () =>
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    const addon = new XmltvAddon({
+      sourceUrl: 'https://example.com/guide.xml',
+      timeout: 1000,
+    });
+    const meta = await addon.getMeta(encodeChannelId('bbc.one'));
+    expect(meta.videos?.[0]?.released).toBe('2026-06-28T12:00:00.000Z');
+    expect(meta.videos?.[0]?.links).toBeUndefined();
   });
 });
 

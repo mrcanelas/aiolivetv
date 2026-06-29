@@ -129,7 +129,11 @@ function parseProgramDate(input: unknown): string | undefined {
     : new Date(timestamp).toISOString();
 }
 
-function programLinks(genres: string[] = [], cast: string[] = []) {
+function programLinks(
+  genres: string[] = [],
+  cast: string[] = [],
+  directors: string[] = []
+) {
   return [
     ...genres.map((name) => ({
       category: 'Genres',
@@ -138,6 +142,11 @@ function programLinks(genres: string[] = [], cast: string[] = []) {
     })),
     ...cast.map((name) => ({
       category: 'Cast',
+      name,
+      url: `stremio:///search?search=${encodeURIComponent(name)}`,
+    })),
+    ...directors.map((name) => ({
+      category: 'Director',
       name,
       url: `stremio:///search?search=${encodeURIComponent(name)}`,
     })),
@@ -377,22 +386,30 @@ export class XmltvAddon {
         .filter(
           (program) => program.channelId.trim().toLowerCase() === channelId
         )
-        .map((program) => ({
-          id: `${id.split(':epg:', 1)[0]}:epg:${program.startTime}`,
-          title: program.title,
-          subtitle: program.subtitle,
-          overview: program.description,
-          thumbnail: program.thumbnail,
-          genres: program.categories,
-          cast: program.cast,
-          directors: program.directors,
-          links: programLinks(program.categories, program.cast),
-          released: program.released,
-          releaseInfo: program.released?.slice(0, 4),
-          runtime: program.runtime,
-          startTime: program.startTime,
-          endTime: program.endTime,
-        }))
+        .map((program) => {
+          const links = programLinks(
+            program.categories,
+            program.cast,
+            program.directors
+          );
+          return {
+            id: `${id.split(':epg:', 1)[0]}:epg:${program.startTime}`,
+            title: program.title,
+            subtitle: program.subtitle,
+            overview: program.description,
+            thumbnail: program.thumbnail,
+            genres: program.categories,
+            cast: program.cast,
+            directors: program.directors,
+            links: links.length ? links : undefined,
+            released: program.released ?? program.startTime,
+            releaseInfo:
+              program.released?.slice(0, 4) ?? program.startTime.slice(0, 4),
+            runtime: program.runtime,
+            startTime: program.startTime,
+            endTime: program.endTime,
+          };
+        })
         .sort((a, b) => a.startTime.localeCompare(b.startTime)),
     };
   }
