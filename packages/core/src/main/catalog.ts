@@ -154,6 +154,12 @@ export function getCatalogExtras(
   return catalog?.extra;
 }
 
+export function catalogSupportsSkip(
+  extras: Manifest['catalogs'][number]['extra'] | undefined
+): boolean {
+  return extras?.some((extra) => extra.name === 'skip') ?? false;
+}
+
 /**
  * Applies poster modifications to catalog items.
  */
@@ -519,7 +525,7 @@ export async function getMergedCatalog(
       }
 
       const sourceSkip = skipState!.sourceSkips[encodedCatalogId] || 0;
-      const supportsSkip = catalogExtras?.some((e) => e.name === 'skip');
+      const supportsSkip = catalogSupportsSkip(catalogExtras);
 
       if (!supportsSkip && sourceSkip > 0) {
         logger.debug(

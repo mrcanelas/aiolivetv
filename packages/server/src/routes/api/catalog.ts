@@ -14,6 +14,7 @@ import {
   mergeConfigs,
   getChannelMatchConfidence,
   isHighConfidenceChannelMatch,
+  catalogSupportsSkip,
 } from '@aiostreams/core';
 
 const router: Router = Router();
@@ -175,7 +176,7 @@ router.post(
         const canStream =
           supportsStream &&
           (!addon.resources?.length || addon.resources.includes('stream'));
-        const paginated = catalog.extra?.some((extra) => extra.name === 'skip');
+        const paginated = catalogSupportsSkip(catalog.extra);
         let skip = 0;
         const seenCatalogItems = new Set<string>();
         while (true) {

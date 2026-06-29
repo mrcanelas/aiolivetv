@@ -35,7 +35,9 @@ export {
   refreshLibraryCacheForService,
   M3uAddon,
   XmltvAddon,
+  VivoTvAddon,
   type LiveTvSourceConfig,
+  type VivoTvConfig,
 } from './builtins/index.js';
 export { PresetManager } from './presets/index.js';
 export {
@@ -45,3 +47,4 @@ export {
 } from './main/nzbFailover.js';
 export type { NzbFallback } from './main/nzbFailover.js';
 export * from './main/channelMappings.js';
+export { catalogSupportsSkip, getCatalogExtras } from './main/catalog.js';
