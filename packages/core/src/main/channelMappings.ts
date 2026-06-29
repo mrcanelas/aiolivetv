@@ -1,5 +1,9 @@
 import type { ParsedStream, UserData } from '../db/index.js';
 import { CHANNEL_TYPE, LIVE_STREAM_TYPE, TV_TYPE } from '../utils/constants.js';
+import {
+  getChannelNameSimilarity,
+  normalizeChannelName,
+} from '../utils/channelName.js';
 import { decodeHtmlEntities } from '../utils/text.js';
 
 export interface ChannelMatchCandidate {
@@ -35,42 +39,97 @@ export function getChannelMapping(userData: UserData, channelId: string) {
   return userData.channelMappings?.find((channel) => channel.id === channelId);
 }
 
-function normalise(value?: string) {
+function normaliseId(value?: string) {
   return decodeHtmlEntities(value ?? '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
 
-function equal(a?: string, b?: string) {
-  const left = normalise(a);
-  return Boolean(left && left === normalise(b));
+function equalId(left?: string, right?: string) {
+  const normalizedLeft = normaliseId(left);
+  return Boolean(normalizedLeft && normalizedLeft === normaliseId(right));
+}
+
+function equalOptional(a?: string, b?: string) {
+  const left = normaliseId(a);
+  return Boolean(left && left === normaliseId(b));
 }
 
 function overlaps(left: string[] = [], right: string[] = []) {
-  const values = new Set(left.map(normalise).filter(Boolean));
-  return right.some((value) => values.has(normalise(value)));
+  const values = new Set(left.map(normalizeChannelName).filter(Boolean));
+  return right.some((value) => values.has(normalizeChannelName(value)));
+}
+
+function collectNameEntries(candidate: ChannelMatchCandidate) {
+  const entries: Array<{ value: string; alias: boolean }> = [];
+  if (candidate.name) entries.push({ value: candidate.name, alias: false });
+  for (const alias of candidate.aliases ?? []) {
+    entries.push({ value: alias, alias: true });
+  }
+  return entries;
+}
+
+function scoreNamePair(
+  left: { value: string; alias: boolean },
+  right: { value: string; alias: boolean }
+) {
+  const leftNorm = normalizeChannelName(left.value);
+  const rightNorm = normalizeChannelName(right.value);
+  if (!leftNorm || !rightNorm) return 0;
+
+  const aliasMatch = left.alias || right.alias;
+
+  if (leftNorm === rightNorm) {
+    return aliasMatch ? 0.88 : 0.9;
+  }
+
+  let score = getChannelNameSimilarity(leftNorm, rightNorm);
+  const shortest = Math.min(leftNorm.length, rightNorm.length);
+  if (shortest >= 3) {
+    if (leftNorm.includes(rightNorm) || rightNorm.includes(leftNorm)) {
+      score = Math.max(score, 0.85);
+    }
+  }
+
+  if (!score) return 0;
+  if (aliasMatch) return Math.min(score, 0.88);
+  return score;
+}
+
+function matchNormalizedNames(
+  left: ChannelMatchCandidate,
+  right: ChannelMatchCandidate
+) {
+  let best = 0;
+  for (const leftEntry of collectNameEntries(left)) {
+    for (const rightEntry of collectNameEntries(right)) {
+      best = Math.max(best, scoreNamePair(leftEntry, rightEntry));
+    }
+  }
+  return best;
 }
 
 export function getChannelMatchConfidence(
   left: ChannelMatchCandidate,
   right: ChannelMatchCandidate
 ) {
-  if (equal(left.tvgId, right.tvgId)) return 1;
+  if (
+    equalId(left.tvgId, right.tvgId) ||
+    equalId(left.tvgId, right.id) ||
+    equalId(left.id, right.tvgId)
+  ) {
+    return 1;
+  }
 
-  const namesMatch = equal(left.name, right.name);
-  const aliasesMatch = overlaps(
-    [left.name, ...(left.aliases ?? [])],
-    [right.name, ...(right.aliases ?? [])]
-  );
-  let score = namesMatch ? 0.9 : aliasesMatch ? 0.88 : 0;
+  let score = matchNormalizedNames(left, right);
   if (!score) return 0;
-  if (equal(left.country, right.country)) score += 0.03;
-  if (equal(left.language, right.language)) score += 0.03;
+
+  if (equalOptional(left.country, right.country)) score += 0.03;
+  if (equalOptional(left.language, right.language)) score += 0.03;
   if (overlaps(left.categories, right.categories)) score += 0.02;
-  if (equal(left.logo, right.logo)) score += 0.02;
+  if (equalOptional(left.logo, right.logo)) score += 0.02;
   return Math.min(score, 0.99);
 }
 
@@ -156,3 +215,5 @@ export function orderLiveStreamsByMapping(
   }
   return ordered.length ? ordered : [...manual, ...fetched];
 }
+
+export { normalizeChannelName } from '../utils/channelName.js';

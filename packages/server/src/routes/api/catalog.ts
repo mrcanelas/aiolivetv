@@ -453,7 +453,9 @@ router.post(
           for (const channel of channels) {
             if (
               channel.mappings.some(
-                (mapping) => mapping.addonId === candidate.addonId
+                (mapping) =>
+                  mapping.addonId === candidate.addonId &&
+                  mapping.channelId === candidate.id
               )
             )
               continue;

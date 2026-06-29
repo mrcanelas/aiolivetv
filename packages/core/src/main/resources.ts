@@ -49,6 +49,7 @@ import {
   getChannelMapping,
   isChannelAddonEnabled,
   isLiveChannelType,
+  isManualStreamSource,
   buildManualParsedStreams,
   orderLiveStreamsByMapping,
 } from './channelMappings.js';
@@ -242,6 +243,74 @@ function getMetaCandidates(
   }
 
   return results;
+}
+
+type MetaCandidate = {
+  addon: Addon;
+  instanceId: string;
+  reason: 'matching id prefix' | 'general type support';
+  metaType: string;
+};
+
+function resolveAddonMetaType(
+  ctx: Pick<AIOStreamsContext, 'supportedResources'>,
+  instanceId: string,
+  preferredType: string
+): string | undefined {
+  const resources = ctx.supportedResources[instanceId];
+  const meta = resources?.find((resource) => resource.name === 'meta');
+  if (!meta) return undefined;
+  if (meta.types.includes(preferredType)) return preferredType;
+  for (const fallbackType of LIVE_CHANNEL_STREAM_TYPES) {
+    if (meta.types.includes(fallbackType)) return fallbackType;
+  }
+  return meta.types[0];
+}
+
+function collectLiveChannelMetaCandidates(
+  ctx: Pick<AIOStreamsContext, 'supportedResources' | 'addons' | 'userData'>,
+  type: string,
+  channelId: string
+): MetaCandidate[] {
+  const channelMapping = getChannelMapping(ctx.userData, channelId);
+  const requestTypes = isLiveChannelType(type)
+    ? LIVE_CHANNEL_STREAM_TYPES
+    : [type];
+  const candidates = new Map<string, MetaCandidate>();
+
+  const addCandidates = (metaId: string, instanceId?: string) => {
+    for (const metaType of requestTypes) {
+      for (const candidate of getMetaCandidates(ctx, metaType, metaId)) {
+        if (instanceId && candidate.instanceId !== instanceId) continue;
+        const existing = candidates.get(candidate.instanceId);
+        if (
+          existing &&
+          existing.metaType === constants.CHANNEL_TYPE &&
+          metaType !== constants.CHANNEL_TYPE
+        ) {
+          continue;
+        }
+        candidates.set(candidate.instanceId, { ...candidate, metaType });
+      }
+    }
+  };
+
+  addCandidates(channelId);
+  if (channelMapping?.canonicalAddonId) {
+    addCandidates(channelId, channelMapping.canonicalAddonId);
+  }
+  for (const source of channelMapping?.streams ?? []) {
+    if (isManualStreamSource(source)) continue;
+    addCandidates(source.channelId ?? channelId, source.addonId);
+  }
+
+  return [...candidates.values()].sort((left, right) =>
+    left.instanceId === channelMapping?.canonicalAddonId
+      ? -1
+      : right.instanceId === channelMapping?.canonicalAddonId
+        ? 1
+        : 0
+  );
 }
 
 function getNextEpisode(
@@ -984,35 +1053,22 @@ export async function getMeta(
 ): Promise<AIOStreamsResponse<ParsedMeta | null>> {
   logger.debug({ type, id }, 'handling meta request');
 
-  if (
-    type === constants.CHANNEL_TYPE &&
-    getChannelMapping(ctx.userData, getCanonicalChannelId(id))?.enabled ===
-      false
-  ) {
+  const isLiveChannel = isLiveChannelType(type);
+  const channelId = isLiveChannel ? getCanonicalChannelId(id) : id;
+  const channelMapping = isLiveChannel
+    ? getChannelMapping(ctx.userData, channelId)
+    : undefined;
+
+  if (isLiveChannel && channelMapping?.enabled === false) {
     return { success: false, data: null, errors: [] };
   }
 
-  const channelId =
-    type === constants.CHANNEL_TYPE ? getCanonicalChannelId(id) : id;
-  const channelMapping =
-    type === constants.CHANNEL_TYPE
-      ? getChannelMapping(ctx.userData, channelId)
-      : undefined;
-  const candidates = (
-    channelMapping?.streams
-      ? channelMapping.streams.flatMap((source) =>
-          getMetaCandidates(ctx, type, source.channelId ?? channelId).filter(
-            (candidate) => candidate.instanceId === source.addonId
-          )
-        )
-      : getMetaCandidates(ctx, type, channelId)
-  ).sort((a, b) =>
-    a.instanceId === channelMapping?.canonicalAddonId
-      ? -1
-      : b.instanceId === channelMapping?.canonicalAddonId
-        ? 1
-        : 0
-  );
+  const candidates = isLiveChannel
+    ? collectLiveChannelMetaCandidates(ctx, type, channelId)
+    : getMetaCandidates(ctx, type, id).map((candidate) => ({
+        ...candidate,
+        metaType: type,
+      }));
 
   if (candidates.length === 0) {
     logger.warn({ type, id }, 'no supported addon found for meta request');
@@ -1027,6 +1083,7 @@ export async function getMeta(
         addon: candidate.addon.name,
         instanceId: candidate.instanceId,
         reason: candidate.reason,
+        metaType: candidate.metaType,
       },
       'trying addon for meta resource'
     );
@@ -1035,8 +1092,14 @@ export async function getMeta(
         channelMapping?.streams?.find(
           (stream) => stream.addonId === candidate.instanceId
         )?.channelId ?? channelId;
-      const meta = await new Wrapper(candidate.addon).getMeta(type, mappedId);
-      if (type === constants.CHANNEL_TYPE) {
+      const metaType =
+        resolveAddonMetaType(
+          ctx,
+          candidate.instanceId,
+          candidate.metaType
+        ) ?? candidate.metaType;
+      const meta = await new Wrapper(candidate.addon).getMeta(metaType, mappedId);
+      if (isLiveChannel) {
         meta.id = channelId;
         meta.videos = meta.videos?.map((video) =>
           video.startTime

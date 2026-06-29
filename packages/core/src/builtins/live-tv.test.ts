@@ -207,4 +207,28 @@ describe('channel mappings', () => {
     expect(confidence).toBeGreaterThanOrEqual(0.9);
     expect(isHighConfidenceChannelMatch(confidence)).toBe(true);
   });
+
+  it('matches streams with resolution and language suffixes to the base channel', () => {
+    const channel = { id: 'amc', name: 'AMC' };
+    for (const streamName of [
+      'AMC 4K',
+      'AMC FHD',
+      'AMC HD',
+      'AMC HD2',
+      'AMC LEG FHD',
+      'AMC LEG HD',
+      'AMC LEG SD',
+      'AMC SD',
+      'Minha TV · AMC LEG FHD',
+    ]) {
+      const confidence = getChannelMatchConfidence(
+        { id: 'stream', name: streamName },
+        channel
+      );
+      expect(
+        isHighConfidenceChannelMatch(confidence),
+        `expected auto-match for ${streamName}`
+      ).toBe(true);
+    }
+  });
 });
