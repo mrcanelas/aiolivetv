@@ -26,6 +26,9 @@ const router: Router = Router();
 
 const logger = createLogger('server');
 const MAX_CHANNELS_PER_CATALOG = 10_000;
+const MAX_STREAM_ONLY_CANDIDATES = 2_000;
+const MAX_CATALOG_PAGES = 50;
+const MAX_AUTO_MATCH_PAIRS = 5_000_000;
 router.use(catalogApiRateLimiter);
 router.use(attachSession);
 
@@ -191,6 +194,7 @@ router.post(
         );
         const canStream =
           supportsStream && addonProvidesResource(addon, 'stream');
+        if (!contributesChannels && !canStream) continue;
 
         for (const catalog of manifest.catalogs.filter((item) =>
           isLiveChannelType(item.type)
@@ -198,9 +202,18 @@ router.post(
           const addonId = instanceId;
           const catalogId = `${addonId}.${catalog.id}`;
           const paginated = catalogSupportsSkip(catalog.extra);
+          const maxCandidates = contributesChannels
+            ? MAX_CHANNELS_PER_CATALOG
+            : MAX_STREAM_ONLY_CANDIDATES;
           let skip = 0;
+          let page = 0;
+          let addonCandidateCount = 0;
           const seenCatalogItems = new Set<string>();
           while (true) {
+            page++;
+            if (page > MAX_CATALOG_PAGES || addonCandidateCount >= maxCandidates) {
+              break;
+            }
             const response = await aio.getCatalog(
               catalog.type,
               catalogId,
@@ -208,11 +221,13 @@ router.post(
             );
             let added = 0;
             for (const item of response.data) {
+              if (addonCandidateCount >= maxCandidates) break;
               if (seenCatalogItems.has(item.id)) continue;
               seenCatalogItems.add(item.id);
               added++;
               const key = `${addonId}\0${item.id}`;
               if (candidates.has(key)) continue;
+              addonCandidateCount++;
               candidates.set(key, {
                 id: item.id,
                 name: decodeHtmlEntities(item.name ?? item.id),
@@ -237,6 +252,7 @@ router.post(
               !paginated ||
               response.data.length === 0 ||
               added === 0 ||
+              addonCandidateCount >= maxCandidates ||
               skip + response.data.length >= MAX_CHANNELS_PER_CATALOG
             )
               break;
@@ -245,6 +261,9 @@ router.post(
         }
       }
 
+      const streamCandidates = [...candidates.values()].filter(
+        (candidate) => candidate.canStream
+      );
       const channels: Channel[] = [];
       const assigned = new Set<string>();
       const candidateKey = (addonId: string, channelId: string) =>
@@ -311,18 +330,18 @@ router.post(
       const markChannelAssigned = (candidate: Candidate) => {
         assigned.add(candidateKey(candidate.addonId, candidate.id));
       };
-      const buildAvailableStreamSources = (channel: Channel) =>
-        [...candidates.values()]
-          .filter((candidate) => candidate.canStream)
+      const buildAvailableStreamSources = (channel: Channel) => {
+        const used = new Set(
+          channel.mappings.map(
+            (mapping) => `${mapping.addonId}\0${mapping.channelId}`
+          )
+        );
+        return streamCandidates
           .filter(
             (candidate) =>
-              !channel.mappings.some(
-                (mapping) =>
-                  mapping.addonId === candidate.addonId &&
-                  mapping.channelId === candidate.id
-              )
+              !used.has(`${candidate.addonId}\0${candidate.id}`) &&
+              !isRejected(channel.id, candidate)
           )
-          .filter((candidate) => !isRejected(channel.id, candidate))
           .map((candidate) => ({
             addonId: candidate.addonId,
             addonName: candidate.addonName,
@@ -333,6 +352,7 @@ router.post(
           .sort((a, b) =>
             a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
           );
+      };
 
       for (const configured of configuredMappings) {
         if (configured.hidden) continue;
@@ -420,36 +440,40 @@ router.post(
       }
 
       // Pass 2: attach stream sources to existing channels or create stream-native channels.
-      for (const candidate of [...candidates.values()]
-        .filter((item) => item.canStream)
-        .sort((a, b) => Number(b.epgProvider) - Number(a.epgProvider))) {
+      const autoMatchStreams =
+        streamCandidates.length * channels.length <= MAX_AUTO_MATCH_PAIRS;
+      for (const candidate of streamCandidates.sort(
+        (a, b) => Number(b.epgProvider) - Number(a.epgProvider)
+      )) {
         if (hiddenChannelIds.has(candidate.id)) continue;
         if (assigned.has(candidateKey(candidate.addonId, candidate.id))) continue;
         let best: { channel: Channel; confidence: number } | undefined;
         let suggestion: { channel: Channel; confidence: number } | undefined;
-        for (const channel of channels) {
-          if (
-            channel.mappings.some(
-              (mapping) => mapping.addonId === candidate.addonId
+        if (autoMatchStreams) {
+          for (const channel of channels) {
+            if (
+              channel.mappings.some(
+                (mapping) => mapping.addonId === candidate.addonId
+              )
             )
-          )
-            continue;
-          const canonical = resolveCanonical(channel);
-          const confidence = getChannelMatchConfidence(
-            { ...candidate, logo: candidate.poster ?? undefined },
-            { ...canonical, logo: canonical.poster ?? undefined }
-          );
-          if (
-            confidence > 0 &&
-            (!suggestion || confidence > suggestion.confidence)
-          ) {
-            suggestion = { channel, confidence };
+              continue;
+            const canonical = resolveCanonical(channel);
+            const confidence = getChannelMatchConfidence(
+              { ...candidate, logo: candidate.poster ?? undefined },
+              { ...canonical, logo: canonical.poster ?? undefined }
+            );
+            if (
+              confidence > 0 &&
+              (!suggestion || confidence > suggestion.confidence)
+            ) {
+              suggestion = { channel, confidence };
+            }
+            if (
+              isHighConfidenceChannelMatch(confidence) &&
+              (!best || confidence > best.confidence)
+            )
+              best = { channel, confidence };
           }
-          if (
-            isHighConfidenceChannelMatch(confidence) &&
-            (!best || confidence > best.confidence)
-          )
-            best = { channel, confidence };
         }
         if (best) {
           if (!isRejected(best.channel.id, candidate)) {

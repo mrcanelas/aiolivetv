@@ -1,30 +1,42 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 export function useDisclosure(
   initialState: boolean,
   callbacks?: { onOpen?(): void; onClose?(): void }
 ) {
   const [opened, setOpened] = useState(initialState);
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
 
-  const open = () => {
-    if (!opened) {
-      setOpened(true);
-      callbacks?.onOpen?.();
-    }
-  };
+  const open = useCallback(() => {
+    setOpened((current) => {
+      if (!current) callbacksRef.current?.onOpen?.();
+      return true;
+    });
+  }, []);
 
-  const close = () => {
-    if (opened) {
-      setOpened(false);
-      callbacks?.onClose?.();
-    }
-  };
+  const close = useCallback(() => {
+    setOpened((current) => {
+      if (current) callbacksRef.current?.onClose?.();
+      return false;
+    });
+  }, []);
 
-  const toggle = () => {
-    opened ? close() : open();
-  };
+  const toggle = useCallback(() => {
+    setOpened((current) => {
+      if (current) {
+        callbacksRef.current?.onClose?.();
+        return false;
+      }
+      callbacksRef.current?.onOpen?.();
+      return true;
+    });
+  }, []);
 
-  return { isOpen: opened, open, close, toggle } as const;
+  return useMemo(
+    () => ({ isOpen: opened, open, close, toggle }),
+    [opened, open, close, toggle]
+  );
 }
 
 export type UseDisclosureReturn = ReturnType<typeof useDisclosure>;
@@ -34,30 +46,42 @@ export function useBoolean(
   callbacks?: { onOpen?(): void; onClose?(): void }
 ) {
   const [opened, setOpened] = useState(initialState);
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
 
-  const open = () => {
-    if (!opened) {
-      setOpened(true);
-      callbacks?.onOpen?.();
-    }
-  };
+  const open = useCallback(() => {
+    setOpened((current) => {
+      if (!current) callbacksRef.current?.onOpen?.();
+      return true;
+    });
+  }, []);
 
-  const close = () => {
-    if (opened) {
-      setOpened(false);
-      callbacks?.onClose?.();
-    }
-  };
+  const close = useCallback(() => {
+    setOpened((current) => {
+      if (current) callbacksRef.current?.onClose?.();
+      return false;
+    });
+  }, []);
 
-  const toggle = () => {
-    opened ? close() : open();
-  };
+  const toggle = useCallback(() => {
+    setOpened((current) => {
+      if (current) {
+        callbacksRef.current?.onClose?.();
+        return false;
+      }
+      callbacksRef.current?.onOpen?.();
+      return true;
+    });
+  }, []);
 
-  return {
-    active: opened,
-    on: open,
-    off: close,
-    toggle,
-    set: setOpened,
-  } as const;
+  return useMemo(
+    () => ({
+      active: opened,
+      on: open,
+      off: close,
+      toggle,
+      set: setOpened,
+    }),
+    [opened, open, close, toggle]
+  );
 }

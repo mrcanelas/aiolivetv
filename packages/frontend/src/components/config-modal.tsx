@@ -26,8 +26,6 @@ export function ConfigModal({
   const [password, setPasswordInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
-  console.log(`received initialUuid: ${initialUuid}`);
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);

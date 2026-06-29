@@ -110,32 +110,25 @@ export function MainSidebar() {
           icon: <BiLogInCircle />,
           keywords: ['login', 'log in'],
           onSelect: () => signInModal.open(),
-        },
-    [isSignedIn, confirmClearConfig, signInModal]
+        }
   );
 
-  useRegisterQuickAction(
-    {
-      id: 'donate',
-      label: 'Donate',
-      icon: <BiHeart />,
-      keywords: ['support', 'sponsor'],
-      onSelect: () => donationModal.open(),
-    },
-    [donationModal]
-  );
+  useRegisterQuickAction({
+    id: 'donate',
+    label: 'Donate',
+    icon: <BiHeart />,
+    keywords: ['support', 'sponsor'],
+    onSelect: () => donationModal.open(),
+  });
 
-  useRegisterQuickAction(
-    {
-      id: 'toggle-mode',
-      label:
-        mode === 'pro' ? 'Switch to Simple mode' : 'Switch to Advanced mode',
-      icon: <BiCog />,
-      keywords: ['mode', 'pro', 'noob', 'beginner', 'advanced'],
-      onSelect: () => setMode(mode === 'pro' ? 'noob' : 'pro'),
-    },
-    [mode, setMode]
-  );
+  useRegisterQuickAction({
+    id: 'toggle-mode',
+    label:
+      mode === 'pro' ? 'Switch to Simple mode' : 'Switch to Advanced mode',
+    icon: <BiCog />,
+    keywords: ['mode', 'pro', 'noob', 'beginner', 'advanced'],
+    onSelect: () => setMode(mode === 'pro' ? 'noob' : 'pro'),
+  });
 
   const topMenuItems: MenuItem[] = [
     {

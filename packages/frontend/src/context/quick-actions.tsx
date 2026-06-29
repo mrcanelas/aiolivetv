@@ -35,15 +35,15 @@ export function QuickActionsProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [, force] = useState(0);
+  const [version, setVersion] = useState(0);
   const actionsRef = useRef<Map<string, QuickAction>>(new Map());
 
   const register = useCallback((action: QuickAction) => {
     actionsRef.current.set(action.id, action);
-    force((n) => n + 1);
+    setVersion((value) => value + 1);
     return () => {
       actionsRef.current.delete(action.id);
-      force((n) => n + 1);
+      setVersion((value) => value + 1);
     };
   }, []);
 
@@ -52,13 +52,7 @@ export function QuickActionsProvider({
       actions: Array.from(actionsRef.current.values()),
       register,
     }),
-    // Recreate whenever the registry changes (force tick is the trigger)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      register,
-      actionsRef.current.size,
-      ...Array.from(actionsRef.current.keys()),
-    ]
+    [register, version]
   );
 
   return (
@@ -71,14 +65,21 @@ export function QuickActionsProvider({
 export const useQuickActions = () => useContext(QuickActionsContext);
 
 /** Convenience hook to register a quick action while a component is mounted. */
-export function useRegisterQuickAction(
-  action: QuickAction | null,
-  deps: React.DependencyList
-) {
+export function useRegisterQuickAction(action: QuickAction | null) {
   const { register } = useQuickActions();
+  const actionRef = useRef(action);
+  actionRef.current = action;
+
   useEffect(() => {
     if (!action) return;
-    return register(action);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+    return register({
+      id: action.id,
+      label: action.label,
+      description: action.description,
+      icon: action.icon,
+      shortcut: action.shortcut,
+      keywords: action.keywords,
+      onSelect: () => actionRef.current?.onSelect(),
+    });
+  }, [action?.id, action?.label, register]);
 }

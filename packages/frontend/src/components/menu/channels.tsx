@@ -51,21 +51,22 @@ export function ChannelsMenu() {
   const mappingModal = useDisclosure(false);
   const editModal = useDisclosure(false);
   const queryClient = useQueryClient();
-  const queryKey = [
-    'channels',
-    JSON.stringify({
-      presets: userData.presets,
-      services: userData.services,
-      parentConfig: userData.parentConfig,
-      channelMappings: userData.channelMappings,
-    }),
-  ] as const;
+  const userDataRef = React.useRef(userData);
+  userDataRef.current = userData;
+  const channelsConfigKey = JSON.stringify({
+    presets: userData.presets,
+    services: userData.services,
+    parentConfig: userData.parentConfig,
+  });
+  const queryKey = ['channels', channelsConfigKey] as const;
   const query = useQuery({
     queryKey,
-    queryFn: () => fetchChannels(userData),
+    queryFn: () => fetchChannels(userDataRef.current),
     staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
   const channels = query.data ?? [];
+  const isInitialLoading = query.isPending && channels.length === 0;
   const suggestionCount = countSuggestions(channels);
 
   const buildVisibleMappings = React.useCallback(
@@ -640,7 +641,7 @@ export function ChannelsMenu() {
           </div>
         ) : null}
 
-        {query.isLoading ? (
+        {isInitialLoading ? (
           <div className="flex justify-center py-16">
             <LoadingSpinner />
           </div>
