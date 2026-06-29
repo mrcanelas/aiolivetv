@@ -137,6 +137,7 @@ router.post(
         poster?: string | null;
         canonicalAddonId: string;
         enabled: boolean;
+        rejectedStreams: Array<{ addonId: string; channelId: string }>;
         mappings: Array<
           Candidate & {
             channelId: string;
@@ -146,6 +147,18 @@ router.post(
         >;
       };
       const candidates = new Map<string, Candidate>();
+      const rejectedPairs = new Set(
+        configuredMappings.flatMap((mapping) =>
+          (mapping.rejectedStreams ?? []).map(
+            (rejected) =>
+              `${mapping.id}\0${rejected.addonId}\0${rejected.channelId}`
+          )
+        )
+      );
+      const isRejected = (channelId: string, candidate: Candidate) =>
+        rejectedPairs.has(
+          `${channelId}\0${candidate.addonId}\0${candidate.id}`
+        );
 
       for (const catalog of aio
         .getCatalogs()
@@ -245,6 +258,7 @@ router.post(
           poster: canonical.poster,
           canonicalAddonId: canonical.addonId,
           enabled: configured.enabled !== false,
+          rejectedStreams: configured.rejectedStreams ?? [],
           mappings: [],
         };
         for (const { candidate, source } of sources) {
@@ -286,7 +300,9 @@ router.post(
             best = { channel, confidence };
         }
         if (best) {
-          addSource(best.channel, candidate, best.confidence);
+          if (!isRejected(best.channel.id, candidate)) {
+            addSource(best.channel, candidate, best.confidence);
+          }
         } else {
           const channel: Channel = {
             id: candidate.id,
@@ -294,6 +310,7 @@ router.post(
             poster: candidate.poster,
             canonicalAddonId: candidate.addonId,
             enabled: true,
+            rejectedStreams: [],
             mappings: [],
           };
           addSource(channel, candidate, 1);

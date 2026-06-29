@@ -248,6 +248,7 @@ export interface ChannelInfo {
   poster?: string | null;
   canonicalAddonId: string;
   enabled: boolean;
+  rejectedStreams?: Array<{ addonId: string; channelId: string }>;
   mappings: Array<{
     id: string;
     addonId: string;

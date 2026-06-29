@@ -405,6 +405,14 @@ const ChannelMapping = z.object({
       })
     )
     .optional(),
+  rejectedStreams: z
+    .array(
+      z.object({
+        addonId: z.string().min(1),
+        channelId: z.string().min(1),
+      })
+    )
+    .optional(),
 });
 
 const MergedCatalog = z.object({

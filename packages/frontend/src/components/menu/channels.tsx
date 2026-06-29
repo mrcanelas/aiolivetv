@@ -1,11 +1,13 @@
 import React from 'react';
 import {
+  BiCheck,
   BiChevronDown,
   BiChevronUp,
   BiGitMerge,
   BiRefresh,
   BiSearch,
   BiUnlink,
+  BiX,
 } from 'react-icons/bi';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageControls } from '../shared/page-controls';
@@ -18,6 +20,21 @@ import { Switch } from '../ui/switch';
 import { TextInput } from '../ui/text-input';
 import { useUserData } from '@/context/userData';
 import { fetchChannels, type ChannelInfo } from '@/lib/api';
+
+function isChannelSuggestion(confidence: number) {
+  return confidence > 0 && confidence < 1;
+}
+
+function countSuggestions(channels: ChannelInfo[]) {
+  return channels.reduce(
+    (total, channel) =>
+      total +
+      channel.mappings.filter((mapping) =>
+        isChannelSuggestion(mapping.confidence)
+      ).length,
+    0
+  );
+}
 
 export function ChannelsMenu() {
   const { userData, setUserData } = useUserData();
@@ -32,6 +49,7 @@ export function ChannelsMenu() {
       presets: userData.presets,
       services: userData.services,
       parentConfig: userData.parentConfig,
+      channelMappings: userData.channelMappings,
     }),
   ] as const;
   const query = useQuery({
@@ -40,19 +58,32 @@ export function ChannelsMenu() {
     staleTime: Infinity,
   });
   const channels = query.data ?? [];
+  const suggestionCount = countSuggestions(channels);
+
   const persistChannels = React.useCallback(
     (channels: ChannelInfo[]) => {
-      const channelMappings = channels.map((channel) => ({
-        id: channel.id,
-        canonicalAddonId: channel.canonicalAddonId,
-        enabled: channel.enabled,
-        streams: channel.mappings.map((mapping) => ({
-          addonId: mapping.addonId,
-          channelId: mapping.channelId,
-          confidence: mapping.confidence,
-          enabled: mapping.enabled,
-        })),
-      }));
+      const channelMappings = channels
+        .map((channel) => ({
+          id: channel.id,
+          canonicalAddonId: channel.canonicalAddonId,
+          enabled: channel.enabled,
+          rejectedStreams: channel.rejectedStreams?.length
+            ? channel.rejectedStreams
+            : undefined,
+          streams: channel.mappings
+            .filter((mapping) => !isChannelSuggestion(mapping.confidence))
+            .map((mapping) => ({
+              addonId: mapping.addonId,
+              channelId: mapping.channelId,
+              confidence: mapping.confidence,
+              enabled: mapping.enabled,
+            })),
+        }))
+        .filter(
+          (channel) =>
+            channel.streams.length > 0 ||
+            (channel.rejectedStreams?.length ?? 0) > 0
+        );
       setUserData((current) => {
         if (
           JSON.stringify(current.channelMappings ?? []) ===
@@ -73,9 +104,57 @@ export function ChannelsMenu() {
     persistChannels(channels);
   };
 
-  React.useEffect(() => {
-    if (query.data) persistChannels(query.data);
-  }, [persistChannels, query.data]);
+  const acceptSuggestion = (channelId: string, addonId: string) => {
+    setChannels((current) =>
+      current.map((channel) =>
+        channel.id === channelId
+          ? {
+              ...channel,
+              mappings: channel.mappings.map((mapping) =>
+                mapping.addonId === addonId
+                  ? { ...mapping, confidence: 1 }
+                  : mapping
+              ),
+            }
+          : channel
+      )
+    );
+  };
+
+  const rejectSuggestion = (channelId: string, addonId: string) => {
+    setChannels((current) =>
+      current.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        const mapping = channel.mappings.find(
+          (item) => item.addonId === addonId
+        );
+        if (!mapping) return channel;
+        return {
+          ...channel,
+          mappings: channel.mappings.filter(
+            (item) => item.addonId !== addonId
+          ),
+          rejectedStreams: [
+            ...(channel.rejectedStreams ?? []),
+            { addonId, channelId: mapping.channelId },
+          ],
+        };
+      })
+    );
+  };
+
+  const acceptAllSuggestions = () => {
+    setChannels((current) =>
+      current.map((channel) => ({
+        ...channel,
+        mappings: channel.mappings.map((mapping) =>
+          isChannelSuggestion(mapping.confidence)
+            ? { ...mapping, confidence: 1 }
+            : mapping
+        ),
+      }))
+    );
+  };
 
   const moveMapping = (channelId: string, index: number, direction: -1 | 1) => {
     setChannels((current) =>
@@ -117,6 +196,7 @@ export function ChannelsMenu() {
           poster: mapping.poster,
           canonicalAddonId: mapping.addonId,
           enabled: true,
+          rejectedStreams: [],
           mappings: [{ ...mapping, confidence: 1 }],
         },
       ].sort((a, b) => a.name.localeCompare(b.name));
@@ -141,6 +221,10 @@ export function ChannelsMenu() {
                     ...mapping,
                     confidence: 0,
                   })),
+                ],
+                rejectedStreams: [
+                  ...(item.rejectedStreams ?? []),
+                  ...(target.rejectedStreams ?? []),
                 ],
               }
             : item
@@ -190,10 +274,20 @@ export function ChannelsMenu() {
         <div>
           <h2>Channels</h2>
           <p className="text-[--muted]">
-            Review channels and their live stream mappings.
+            Review channels and their live stream mappings. Suggestions stay in
+            draft until you accept them.
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {suggestionCount > 0 ? (
+            <Button
+              size="sm"
+              onClick={acceptAllSuggestions}
+              leftIcon={<BiCheck />}
+            >
+              Accept all ({suggestionCount})
+            </Button>
+          ) : null}
           <Button
             onClick={() => query.refetch()}
             disabled={query.isFetching}
@@ -251,6 +345,11 @@ export function ChannelsMenu() {
                       <p className="text-xs text-[--muted]">
                         {channel.mappings.length} source
                         {channel.mappings.length === 1 ? '' : 's'}
+                        {channel.mappings.some((mapping) =>
+                          isChannelSuggestion(mapping.confidence)
+                        )
+                          ? ' · pending suggestions'
+                          : ''}
                       </p>
                     </div>
                     <Switch
@@ -306,93 +405,144 @@ export function ChannelsMenu() {
                     </div>
                   ) : null}
 
-                  {channel.mappings.map((mapping, index) => (
-                    <div
-                      key={`${mapping.addonId}:${mapping.channelId}`}
-                      className="flex items-center gap-3 rounded border border-[--border] p-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm">
-                          {mapping.addonName}
-                          {mapping.addonId === channel.canonicalAddonId ? (
-                            <span className="ml-2 text-xs text-blue-400">
-                              Canonical
-                            </span>
-                          ) : null}
-                          {mapping.epgProvider ? (
-                            <span className="ml-2 text-xs text-emerald-400">
-                              EPG
-                            </span>
-                          ) : null}
-                        </p>
-                        <p className="text-xs text-[--muted]">
-                          {mapping.name} ·{' '}
-                          {mapping.confidence === 0
-                            ? 'manual'
-                            : `${Math.round(mapping.confidence * 100)}% match`}
-                          {mapping.canStream ? ' · streams' : ''}
-                        </p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          aria-label={`Move ${mapping.addonName} up`}
-                          disabled={index === 0}
-                          onClick={() => moveMapping(channel.id, index, -1)}
-                        >
-                          <BiChevronUp />
-                        </Button>
-                        <Button
-                          size="sm"
-                          aria-label={`Move ${mapping.addonName} down`}
-                          disabled={index === channel.mappings.length - 1}
-                          onClick={() => moveMapping(channel.id, index, 1)}
-                        >
-                          <BiChevronDown />
-                        </Button>
-                        {mapping.addonId !== channel.canonicalAddonId ? (
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              setCanonical(channel.id, mapping.addonId)
-                            }
-                          >
-                            Canonical
-                          </Button>
+                  {channel.mappings.map((mapping, index) => {
+                    const suggestion = isChannelSuggestion(mapping.confidence);
+                    return (
+                      <div
+                        key={`${mapping.addonId}:${mapping.channelId}`}
+                        className={`flex items-center gap-3 rounded border p-3 ${
+                          suggestion
+                            ? 'border-amber-500/40 bg-amber-500/5'
+                            : 'border-[--border]'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm">
+                            {mapping.addonName}
+                            {mapping.addonId === channel.canonicalAddonId ? (
+                              <span className="ml-2 text-xs text-blue-400">
+                                Canonical
+                              </span>
+                            ) : null}
+                            {mapping.epgProvider ? (
+                              <span className="ml-2 text-xs text-emerald-400">
+                                EPG
+                              </span>
+                            ) : null}
+                            {suggestion ? (
+                              <span className="ml-2 text-xs text-amber-400">
+                                Suggested
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="text-xs text-[--muted]">
+                            {mapping.name} ·{' '}
+                            {mapping.confidence === 0
+                              ? 'manual'
+                              : suggestion
+                                ? `${Math.round(mapping.confidence * 100)}% match`
+                                : 'accepted'}
+                            {mapping.canStream ? ' · streams' : ''}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {suggestion ? (
+                            <>
+                              <Button
+                                size="sm"
+                                leftIcon={<BiCheck />}
+                                onClick={() =>
+                                  acceptSuggestion(
+                                    channel.id,
+                                    mapping.addonId
+                                  )
+                                }
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                leftIcon={<BiX />}
+                                onClick={() =>
+                                  rejectSuggestion(
+                                    channel.id,
+                                    mapping.addonId
+                                  )
+                                }
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                aria-label={`Move ${mapping.addonName} up`}
+                                disabled={index === 0}
+                                onClick={() =>
+                                  moveMapping(channel.id, index, -1)
+                                }
+                              >
+                                <BiChevronUp />
+                              </Button>
+                              <Button
+                                size="sm"
+                                aria-label={`Move ${mapping.addonName} down`}
+                                disabled={
+                                  index === channel.mappings.length - 1
+                                }
+                                onClick={() =>
+                                  moveMapping(channel.id, index, 1)
+                                }
+                              >
+                                <BiChevronDown />
+                              </Button>
+                              {mapping.addonId !== channel.canonicalAddonId ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    setCanonical(channel.id, mapping.addonId)
+                                  }
+                                >
+                                  Canonical
+                                </Button>
+                              ) : null}
+                              {channel.mappings.length > 1 &&
+                              mapping.addonId !== channel.canonicalAddonId ? (
+                                <Button
+                                  size="sm"
+                                  aria-label={`Split mapping from ${mapping.addonName}`}
+                                  leftIcon={<BiUnlink />}
+                                  onClick={() =>
+                                    splitMapping(channel.id, mapping.addonId)
+                                  }
+                                >
+                                  Split
+                                </Button>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
+                        {mapping.canStream && !suggestion ? (
+                          <Switch
+                            aria-label={`Enable ${mapping.addonName} for ${channel.name}`}
+                            value={mapping.enabled}
+                            disabled={!channel.enabled}
+                            onValueChange={(enabled) => {
+                              updateChannel(channel.id, (item) => ({
+                                ...item,
+                                mappings: item.mappings.map((candidate) =>
+                                  candidate.addonId === mapping.addonId
+                                    ? { ...candidate, enabled }
+                                    : candidate
+                                ),
+                              }));
+                            }}
+                          />
                         ) : null}
-                        {channel.mappings.length > 1 &&
-                        mapping.addonId !== channel.canonicalAddonId ? (
-                          <Button
-                            size="sm"
-                            aria-label={`Reject mapping from ${mapping.addonName}`}
-                            leftIcon={<BiUnlink />}
-                            onClick={() =>
-                              splitMapping(channel.id, mapping.addonId)
-                            }
-                          >
-                            Split
-                          </Button>
-                        ) : null}
                       </div>
-                      {mapping.canStream ? (
-                        <Switch
-                          aria-label={`Enable ${mapping.addonName} for ${channel.name}`}
-                          value={mapping.enabled}
-                          disabled={!channel.enabled}
-                          onValueChange={(enabled) => {
-                            updateChannel(channel.id, (item) => ({
-                              ...item,
-                              mappings: item.mappings.map((candidate) =>
-                                candidate.addonId === mapping.addonId
-                                  ? { ...candidate, enabled }
-                                  : candidate
-                              ),
-                            }));
-                          }}
-                        />
-                      ) : null}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
