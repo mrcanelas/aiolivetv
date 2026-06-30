@@ -8,7 +8,6 @@ import {
   BiUnlink,
   BiX,
 } from 'react-icons/bi';
-import { SearchIcon } from 'lucide-react';
 import { Modal } from '../../../ui/modal';
 import { Button } from '../../../ui/button';
 import { Combobox } from '../../../ui/combobox';
@@ -130,12 +129,11 @@ export function ChannelMappingModal({
                 }
                 options={streamSourceOptions}
                 emptyMessage="No matching stream channels"
-                leftIcon={<SearchIcon className="h-4 w-4" />}
                 keepOpenOnSelect={false}
               />
             </div>
             <Button
-              size="sm"
+              size="md"
               leftIcon={<BiLink />}
               disabled={!linkStreamTarget}
               onClick={onLinkStreamSource}
