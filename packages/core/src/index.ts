@@ -52,6 +52,7 @@ export {
   buildDeclaredStreamLabel,
   formatDeclaredStreamSummary,
   parseDeclaredStreamInfo,
+  parseLiveStreamHints,
 } from './streams/declared.js';
 export type {
   DeclaredStreamInfo,

@@ -42,4 +42,17 @@ describe('declared stream metadata', () => {
   it('returns undefined when no parseable metadata exists', () => {
     expect(parseDeclaredStreamInfo({ name: 'AXN' })).toBeUndefined();
   });
+
+  it('parses IPTV quality suffixes on channel names', () => {
+    for (const [name, resolution] of [
+      ['A&E UHD', '2160p'],
+      ['A&E FHD', '1080p'],
+      ['A&E HD', '720p'],
+      ['A&E HD²', '720p'],
+      ['A&E SD', '480p'],
+    ] as const) {
+      const declared = parseDeclaredStreamInfo({ name });
+      expect(declared?.parsedFile.resolution, name).toBe(resolution);
+    }
+  });
 });
