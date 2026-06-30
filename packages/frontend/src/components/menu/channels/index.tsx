@@ -10,33 +10,34 @@ import {
 } from 'react-icons/lu';
 import { SearchIcon } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PageControls } from '../shared/page-controls';
-import { PageWrapper } from '../shared/page-wrapper';
-import { SettingsCard } from '../shared/settings-card';
-import { IconButton } from '../ui/button';
-import { LoadingSpinner } from '../ui/loading-spinner';
-import { TextInput } from '../ui/text-input';
+import { PageControls } from '@/components/shared/page-controls';
+import { PageWrapper } from '@/components/shared/page-wrapper';
+import { SettingsCard } from '@/components/shared/settings-card';
+import { IconButton } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { TextInput } from '@/components/ui/text-input';
 import { useUserData } from '@/context/userData';
-import { fetchChannels, type ChannelInfo } from '@/lib/api';
 import { useDisclosure } from '@/hooks/disclosure';
-import { ChannelListItem } from './channels/_components/channel-list-item';
-import { ChannelMappingModal } from './channels/_components/channel-mapping-modal';
-import { ChannelEditModal } from './channels/_components/channel-edit-modal';
+import { fetchChannels, type ChannelInfo } from '@/lib/api';
+import { ChannelEditModal } from './_components/channel-edit-modal';
+import { ChannelListItem } from './_components/channel-list-item';
+import { ChannelMappingModal } from './_components/channel-mapping-modal';
 import {
-  countSuggestions,
-  groupChannelsBySource,
-  isChannelSuggestion,
-  sortChannels,
-  MANUAL_STREAM_ADDON_ID,
-  buildManualStreamChannelId,
-  isManualStreamMapping,
   type ChannelSortMode,
-} from './channels/utils';
+  countSuggestions,
+  isChannelSuggestion,
+  isManualStreamMapping,
+  buildManualStreamChannelId,
+  sortChannels,
+  groupChannelsBySource,
+  MANUAL_STREAM_ADDON_ID,
+} from './utils';
 
 export function ChannelsMenu() {
   const { userData, setUserData } = useUserData();
   const [search, setSearch] = React.useState('');
-  const [sortMode, setSortMode] = React.useState<ChannelSortMode>('alphabetical');
+  const [sortMode, setSortMode] =
+    React.useState<ChannelSortMode>('alphabetical');
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [linkStreamTargets, setLinkStreamTargets] = React.useState<
     Record<string, string>
@@ -141,9 +142,7 @@ export function ChannelsMenu() {
     [buildVisibleMappings, setUserData]
   );
 
-  const setChannels = (
-    update: (channels: ChannelInfo[]) => ChannelInfo[]
-  ) => {
+  const setChannels = (update: (channels: ChannelInfo[]) => ChannelInfo[]) => {
     const next = update(
       queryClient.getQueryData<ChannelInfo[]>(queryKey) ?? []
     );
@@ -190,10 +189,7 @@ export function ChannelsMenu() {
           ...channel,
           mappings: channel.mappings.filter(
             (item) =>
-              !(
-                item.addonId === addonId &&
-                item.channelId === streamChannelId
-              )
+              !(item.addonId === addonId && item.channelId === streamChannelId)
           ),
           rejectedStreams: [
             ...(channel.rejectedStreams ?? []),
@@ -221,11 +217,7 @@ export function ChannelsMenu() {
     );
   };
 
-  const moveMapping = (
-    channelId: string,
-    index: number,
-    direction: -1 | 1
-  ) => {
+  const moveMapping = (channelId: string, index: number, direction: -1 | 1) => {
     setChannels((current) =>
       current.map((channel) => {
         if (channel.id !== channelId) return channel;
@@ -249,8 +241,7 @@ export function ChannelsMenu() {
     setChannels((current) => {
       const channel = current.find((item) => item.id === channelId);
       const mapping = channel?.mappings.find(
-        (item) =>
-          item.addonId === addonId && item.channelId === streamChannelId
+        (item) => item.addonId === addonId && item.channelId === streamChannelId
       );
       if (!channel || !mapping || channel.mappings.length === 1) return current;
       if (isManualStreamMapping(mapping)) {
@@ -329,9 +320,7 @@ export function ChannelsMenu() {
           ],
           availableStreamSources: channel.availableStreamSources?.filter(
             (item) =>
-              !(
-                item.addonId === addonId && item.channelId === streamChannelId
-              )
+              !(item.addonId === addonId && item.channelId === streamChannelId)
           ),
         };
       })
@@ -346,8 +335,7 @@ export function ChannelsMenu() {
         if (channel.id !== channelId) return channel;
         if (
           channel.mappings.some(
-            (mapping) =>
-              isManualStreamMapping(mapping) && mapping.url === url
+            (mapping) => isManualStreamMapping(mapping) && mapping.url === url
           )
         ) {
           return channel;
@@ -438,11 +426,7 @@ export function ChannelsMenu() {
     removeChannels([channelId]);
   };
 
-  const saveChannelEdit = (
-    channelId: string,
-    name: string,
-    poster: string
-  ) => {
+  const saveChannelEdit = (channelId: string, name: string, poster: string) => {
     setCustomizedIds((current) => new Set(current).add(channelId));
     updateChannel(channelId, (channel) => ({
       ...channel,
@@ -493,7 +477,9 @@ export function ChannelsMenu() {
     const nextValue = toggleWillEnable;
     setChannels((current) =>
       current.map((channel) =>
-        selectedIds.has(channel.id) ? { ...channel, enabled: nextValue } : channel
+        selectedIds.has(channel.id)
+          ? { ...channel, enabled: nextValue }
+          : channel
       )
     );
   };
@@ -663,7 +649,9 @@ export function ChannelsMenu() {
                     {source} ({sourceChannels.length})
                   </p>
                 </div>
-                <ul className="space-y-2">{sourceChannels.map(renderChannel)}</ul>
+                <ul className="space-y-2">
+                  {sourceChannels.map(renderChannel)}
+                </ul>
               </div>
             ))}
           </div>
@@ -683,7 +671,7 @@ export function ChannelsMenu() {
           }
         }}
         linkStreamTarget={
-          mappingChannelId ? linkStreamTargets[mappingChannelId] ?? '' : ''
+          mappingChannelId ? (linkStreamTargets[mappingChannelId] ?? '') : ''
         }
         onLinkStreamTargetChange={(value) => {
           if (!mappingChannelId) return;
