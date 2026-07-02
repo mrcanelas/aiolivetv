@@ -129,7 +129,6 @@ function generateVivoAddon(
 ): Addon {
   const config = {
     timeout: options.timeout || appConfig.presets.defaultTimeout,
-    days: options.days ?? 3,
   };
   return {
     name: options.name || 'Vivo TV',
@@ -171,15 +170,6 @@ function vivoTvOptions(
       type: 'string',
       required: true,
       default: 'Vivo TV',
-    },
-    {
-      id: 'days',
-      name: 'EPG days',
-      description: 'How many days of programming to fetch per channel',
-      type: 'number',
-      required: true,
-      default: 3,
-      constraints: { min: 1, max: 7, forceInUi: false },
     },
     {
       id: 'timeout',
@@ -229,7 +219,6 @@ export class VivoTvPreset extends Preset {
 function generateClaroTvAddon(options: Record<string, any>): Addon {
   const config = {
     timeout: options.timeout || appConfig.presets.defaultTimeout,
-    days: options.days ?? 3,
     location: options.location || 'SAO PAULO,SAO PAULO',
   };
   return {
@@ -279,15 +268,6 @@ function claroTvOptions(resources: ('catalog' | 'meta')[]): Option[] {
       type: 'string',
       required: true,
       default: 'SAO PAULO,SAO PAULO',
-    },
-    {
-      id: 'days',
-      name: 'EPG days',
-      description: 'How many days of programming to fetch per channel',
-      type: 'number',
-      required: true,
-      default: 3,
-      constraints: { min: 1, max: 7, forceInUi: false },
     },
     {
       id: 'timeout',

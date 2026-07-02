@@ -1206,7 +1206,7 @@ export const MetaSchema = MetaPreviewSchema.extend({
   behaviorHints: z
     .object({
       defaultVideoId: z.string().or(z.null()).optional(),
-      hasScheduledVideo: z.boolean().nullable().optional(),
+      hasScheduledVideos: z.boolean().nullable().optional(),
     })
     .passthrough()
     .optional(),
@@ -1224,7 +1224,8 @@ export const MetaResponseSchema = z.object({
   staleError: z.number().int().nonnegative().optional(),
 });
 export const CatalogResponseSchema = z.object({
-  metas: z.array(MetaPreviewSchema),
+  metas: z.array(MetaPreviewSchema).optional(),
+  metasDetailed: z.array(MetaSchema).optional(),
   cacheMaxAge: z.number().int().nonnegative().optional(),
   staleRevalidate: z.number().int().nonnegative().optional(),
   staleError: z.number().int().nonnegative().optional(),
@@ -1255,6 +1256,7 @@ export const ExtrasSchema = z
     filename: z.string().optional(),
     videoHash: z.string().optional(),
     videoSize: z.coerce.number().optional(),
+    date: z.string().optional(),
   })
   .passthrough();
 export type Extras = z.infer<typeof ExtrasSchema>;

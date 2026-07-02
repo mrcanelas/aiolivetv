@@ -1,24 +1,34 @@
 import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
+import { TV_TYPE } from '../../utils/constants.js';
 import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
+import {
+  bareChannelPreview,
+  buildEpgCatalogResponse,
+  EPG_CACHE_HEADERS,
+  EPG_GUIDE_CATALOG_EXTRAS,
+  guideChannelMeta,
+  programOverlapsUtcDay,
+  programToVideo,
+  resolveGuideDate,
+  utcDayUnixBounds,
+  type CatalogHandlerResponse,
+} from '../live-tv/epg.js';
 import {
   CHANNEL_ID_PREFIX,
   decodeChannelId,
   encodeChannelId,
   LIVE_TV_CATALOG_PAGE_SIZE,
-  programRuntime,
 } from '../live-tv/shared.js';
 
 const API_BASE = 'https://www.clarotvmais.com.br/avsclient/1.2/epg/livechannels';
 const SOURCE_CACHE_TTL = 300;
 const DEFAULT_LOCATION = 'SAO PAULO,SAO PAULO';
-const SAO_PAULO_TZ = 'America/Sao_Paulo';
 
 const sourceCache = Cache.getInstance<string, ClaroChannel[]>('clarotv-channels');
 
 export const ClaroTvConfigSchema = z.object({
   timeout: z.number().int().positive(),
-  days: z.number().int().min(1).max(7).optional(),
   location: z.string().min(1).optional(),
 });
 
@@ -58,30 +68,6 @@ function normalizeChannelTitle(title: string): string {
 
 function programThumbnailUrl(url: string): string {
   return url.replace('{{image-size-placeholder}}', '420_236');
-}
-
-function startOfDayUnix(timeZone: string, dayOffset = 0): number {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const year = Number(parts.find((part) => part.type === 'year')?.value);
-  const month = Number(parts.find((part) => part.type === 'month')?.value);
-  const day =
-    Number(parts.find((part) => part.type === 'day')?.value) + dayOffset;
-  const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  const formatted = probe.toLocaleString('en-US', {
-    timeZone,
-    timeZoneName: 'shortOffset',
-  });
-  const offsetMatch = formatted.match(/GMT([+-]\d+)/);
-  const offsetHours = offsetMatch ? Number(offsetMatch[1]) : -3;
-  return Math.floor(
-    Date.UTC(year, month - 1, day, -offsetHours, 0, 0) / 1000
-  );
 }
 
 function buildEpgUrl(
@@ -161,22 +147,57 @@ async function loadChannels(config: ClaroTvConfig): Promise<ClaroChannel[]> {
   return channels;
 }
 
-async function loadSchedules(
+async function loadSchedulesForUtcDay(
   config: ClaroTvConfig,
-  channelId: string
-): Promise<ClaroScheduleItem[]> {
-  const days = config.days ?? 3;
-  const requests = Array.from({ length: days }, (_, dayOffset) => {
-    const startTime = startOfDayUnix(SAO_PAULO_TZ, dayOffset);
-    const endTime = startOfDayUnix(SAO_PAULO_TZ, dayOffset + 1);
-    return fetchJson<ClaroLiveChannelsResponse>(
-      buildEpgUrl(config, { channelIds: channelId, startTime, endTime }),
-      config.timeout
-    );
-  });
+  channelIds: string[],
+  date: string
+): Promise<Map<string, ClaroScheduleItem[]>> {
+  const byChannel = new Map<string, ClaroScheduleItem[]>();
+  if (!channelIds.length) return byChannel;
 
-  const responses = await Promise.all(requests);
-  return responses.flatMap((response) => parseSchedules(response));
+  const { start, end } = utcDayUnixBounds(date);
+  const body = await fetchJson<ClaroLiveChannelsResponse>(
+    buildEpgUrl(config, {
+      channelIds: channelIds.join(','),
+      startTime: start,
+      endTime: end,
+    }),
+    config.timeout
+  );
+
+  for (const liveChannel of body?.response?.liveChannels ?? []) {
+    const id =
+      liveChannel.id === undefined || liveChannel.id === null
+        ? undefined
+        : String(liveChannel.id);
+    if (!id) continue;
+    const schedules = parseSchedules({
+      response: { liveChannels: [liveChannel] },
+    }).filter((item) => {
+      const startTime = new Date(item.startTime * 1000).toISOString();
+      const endTime = new Date(item.endTime * 1000).toISOString();
+      return programOverlapsUtcDay({ startTime, endTime }, date);
+    });
+    byChannel.set(id, schedules);
+  }
+
+  return byChannel;
+}
+
+function scheduleToVideo(encodedId: string, item: ClaroScheduleItem) {
+  const startTime = new Date(item.startTime * 1000).toISOString();
+  const endTime = new Date(item.endTime * 1000).toISOString();
+  const thumbnail = item.image ? programThumbnailUrl(item.image) : undefined;
+  return programToVideo({
+    channelEncodedId: encodedId,
+    title: decodeHtmlEntities(item.title),
+    description: item.description
+      ? decodeHtmlEntities(item.description)
+      : undefined,
+    thumbnail,
+    startTime,
+    endTime,
+  });
 }
 
 export class ClaroTvAddon {
@@ -192,21 +213,25 @@ export class ClaroTvAddon {
       name: 'Claro TV+',
       version: '1.0.0',
       description: 'Canais e programação EPG da Claro TV+ (Claro tv+).',
-      types: ['channel'],
+      types: [TV_TYPE, 'channel'],
       resources: [
         {
           name: 'catalog',
-          types: ['channel'],
+          types: [TV_TYPE, 'channel'],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
-        { name: 'meta', types: ['channel'], idPrefixes: [CHANNEL_ID_PREFIX] },
+        {
+          name: 'meta',
+          types: ['channel', TV_TYPE],
+          idPrefixes: [CHANNEL_ID_PREFIX],
+        },
       ],
       catalogs: [
         {
           id: 'claro-tv-channels',
-          type: 'channel',
+          type: TV_TYPE,
           name: 'Canais Claro TV+',
-          extra: [{ name: 'skip' }],
+          extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],
       behaviorHints: { epgProvider: true },
@@ -216,16 +241,58 @@ export class ClaroTvAddon {
   async getCatalog(skip = 0): Promise<MetaPreview[]> {
     return (await loadChannels(this.config))
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
-      .map((channel) => ({
-        id: encodeChannelId(channel.id),
-        type: 'channel',
-        name: channel.name,
-        poster: channel.logo,
-        posterShape: 'square',
-        tvgId: channel.tvgId,
-        country: 'BR',
-        language: 'pt',
-      }));
+      .map((channel) =>
+        bareChannelPreview({
+          id: encodeChannelId(channel.id),
+          name: channel.name,
+          poster: channel.logo,
+          tvgId: channel.tvgId,
+          country: 'BR',
+          language: 'pt',
+        })
+      );
+  }
+
+  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+    const guideDate = resolveGuideDate(date);
+    const channels = (await loadChannels(this.config)).slice(
+      skip,
+      skip + LIVE_TV_CATALOG_PAGE_SIZE
+    );
+    const schedulesByChannel = await loadSchedulesForUtcDay(
+      this.config,
+      channels.map((channel) => channel.id),
+      guideDate
+    );
+
+    return channels.map((channel) => {
+      const encodedId = encodeChannelId(channel.id);
+      const videos = (schedulesByChannel.get(channel.id) ?? []).map((item) =>
+        scheduleToVideo(encodedId, item)
+      );
+      return guideChannelMeta(
+        {
+          id: encodedId,
+          name: channel.name,
+          logo: channel.logo,
+          country: 'BR',
+          language: 'pt',
+        },
+        videos
+      );
+    });
+  }
+
+  async getCatalogResponse(
+    skip = 0,
+    date?: string
+  ): Promise<CatalogHandlerResponse> {
+    return buildEpgCatalogResponse(
+      (pageSkip) => this.getCatalog(pageSkip),
+      (pageSkip, guideDate) => this.getCatalogGuide(pageSkip, guideDate),
+      skip,
+      date
+    );
   }
 
   async getMeta(id: string): Promise<Meta> {
@@ -234,26 +301,19 @@ export class ClaroTvAddon {
     const channel = channels.find((item) => item.id === channelId);
     if (!channel) throw new Error(`Channel not found: ${channelId}`);
 
-    const schedules = await loadSchedules(this.config, channel.id);
+    const guideDate = resolveGuideDate();
+    const schedulesByChannel = await loadSchedulesForUtcDay(
+      this.config,
+      [channel.id],
+      guideDate
+    );
+    const schedules = schedulesByChannel.get(channel.id) ?? [];
     const encodedId = encodeChannelId(channel.id);
     const videos = schedules
       .map((item) => {
-        const startTime = new Date(item.startTime * 1000).toISOString();
-        const endTime = new Date(item.endTime * 1000).toISOString();
-        const thumbnail = item.image
-          ? programThumbnailUrl(item.image)
-          : undefined;
-
+        const video = scheduleToVideo(encodedId, item);
         return {
-          id: `${encodedId}:epg:${startTime}`,
-          title: decodeHtmlEntities(item.title),
-          overview: item.description
-            ? decodeHtmlEntities(item.description)
-            : undefined,
-          thumbnail,
-          released: startTime,
-          releaseInfo: startTime.slice(0, 4),
-          runtime: programRuntime(startTime, endTime),
+          ...video,
           season:
             typeof item.seasonNumber === 'number'
               ? item.seasonNumber
@@ -262,20 +322,19 @@ export class ClaroTvAddon {
             typeof item.episodeNumber === 'number'
               ? item.episodeNumber
               : undefined,
-          startTime,
-          endTime,
         };
       })
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      .sort((a, b) => (a.released ?? '').localeCompare(b.released ?? ''));
 
     return {
       id: encodedId,
-      type: 'channel',
+      type: TV_TYPE,
       name: channel.name,
       poster: channel.logo,
       posterShape: 'square',
       country: 'BR',
       language: 'pt',
+      behaviorHints: { hasScheduledVideos: true },
       videos,
     };
   }

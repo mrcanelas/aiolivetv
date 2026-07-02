@@ -1,13 +1,24 @@
 import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
+import { TV_TYPE } from '../../utils/constants.js';
 import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
+import {
+  bareChannelPreview,
+  buildEpgCatalogResponse,
+  EPG_CACHE_HEADERS,
+  EPG_GUIDE_CATALOG_EXTRAS,
+  guideChannelMeta,
+  programOverlapsUtcDay,
+  programToVideo,
+  resolveGuideDate,
+  utcDayUnixBounds,
+  type CatalogHandlerResponse,
+} from '../live-tv/epg.js';
 import {
   CHANNEL_ID_PREFIX,
   decodeChannelId,
   encodeChannelId,
   LIVE_TV_CATALOG_PAGE_SIZE,
-  programLinks,
-  programRuntime,
 } from '../live-tv/shared.js';
 
 const API_BASE =
@@ -15,7 +26,6 @@ const API_BASE =
 const SOURCE_CACHE_TTL = 300;
 const REFERENCE_CACHE_TTL = 86_400;
 const EPISODE_PATTERN = /T(\d+)\s+EP(\d+)/;
-const SAO_PAULO_TZ = 'America/Sao_Paulo';
 
 const sourceCache = Cache.getInstance<string, VivoChannel[]>('vivotv-channels');
 const referenceCache = Cache.getInstance<string, VivoReferenceData>(
@@ -24,7 +34,6 @@ const referenceCache = Cache.getInstance<string, VivoReferenceData>(
 
 export const VivoTvConfigSchema = z.object({
   timeout: z.number().int().positive(),
-  days: z.number().int().min(1).max(7).optional(),
 });
 
 export type VivoTvConfig = z.infer<typeof VivoTvConfigSchema>;
@@ -89,30 +98,6 @@ function channelLogoUrl(iconUrl: string): string {
 
 function programThumbnailUrl(url: string): string {
   return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(url)}&width=455&height=256&resize=CROP&format=JPEG`;
-}
-
-function startOfDayUnix(timeZone: string, dayOffset = 0): number {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const year = Number(parts.find((part) => part.type === 'year')?.value);
-  const month = Number(parts.find((part) => part.type === 'month')?.value);
-  const day =
-    Number(parts.find((part) => part.type === 'day')?.value) + dayOffset;
-  const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  const formatted = probe.toLocaleString('en-US', {
-    timeZone,
-    timeZoneName: 'shortOffset',
-  });
-  const offsetMatch = formatted.match(/GMT([+-]\d+)/);
-  const offsetHours = offsetMatch ? Number(offsetMatch[1]) : -3;
-  return Math.floor(
-    Date.UTC(year, month - 1, day, -offsetHours, 0, 0) / 1000
-  );
 }
 
 function parseProgramTitle(title: string): {
@@ -290,20 +275,55 @@ function resolveGenres(
     .filter((name): name is string => Boolean(name));
 }
 
-async function loadSchedules(
+async function loadSchedulesForUtcDay(
   config: VivoTvConfig,
-  channelPid: string
+  channelPid: string,
+  date: string
 ): Promise<VivoScheduleItem[]> {
-  const days = config.days ?? 3;
-  const requests = Array.from({ length: days }, (_, dayOffset) => {
-    const starttime = startOfDayUnix(SAO_PAULO_TZ, dayOffset);
-    const endtime = startOfDayUnix(SAO_PAULO_TZ, dayOffset + 1);
-    const url = `${API_BASE}/schedules?ca_deviceTypes=null%7C401&fields=Title,Description,Start,End,EpgSerieId,SeriesPid,SeasonPid,AgeRatingPid,ReleaseDate,GenrePids,DirectorPids,ActorPids,WriterPids,ProducerPids,images.videoFrame,images.banner&orderBy=START_TIME:a&filteravailability=false&starttime=${starttime}&endtime=${endtime}&livechannelpids=${encodeURIComponent(channelPid)}`;
-    return fetchJson<{ Content?: VivoScheduleItem[] }>(url, config.timeout);
-  });
+  const { start, end } = utcDayUnixBounds(date);
+  const url = `${API_BASE}/schedules?ca_deviceTypes=null%7C401&fields=Title,Description,Start,End,EpgSerieId,SeriesPid,SeasonPid,AgeRatingPid,ReleaseDate,GenrePids,DirectorPids,ActorPids,WriterPids,ProducerPids,images.videoFrame,images.banner&orderBy=START_TIME:a&filteravailability=false&starttime=${start}&endtime=${end}&livechannelpids=${encodeURIComponent(channelPid)}`;
+  const body = await fetchJson<{ Content?: VivoScheduleItem[] }>(
+    url,
+    config.timeout
+  );
 
-  const responses = await Promise.all(requests);
-  return responses.flatMap((response) => response?.Content ?? []);
+  return (body?.Content ?? []).filter((item) => {
+    if (!(item.Start > 0 && item.End > item.Start)) return false;
+    const startTime = new Date(item.Start * 1000).toISOString();
+    const endTime = new Date(item.End * 1000).toISOString();
+    return programOverlapsUtcDay({ startTime, endTime }, date);
+  });
+}
+
+function scheduleToVideo(
+  encodedId: string,
+  item: VivoScheduleItem,
+  reference: VivoReferenceData
+) {
+  const startTime = new Date(item.Start * 1000).toISOString();
+  const endTime = new Date(item.End * 1000).toISOString();
+  const { title, subtitle } = parseProgramTitle(item.Title);
+  const genres = resolveGenres(item.GenrePids, reference);
+  const cast = resolvePersons(item.ActorPids, reference);
+  const directors = resolvePersons(item.DirectorPids, reference);
+  const thumbnailUrl = item.Images?.VideoFrame?.[0]?.Url;
+  const airedYear = item.ReleaseDate
+    ? new Date(item.ReleaseDate * 1000).toISOString().slice(0, 4)
+    : undefined;
+
+  return programToVideo({
+    channelEncodedId: encodedId,
+    title,
+    subtitle,
+    description: item.Description,
+    thumbnail: thumbnailUrl ? programThumbnailUrl(thumbnailUrl) : undefined,
+    startTime,
+    endTime,
+    airedYear,
+    categories: genres,
+    cast,
+    directors,
+  });
 }
 
 export class VivoTvAddon {
@@ -319,21 +339,25 @@ export class VivoTvAddon {
       name: 'Vivo TV',
       version: '1.0.0',
       description: 'Canais e programação da Vivo Play (Telefónica Brasil).',
-      types: ['channel'],
+      types: [TV_TYPE, 'channel'],
       resources: [
         {
           name: 'catalog',
-          types: ['channel'],
+          types: [TV_TYPE, 'channel'],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
-        { name: 'meta', types: ['channel'], idPrefixes: [CHANNEL_ID_PREFIX] },
+        {
+          name: 'meta',
+          types: ['channel', TV_TYPE],
+          idPrefixes: [CHANNEL_ID_PREFIX],
+        },
       ],
       catalogs: [
         {
           id: 'vivo-tv-channels',
-          type: 'channel',
+          type: TV_TYPE,
           name: 'Canais Vivo TV',
-          extra: [{ name: 'skip' }],
+          extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],
       behaviorHints: { epgProvider: true },
@@ -343,16 +367,59 @@ export class VivoTvAddon {
   async getCatalog(skip = 0): Promise<MetaPreview[]> {
     return (await loadChannels(this.config))
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
-      .map((channel) => ({
-        id: encodeChannelId(channel.pid),
-        type: 'channel',
-        name: channel.name,
-        poster: channel.logo,
-        posterShape: 'square',
-        tvgId: channel.tvgId,
-        country: 'BR',
-        language: 'pt',
-      }));
+      .map((channel) =>
+        bareChannelPreview({
+          id: encodeChannelId(channel.pid),
+          name: channel.name,
+          poster: channel.logo,
+          tvgId: channel.tvgId,
+          country: 'BR',
+          language: 'pt',
+        })
+      );
+  }
+
+  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+    const guideDate = resolveGuideDate(date);
+    const channels = (await loadChannels(this.config)).slice(
+      skip,
+      skip + LIVE_TV_CATALOG_PAGE_SIZE
+    );
+    const reference = await loadReferenceData(this.config);
+    const schedulesByChannel = await Promise.all(
+      channels.map((channel) =>
+        loadSchedulesForUtcDay(this.config, channel.pid, guideDate)
+      )
+    );
+
+    return channels.map((channel, index) => {
+      const encodedId = encodeChannelId(channel.pid);
+      const videos = schedulesByChannel[index]!.map((item) =>
+        scheduleToVideo(encodedId, item, reference)
+      );
+      return guideChannelMeta(
+        {
+          id: encodedId,
+          name: channel.name,
+          logo: channel.logo,
+          country: 'BR',
+          language: 'pt',
+        },
+        videos
+      );
+    });
+  }
+
+  async getCatalogResponse(
+    skip = 0,
+    date?: string
+  ): Promise<CatalogHandlerResponse> {
+    return buildEpgCatalogResponse(
+      (pageSkip) => this.getCatalog(pageSkip),
+      (pageSkip, guideDate) => this.getCatalogGuide(pageSkip, guideDate),
+      skip,
+      date
+    );
   }
 
   async getMeta(id: string): Promise<Meta> {
@@ -361,59 +428,35 @@ export class VivoTvAddon {
     const channel = channels.find((item) => item.pid === channelPid);
     if (!channel) throw new Error(`Channel not found: ${channelPid}`);
 
+    const guideDate = resolveGuideDate();
     const [reference, schedules] = await Promise.all([
       loadReferenceData(this.config),
-      loadSchedules(this.config, channel.pid),
+      loadSchedulesForUtcDay(this.config, channel.pid, guideDate),
     ]);
 
     const encodedId = encodeChannelId(channel.pid);
     const videos = schedules
       .filter((item) => item.Start > 0 && item.End > item.Start)
       .map((item) => {
-        const startTime = new Date(item.Start * 1000).toISOString();
-        const endTime = new Date(item.End * 1000).toISOString();
-        const { title, subtitle } = parseProgramTitle(item.Title);
+        const video = scheduleToVideo(encodedId, item, reference);
         const { season, episode } = parseSeasonEpisode(item.Title);
-        const genres = resolveGenres(item.GenrePids, reference);
-        const cast = resolvePersons(item.ActorPids, reference);
-        const directors = resolvePersons(item.DirectorPids, reference);
-        const links = programLinks(genres, cast, directors);
-        const thumbnailUrl = item.Images?.VideoFrame?.[0]?.Url;
-        const released = item.ReleaseDate
-          ? new Date(item.ReleaseDate * 1000).toISOString()
-          : startTime;
-
         return {
-          id: `${encodedId}:epg:${startTime}`,
-          title,
-          subtitle,
-          overview: item.Description,
-          thumbnail: thumbnailUrl
-            ? programThumbnailUrl(thumbnailUrl)
-            : undefined,
-          genres: genres.length ? genres : undefined,
-          cast: cast.length ? cast : undefined,
-          directors: directors.length ? directors : undefined,
-          links: links.length ? links : undefined,
-          released,
-          releaseInfo: released.slice(0, 4),
-          runtime: programRuntime(startTime, endTime),
+          ...video,
           season: season ? Number(season) : undefined,
           episode: episode ? Number(episode) : undefined,
-          startTime,
-          endTime,
         };
       })
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      .sort((a, b) => (a.released ?? '').localeCompare(b.released ?? ''));
 
     return {
       id: encodedId,
-      type: 'channel',
+      type: TV_TYPE,
       name: channel.name,
       poster: channel.logo,
       posterShape: 'square',
       country: 'BR',
       language: 'pt',
+      behaviorHints: { hasScheduledVideos: true },
       videos,
     };
   }

@@ -19,9 +19,12 @@ const { makeRequest } = await import('../../utils/index.js');
 
 describe('Claro TV+ builtin', () => {
   it('exposes catalog and EPG metadata', () => {
-    const addon = new ClaroTvAddon({ timeout: 1000, days: 1 });
+    const addon = new ClaroTvAddon({ timeout: 1000 });
     expect(addon.getManifest().behaviorHints?.epgProvider).toBe(true);
-    expect(addon.getManifest().catalogs[0].extra).toEqual([{ name: 'skip' }]);
+    expect(addon.getManifest().catalogs[0].extra).toEqual([
+      { name: 'skip' },
+      { name: 'date' },
+    ]);
   });
 
   it('maps channels from the Claro TV+ API', async () => {
@@ -40,13 +43,13 @@ describe('Claro TV+ builtin', () => {
       }),
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
 
-    const addon = new ClaroTvAddon({ timeout: 1000, days: 1 });
+    const addon = new ClaroTvAddon({ timeout: 1000 });
     const catalog = await addon.getCatalog();
 
     expect(catalog).toHaveLength(1);
     expect(catalog[0]).toMatchObject({
       name: 'Globo',
-      type: 'channel',
+      type: 'tv',
       tvgId: 'Globo',
       country: 'BR',
       language: 'pt',
@@ -75,6 +78,7 @@ describe('Claro TV+ builtin', () => {
         response: {
           liveChannels: [
             {
+              id: '316',
               schedules: [
                 {
                   title: 'Jornal Nacional',
@@ -100,9 +104,12 @@ describe('Claro TV+ builtin', () => {
       return channelResponse as never;
     });
 
-    const addon = new ClaroTvAddon({ timeout: 1000, days: 1 });
+    const addon = new ClaroTvAddon({ timeout: 1000 });
     const catalog = await addon.getCatalog();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1_718_000_000 * 1000));
     const meta = await addon.getMeta(catalog[0]!.id);
+    vi.useRealTimers();
 
     expect(meta.name).toBe('Globo');
     expect(meta.videos?.[0]).toMatchObject({

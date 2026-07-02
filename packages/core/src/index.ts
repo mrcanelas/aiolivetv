@@ -40,6 +40,7 @@ export {
   type LiveTvSourceConfig,
   type VivoTvConfig,
   type ClaroTvConfig,
+  parseCatalogExtras,
 } from './builtins/index.js';
 export { PresetManager } from './presets/index.js';
 export {

@@ -54,14 +54,20 @@ describe('live TV sources', () => {
     });
 
     expect(addon.getManifest().behaviorHints?.epgProvider).toBe(true);
-    expect(addon.getManifest().catalogs[0].extra).toEqual([{ name: 'skip' }]);
+    expect(addon.getManifest().catalogs[0].extra).toEqual([
+      { name: 'skip' },
+      { name: 'date' },
+    ]);
     expect(await addon.getCatalog()).toHaveLength(1);
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
       text: async () =>
         '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-28T12:00:00.000Z'));
     const meta = await addon.getMeta(encodeChannelId('bbc.one'));
+    vi.useRealTimers();
     expect(meta.videos?.[0]).toMatchObject({
       title: 'News',
       subtitle: 'Evening',
@@ -75,23 +81,6 @@ describe('live TV sources', () => {
       genres: ['News'],
       cast: ['Jane Doe'],
       directors: ['John Doe'],
-      links: [
-        {
-          category: 'Genres',
-          name: 'News',
-          url: 'stremio:///search?search=News',
-        },
-        {
-          category: 'Cast',
-          name: 'Jane Doe',
-          url: 'stremio:///search?search=Jane%20Doe',
-        },
-        {
-          category: 'Director',
-          name: 'John Doe',
-          url: 'stremio:///search?search=John%20Doe',
-        },
-      ],
     });
   });
 
@@ -117,10 +106,36 @@ describe('live TV sources', () => {
     expect(meta.videos).toBeUndefined();
   });
 
-  it('paginates Live TV catalogs in groups of twenty channels', async () => {
+  it('returns guide catalog with programs when date extra is present', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: true,
+      text: async () =>
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    const addon = new XmltvAddon({
+      sourceUrl: 'https://example.com/guide.xml',
+      timeout: 1000,
+    });
+
+    const response = await addon.getCatalogResponse(0, '2026-06-28');
+    expect(response.metas).toBeUndefined();
+    expect(response.metasDetailed).toHaveLength(1);
+    expect(response.metasDetailed?.[0]).toMatchObject({
+      name: 'BBC One',
+      type: 'tv',
+      behaviorHints: { hasScheduledVideos: true },
+    });
+    expect(response.metasDetailed?.[0]?.videos?.[0]).toMatchObject({
+      title: 'News',
+      released: '2026-06-28T12:00:00.000Z',
+      startTime: '2026-06-28T12:00:00.000Z',
+    });
+  });
+
+  it('paginates Live TV catalogs in groups of fifty channels', async () => {
     const playlist = [
       '#EXTM3U',
-      ...Array.from({ length: 25 }, (_, index) => {
+      ...Array.from({ length: 55 }, (_, index) => {
         const number = String(index + 1).padStart(2, '0');
         return `#EXTINF:-1 tvg-id="channel.${number}",Channel ${number}\nhttps://example.com/${number}.m3u8`;
       }),
@@ -134,8 +149,8 @@ describe('live TV sources', () => {
       timeout: 1000,
     });
 
-    expect(await addon.getCatalog()).toHaveLength(20);
-    expect(await addon.getCatalog(20)).toHaveLength(5);
+    expect(await addon.getCatalog()).toHaveLength(50);
+    expect(await addon.getCatalog(50)).toHaveLength(5);
   });
 
   it('falls back program released to startTime when XMLTV date is missing', async () => {
@@ -148,9 +163,11 @@ describe('live TV sources', () => {
       sourceUrl: 'https://example.com/guide.xml',
       timeout: 1000,
     });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-28T12:00:00.000Z'));
     const meta = await addon.getMeta(encodeChannelId('bbc.one'));
+    vi.useRealTimers();
     expect(meta.videos?.[0]?.released).toBe('2026-06-28T12:00:00.000Z');
-    expect(meta.videos?.[0]?.links).toBeUndefined();
   });
 });
 

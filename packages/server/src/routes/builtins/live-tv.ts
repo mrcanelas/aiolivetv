@@ -10,6 +10,7 @@ import {
   XmltvAddon,
   VivoTvAddon,
   ClaroTvAddon,
+  parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
   type ClaroTvConfig,
@@ -36,13 +37,6 @@ function claroConfig(encodedConfig: string): ClaroTvConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
-function skip(extras?: string) {
-  return Math.max(
-    0,
-    Number.parseInt(new URLSearchParams(extras).get('skip') ?? '0', 10) || 0
-  );
-}
-
 router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
   try {
     const addon =
@@ -66,15 +60,11 @@ router.get(
   '/xmltv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const metas = await new XmltvAddon(
+      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const response = await new XmltvAddon(
         config(req.params.encodedConfig)
-      ).getCatalog(skip(req.params.extras));
-      res.json({
-        metas,
-        cacheMaxAge: 300,
-        staleRevalidate: 1800,
-        staleError: 604800,
-      });
+      ).getCatalogResponse(skip, date);
+      res.json(response);
     } catch (error) {
       next(error);
     }
@@ -104,9 +94,10 @@ router.get(
   '/m3u/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
+      const { skip } = parseCatalogExtras(req.params.extras);
       const metas = await new M3uAddon(
         config(req.params.encodedConfig)
-      ).getCatalog(skip(req.params.extras));
+      ).getCatalog(skip);
       res.json({
         metas,
         cacheMaxAge: 300,
@@ -156,15 +147,11 @@ router.get(
   '/vivo-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const metas = await new VivoTvAddon(
+      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const response = await new VivoTvAddon(
         vivoConfig(req.params.encodedConfig)
-      ).getCatalog(skip(req.params.extras));
-      res.json({
-        metas,
-        cacheMaxAge: 300,
-        staleRevalidate: 1800,
-        staleError: 604800,
-      });
+      ).getCatalogResponse(skip, date);
+      res.json(response);
     } catch (error) {
       next(error);
     }
@@ -194,15 +181,11 @@ router.get(
   '/claro-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const metas = await new ClaroTvAddon(
+      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const response = await new ClaroTvAddon(
         claroConfig(req.params.encodedConfig)
-      ).getCatalog(skip(req.params.extras));
-      res.json({
-        metas,
-        cacheMaxAge: 300,
-        staleRevalidate: 1800,
-        staleError: 604800,
-      });
+      ).getCatalogResponse(skip, date);
+      res.json(response);
     } catch (error) {
       next(error);
     }

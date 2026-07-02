@@ -27,6 +27,23 @@ interface XmltvProgram {
 export interface XmltvData {
   channels: XmltvChannel[];
   programs: XmltvProgram[];
+  programsByChannelId: Map<string, XmltvProgram[]>;
+}
+
+function buildProgramsByChannelId(
+  programs: XmltvProgram[]
+): Map<string, XmltvProgram[]> {
+  const byChannelId = new Map<string, XmltvProgram[]>();
+  for (const program of programs) {
+    const key = program.channelId.trim().toLowerCase();
+    const list = byChannelId.get(key) ?? [];
+    list.push(program);
+    byChannelId.set(key, list);
+  }
+  for (const list of byChannelId.values()) {
+    list.sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+  return byChannelId;
 }
 
 function value(input: unknown): string | undefined {
@@ -165,7 +182,11 @@ export async function parseXmltvData(xml: string): Promise<XmltvData> {
       Boolean(program)
     );
 
-  return { channels: parsedChannels, programs };
+  return {
+    channels: parsedChannels,
+    programs,
+    programsByChannelId: buildProgramsByChannelId(programs),
+  };
 }
 
 export async function parseXmltv(xml: string): Promise<XmltvChannel[]> {

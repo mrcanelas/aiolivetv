@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { fromUrlSafeBase64, makeRequest, toUrlSafeBase64 } from '../../utils/index.js';
 
 export const CHANNEL_ID_PREFIX = 'aiolivetv:';
-export const LIVE_TV_CATALOG_PAGE_SIZE = 20;
+export { LIVE_TV_CATALOG_PAGE_SIZE } from './epg.js';
 
 export const LiveTvSourceConfigSchema = z.object({
   sourceUrl: z.url(),

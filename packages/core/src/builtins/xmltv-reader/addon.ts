@@ -1,5 +1,18 @@
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
+import { TV_TYPE } from '../../utils/constants.js';
 import { Cache } from '../../utils/index.js';
+import {
+  bareChannelPreview,
+  buildEpgCatalogResponse,
+  EPG_CACHE_HEADERS,
+  EPG_GUIDE_CATALOG_EXTRAS,
+  guideChannelMeta,
+  LIVE_TV_CATALOG_PAGE_SIZE,
+  programOverlapsUtcDay,
+  programToVideo,
+  resolveGuideDate,
+  type CatalogHandlerResponse,
+} from '../live-tv/epg.js';
 import {
   CHANNEL_ID_PREFIX,
   decodeChannelId,
@@ -7,8 +20,6 @@ import {
   fetchSourceText,
   LiveTvSourceConfig,
   LiveTvSourceConfigSchema,
-  LIVE_TV_CATALOG_PAGE_SIZE,
-  programLinks,
 } from '../live-tv/shared.js';
 import { parseXmltvData, type XmltvData } from './parser.js';
 
@@ -24,6 +35,29 @@ async function loadXmltv(config: LiveTvSourceConfig): Promise<XmltvData> {
   return data;
 }
 
+function programsForChannel(data: XmltvData, channelId: string) {
+  return data.programsByChannelId.get(channelId.trim().toLowerCase()) ?? [];
+}
+
+function mapProgramToVideo(
+  encodedId: string,
+  program: XmltvData['programs'][number]
+) {
+  return programToVideo({
+    channelEncodedId: encodedId,
+    title: program.title,
+    subtitle: program.subtitle,
+    description: program.description,
+    thumbnail: program.thumbnail,
+    startTime: program.startTime,
+    endTime: program.endTime,
+    airedYear: program.released?.slice(0, 4),
+    categories: program.categories,
+    cast: program.cast,
+    directors: program.directors,
+  });
+}
+
 export class XmltvAddon {
   private readonly config: LiveTvSourceConfig;
 
@@ -37,21 +71,25 @@ export class XmltvAddon {
       name: 'XMLTV',
       version: '1.0.0',
       description: 'Live TV channel metadata from XMLTV',
-      types: ['channel'],
+      types: [TV_TYPE, 'channel'],
       resources: [
         {
           name: 'catalog',
-          types: ['channel'],
+          types: [TV_TYPE, 'channel'],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
-        { name: 'meta', types: ['channel'], idPrefixes: [CHANNEL_ID_PREFIX] },
+        {
+          name: 'meta',
+          types: ['channel', TV_TYPE],
+          idPrefixes: [CHANNEL_ID_PREFIX],
+        },
       ],
       catalogs: [
         {
           id: 'aiolivetv-channels',
-          type: 'channel',
+          type: TV_TYPE,
           name: 'Channels',
-          extra: [{ name: 'skip' }],
+          extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],
       behaviorHints: { epgProvider: true },
@@ -61,16 +99,50 @@ export class XmltvAddon {
   async getCatalog(skip = 0): Promise<MetaPreview[]> {
     return (await loadXmltv(this.config)).channels
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
-      .map((channel) => ({
-        id: encodeChannelId(channel.id),
-        type: 'channel',
-        name: channel.name,
-        poster: channel.logo,
-        posterShape: 'square',
-        tvgId: channel.id,
-        aliases: channel.aliases,
-        language: channel.language,
-      }));
+      .map((channel) =>
+        bareChannelPreview({
+          id: encodeChannelId(channel.id),
+          name: channel.name,
+          poster: channel.logo,
+          tvgId: channel.id,
+          aliases: channel.aliases,
+          language: channel.language,
+        })
+      );
+  }
+
+  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+    const guideDate = resolveGuideDate(date);
+    const data = await loadXmltv(this.config);
+    return data.channels
+      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
+      .map((channel) => {
+        const encodedId = encodeChannelId(channel.id);
+        const videos = programsForChannel(data, channel.id)
+          .filter((program) => programOverlapsUtcDay(program, guideDate))
+          .map((program) => mapProgramToVideo(encodedId, program));
+        return guideChannelMeta(
+          {
+            id: encodedId,
+            name: channel.name,
+            logo: channel.logo,
+            language: channel.language,
+          },
+          videos
+        );
+      });
+  }
+
+  async getCatalogResponse(
+    skip = 0,
+    date?: string
+  ): Promise<CatalogHandlerResponse> {
+    return buildEpgCatalogResponse(
+      (pageSkip) => this.getCatalog(pageSkip),
+      (pageSkip, guideDate) => this.getCatalogGuide(pageSkip, guideDate),
+      skip,
+      date
+    );
   }
 
   async getMeta(id: string): Promise<Meta> {
@@ -80,41 +152,18 @@ export class XmltvAddon {
       (item) => item.id.trim().toLowerCase() === channelId
     );
     if (!channel) throw new Error(`Channel not found: ${channelId}`);
+    const encodedId = encodeChannelId(channel.id);
+    const guideDate = resolveGuideDate();
     return {
-      id,
-      type: 'channel',
+      id: encodedId,
+      type: TV_TYPE,
       name: channel.name,
       poster: channel.logo,
       posterShape: 'square',
-      videos: data.programs
-        .filter(
-          (program) => program.channelId.trim().toLowerCase() === channelId
-        )
-        .map((program) => {
-          const links = programLinks(
-            program.categories,
-            program.cast,
-            program.directors
-          );
-          return {
-            id: `${id.split(':epg:', 1)[0]}:epg:${program.startTime}`,
-            title: program.title,
-            subtitle: program.subtitle,
-            overview: program.description,
-            thumbnail: program.thumbnail,
-            genres: program.categories,
-            cast: program.cast,
-            directors: program.directors,
-            links: links.length ? links : undefined,
-            released: program.released ?? program.startTime,
-            releaseInfo:
-              program.released?.slice(0, 4) ?? program.startTime.slice(0, 4),
-            runtime: program.runtime,
-            startTime: program.startTime,
-            endTime: program.endTime,
-          };
-        })
-        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+      behaviorHints: { hasScheduledVideos: true },
+      videos: programsForChannel(data, channel.id)
+        .filter((program) => programOverlapsUtcDay(program, guideDate))
+        .map((program) => mapProgramToVideo(encodedId, program)),
     };
   }
 }
