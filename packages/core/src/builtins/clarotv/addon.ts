@@ -227,16 +227,16 @@ export class ClaroTvAddon {
       name: 'Claro TV+',
       version: '1.0.0',
       description: 'Canais e programação EPG da Claro TV+ (Claro tv+).',
-      types: [TV_TYPE, 'channel'],
+      types: [TV_TYPE],
       resources: [
         {
           name: 'catalog',
-          types: [TV_TYPE, 'channel'],
+          types: [TV_TYPE],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
         {
           name: 'meta',
-          types: ['channel', TV_TYPE],
+          types: [TV_TYPE],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
       ],

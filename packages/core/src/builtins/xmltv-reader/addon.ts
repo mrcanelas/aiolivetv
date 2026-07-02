@@ -79,16 +79,16 @@ export class XmltvAddon {
       name: 'XMLTV',
       version: '1.0.0',
       description: 'Live TV channel metadata from XMLTV',
-      types: [TV_TYPE, 'channel'],
+      types: [TV_TYPE],
       resources: [
         {
           name: 'catalog',
-          types: [TV_TYPE, 'channel'],
+          types: [TV_TYPE],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
         {
           name: 'meta',
-          types: ['channel', TV_TYPE],
+          types: [TV_TYPE],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
       ],

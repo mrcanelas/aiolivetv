@@ -13,6 +13,7 @@ import { createProxy } from '../proxy/index.js';
 import { getAddonName } from '../utils/general.js';
 import type { Addon, Resource, UserData } from '../db/index.js';
 import type { AIOStreamsContext } from './types.js';
+import { CHANNEL_ID_PREFIX } from '../builtins/live-tv/shared.js';
 
 const logger = createLogger('core');
 
@@ -653,6 +654,46 @@ export function buildResources(ctx: AIOStreamsContext): void {
         }
         return catalog;
       });
+  }
+
+  normalizeLiveTvManifest(ctx);
+}
+
+function normalizeLiveTvManifest(ctx: AIOStreamsContext): void {
+  const catalogName =
+    ctx.userData.addonName?.trim() ||
+    appConfig.branding.addonName ||
+    'AIOLiveTV';
+
+  ctx.finalCatalogs = ctx.finalCatalogs.map((catalog) => {
+    const type =
+      catalog.type === constants.CHANNEL_TYPE
+        ? constants.TV_TYPE
+        : catalog.type;
+    if (type !== constants.TV_TYPE) {
+      return catalog.type === constants.CHANNEL_TYPE
+        ? { ...catalog, type: constants.TV_TYPE }
+        : catalog;
+    }
+    return { ...catalog, type, name: catalogName };
+  });
+
+  for (const resourceName of ['catalog', 'meta', 'stream'] as const) {
+    const resource = ctx.finalResources.find((entry) => entry.name === resourceName);
+    if (!resource) continue;
+    resource.types = [constants.TV_TYPE];
+    resource.idPrefixes = [CHANNEL_ID_PREFIX];
+  }
+
+  for (const resources of Object.values(ctx.supportedResources)) {
+    for (const resource of resources) {
+      if (resource.name !== 'catalog' && resource.name !== 'meta' && resource.name !== 'stream') {
+        continue;
+      }
+      resource.types = resource.types.map((type) =>
+        type === constants.CHANNEL_TYPE ? constants.TV_TYPE : type
+      );
+    }
   }
 }
 

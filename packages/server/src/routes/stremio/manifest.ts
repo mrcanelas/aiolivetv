@@ -46,11 +46,7 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
     description: config?.addonDescription || appConfig.bootstrap.description,
     catalogs,
     resources,
-    types: resources.reduce((types, resource) => {
-      const resourceTypes =
-        typeof resource === 'string' ? [resource] : resource.types;
-      return [...new Set([...types, ...resourceTypes])];
-    }, [] as string[]),
+    types: [constants.TV_TYPE],
     logo:
       config?.addonLogo ||
       `https://raw.githubusercontent.com/Viren070/AIOStreams/refs/heads/main/packages/frontend/public/logo${

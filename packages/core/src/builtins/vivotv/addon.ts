@@ -350,16 +350,16 @@ export class VivoTvAddon {
       name: 'Vivo TV',
       version: '1.0.0',
       description: 'Canais e programação da Vivo Play (Telefónica Brasil).',
-      types: [TV_TYPE, 'channel'],
+      types: [TV_TYPE],
       resources: [
         {
           name: 'catalog',
-          types: [TV_TYPE, 'channel'],
+          types: [TV_TYPE],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
         {
           name: 'meta',
-          types: ['channel', TV_TYPE],
+          types: [TV_TYPE],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
       ],
