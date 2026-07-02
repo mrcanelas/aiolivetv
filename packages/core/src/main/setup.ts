@@ -684,17 +684,6 @@ function normalizeLiveTvManifest(ctx: AIOStreamsContext): void {
     resource.types = [constants.TV_TYPE];
     resource.idPrefixes = [CHANNEL_ID_PREFIX];
   }
-
-  for (const resources of Object.values(ctx.supportedResources)) {
-    for (const resource of resources) {
-      if (resource.name !== 'catalog' && resource.name !== 'meta' && resource.name !== 'stream') {
-        continue;
-      }
-      resource.types = resource.types.map((type) =>
-        type === constants.CHANNEL_TYPE ? constants.TV_TYPE : type
-      );
-    }
-  }
 }
 
 async function getProxyIp(ctx: AIOStreamsContext): Promise<string | undefined> {

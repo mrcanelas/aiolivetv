@@ -54,7 +54,11 @@ import {
   isManualStreamSource,
   buildManualParsedStreams,
   orderLiveStreamsByMapping,
+  getChannelMatchConfidence,
+  isHighConfidenceChannelMatch,
+  type ChannelMatchCandidate,
 } from './channelMappings.js';
+import { decodeHtmlEntities } from '../utils/text.js';
 
 const logger = createLogger('core');
 
@@ -115,6 +119,20 @@ async function pingStreamUrls(streams: ParsedStream[]): Promise<void> {
  *  - it declares idPrefixes and at least one matches the id, or
  *  - it declares no idPrefixes (accepts all ids)
  */
+const LIVE_CHANNEL_STREAM_TYPES = [
+  constants.TV_TYPE,
+  constants.CHANNEL_TYPE,
+] as const;
+
+function resourceSupportsRequestType(
+  resourceTypes: string[],
+  requestType: string
+): boolean {
+  if (resourceTypes.includes(requestType)) return true;
+  if (!isLiveChannelType(requestType)) return false;
+  return LIVE_CHANNEL_STREAM_TYPES.some((type) => resourceTypes.includes(type));
+}
+
 function getAddonsForResource(
   ctx: Pick<AIOStreamsContext, 'supportedResources' | 'addons'>,
   resourceName: string,
@@ -128,7 +146,7 @@ function getAddonsForResource(
     const supported = resources.find(
       (r) =>
         r.name === resourceName &&
-        r.types.includes(type) &&
+        resourceSupportsRequestType(r.types, type) &&
         (r.idPrefixes ? r.idPrefixes.some((p) => id.startsWith(p)) : true)
     );
     if (supported) {
@@ -138,11 +156,6 @@ function getAddonsForResource(
   }
   return addons;
 }
-
-const LIVE_CHANNEL_STREAM_TYPES = [
-  constants.TV_TYPE,
-  constants.CHANNEL_TYPE,
-] as const;
 
 function resolveAddonResourceType(
   ctx: Pick<AIOStreamsContext, 'supportedResources'>,
@@ -169,16 +182,15 @@ function resolveAddonStreamType(
 function findMappedStreamAddon(
   ctx: Pick<AIOStreamsContext, 'supportedResources' | 'addons'>,
   preferredType: string,
-  mappedId: string,
+  _mappedId: string,
   addonId: string
 ): Addon | undefined {
-  for (const type of [preferredType, ...LIVE_CHANNEL_STREAM_TYPES]) {
-    const addon = getAddonsForResource(ctx, 'stream', type, mappedId).find(
-      (candidate) => candidate.instanceId === addonId
-    );
-    if (addon) return addon;
+  const addon = ctx.addons.find((candidate) => candidate.instanceId === addonId);
+  if (!addon?.instanceId) return undefined;
+  if (!resolveAddonStreamType(ctx, addon.instanceId, preferredType)) {
+    return undefined;
   }
-  return undefined;
+  return addon;
 }
 
 function buildAddonStreamTypes(
@@ -733,6 +745,194 @@ function emitAddonContributions(args: {
   }
 }
 
+const LIVE_STREAM_CATALOG_SCAN_LIMIT = 500;
+
+function getAllLiveStreamAddons(
+  ctx: Pick<AIOStreamsContext, 'supportedResources' | 'addons'>,
+  preferredType: string
+): Addon[] {
+  return ctx.addons.filter(
+    (addon) =>
+      !!addon.instanceId &&
+      !!resolveAddonStreamType(ctx, addon.instanceId, preferredType)
+  );
+}
+
+async function loadCanonicalChannelCandidate(
+  ctx: AIOStreamsContext,
+  type: string,
+  channelId: string,
+  channelMapping?: ReturnType<typeof getChannelMapping>
+): Promise<ChannelMatchCandidate> {
+  if (channelMapping?.name) {
+    return {
+      id: channelId,
+      name: decodeHtmlEntities(channelMapping.name),
+      logo: channelMapping.poster ?? undefined,
+    };
+  }
+
+  for (const candidate of collectLiveChannelMetaCandidates(ctx, type, channelId)) {
+    try {
+      const metaType =
+        resolveAddonMetaType(
+          ctx,
+          candidate.instanceId,
+          candidate.metaType
+        ) ?? candidate.metaType;
+      const meta = await new Wrapper(candidate.addon).getMeta(metaType, channelId);
+      return {
+        id: channelId,
+        name: decodeHtmlEntities(meta.name ?? channelId),
+        tvgId: typeof meta.tvgId === 'string' ? meta.tvgId : undefined,
+        aliases: Array.isArray(meta.aliases)
+          ? meta.aliases.map((alias) => decodeHtmlEntities(alias))
+          : undefined,
+        country: typeof meta.country === 'string' ? meta.country : undefined,
+        language: typeof meta.language === 'string' ? meta.language : undefined,
+        categories: Array.isArray(meta.genres) ? meta.genres : undefined,
+        logo: meta.poster ?? undefined,
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  return { id: channelId, name: channelId };
+}
+
+async function resolveStreamChannelIdForAddon(
+  ctx: AIOStreamsContext,
+  channelId: string,
+  addon: Addon,
+  canonical: ChannelMatchCandidate
+): Promise<string> {
+  const streamResource = ctx.supportedResources[addon.instanceId!]?.find(
+    (resource) => resource.name === 'stream'
+  );
+  if (
+    streamResource?.idPrefixes?.length &&
+    streamResource.idPrefixes.some((prefix) => channelId.startsWith(prefix))
+  ) {
+    return channelId;
+  }
+
+  const catalog = ctx.finalCatalogs.find(
+    (entry) =>
+      entry.id.startsWith(`${addon.instanceId}.`) &&
+      isLiveChannelType(entry.type)
+  );
+  if (!catalog) return channelId;
+
+  const response = await new Wrapper(addon).getCatalog(
+    catalog.type,
+    catalog.id.split('.').slice(1).join('.'),
+    catalog.extra?.some((extra) => extra.name === 'skip') ? 'skip=0' : undefined
+  );
+  let best: { id: string; confidence: number } | undefined;
+  for (const item of response.slice(0, LIVE_STREAM_CATALOG_SCAN_LIMIT)) {
+    const confidence = getChannelMatchConfidence(
+      {
+        id: item.id,
+        name: decodeHtmlEntities(item.name ?? item.id),
+        tvgId: typeof item.tvgId === 'string' ? item.tvgId : undefined,
+        aliases: Array.isArray(item.aliases)
+          ? item.aliases.map((alias) => decodeHtmlEntities(alias))
+          : undefined,
+        country: typeof item.country === 'string' ? item.country : undefined,
+        language: typeof item.language === 'string' ? item.language : undefined,
+        categories: Array.isArray(item.genres) ? item.genres : undefined,
+        logo: item.poster ?? undefined,
+      },
+      canonical
+    );
+    if (
+      isHighConfidenceChannelMatch(confidence) &&
+      (!best || confidence > best.confidence)
+    ) {
+      best = { id: item.id, confidence };
+    }
+  }
+
+  return best?.id ?? channelId;
+}
+
+async function resolveLiveStreamFetchPlan(
+  ctx: AIOStreamsContext,
+  type: string,
+  channelId: string
+): Promise<{
+  addons: Addon[];
+  channelIds: Map<string, string>;
+  streamTypes: Map<string, string>;
+}> {
+  const channelMapping = getChannelMapping(ctx.userData, channelId);
+  const explicitSources =
+    channelMapping?.streams?.filter(
+      (source) => !isManualStreamSource(source) && source.enabled !== false
+    ) ?? [];
+
+  const addons: Addon[] = [];
+  const channelIds = new Map<string, string>();
+  const seen = new Set<string>();
+
+  const addAddon = (addon: Addon, mappedChannelId: string) => {
+    if (!addon.instanceId || seen.has(addon.instanceId)) return;
+    if (
+      channelMapping?.streams?.length &&
+      !isChannelAddonEnabled(
+        ctx.userData,
+        channelId,
+        addon.instanceId,
+        mappedChannelId
+      )
+    ) {
+      return;
+    }
+    seen.add(addon.instanceId);
+    addons.push(addon);
+    channelIds.set(addon.instanceId, mappedChannelId);
+  };
+
+  for (const source of explicitSources) {
+    const mappedId = source.channelId ?? channelId;
+    const addon = findMappedStreamAddon(ctx, type, mappedId, source.addonId);
+    if (addon) addAddon(addon, mappedId);
+  }
+
+  if (addons.length === 0) {
+    const canonical = await loadCanonicalChannelCandidate(
+      ctx,
+      type,
+      channelId,
+      channelMapping
+    );
+    for (const addon of getAllLiveStreamAddons(ctx, type)) {
+      addAddon(
+        addon,
+        await resolveStreamChannelIdForAddon(ctx, channelId, addon, canonical)
+      );
+    }
+  }
+
+  if (channelMapping?.streams?.length) {
+    const priority = new Map(
+      channelMapping.streams.map((stream, index) => [stream.addonId, index])
+    );
+    addons.sort(
+      (left, right) =>
+        (priority.get(left.instanceId!) ?? Number.MAX_SAFE_INTEGER) -
+        (priority.get(right.instanceId!) ?? Number.MAX_SAFE_INTEGER)
+    );
+  }
+
+  return {
+    addons,
+    channelIds,
+    streamTypes: buildAddonStreamTypes(ctx, addons, type),
+  };
+}
+
 export async function getStreams(
   ctx: AIOStreamsContext,
   id: string,
@@ -753,30 +953,10 @@ export async function getStreams(
   const channelMapping = isLiveChannel
     ? getChannelMapping(ctx.userData, channelId)
     : undefined;
-  let supportedAddons =
-    channelMapping?.streams?.flatMap((source) => {
-      const mappedId = source.channelId ?? channelId;
-      const addon = findMappedStreamAddon(
-        ctx,
-        type,
-        mappedId,
-        source.addonId
-      );
-      return addon ? [addon] : [];
-    }) ?? getAddonsForResource(ctx, 'stream', type, channelId);
-  if (channelMapping?.streams) {
-    supportedAddons = supportedAddons.filter((addon) =>
-      isChannelAddonEnabled(ctx.userData, channelId, addon.instanceId!)
-    );
-    const priority = new Map(
-      channelMapping.streams.map((stream, index) => [stream.addonId, index])
-    );
-    supportedAddons.sort(
-      (a, b) =>
-        (priority.get(a.instanceId!) ?? Number.MAX_SAFE_INTEGER) -
-        (priority.get(b.instanceId!) ?? Number.MAX_SAFE_INTEGER)
-    );
-  }
+  const liveStreamPlan = isLiveChannel
+    ? await resolveLiveStreamFetchPlan(ctx, type, channelId)
+    : undefined;
+  let supportedAddons = liveStreamPlan?.addons ?? getAddonsForResource(ctx, 'stream', type, id);
 
   logger.debug(
     {
@@ -801,18 +981,9 @@ export async function getStreams(
   ctx.precomputer.resetPrecomputeTimings();
 
   const fetchStart = Date.now();
-  const channelAddonIds = isLiveChannel
-      ? new Map(
-          supportedAddons.map((addon) => [
-            addon.instanceId!,
-            channelMapping?.streams?.find(
-              (stream) => stream.addonId === addon.instanceId
-            )?.channelId ?? channelId,
-          ])
-        )
-      : undefined;
+  const channelAddonIds = isLiveChannel ? liveStreamPlan!.channelIds : undefined;
   const addonStreamTypes = isLiveChannel
-    ? buildAddonStreamTypes(ctx, supportedAddons, type)
+    ? liveStreamPlan!.streamTypes
     : undefined;
   const {
     streams,
