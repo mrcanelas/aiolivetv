@@ -12,7 +12,7 @@ export function StreamProbeSettings() {
     <SettingsCard
       title="Stream Probe (ffprobe)"
       id="streamProbe"
-      description="Enrich Live TV streams with real codec and resolution data read from the stream URL."
+      description="Enrich Live TV streams with codec and resolution data, and mark streams that are unlikely to play in Stremio Web."
     >
       <Alert intent="warning">
         Enabling this can increase stream response time considerably. Each
@@ -34,7 +34,7 @@ export function StreamProbeSettings() {
             },
           }));
         }}
-        help="When enabled, declared label metadata is merged with ffprobe results for live and HTTP streams."
+        help="When enabled, live streams are probed for playback metadata and web compatibility (notWebReady)."
       />
 
       <NumberInput

@@ -16,12 +16,14 @@ export function isConfigureMenuVisible(menu: MenuId): boolean {
   return VISIBLE_MENU_SET.has(menu);
 }
 
-/** Miscellaneous sub-tabs kept for Live TV (hide vod preload/playback tuning). */
+/** Miscellaneous sub-tabs kept for Live TV (hide vod preload/background tuning). */
 export const CONFIGURE_VISIBLE_MISC_SUB_TABS = [
-  'builtins',
+  'playback',
   'display',
   'parent',
 ] as const;
+
+export const CONFIGURE_DEFAULT_MISC_SUB_TAB = 'playback' as const;
 
 /** Presets shown in the Addons marketplace for AIOLiveTV. */
 export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
