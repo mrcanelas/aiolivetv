@@ -19,6 +19,7 @@ const { encodeChannelId, M3uAddon, parseM3u, XmltvAddon, parseXmltv } =
     ...m3u,
     ...xmltv,
   }));
+const { applyEpgTimeShift } = await import('./live-tv/epg.js');
 const {
   getChannelMapping,
   getChannelMatchConfidence,
@@ -29,6 +30,19 @@ const {
 const { makeRequest } = await import('../utils/index.js');
 
 describe('live TV sources', () => {
+  it('shifts EPG program times by configured minutes', () => {
+    expect(
+      applyEpgTimeShift(
+        '2026-06-28T12:00:00.000Z',
+        '2026-06-28T13:00:00.000Z',
+        30
+      )
+    ).toEqual({
+      startTime: '2026-06-28T12:30:00.000Z',
+      endTime: '2026-06-28T13:30:00.000Z',
+    });
+  });
+
   it('uses the same channel ID for XMLTV and M3U identifiers', async () => {
     const [channel] = await parseXmltv(
       '<tv><channel id="BBC.ONE"><display-name>BBC One</display-name></channel></tv>'
@@ -82,6 +96,25 @@ describe('live TV sources', () => {
       cast: ['Jane Doe'],
       directors: ['John Doe'],
     });
+  });
+
+  it('applies XMLTV time shift to program videos', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: true,
+      text: async () =>
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    const addon = new XmltvAddon({
+      sourceUrl: 'https://example.com/guide.xml',
+      timeout: 1000,
+      timeShiftMinutes: -15,
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-28T12:00:00.000Z'));
+    const meta = await addon.getMeta(encodeChannelId('bbc.one'));
+    vi.useRealTimers();
+    expect(meta.videos?.[0]?.startTime).toBe('2026-06-28T11:45:00.000Z');
+    expect(meta.videos?.[0]?.endTime).toBe('2026-06-28T12:45:00.000Z');
   });
 
   it('uses an M3U as catalog and channel metadata without program videos', async () => {

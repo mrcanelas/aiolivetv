@@ -7,6 +7,8 @@ export { LIVE_TV_CATALOG_PAGE_SIZE } from './epg.js';
 export const LiveTvSourceConfigSchema = z.object({
   sourceUrl: z.url(),
   timeout: z.number().int().positive(),
+  /** Shift program start/end times by this many minutes (positive = later). */
+  timeShiftMinutes: z.number().int().default(0),
 });
 
 export type LiveTvSourceConfig = z.infer<typeof LiveTvSourceConfigSchema>;

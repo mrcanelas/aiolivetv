@@ -1,14 +1,16 @@
+import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache } from '../../utils/index.js';
 import {
   bareChannelPreview,
   buildEpgCatalogResponse,
+  applyEpgTimeShift,
   EPG_CACHE_HEADERS,
   EPG_GUIDE_CATALOG_EXTRAS,
   guideChannelMeta,
   LIVE_TV_CATALOG_PAGE_SIZE,
-  programOverlapsUtcDay,
+  shiftedProgramOverlapsUtcDay,
   programToVideo,
   resolveGuideDate,
   type CatalogHandlerResponse,
@@ -41,16 +43,22 @@ function programsForChannel(data: XmltvData, channelId: string) {
 
 function mapProgramToVideo(
   encodedId: string,
-  program: XmltvData['programs'][number]
+  program: XmltvData['programs'][number],
+  timeShiftMinutes: number
 ) {
+  const { startTime, endTime } = applyEpgTimeShift(
+    program.startTime,
+    program.endTime,
+    timeShiftMinutes
+  );
   return programToVideo({
     channelEncodedId: encodedId,
     title: program.title,
     subtitle: program.subtitle,
     description: program.description,
     thumbnail: program.thumbnail,
-    startTime: program.startTime,
-    endTime: program.endTime,
+    startTime,
+    endTime,
     airedYear: program.released?.slice(0, 4),
     categories: program.categories,
     cast: program.cast,
@@ -61,7 +69,7 @@ function mapProgramToVideo(
 export class XmltvAddon {
   private readonly config: LiveTvSourceConfig;
 
-  constructor(config: LiveTvSourceConfig) {
+  constructor(config: z.input<typeof LiveTvSourceConfigSchema>) {
     this.config = LiveTvSourceConfigSchema.parse(config);
   }
 
@@ -114,13 +122,18 @@ export class XmltvAddon {
   async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
     const guideDate = resolveGuideDate(date);
     const data = await loadXmltv(this.config);
+    const { timeShiftMinutes } = this.config;
     return data.channels
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
       .map((channel) => {
         const encodedId = encodeChannelId(channel.id);
         const videos = programsForChannel(data, channel.id)
-          .filter((program) => programOverlapsUtcDay(program, guideDate))
-          .map((program) => mapProgramToVideo(encodedId, program));
+          .filter((program) =>
+            shiftedProgramOverlapsUtcDay(program, guideDate, timeShiftMinutes)
+          )
+          .map((program) =>
+            mapProgramToVideo(encodedId, program, timeShiftMinutes)
+          );
         return guideChannelMeta(
           {
             id: encodedId,
@@ -154,6 +167,7 @@ export class XmltvAddon {
     if (!channel) throw new Error(`Channel not found: ${channelId}`);
     const encodedId = encodeChannelId(channel.id);
     const guideDate = resolveGuideDate();
+    const { timeShiftMinutes } = this.config;
     return {
       id: encodedId,
       type: TV_TYPE,
@@ -162,8 +176,12 @@ export class XmltvAddon {
       posterShape: 'square',
       behaviorHints: { hasScheduledVideos: true },
       videos: programsForChannel(data, channel.id)
-        .filter((program) => programOverlapsUtcDay(program, guideDate))
-        .map((program) => mapProgramToVideo(encodedId, program)),
+        .filter((program) =>
+          shiftedProgramOverlapsUtcDay(program, guideDate, timeShiftMinutes)
+        )
+        .map((program) =>
+          mapProgramToVideo(encodedId, program, timeShiftMinutes)
+        ),
     };
   }
 }

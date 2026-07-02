@@ -63,6 +63,32 @@ export function utcDayUnixBounds(date: string): { start: number; end: number } {
   };
 }
 
+export function applyEpgTimeShift(
+  startTime: string,
+  endTime: string,
+  shiftMinutes = 0
+): { startTime: string; endTime: string } {
+  if (!shiftMinutes) return { startTime, endTime };
+  const deltaMs = shiftMinutes * 60_000;
+  return {
+    startTime: new Date(Date.parse(startTime) + deltaMs).toISOString(),
+    endTime: new Date(Date.parse(endTime) + deltaMs).toISOString(),
+  };
+}
+
+export function shiftedProgramOverlapsUtcDay(
+  program: { startTime: string; endTime: string },
+  date: string,
+  shiftMinutes = 0
+): boolean {
+  const shifted = applyEpgTimeShift(
+    program.startTime,
+    program.endTime,
+    shiftMinutes
+  );
+  return programOverlapsUtcDay(shifted, date);
+}
+
 export function programOverlapsUtcDay(
   program: { startTime: string; endTime: string },
   date: string

@@ -19,6 +19,22 @@ class LiveTvStreamParser extends StreamParser {
   }
 }
 
+const epgTimeShiftOption = (): Option => ({
+  id: 'timeShiftMinutes',
+  name: 'EPG Time Shift (minutes)',
+  description:
+    'Shift all program start and end times by this amount. Use positive values if the guide runs ahead of the broadcast, or negative if it lags.',
+  type: 'number',
+  required: false,
+  showInSimpleMode: true,
+  default: 0,
+  constraints: {
+    min: -720,
+    max: 720,
+    forceInUi: false,
+  },
+});
+
 const sourceOptions = (
   name: string,
   resources: ('catalog' | 'meta' | 'stream')[]
@@ -76,6 +92,7 @@ function generateAddon(
   const config = {
     sourceUrl: options.sourceUrl,
     timeout: options.timeout || appConfig.presets.defaultTimeout,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
   };
   return {
     name: options.name || name,
@@ -101,7 +118,7 @@ export class XmltvPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION: 'Channel metadata and catalogs from an XMLTV guide.',
-      OPTIONS: sourceOptions('XMLTV', resources),
+      OPTIONS: [...sourceOptions('XMLTV', resources), epgTimeShiftOption()],
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,
       BUILTIN: true,
@@ -129,6 +146,7 @@ function generateVivoAddon(
 ): Addon {
   const config = {
     timeout: options.timeout || appConfig.presets.defaultTimeout,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
   };
   return {
     name: options.name || 'Vivo TV',
@@ -184,6 +202,7 @@ function vivoTvOptions(
         forceInUi: false,
       },
     },
+    epgTimeShiftOption(),
   ];
 }
 
@@ -220,6 +239,7 @@ function generateClaroTvAddon(options: Record<string, any>): Addon {
   const config = {
     timeout: options.timeout || appConfig.presets.defaultTimeout,
     location: options.location || 'SAO PAULO,SAO PAULO',
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
   };
   return {
     name: options.name || 'Claro TV+',
@@ -282,6 +302,7 @@ function claroTvOptions(resources: ('catalog' | 'meta')[]): Option[] {
         forceInUi: false,
       },
     },
+    epgTimeShiftOption(),
   ];
 }
 

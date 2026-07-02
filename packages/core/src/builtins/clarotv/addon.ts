@@ -3,12 +3,13 @@ import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
 import {
+  applyEpgTimeShift,
   bareChannelPreview,
   buildEpgCatalogResponse,
   EPG_CACHE_HEADERS,
   EPG_GUIDE_CATALOG_EXTRAS,
   guideChannelMeta,
-  programOverlapsUtcDay,
+  shiftedProgramOverlapsUtcDay,
   programToVideo,
   resolveGuideDate,
   utcDayUnixBounds,
@@ -30,6 +31,8 @@ const sourceCache = Cache.getInstance<string, ClaroChannel[]>('clarotv-channels'
 export const ClaroTvConfigSchema = z.object({
   timeout: z.number().int().positive(),
   location: z.string().min(1).optional(),
+  /** Shift program start/end times by this many minutes (positive = later). */
+  timeShiftMinutes: z.number().int().default(0),
 });
 
 export type ClaroTvConfig = z.infer<typeof ClaroTvConfigSchema>;
@@ -176,7 +179,11 @@ async function loadSchedulesForUtcDay(
     }).filter((item) => {
       const startTime = new Date(item.startTime * 1000).toISOString();
       const endTime = new Date(item.endTime * 1000).toISOString();
-      return programOverlapsUtcDay({ startTime, endTime }, date);
+      return shiftedProgramOverlapsUtcDay(
+        { startTime, endTime },
+        date,
+        config.timeShiftMinutes
+      );
     });
     byChannel.set(id, schedules);
   }
@@ -184,9 +191,16 @@ async function loadSchedulesForUtcDay(
   return byChannel;
 }
 
-function scheduleToVideo(encodedId: string, item: ClaroScheduleItem) {
-  const startTime = new Date(item.startTime * 1000).toISOString();
-  const endTime = new Date(item.endTime * 1000).toISOString();
+function scheduleToVideo(
+  encodedId: string,
+  item: ClaroScheduleItem,
+  timeShiftMinutes: number
+) {
+  const { startTime, endTime } = applyEpgTimeShift(
+    new Date(item.startTime * 1000).toISOString(),
+    new Date(item.endTime * 1000).toISOString(),
+    timeShiftMinutes
+  );
   const thumbnail = item.image ? programThumbnailUrl(item.image) : undefined;
   return programToVideo({
     channelEncodedId: encodedId,
@@ -203,7 +217,7 @@ function scheduleToVideo(encodedId: string, item: ClaroScheduleItem) {
 export class ClaroTvAddon {
   private readonly config: ClaroTvConfig;
 
-  constructor(config: ClaroTvConfig) {
+  constructor(config: z.input<typeof ClaroTvConfigSchema>) {
     this.config = ClaroTvConfigSchema.parse(config);
   }
 
@@ -268,7 +282,7 @@ export class ClaroTvAddon {
     return channels.map((channel) => {
       const encodedId = encodeChannelId(channel.id);
       const videos = (schedulesByChannel.get(channel.id) ?? []).map((item) =>
-        scheduleToVideo(encodedId, item)
+        scheduleToVideo(encodedId, item, this.config.timeShiftMinutes)
       );
       return guideChannelMeta(
         {
@@ -311,7 +325,11 @@ export class ClaroTvAddon {
     const encodedId = encodeChannelId(channel.id);
     const videos = schedules
       .map((item) => {
-        const video = scheduleToVideo(encodedId, item);
+        const video = scheduleToVideo(
+          encodedId,
+          item,
+          this.config.timeShiftMinutes
+        );
         return {
           ...video,
           season:

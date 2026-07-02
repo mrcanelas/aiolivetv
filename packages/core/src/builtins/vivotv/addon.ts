@@ -3,12 +3,13 @@ import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
 import {
+  applyEpgTimeShift,
   bareChannelPreview,
   buildEpgCatalogResponse,
   EPG_CACHE_HEADERS,
   EPG_GUIDE_CATALOG_EXTRAS,
   guideChannelMeta,
-  programOverlapsUtcDay,
+  shiftedProgramOverlapsUtcDay,
   programToVideo,
   resolveGuideDate,
   utcDayUnixBounds,
@@ -34,6 +35,8 @@ const referenceCache = Cache.getInstance<string, VivoReferenceData>(
 
 export const VivoTvConfigSchema = z.object({
   timeout: z.number().int().positive(),
+  /** Shift program start/end times by this many minutes (positive = later). */
+  timeShiftMinutes: z.number().int().default(0),
 });
 
 export type VivoTvConfig = z.infer<typeof VivoTvConfigSchema>;
@@ -291,17 +294,25 @@ async function loadSchedulesForUtcDay(
     if (!(item.Start > 0 && item.End > item.Start)) return false;
     const startTime = new Date(item.Start * 1000).toISOString();
     const endTime = new Date(item.End * 1000).toISOString();
-    return programOverlapsUtcDay({ startTime, endTime }, date);
+    return shiftedProgramOverlapsUtcDay(
+      { startTime, endTime },
+      date,
+      config.timeShiftMinutes
+    );
   });
 }
 
 function scheduleToVideo(
   encodedId: string,
   item: VivoScheduleItem,
-  reference: VivoReferenceData
+  reference: VivoReferenceData,
+  timeShiftMinutes: number
 ) {
-  const startTime = new Date(item.Start * 1000).toISOString();
-  const endTime = new Date(item.End * 1000).toISOString();
+  const { startTime, endTime } = applyEpgTimeShift(
+    new Date(item.Start * 1000).toISOString(),
+    new Date(item.End * 1000).toISOString(),
+    timeShiftMinutes
+  );
   const { title, subtitle } = parseProgramTitle(item.Title);
   const genres = resolveGenres(item.GenrePids, reference);
   const cast = resolvePersons(item.ActorPids, reference);
@@ -329,7 +340,7 @@ function scheduleToVideo(
 export class VivoTvAddon {
   private readonly config: VivoTvConfig;
 
-  constructor(config: VivoTvConfig) {
+  constructor(config: z.input<typeof VivoTvConfigSchema>) {
     this.config = VivoTvConfigSchema.parse(config);
   }
 
@@ -395,7 +406,12 @@ export class VivoTvAddon {
     return channels.map((channel, index) => {
       const encodedId = encodeChannelId(channel.pid);
       const videos = schedulesByChannel[index]!.map((item) =>
-        scheduleToVideo(encodedId, item, reference)
+        scheduleToVideo(
+          encodedId,
+          item,
+          reference,
+          this.config.timeShiftMinutes
+        )
       );
       return guideChannelMeta(
         {
@@ -438,7 +454,12 @@ export class VivoTvAddon {
     const videos = schedules
       .filter((item) => item.Start > 0 && item.End > item.Start)
       .map((item) => {
-        const video = scheduleToVideo(encodedId, item, reference);
+        const video = scheduleToVideo(
+          encodedId,
+          item,
+          reference,
+          this.config.timeShiftMinutes
+        );
         const { season, episode } = parseSeasonEpisode(item.Title);
         return {
           ...video,

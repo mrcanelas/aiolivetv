@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache } from '../../utils/index.js';
@@ -41,7 +42,7 @@ async function mapStream(entry: M3uEntry): Promise<Stream> {
 export class M3uAddon {
   private readonly config: LiveTvSourceConfig;
 
-  constructor(config: LiveTvSourceConfig) {
+  constructor(config: z.input<typeof LiveTvSourceConfigSchema>) {
     this.config = LiveTvSourceConfigSchema.parse(config);
   }
 
