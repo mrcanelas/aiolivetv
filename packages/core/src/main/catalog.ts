@@ -16,7 +16,7 @@ import type {
   Preset,
 } from '../db/schemas.js';
 import type { Manifest } from '../db/index.js';
-import type { AIOStreamsContext, AIOStreamsResponse } from './types.js';
+import type { AIOStreamsContext, AIOStreamsCatalogResponse, AIOStreamsResponse } from './types.js';
 import { isLiveChannelType } from './channelMappings.js';
 import {
   shuffleCache,
@@ -63,6 +63,7 @@ export async function fetchRawCatalogItems(
 ): Promise<{
   success: boolean;
   items: MetaPreview[];
+  metasDetailed?: Meta[];
   error?: { title: string; description: string };
 }> {
   const addon = ctx.addons.find((a) => a.instanceId === addonInstanceId);
@@ -109,7 +110,7 @@ export async function fetchRawCatalogItems(
 
   try {
     const start = Date.now();
-    const catalog = await new Wrapper(addon).getCatalog(
+    const catalog = await new Wrapper(addon).getCatalogResponse(
       actualType,
       catalogId,
       extrasString
@@ -120,10 +121,14 @@ export async function fetchRawCatalogItems(
         catalogId,
         type: actualType,
         took: getTimeTakenSincePoint(start),
+        guide: Boolean(catalog.metasDetailed),
       },
       'received catalog'
     );
-    return { success: true, items: catalog };
+    if (catalog.metasDetailed) {
+      return { success: true, items: [], metasDetailed: catalog.metasDetailed };
+    }
+    return { success: true, items: catalog.metas ?? [] };
   } catch (error) {
     return {
       success: false,
@@ -717,17 +722,46 @@ export async function getCatalog(
   type: string,
   id: string,
   extras?: string
-): Promise<AIOStreamsResponse<MetaPreview[]>> {
+): Promise<AIOStreamsCatalogResponse> {
   logger.debug({ type, id, extras }, 'handling catalog request');
 
   if (id.startsWith('aiostreams.merged.')) {
-    return getMergedCatalog(ctx, type, id, extras);
+    const merged = await getMergedCatalog(ctx, type, id, extras);
+    return {
+      success: merged.success,
+      data: merged.data,
+      errors: merged.errors,
+    };
   }
 
   const addonInstanceId = id.split('.', 2)[0];
   const actualCatalogId = id.split('.').slice(1).join('.');
 
   const parsedExtras = new ExtrasParser(extras);
+  const guideDate = parsedExtras.date;
+
+  if (type === constants.TV_TYPE && guideDate) {
+    const result = await fetchRawCatalogItems(
+      ctx,
+      addonInstanceId,
+      actualCatalogId,
+      type,
+      parsedExtras
+    );
+    if (!result.success) {
+      return {
+        success: false,
+        data: [],
+        errors: result.error ? [result.error] : [],
+      };
+    }
+    return {
+      success: true,
+      data: [],
+      metasDetailed: result.metasDetailed ?? [],
+      errors: [],
+    };
+  }
 
   const result = await fetchRawCatalogItems(
     ctx,

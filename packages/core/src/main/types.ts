@@ -1,6 +1,8 @@
 import type {
   Addon,
   Manifest,
+  Meta,
+  MetaPreview,
   StrictManifestResource,
   UserData,
 } from '../db/index.js';
@@ -26,6 +28,13 @@ export interface AIOStreamsError {
 export interface AIOStreamsResponse<T> {
   success: boolean;
   data: T;
+  errors: AIOStreamsError[];
+}
+
+export interface AIOStreamsCatalogResponse {
+  success: boolean;
+  data: MetaPreview[];
+  metasDetailed?: Meta[];
   errors: AIOStreamsError[];
 }
 

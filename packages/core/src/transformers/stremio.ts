@@ -19,7 +19,7 @@ import {
   ParsedMeta,
 } from '../db/index.js';
 import { createFormatter, FormatterContext } from '../formatters/index.js';
-import { AIOStreamsError, AIOStreamsResponse } from '../main/types.js';
+import { AIOStreamsError, AIOStreamsCatalogResponse, AIOStreamsResponse } from '../main/types.js';
 import { Cache, createLogger, getTimeTakenSincePoint } from '../utils/index.js';
 import { generateBingeGroup } from './utils.js';
 
@@ -260,9 +260,26 @@ export class StremioTransformer {
   }
 
   transformCatalog(
-    response: AIOStreamsResponse<MetaPreview[]>
+    response: AIOStreamsCatalogResponse
   ): CatalogResponse {
-    const { data: metas, errors } = response;
+    if (response.metasDetailed !== undefined) {
+      if (this.showError('catalog', response.errors)) {
+        return {
+          metasDetailed: response.errors.map((error) =>
+            StremioTransformer.createErrorMeta({
+              errorTitle: error.title,
+              errorDescription: error.description,
+            })
+          ) as unknown as CatalogResponse['metasDetailed'],
+        };
+      }
+      return {
+        metasDetailed: response.metasDetailed,
+      };
+    }
+
+    const metas = [...response.data];
+    const { errors } = response;
 
     if (this.showError('catalog', errors)) {
       metas.push(

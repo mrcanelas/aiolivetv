@@ -60,8 +60,12 @@ const manifestCache = Cache.getInstance<string, Manifest>(
   'manifest',
   () => appConfig.resources.cache.manifest.maxSize
 );
-const catalogCache = Cache.getInstance<string, MetaPreview[]>(
+const catalogCache = Cache.getInstance<string, CatalogResponse>(
   'catalog',
+  () => appConfig.resources.cache.catalog.maxSize
+);
+const guideCatalogCache = Cache.getInstance<string, CatalogResponse>(
+  'catalog-guide',
   () => appConfig.resources.cache.catalog.maxSize
 );
 const metaCache = Cache.getInstance<string, Meta>(
@@ -330,8 +334,52 @@ export class Wrapper {
     id: string,
     extras?: string
   ): Promise<MetaPreview[]> {
-    const validator = (data: any): MetaPreview[] => {
-      return this.validateArray(data.metas, MetaPreviewSchema, 'catalog items');
+    const response = await this.getCatalogResponse(type, id, extras);
+    if (response.metasDetailed?.length) {
+      return response.metasDetailed.map((meta) => ({
+        id: meta.id,
+        type: meta.type,
+        name: meta.name,
+        poster: meta.poster,
+        posterShape: meta.posterShape,
+        logo: meta.logo,
+        tvgId: meta.tvgId,
+        aliases: meta.aliases,
+        language: meta.language,
+        country: meta.country,
+        genres: meta.genres,
+      }));
+    }
+    return response.metas ?? [];
+  }
+
+  async getCatalogResponse(
+    type: string,
+    id: string,
+    extras?: string
+  ): Promise<CatalogResponse> {
+    const guideDate = extras
+      ? new URLSearchParams(extras.replace(/^\//, '')).get('date') ?? undefined
+      : undefined;
+    const isGuide = Boolean(guideDate);
+
+    const validator = (data: any): CatalogResponse => {
+      if (Array.isArray(data.metasDetailed)) {
+        return {
+          metasDetailed: this.validateArray(
+            data.metasDetailed,
+            MetaSchema,
+            'catalog guide items'
+          ),
+        };
+      }
+      return {
+        metas: this.validateArray(
+          data.metas ?? [],
+          MetaPreviewSchema,
+          'catalog items'
+        ),
+      };
     };
 
     const catalogTtl = resolveTtl(
@@ -344,7 +392,11 @@ export class Wrapper {
       { type, id, extras },
       appConfig.resources.timeouts.catalog,
       validator,
-      catalogTtl != -1 ? catalogCache : undefined,
+      catalogTtl != -1
+        ? isGuide
+          ? guideCatalogCache
+          : catalogCache
+        : undefined,
       catalogTtl,
       this.preset.getCacheKey({
         resource: 'catalog',

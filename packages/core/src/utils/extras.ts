@@ -50,6 +50,10 @@ export class ExtrasParser {
     this.extras = { ...this.extras, skip: value };
   }
 
+  get date(): string | undefined {
+    return 'date' in this.extras ? this.extras.date : undefined;
+  }
+
   public has(key: keyof Extras): boolean {
     return key in this.extras && this.extras[key] !== undefined;
   }
