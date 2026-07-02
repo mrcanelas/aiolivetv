@@ -1,6 +1,7 @@
 import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache } from '../../utils/index.js';
+import { resolveNotWebReady } from '../../streams/web-readiness.js';
 import {
   CHANNEL_ID_PREFIX,
   decodeChannelId,
@@ -23,6 +24,18 @@ async function loadM3u(config: LiveTvSourceConfig): Promise<M3uEntry[]> {
   const entries = parseM3u(await fetchSourceText(config));
   await sourceCache.set(cacheKey, entries, SOURCE_CACHE_TTL);
   return entries;
+}
+
+async function mapStream(entry: M3uEntry): Promise<Stream> {
+  const stream: Stream = {
+    url: entry.url,
+    name: entry.name,
+    description: entry.group,
+  };
+  const notWebReady = await resolveNotWebReady(stream, { probe: true });
+  return notWebReady
+    ? { ...stream, behaviorHints: { notWebReady: true } }
+    : stream;
 }
 
 export class M3uAddon {
@@ -104,12 +117,9 @@ export class M3uAddon {
 
   async getStreams(id: string): Promise<Stream[]> {
     const channelId = decodeChannelId(id);
-    return (await loadM3u(this.config))
-      .filter((entry) => entry.channelId.trim().toLowerCase() === channelId)
-      .map((entry) => ({
-        url: entry.url,
-        name: entry.name,
-        description: entry.group,
-      }));
+    const entries = (await loadM3u(this.config)).filter(
+      (entry) => entry.channelId.trim().toLowerCase() === channelId
+    );
+    return Promise.all(entries.map((entry) => mapStream(entry)));
   }
 }

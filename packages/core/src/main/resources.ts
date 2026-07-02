@@ -13,6 +13,7 @@ import { PresetManager } from '../presets/index.js';
 import { FeatureControl } from '../utils/feature.js';
 import { StreamContext, StreamUtils } from '../streams/index.js';
 import { enrichStreamsWithProbe } from '../streams/stream-probe.js';
+import { applyLiveStreamWebHints } from '../streams/web-readiness.js';
 import { populateNzbFallbacks } from './nzbFailover.js';
 import { resolveServiceWrappedStreams } from './serviceWrapper.js';
 import type { ServiceWrapServiceTiming } from './serviceWrapper.js';
@@ -450,6 +451,12 @@ export async function processStreams(
 
   if (ctx.userData.streamProbe?.enabled && isLiveChannelType(type)) {
     finalStreams = await enrichStreamsWithProbe(finalStreams, ctx.userData);
+    finalStreams = await applyLiveStreamWebHints(finalStreams, {
+      probe: true,
+      timeoutMs: ctx.userData.streamProbe.timeoutMs,
+    });
+  } else if (isLiveChannelType(type)) {
+    finalStreams = await applyLiveStreamWebHints(finalStreams, { probe: false });
   }
 
   if (nzbFailoverOpts?.position === 'beforeSEL') {

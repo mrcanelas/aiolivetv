@@ -7,6 +7,7 @@ import {
   parseFfprobeJson,
   probedStreamToParsedFile,
 } from './probed.js';
+import { probeWebPlayable } from './web-readiness.js';
 
 const logger = createLogger('stream-probe');
 const PROBE_CACHE_PREFIX = 'spb:';
@@ -67,6 +68,8 @@ export async function enrichStreamWithProbe(
   try {
     const probed = await probeStreamUrl(stream.url, timeoutMs);
     stream.parsedFile = mergeDeclaredAndProbed(declared, probed);
+    const playable = await probeWebPlayable(stream.url, timeoutMs);
+    if (!playable) stream.notWebReady = true;
   } catch (error) {
     logger.debug(
       {
