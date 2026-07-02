@@ -377,3 +377,151 @@ export class M3uPreset extends Preset {
     ];
   }
 }
+
+function generateXtreamAddon(options: Record<string, any>): Addon {
+  const config = {
+    url: options.url,
+    username: options.username,
+    password: options.password,
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    preferredFormat: options.preferredFormat || 'm3u8',
+    categoryId: options.categoryId || undefined,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
+  };
+  return {
+    name: options.name || 'Xtream Codes',
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/xtream/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    enabled: true,
+    resources: options.resources || [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ],
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: 'xtream', options },
+    headers: { 'User-Agent': appConfig.http.defaultUserAgent },
+  };
+}
+
+function xtreamOptions(
+  resources: ('catalog' | 'meta' | 'stream')[]
+): Option[] {
+  return [
+    {
+      id: 'resources',
+      name: 'Resources',
+      description:
+        'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
+      type: 'multi-select',
+      required: false,
+      showInSimpleMode: true,
+      default: resources,
+      options: resources.map((resource) => ({
+        label: constants.RESOURCE_LABELS[resource],
+        value: resource,
+      })),
+    },
+    {
+      id: 'name',
+      name: 'Name',
+      description: 'What to call this addon',
+      type: 'string',
+      required: true,
+      default: 'Xtream Codes',
+    },
+    {
+      id: 'url',
+      name: 'Server URL',
+      description: 'Xtream Codes server URL (for example http://example.com:8080)',
+      type: 'url',
+      required: true,
+    },
+    {
+      id: 'username',
+      name: 'Username',
+      description: 'Xtream Codes account username',
+      type: 'string',
+      required: true,
+    },
+    {
+      id: 'password',
+      name: 'Password',
+      description: 'Xtream Codes account password',
+      type: 'password',
+      required: true,
+    },
+    {
+      id: 'preferredFormat',
+      name: 'Stream format',
+      description: 'Preferred container for live channel URLs',
+      type: 'select',
+      required: true,
+      default: 'm3u8',
+      options: [
+        { label: 'HLS (m3u8)', value: 'm3u8' },
+        { label: 'MPEG-TS (ts)', value: 'ts' },
+        { label: 'RTMP', value: 'rtmp' },
+      ],
+    },
+    {
+      id: 'categoryId',
+      name: 'Category ID',
+      description:
+        'Optional live category ID to limit imported channels. Leave empty to import all categories.',
+      type: 'string',
+      required: false,
+    },
+    {
+      id: 'timeout',
+      name: 'Timeout (ms)',
+      description: 'Timeout for API requests',
+      type: 'number',
+      required: true,
+      default: appConfig.presets.defaultTimeout,
+      constraints: {
+        min: appConfig.userLimits.timeouts.minTimeout,
+        max: appConfig.userLimits.timeouts.maxTimeout,
+        forceInUi: false,
+      },
+    },
+    epgTimeShiftOption(),
+  ];
+}
+
+export class XtreamPreset extends Preset {
+  static override getParser(): typeof StreamParser {
+    return LiveTvStreamParser;
+  }
+
+  static override get METADATA() {
+    const resources = [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ];
+    return {
+      ID: 'xtream',
+      NAME: 'Xtream Codes',
+      LOGO: '',
+      URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/xtream`],
+      TIMEOUT: appConfig.presets.defaultTimeout,
+      USER_AGENT: appConfig.http.defaultUserAgent,
+      SUPPORTED_SERVICES: [],
+      DESCRIPTION:
+        'Live TV channels, EPG and streams from an Xtream Codes provider.',
+      OPTIONS: xtreamOptions(resources),
+      SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
+      SUPPORTED_RESOURCES: resources,
+      BUILTIN: true,
+      CATEGORY: constants.PresetCategory.STREAMS,
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    return [generateXtreamAddon(options)];
+  }
+}

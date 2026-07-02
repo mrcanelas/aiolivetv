@@ -10,10 +10,12 @@ import {
   XmltvAddon,
   VivoTvAddon,
   ClaroTvAddon,
+  XtreamAddon,
   parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
   type ClaroTvConfig,
+  type XtreamConfig,
 } from '@aiostreams/core';
 
 const router: Router = Router();
@@ -37,6 +39,10 @@ function claroConfig(encodedConfig: string): ClaroTvConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
+function xtreamConfig(encodedConfig: string): XtreamConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
 router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
   try {
     const addon =
@@ -44,6 +50,8 @@ router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
         ? new XmltvAddon(config(req.params.encodedConfig))
         : req.params.source === 'm3u'
           ? new M3uAddon(config(req.params.encodedConfig))
+          : req.params.source === 'xtream'
+            ? new XtreamAddon(xtreamConfig(req.params.encodedConfig))
           : req.params.source === 'vivo-tv'
             ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
             : req.params.source === 'claro-tv'
@@ -137,6 +145,54 @@ router.get(
         config(req.params.encodedConfig)
       ).getStreams(req.params.id);
       res.json({ streams });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/xtream/:encodedConfig/stream/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const streams = await new XtreamAddon(
+        xtreamConfig(req.params.encodedConfig)
+      ).getStreams(req.params.id);
+      res.json({ streams });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/xtream/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const response = await new XtreamAddon(
+        xtreamConfig(req.params.encodedConfig)
+      ).getCatalogResponse(skip, date);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/xtream/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new XtreamAddon(
+        xtreamConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
     } catch (error) {
       next(error);
     }
