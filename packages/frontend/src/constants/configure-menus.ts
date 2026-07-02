@@ -22,3 +22,20 @@ export const CONFIGURE_VISIBLE_MISC_SUB_TABS = [
   'display',
   'parent',
 ] as const;
+
+/** Presets shown in the Addons marketplace for AIOLiveTV. */
+export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
+  'm3u',
+  'xmltv',
+  'vivo-tv',
+  'claro-tv',
+  'custom',
+  'frost-view',
+  'minha-tv',
+] as const;
+
+const MARKETPLACE_PRESET_SET = new Set<string>(LIVE_TV_MARKETPLACE_PRESET_IDS);
+
+export function isLiveTvMarketplacePreset(presetId: string): boolean {
+  return MARKETPLACE_PRESET_SET.has(presetId);
+}

@@ -15,6 +15,7 @@ import { MdOutlineDataset } from 'react-icons/md';
 import { RiFolderDownloadFill } from 'react-icons/ri';
 import { toast } from 'sonner';
 import * as constants from '../../../../../core/src/utils/constants';
+import { isLiveTvMarketplacePreset } from '@/constants/configure-menus';
 
 import { AddonCard } from './_components/addon-card';
 import { AddonModal } from './_components/addon-modal';
@@ -67,11 +68,7 @@ function Content() {
           marketplaceCategoryFilter
       );
     }
-    filtered = filtered.filter(
-      (n) =>
-        n.SUPPORTED_STREAM_TYPES &&
-        n.SUPPORTED_STREAM_TYPES.includes('live')
-    );
+    filtered = filtered.filter((n) => isLiveTvMarketplacePreset(n.ID));
     if (search) {
       filtered = filtered.filter(
         (n) =>
