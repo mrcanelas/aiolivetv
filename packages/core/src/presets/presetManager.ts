@@ -81,12 +81,13 @@ import { StreamNZBPreset } from './streamnzb.js';
 import { HdHubPreset } from './hdhub.js';
 import { BaguettioPreset } from './baguettio.js';
 import { Preset } from './index.js';
-import { M3uPreset, VivoTvPreset, XmltvPreset } from './liveTv.js';
+import { M3uPreset, ClaroTvPreset, VivoTvPreset, XmltvPreset } from './liveTv.js';
 
 let PRESET_LIST: string[] = [
   'm3u',
   'xmltv',
   'vivo-tv',
+  'claro-tv',
   'frost-view',
   'minha-tv',
   'custom',
@@ -195,6 +196,8 @@ export class PresetManager {
         return XmltvPreset;
       case 'vivo-tv':
         return VivoTvPreset;
+      case 'claro-tv':
+        return ClaroTvPreset;
       case 'torrentio':
         return TorrentioPreset;
       case 'stremthruStore':

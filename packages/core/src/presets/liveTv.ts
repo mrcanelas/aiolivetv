@@ -226,6 +226,114 @@ export class VivoTvPreset extends Preset {
   }
 }
 
+function generateClaroTvAddon(options: Record<string, any>): Addon {
+  const config = {
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    days: options.days ?? 3,
+    location: options.location || 'SAO PAULO,SAO PAULO',
+  };
+  return {
+    name: options.name || 'Claro TV+',
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/claro-tv/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    enabled: true,
+    resources: options.resources || [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+    ],
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: 'claro-tv', options },
+    headers: { 'User-Agent': appConfig.http.defaultUserAgent },
+  };
+}
+
+function claroTvOptions(resources: ('catalog' | 'meta')[]): Option[] {
+  return [
+    {
+      id: 'resources',
+      name: 'Resources',
+      description:
+        'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
+      type: 'multi-select',
+      required: false,
+      showInSimpleMode: true,
+      default: resources,
+      options: resources.map((resource) => ({
+        label: constants.RESOURCE_LABELS[resource],
+        value: resource,
+      })),
+    },
+    {
+      id: 'name',
+      name: 'Name',
+      description: 'What to call this addon',
+      type: 'string',
+      required: true,
+      default: 'Claro TV+',
+    },
+    {
+      id: 'location',
+      name: 'Location',
+      description:
+        'Claro TV+ region in CITY,STATE format (for example SAO PAULO,SAO PAULO).',
+      type: 'string',
+      required: true,
+      default: 'SAO PAULO,SAO PAULO',
+    },
+    {
+      id: 'days',
+      name: 'EPG days',
+      description: 'How many days of programming to fetch per channel',
+      type: 'number',
+      required: true,
+      default: 3,
+      constraints: { min: 1, max: 7, forceInUi: false },
+    },
+    {
+      id: 'timeout',
+      name: 'Timeout (ms)',
+      description: 'Timeout for API requests',
+      type: 'number',
+      required: true,
+      default: appConfig.presets.defaultTimeout,
+      constraints: {
+        min: appConfig.userLimits.timeouts.minTimeout,
+        max: appConfig.userLimits.timeouts.maxTimeout,
+        forceInUi: false,
+      },
+    },
+  ];
+}
+
+export class ClaroTvPreset extends Preset {
+  static override get METADATA() {
+    const resources = [constants.CATALOG_RESOURCE, constants.META_RESOURCE];
+    return {
+      ID: 'claro-tv',
+      NAME: 'Claro TV+',
+      LOGO: '/assets/clarotv_logo.webp',
+      URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/claro-tv`],
+      TIMEOUT: appConfig.presets.defaultTimeout,
+      USER_AGENT: appConfig.http.defaultUserAgent,
+      SUPPORTED_SERVICES: [],
+      DESCRIPTION:
+        'Canais e programação EPG da Claro TV+ via API clarotvmais.com.br.',
+      OPTIONS: claroTvOptions(resources),
+      SUPPORTED_STREAM_TYPES: [],
+      SUPPORTED_RESOURCES: resources,
+      BUILTIN: true,
+      CATEGORY: constants.PresetCategory.META_CATALOGS,
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    return [generateClaroTvAddon(options)];
+  }
+}
+
 export class M3uPreset extends Preset {
   static override getParser(): typeof StreamParser {
     return LiveTvStreamParser;

@@ -36,8 +36,10 @@ export {
   M3uAddon,
   XmltvAddon,
   VivoTvAddon,
+  ClaroTvAddon,
   type LiveTvSourceConfig,
   type VivoTvConfig,
+  type ClaroTvConfig,
 } from './builtins/index.js';
 export { PresetManager } from './presets/index.js';
 export {

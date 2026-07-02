@@ -9,8 +9,10 @@ import {
   M3uAddon,
   XmltvAddon,
   VivoTvAddon,
+  ClaroTvAddon,
   type LiveTvSourceConfig,
   type VivoTvConfig,
+  type ClaroTvConfig,
 } from '@aiostreams/core';
 
 const router: Router = Router();
@@ -30,6 +32,10 @@ function vivoConfig(encodedConfig: string): VivoTvConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
+function claroConfig(encodedConfig: string): ClaroTvConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
 function skip(extras?: string) {
   return Math.max(
     0,
@@ -46,7 +52,9 @@ router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
           ? new M3uAddon(config(req.params.encodedConfig))
           : req.params.source === 'vivo-tv'
             ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
-            : undefined;
+            : req.params.source === 'claro-tv'
+              ? new ClaroTvAddon(claroConfig(req.params.encodedConfig))
+              : undefined;
     if (!addon) throw new Error(`Unsupported source: ${req.params.source}`);
     res.json(addon.getManifest());
   } catch (error) {
@@ -169,6 +177,44 @@ router.get(
     try {
       const meta = await new VivoTvAddon(
         vivoConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/claro-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const metas = await new ClaroTvAddon(
+        claroConfig(req.params.encodedConfig)
+      ).getCatalog(skip(req.params.extras));
+      res.json({
+        metas,
+        cacheMaxAge: 300,
+        staleRevalidate: 1800,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/claro-tv/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new ClaroTvAddon(
+        claroConfig(req.params.encodedConfig)
       ).getMeta(req.params.id);
       res.json({
         meta,
