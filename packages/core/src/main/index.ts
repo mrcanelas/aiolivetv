@@ -5,7 +5,7 @@ import {
   StrictManifestResource,
   UserData,
 } from '../db/index.js';
-import { Cache, createLogger, IdParser } from '../utils/index.js';
+import { Cache, createLogger, IdParser, constants } from '../utils/index.js';
 import Proxifier from '../streams/proxifier.js';
 import StreamLimiter from '../streams/limiter.js';
 import {
@@ -140,14 +140,19 @@ export class AIOStreams {
   public hasEpgProvider(): boolean {
     this.checkInitialised();
     return this.ctx.addons.some((addon) => {
+      const manifest = this.ctx.manifests[addon.instanceId!];
       const resources = addon.resources;
       const enabled = (resource: 'catalog' | 'meta') =>
         !resources?.length || resources.includes(resource);
+      const hasGuideCatalog = manifest?.catalogs?.some(
+        (catalog) =>
+          catalog.type === constants.TV_TYPE &&
+          catalog.extra?.some((extra) => extra.name === 'date')
+      );
       return (
-        this.ctx.manifests[addon.instanceId!]?.behaviorHints?.epgProvider ===
-          true &&
-        enabled('catalog') &&
-        enabled('meta')
+        manifest?.behaviorHints?.epgProvider === true &&
+        hasGuideCatalog &&
+        enabled('catalog')
       );
     });
   }

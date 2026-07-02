@@ -14,6 +14,7 @@ import {
 import { SeaDexResult } from '../utils/seadex.js';
 import { calculateAbsoluteEpisode } from '../builtins/utils/general.js';
 import { iso6391ToLanguage } from '../utils/languages.js';
+import { isLiveChannelType } from '../main/channelMappings.js';
 
 const logger = createLogger('stream-context');
 
@@ -468,7 +469,7 @@ export class StreamContext {
    * Call this when starting addon fetches to maximize parallelism.
    */
   public startAllFetches(): void {
-    if (this.type === 'channel') return;
+    if (isLiveChannelType(this.type)) return;
     this.startMetadataFetch();
     this.startSeaDexFetch();
     this.startReleaseDatesFetch();

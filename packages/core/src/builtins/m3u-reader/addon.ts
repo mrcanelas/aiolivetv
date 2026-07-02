@@ -1,4 +1,5 @@
 import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
+import { TV_TYPE } from '../../utils/constants.js';
 import { Cache } from '../../utils/index.js';
 import {
   CHANNEL_ID_PREFIX,
@@ -9,6 +10,7 @@ import {
   LiveTvSourceConfigSchema,
   LIVE_TV_CATALOG_PAGE_SIZE,
 } from '../live-tv/shared.js';
+import { bareChannelPreview } from '../live-tv/epg.js';
 import { parseM3u, type M3uEntry } from './parser.js';
 
 const SOURCE_CACHE_TTL = 300;
@@ -36,20 +38,20 @@ export class M3uAddon {
       name: 'M3U',
       version: '1.0.0',
       description: 'Live TV streams from M3U',
-      types: ['channel'],
+      types: [TV_TYPE],
       resources: [
         {
           name: 'catalog',
-          types: ['channel'],
+          types: [TV_TYPE],
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
-        { name: 'meta', types: ['channel'], idPrefixes: [CHANNEL_ID_PREFIX] },
-        { name: 'stream', types: ['channel'], idPrefixes: [CHANNEL_ID_PREFIX] },
+        { name: 'meta', types: [TV_TYPE], idPrefixes: [CHANNEL_ID_PREFIX] },
+        { name: 'stream', types: [TV_TYPE], idPrefixes: [CHANNEL_ID_PREFIX] },
       ],
       catalogs: [
         {
           id: 'aiolivetv-channels',
-          type: 'channel',
+          type: TV_TYPE,
           name: 'Channels',
           extra: [{ name: 'skip' }],
         },
@@ -64,17 +66,16 @@ export class M3uAddon {
         entries.map((entry) => [entry.channelId.toLowerCase(), entry])
       ).values(),
     ]
-      .map((entry) => ({
-        id: encodeChannelId(entry.channelId),
-        type: 'channel',
-        name: entry.name,
-        poster: entry.logo,
-        posterShape: 'square' as const,
-        tvgId: entry.channelId,
-        country: entry.country,
-        language: entry.language,
-        genres: entry.group ? [entry.group] : undefined,
-      }))
+      .map((entry) =>
+        bareChannelPreview({
+          id: encodeChannelId(entry.channelId),
+          name: entry.name,
+          poster: entry.logo,
+          tvgId: entry.channelId,
+          country: entry.country,
+          language: entry.language,
+        })
+      )
       .sort((a, b) =>
         (a.name ?? a.id).localeCompare(b.name ?? b.id, undefined, {
           sensitivity: 'base',
@@ -91,7 +92,7 @@ export class M3uAddon {
     if (!entry) throw new Error(`Channel not found: ${channelId}`);
     return {
       id: id.split(':epg:', 1)[0],
-      type: 'channel',
+      type: TV_TYPE,
       name: entry.name,
       poster: entry.logo,
       posterShape: 'square',

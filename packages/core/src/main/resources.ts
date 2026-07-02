@@ -139,23 +139,30 @@ function getAddonsForResource(
 }
 
 const LIVE_CHANNEL_STREAM_TYPES = [
-  constants.CHANNEL_TYPE,
   constants.TV_TYPE,
+  constants.CHANNEL_TYPE,
 ] as const;
+
+function resolveAddonResourceType(
+  ctx: Pick<AIOStreamsContext, 'supportedResources'>,
+  instanceId: string,
+  resourceName: 'stream' | 'meta',
+  preferredType: string
+): string | undefined {
+  const resource = ctx.supportedResources[instanceId]?.find(
+    (entry) => entry.name === resourceName
+  );
+  if (!resource?.types.length) return undefined;
+  if (resource.types.includes(preferredType)) return preferredType;
+  return resource.types[0];
+}
 
 function resolveAddonStreamType(
   ctx: Pick<AIOStreamsContext, 'supportedResources'>,
   instanceId: string,
   preferredType: string
 ): string | undefined {
-  const resources = ctx.supportedResources[instanceId];
-  const stream = resources?.find((resource) => resource.name === 'stream');
-  if (!stream) return undefined;
-  if (stream.types.includes(preferredType)) return preferredType;
-  for (const fallbackType of LIVE_CHANNEL_STREAM_TYPES) {
-    if (stream.types.includes(fallbackType)) return fallbackType;
-  }
-  return stream.types[0];
+  return resolveAddonResourceType(ctx, instanceId, 'stream', preferredType);
 }
 
 function findMappedStreamAddon(
@@ -258,14 +265,7 @@ function resolveAddonMetaType(
   instanceId: string,
   preferredType: string
 ): string | undefined {
-  const resources = ctx.supportedResources[instanceId];
-  const meta = resources?.find((resource) => resource.name === 'meta');
-  if (!meta) return undefined;
-  if (meta.types.includes(preferredType)) return preferredType;
-  for (const fallbackType of LIVE_CHANNEL_STREAM_TYPES) {
-    if (meta.types.includes(fallbackType)) return fallbackType;
-  }
-  return meta.types[0];
+  return resolveAddonResourceType(ctx, instanceId, 'meta', preferredType);
 }
 
 function collectLiveChannelMetaCandidates(
@@ -274,9 +274,7 @@ function collectLiveChannelMetaCandidates(
   channelId: string
 ): MetaCandidate[] {
   const channelMapping = getChannelMapping(ctx.userData, channelId);
-  const requestTypes = isLiveChannelType(type)
-    ? LIVE_CHANNEL_STREAM_TYPES
-    : [type];
+  const requestTypes = [type];
   const candidates = new Map<string, MetaCandidate>();
 
   const addCandidates = (metaId: string, instanceId?: string) => {
@@ -287,10 +285,12 @@ function collectLiveChannelMetaCandidates(
         if (
           existing &&
           existing.metaType === constants.CHANNEL_TYPE &&
-          metaType !== constants.CHANNEL_TYPE
+          metaType === constants.TV_TYPE
         ) {
+          candidates.set(candidate.instanceId, { ...candidate, metaType });
           continue;
         }
+        if (existing) continue;
         candidates.set(candidate.instanceId, { ...candidate, metaType });
       }
     }
@@ -1122,11 +1122,11 @@ export async function getMeta(
         meta.links = convertDiscoverDeepLinks(ctx, meta.links);
       }
       if (meta.videos) {
-        const context = StreamContext.create(type, id, ctx.userData);
-        ctx.streamContext = context;
         meta.videos = await Promise.all(
           meta.videos.map(async (video) => {
-            if (!video.streams) return video;
+            if (!video.streams || video.startTime) return video;
+            const context = StreamContext.create(type, id, ctx.userData);
+            ctx.streamContext = context;
             video.streams = (
               await processStreams(ctx, video.streams, context, true)
             ).streams;
