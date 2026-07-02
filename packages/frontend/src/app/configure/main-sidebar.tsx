@@ -9,21 +9,16 @@ import { useMenu, MenuId } from '@/context/menu';
 import { useUserData } from '@/context/userData';
 import { ConfigModal } from '@/components/config-modal';
 import {
-  BiPen,
   BiInfoCircle,
-  BiCloud,
   BiExtension,
-  BiFilterAlt,
+  BiPen,
   BiSave,
-  BiSort,
   BiCog,
-  BiServer,
   BiHeart,
   BiLogOutCircle,
   BiLogInCircle,
   BiSearch,
   BiGridAlt,
-  BiBarChartAlt2,
   BiTv,
 } from 'react-icons/bi';
 import { useCommandPalette } from '@/context/command-palette';
@@ -138,12 +133,6 @@ export function MainSidebar() {
       id: 'about',
     },
     {
-      name: 'Services',
-      iconType: BiCloud,
-      isCurrent: selectedMenu === 'services',
-      id: 'services',
-    },
-    {
       name: 'Addons',
       iconType: BiExtension,
       isCurrent: selectedMenu === 'addons',
@@ -156,58 +145,22 @@ export function MainSidebar() {
       id: 'channels',
     },
     {
-      name: 'Filters',
-      iconType: BiFilterAlt,
-      isCurrent: selectedMenu === 'filters',
-      id: 'filters',
-    },
-    ...(mode === 'pro'
-      ? ([
-          {
-            name: 'Sorting',
-            iconType: BiSort,
-            isCurrent: selectedMenu === 'sorting',
-            id: 'sorting' as const,
-          },
-        ] as MenuItem[])
-      : ([] as MenuItem[])),
-    {
       name: 'Formatter',
       iconType: BiPen,
       isCurrent: selectedMenu === 'formatter',
-      id: 'formatter' as const,
-    },
-    {
-      name: 'Proxy',
-      iconType: BiServer,
-      isCurrent: selectedMenu === 'proxy',
-      id: 'proxy' as const,
+      id: 'formatter',
     },
     {
       name: 'Miscellaneous',
       iconType: BiCog,
       isCurrent: selectedMenu === 'miscellaneous',
-      id: 'miscellaneous' as const,
+      id: 'miscellaneous',
     },
-    // Stats only renders when (a) the instance owner has per-user analytics
-    // on, and (b) the user is signed in. The Stats page itself shows a
-    // friendly message in the same conditions, but hiding the menu item
-    // avoids surfacing a tab that always says "sign in".
-    ...(status?.settings.userAnalyticsEnabled && isSignedIn
-      ? ([
-          {
-            name: 'Stats',
-            iconType: BiBarChartAlt2,
-            isCurrent: selectedMenu === 'stats',
-            id: 'stats' as const,
-          },
-        ] as MenuItem[])
-      : ([] as MenuItem[])),
     {
       name: 'Save & Install',
       iconType: BiSave,
       isCurrent: selectedMenu === 'save-install',
-      id: 'save-install' as const,
+      id: 'save-install',
     },
   ];
 

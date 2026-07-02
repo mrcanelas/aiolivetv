@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import * as constants from '../../../../../core/src/utils/constants';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ParsedStream } from '../../../../../core/src/db/schemas';
-import FileParser from '../../../../../core/src/parser/file';
-import { mergeParsedFiles } from '../../../../../core/src/parser/merge';
-import { parseDeclaredStreamInfo } from '../../../../../core/src/streams/declared';
+import {
+  formatDeclaredStreamSummary,
+  parseDeclaredStreamInfo,
+} from '../../../../../core/src/streams/declared';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../shared/settings-card';
 import { TextInput } from '../../ui/text-input';
-import { NumberInput } from '../../ui/number-input';
 import { Select } from '../../ui/select';
 import { Switch } from '../../ui/switch';
 import { Button } from '../../ui/button';
@@ -16,6 +15,8 @@ import { toast } from 'sonner';
 import { useDisclosure } from '@/hooks/disclosure';
 import { FormatQueue } from './format-queue';
 import { AdvancedModal } from './advanced-modal';
+
+const LIVE_STREAM_TYPES = ['live', 'http'] as const;
 
 function FormatterPreviewBox({
   name,
@@ -42,24 +43,6 @@ function FormatterPreviewBox({
   );
 }
 
-function parseAgeToHours(ageString: string): number | undefined {
-  const match = ageString.match(/^(\d+)([a-zA-Z])$/);
-  if (!match) return undefined;
-  const value = parseInt(match[1], 10);
-  switch (match[2].toLowerCase()) {
-    case 'd':
-      return value * 24;
-    case 'h':
-      return value;
-    case 'm':
-      return value / 60;
-    case 'y':
-      return value * 24 * 365;
-    default:
-      return undefined;
-  }
-}
-
 export function FormatterPreview() {
   const { userData } = useUserData();
   const advancedModalDisclosure = useDisclosure(false);
@@ -71,40 +54,15 @@ export function FormatterPreview() {
   } | null>(null);
   const [isFormatting, setIsFormatting] = useState(false);
 
-  // Basic preview state
-  const [filename, setFilename] = useState(
-    'Movie.Title.2023.2160p.BluRay.HEVC.DV.TrueHD.Atmos.7.1.iTA.ENG-GROUP.mkv'
-  );
   const [streamLabel, setStreamLabel] = useState('AXN H265 FHD LEG');
-  const [folder, setFolder] = useState(
-    'Movie.Title.2023.2160p.BluRay.HEVC.DV.TrueHD.Atmos.7.1.iTA.ENG-GROUP'
-  );
-  const [indexer, setIndexer] = useState('RARBG');
-  const [seeders, setSeeders] = useState<number | undefined>(125);
-  const [age, setAge] = useState('10d');
-  const [addonName, setAddonName] = useState('Torrentio');
-  const [providerId, setProviderId] = useState<constants.ServiceId | 'none'>(
-    'none'
-  );
-  const [isCached, setIsCached] = useState(true);
+  const [addonName, setAddonName] = useState('Live TV');
   const [type, setType] =
-    useState<(typeof constants.STREAM_TYPES)[number]>('debrid');
-  const [library, setLibrary] = useState(false);
-  const [privateTorrent, setPrivateTorrent] = useState(false);
-  const [duration, setDuration] = useState<number | undefined>(9120000);
-  const [fileSize, setFileSize] = useState<number | undefined>(62500000000);
-  const [folderSize, setFolderSize] = useState<number | undefined>(
-    125000000000
-  );
+    useState<(typeof LIVE_STREAM_TYPES)[number]>('live');
   const [proxied, setProxied] = useState(false);
   const [regexMatched, setRegexMatched] = useState<string | undefined>(
     undefined
   );
-  const [message, setMessage] = useState('This is a message');
 
-  // Advanced state
-  const [seadex, setSeadex] = useState(false);
-  const [seadexBest, setSeadexBest] = useState(false);
   const [regexScore, setRegexScore] = useState<number | undefined>(25);
   const [streamExpressionScore, setStreamExpressionScore] = useState<
     number | undefined
@@ -115,21 +73,15 @@ export function FormatterPreview() {
   const [rseMatched, setRseMatched] = useState<string | undefined>(undefined);
   const [rankedRegexMatched, setRankedRegexMatched] = useState('');
 
+  const declaredInfo = useMemo(
+    () => parseDeclaredStreamInfo({ name: streamLabel }),
+    [streamLabel]
+  );
+
   const formatStream = useCallback(async () => {
     if (isFormatting) return;
     try {
       setIsFormatting(true);
-      const isLive = type === 'live';
-      const declared = isLive
-        ? parseDeclaredStreamInfo({ name: streamLabel })
-        : undefined;
-      const fileParsed = isLive ? undefined : FileParser.parse(filename);
-      const folderParsed =
-        isLive || !folder ? undefined : FileParser.parse(folder);
-      const parsedFile =
-        declared?.parsedFile ||
-        mergeParsedFiles(fileParsed, folderParsed) ||
-        fileParsed;
 
       const stream: ParsedStream = {
         id: 'preview',
@@ -141,35 +93,15 @@ export function FormatterPreview() {
           manifestUrl: 'http://localhost:2000/manifest.json',
           timeout: 10000,
         },
-        library,
-        parsedFile,
-        filename: isLive ? streamLabel : filename,
-        folderName: isLive ? undefined : folder,
-        folderSize: isLive ? undefined : folderSize,
-        indexer: isLive ? undefined : indexer,
-        regexMatched: { name: regexMatched, index: 0 },
-        torrent: isLive
-          ? undefined
-          : {
-              infoHash: type === 'p2p' ? '1234567890' : undefined,
-              seeders,
-              private: privateTorrent,
-            },
-        service:
-          providerId === 'none'
-            ? undefined
-            : { id: providerId, cached: isCached },
-        age: isLive ? undefined : parseAgeToHours(age),
-        duration: isLive ? undefined : duration,
-        size: isLive ? undefined : fileSize,
-        bitrate:
-          !isLive && fileSize && duration
-            ? Math.floor((fileSize * 8) / (duration / 1000))
-            : undefined,
+        library: false,
+        parsedFile: declaredInfo?.parsedFile,
+        filename: streamLabel,
+        regexMatched: regexMatched
+          ? { name: regexMatched, index: 0 }
+          : undefined,
         proxied,
-        message: isLive ? streamLabel : message,
-        originalName: isLive ? streamLabel : undefined,
-        seadex: { isSeadex: seadex, isBest: seadex && seadexBest },
+        message: streamLabel,
+        originalName: streamLabel,
         streamExpressionScore,
         streamExpressionMatched: seMatched
           ? { name: seMatched, index: 0 }
@@ -199,73 +131,32 @@ export function FormatterPreview() {
       setIsFormatting(false);
     }
   }, [
-    filename,
     streamLabel,
-    folder,
-    indexer,
-    seeders,
-    age,
+    declaredInfo,
     addonName,
-    providerId,
-    isCached,
     type,
-    library,
-    privateTorrent,
-    duration,
-    fileSize,
-    folderSize,
     proxied,
     isFormatting,
     regexMatched,
-    message,
     userData,
-    seadex,
-    seadexBest,
-    streamExpressionScore,
+    seMatched,
     rseMatched,
     rankedRegexMatched,
     regexScore,
     maxRegexScore,
     maxSeScore,
+    streamExpressionScore,
   ]);
 
   useEffect(() => {
     formatQueueRef.current.enqueue(formatStream);
-  }, [
-    filename,
-    streamLabel,
-    folder,
-    indexer,
-    seeders,
-    age,
-    addonName,
-    providerId,
-    isCached,
-    type,
-    library,
-    privateTorrent,
-    duration,
-    fileSize,
-    folderSize,
-    proxied,
-    regexMatched,
-    userData,
-    message,
-    seadex,
-    seadexBest,
-    streamExpressionScore,
-    rseMatched,
-    rankedRegexMatched,
-    regexScore,
-    maxRegexScore,
-    maxSeScore,
-  ]);
+  }, [formatStream]);
 
   return (
     <>
       <SettingsCard
         title="Preview"
-        description="See how your streams would be formatted based on controllable variables"
+        description="Preview how Live TV stream labels are formatted. ffprobe metadata is applied in the stream pipeline when enabled under Miscellaneous → Built-ins."
       >
         <div className="space-y-4">
           <FormatterPreviewBox
@@ -273,99 +164,22 @@ export function FormatterPreview() {
             description={formattedStream?.description}
           />
 
-          {type === 'live' ? (
-            <TextInput
-              label={<span className="truncate block">Stream label</span>}
-              value={streamLabel}
-              onValueChange={(v) => setStreamLabel(v || '')}
-              className="w-full"
-              placeholder="AXN H265 FHD LEG"
-            />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TextInput
-                label={<span className="truncate block">Filename</span>}
-                value={filename}
-                onValueChange={(v) => setFilename(v || '')}
-                className="w-full"
-              />
-              <TextInput
-                label={<span className="truncate block">Folder Name</span>}
-                value={folder}
-                onValueChange={(v) => setFolder(v || '')}
-                className="w-full"
-              />
-            </div>
-          )}
-
-          {type !== 'live' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
-              <TextInput
-                label={<span className="truncate block">Indexer</span>}
-                value={indexer}
-                onValueChange={(v) => setIndexer(v || '')}
-                className="w-full"
-              />
-              <NumberInput
-                label={<span className="truncate block">Seeders</span>}
-                value={seeders}
-                onValueChange={(v) => setSeeders(v || undefined)}
-                className="w-full"
-                min={0}
-                defaultValue={0}
-              />
-              <TextInput
-                label={<span className="truncate block">Age</span>}
-                value={age}
-                onValueChange={(v) => setAge(v || '')}
-                className="w-full"
-              />
-              <NumberInput
-                label={<span className="truncate block">Duration (s)</span>}
-                value={duration ? duration / 1000 : undefined}
-                onValueChange={(v) => setDuration(v ? v * 1000 : undefined)}
-                className="w-full"
-                min={0}
-                step={1000}
-                defaultValue={0}
-              />
-              <NumberInput
-                label={<span className="truncate block">File Size (bytes)</span>}
-                value={fileSize}
-                onValueChange={(v) => setFileSize(v || undefined)}
-                className="w-full"
-                step={1000000000}
-                defaultValue={0}
-                min={0}
-              />
-              <NumberInput
-                label={
-                  <span className="truncate block">Folder Size (bytes)</span>
-                }
-                value={folderSize}
-                onValueChange={(v) => setFolderSize(v || undefined)}
-                className="w-full"
-                step={1000000000}
-                defaultValue={0}
-                min={0}
-              />
-            </div>
+          {formatDeclaredStreamSummary(declaredInfo?.parsedFile) ? (
+            <p className="text-xs text-[--muted]">
+              Declared metadata:{' '}
+              {formatDeclaredStreamSummary(declaredInfo?.parsedFile)}
+            </p>
           ) : null}
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <Select
-              label={<span className="truncate block">Service</span>}
-              value={providerId}
-              options={[
-                { label: 'None', value: 'none' },
-                ...Object.values(constants.SERVICE_DETAILS).map((s) => ({
-                  label: s.name,
-                  value: s.id,
-                })),
-              ]}
-              onValueChange={(v) => setProviderId(v as constants.ServiceId)}
-              className="w-full"
-            />
+          <TextInput
+            label={<span className="truncate block">Stream label</span>}
+            value={streamLabel}
+            onValueChange={(v) => setStreamLabel(v || '')}
+            className="w-full"
+            placeholder="AXN H265 FHD LEG"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <TextInput
               label={<span className="truncate block">Addon Name</span>}
               value={addonName}
@@ -376,10 +190,10 @@ export function FormatterPreview() {
               label={<span className="truncate block">Stream Type</span>}
               value={type}
               onValueChange={(v) =>
-                setType(v as (typeof constants.STREAM_TYPES)[number])
+                setType(v as (typeof LIVE_STREAM_TYPES)[number])
               }
-              options={constants.STREAM_TYPES.map((t) => ({
-                label: t.charAt(0).toUpperCase() + t.slice(1),
+              options={LIVE_STREAM_TYPES.map((t) => ({
+                label: t === 'live' ? 'Live' : 'HTTP',
                 value: t,
               }))}
               className="w-full"
@@ -392,16 +206,6 @@ export function FormatterPreview() {
             />
           </div>
 
-          {type !== 'live' ? (
-            <TextInput
-              label={<span className="truncate block">Message</span>}
-              value={message}
-              onValueChange={(v) => setMessage(v || '')}
-              className="w-full"
-              placeholder="This is a message"
-            />
-          ) : null}
-
           <div className="flex justify-center pt-2">
             <Button
               intent="white"
@@ -413,25 +217,6 @@ export function FormatterPreview() {
           </div>
 
           <div className="flex justify-center flex-wrap gap-4 pt-2">
-            {type !== 'live' ? (
-              <>
-                <Switch
-                  label={<span className="truncate block">Cached</span>}
-                  value={isCached}
-                  onValueChange={setIsCached}
-                />
-                <Switch
-                  label={<span className="truncate block">Library</span>}
-                  value={library}
-                  onValueChange={setLibrary}
-                />
-                <Switch
-                  label={<span className="truncate block">Private</span>}
-                  value={privateTorrent}
-                  onValueChange={setPrivateTorrent}
-                />
-              </>
-            ) : null}
             <Switch
               label={<span className="truncate block">Proxied</span>}
               value={proxied}
@@ -458,10 +243,10 @@ export function FormatterPreview() {
         setRseMatched={setRseMatched}
         rankedRegexMatched={rankedRegexMatched}
         setRankedRegexMatched={setRankedRegexMatched}
-        seadex={seadex}
-        setSeadex={setSeadex}
-        seadexBest={seadexBest}
-        setSeadexBest={setSeadexBest}
+        seadex={false}
+        setSeadex={() => {}}
+        seadexBest={false}
+        setSeadexBest={() => {}}
       />
     </>
   );

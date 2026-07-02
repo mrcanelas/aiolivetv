@@ -226,7 +226,6 @@ export function MyAddons({
   const orderedCategories = useMemo(() => {
     const defaultOrder = [
       constants.PresetCategory.STREAMS,
-      constants.PresetCategory.SUBTITLES,
       constants.PresetCategory.META_CATALOGS,
       constants.PresetCategory.MISC,
     ];

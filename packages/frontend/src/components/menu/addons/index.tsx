@@ -1,11 +1,8 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { CatalogModification } from '@aiostreams/core';
+import React, { useState, useMemo } from 'react';
 import { PageWrapper } from '../../shared/page-wrapper';
 import { useStatus } from '@/context/status';
 import { useUserData, useParentInheritance } from '@/context/userData';
 import { InheritedBadge } from '../../shared/inherited-badge';
-import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { TextInput } from '../../ui/text-input';
 import { SearchIcon } from 'lucide-react';
@@ -13,22 +10,14 @@ import { StaticTabs } from '../../ui/tabs';
 import { LuDownload, LuGlobe, LuSettings } from 'react-icons/lu';
 import { AnimatePresence } from 'framer-motion';
 import { PageControls } from '../../shared/page-controls';
-import { Select } from '../../ui/select';
-import { MenuTabs } from '../../shared/menu-tabs';
-import { useMode } from '@/context/mode';
-import { useSubTab } from '@/context/sub-tab';
 import { IoExtensionPuzzle } from 'react-icons/io5';
 import { MdOutlineDataset } from 'react-icons/md';
 import { RiFolderDownloadFill } from 'react-icons/ri';
-import { APIError, fetchCatalogs } from '@/lib/api';
 import { toast } from 'sonner';
 import * as constants from '../../../../../core/src/utils/constants';
 
 import { AddonCard } from './_components/addon-card';
 import { AddonModal } from './_components/addon-modal';
-import { AddonFetchingBehaviorCard } from './_components/addon-fetching-behavior';
-import { CatalogSettingsCard } from './_components/catalog-settings';
-import { MergedCatalogsCard } from './_components/merged-catalogs';
 import { MyAddons } from './_components/my-addons';
 
 export function AddonsMenu() {
@@ -41,104 +30,15 @@ export function AddonsMenu() {
 
 function Content() {
   const { status } = useStatus();
-  const { mode } = useMode();
   const { userData, setUserData } = useUserData();
-  const { isInherited, hasParent } = useParentInheritance();
+  const { hasParent, isInherited } = useParentInheritance();
   const [page, setPage] = useState<'installed' | 'marketplace'>('installed');
-  const { tab: installedTab, setTab: setInstalledTab } = useSubTab('addons');
-  const { mutate: fetchCatalogsData, isPending: catalogLoading } = useMutation({
-    mutationFn: (currentUserData: typeof userData) =>
-      fetchCatalogs(currentUserData),
-    onSuccess: (catalogs, currentUserData) => {
-      setUserData((prev) => {
-        const existingMods = prev.catalogModifications || [];
-        const existingIds = new Set(
-          existingMods.map((mod) => `${mod.id}-${mod.type}`)
-        );
-        const modifications = existingMods.map((eMod) => {
-          if (eMod.id.startsWith('aiostreams.merged.')) return eMod;
-          const nMod = catalogs.find(
-            (c) => c.id === eMod.id && c.type === eMod.type
-          );
-          if (nMod) {
-            return {
-              ...eMod,
-              addonName: nMod.addonName,
-              type: nMod.type,
-              hideable: nMod.hideable,
-              searchable: nMod.searchable,
-            };
-          }
-          return eMod;
-        });
-        catalogs.forEach((catalog) => {
-          if (!existingIds.has(`${catalog.id}-${catalog.type}`)) {
-            modifications.push({
-              id: catalog.id,
-              name: catalog.name,
-              type: catalog.type,
-              enabled: true,
-              shuffle: false,
-              usePosterService: !!(
-                currentUserData.rpdbApiKey ||
-                currentUserData.topPosterApiKey ||
-                currentUserData.aioratingsApiKey
-              ),
-              hideable: catalog.hideable,
-              searchable: catalog.searchable,
-              addonName: catalog.addonName,
-            });
-          }
-        });
-        const newCatalogIds = new Set(catalogs.map((c) => `${c.id}-${c.type}`));
-        const mergedCatalogIds = new Set(
-          (prev.mergedCatalogs || []).map((mc) => mc.id)
-        );
-        const filteredMods = modifications.filter(
-          (mod) =>
-            (mod.id.startsWith('aiostreams.merged.') &&
-              mergedCatalogIds.has(mod.id)) ||
-            newCatalogIds.has(`${mod.id}-${mod.type}`)
-        );
-        return { ...prev, catalogModifications: filteredMods };
-      });
-    },
-    onError: (error) => {
-      console.error('Error fetching catalogs:', error);
-      if (error instanceof APIError) {
-        toast.error((error as APIError).message);
-      } else {
-        toast.error('Failed to fetch catalogs');
-      }
-    },
-  });
-
-  const refreshCatalogs = useCallback(
-    (hideToast = false) => {
-      fetchCatalogsData(userData, {
-        onSuccess: hideToast
-          ? undefined
-          : () => toast.success('Catalogs fetched successfully'),
-      });
-    },
-    [fetchCatalogsData, userData]
-  );
-
-  // Initial catalog fetch — fires once when the menu mounts.
-  useEffect(() => {
-    fetchCatalogsData(userData);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const [search, setSearch] = useState('');
-  // Filter states
   const [marketplaceCategoryFilter, setMarketplaceCategoryFilter] = useState<
     constants.PresetCategory | 'all'
   >('all');
-  const [serviceFilter, setServiceFilter] = useState<string>('all');
-  const [streamTypeFilter, setStreamTypeFilter] = useState<string>('all');
 
-  // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [modalPreset, setModalPreset] = useState<any | null>(null);
@@ -147,7 +47,6 @@ function Content() {
   >({});
   const [editingAddonId, setEditingAddonId] = useState<string | null>(null);
 
-  // Filtering and search for marketplace
   const filteredPresets = useMemo(() => {
     if (!status?.settings?.presets) return [];
     let filtered = [
@@ -168,19 +67,11 @@ function Content() {
           marketplaceCategoryFilter
       );
     }
-    if (serviceFilter !== 'all') {
-      filtered = filtered.filter(
-        (n) =>
-          n.SUPPORTED_SERVICES && n.SUPPORTED_SERVICES.includes(serviceFilter)
-      );
-    }
-    if (streamTypeFilter !== 'all') {
-      filtered = filtered.filter(
-        (n) =>
-          n.SUPPORTED_STREAM_TYPES &&
-          n.SUPPORTED_STREAM_TYPES.includes(streamTypeFilter as any)
-      );
-    }
+    filtered = filtered.filter(
+      (n) =>
+        n.SUPPORTED_STREAM_TYPES &&
+        n.SUPPORTED_STREAM_TYPES.includes('live')
+    );
     if (search) {
       filtered = filtered.filter(
         (n) =>
@@ -189,15 +80,8 @@ function Content() {
       );
     }
     return filtered;
-  }, [
-    status,
-    search,
-    marketplaceCategoryFilter,
-    serviceFilter,
-    streamTypeFilter,
-  ]);
+  }, [status, search, marketplaceCategoryFilter]);
 
-  // AddonModal handlers
   function handleAddPreset(preset: any) {
     setModalPreset(preset);
     setModalInitialValues({
@@ -257,7 +141,6 @@ function Content() {
     }
   }
 
-  // Handler for editing from My Addons
   function handleEditFromMyAddons(preset: any, presetMetadata: any) {
     setModalPreset(presetMetadata);
     setModalInitialValues({
@@ -268,32 +151,6 @@ function Content() {
     setModalOpen(true);
   }
 
-  // Service, stream type options
-  const serviceOptions = Object.values(constants.SERVICE_DETAILS).map(
-    (service) => ({ label: service.name, value: service.id })
-  );
-  const typeLabelMap: Record<string, string> = {
-    p2p: 'P2P',
-    http: 'HTTP',
-    usenet: 'Usenet',
-    debrid: 'Debrid',
-    live: 'Live',
-  };
-  const streamTypeOptions = (constants.STREAM_TYPES || [])
-    .filter(
-      (type) =>
-        ![
-          'error',
-          'statistic',
-          'external',
-          'youtube',
-          'stremio-usenet',
-          'archive',
-        ].includes(type)
-    )
-    .map((type: string) => ({ label: typeLabelMap[type], value: type }));
-
-  // Group presets by category
   const streamPresets = filteredPresets.filter(
     (n) => n.CATEGORY === constants.PresetCategory.STREAMS || !n.CATEGORY
   );
@@ -346,63 +203,22 @@ function Content() {
             key="installed"
             className="pt-0 space-y-6 relative z-[4]"
           >
-            <>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2>Installed</h2>
-                  {hasParent && isInherited('presets') && (
-                    <InheritedBadge section="presets" />
-                  )}
-                </div>
-                <p className="text-[--muted] text-sm">
-                  Manage your installed addons and catalog settings.
-                </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="flex items-center gap-2">
+                  <IoExtensionPuzzle className="w-5 h-5" />
+                  Installed
+                </h2>
+                {hasParent && isInherited('presets') && (
+                  <InheritedBadge section="presets" />
+                )}
               </div>
-              <MenuTabs
-                activeTab={installedTab}
-                onTabChange={(v) => setInstalledTab(v)}
-                defaultMobileOpen="addons"
-                tabs={[
-                  {
-                    value: 'addons',
-                    label: 'Addons',
-                    icon: <IoExtensionPuzzle className="w-4 h-4" />,
-                    content: (
-                      <div className="space-y-6">
-                        <MyAddons onEdit={handleEditFromMyAddons} />
-                        {userData.presets.length > 0 && mode === 'pro' && (
-                          <AddonFetchingBehaviorCard />
-                        )}
-                      </div>
-                    ),
-                  },
-                  {
-                    value: 'catalogs',
-                    label: 'Catalogs',
-                    icon: <MdOutlineDataset className="w-4 h-4" />,
-                    content: (
-                      <div className="space-y-6">
-                        {userData.presets.length === 0 ? (
-                          <Card className="p-8 text-center">
-                            <p className="text-[--muted]">
-                              Install some addons first to configure catalogs.
-                            </p>
-                          </Card>
-                        ) : (
-                          <>
-                            <CatalogSettingsCard
-                              loading={catalogLoading}
-                              fetchCatalogsData={refreshCatalogs}
-                            />
-                            <MergedCatalogsCard />
-                          </>
-                        )}
-                      </div>
-                    ),
-                  },
-                ]}
-              />
-            </>
+              <p className="text-[--muted] text-sm">
+                Manage your Live TV sources. Channels are unified in the
+                Channels page.
+              </p>
+            </div>
+            <MyAddons onEdit={handleEditFromMyAddons} />
           </PageWrapper>
         )}
 
@@ -425,7 +241,6 @@ function Content() {
                 </p>
               </div>
 
-              {/* Category tabs */}
               <StaticTabs
                 className="h-10 w-fit max-w-full border rounded-full"
                 triggerClass="px-4 py-1 text-sm"
@@ -468,28 +283,7 @@ function Content() {
                 ]}
               />
 
-              {/* Filters and search row */}
               <div className="flex flex-col lg:flex-row gap-2">
-                <div className="flex gap-2 flex-1 lg:flex-none">
-                  <Select
-                    value={serviceFilter}
-                    onValueChange={setServiceFilter}
-                    options={[
-                      { label: 'All Services', value: 'all' },
-                      ...serviceOptions,
-                    ]}
-                    fieldClass="lg:w-[200px]"
-                  />
-                  <Select
-                    value={streamTypeFilter}
-                    onValueChange={setStreamTypeFilter}
-                    options={[
-                      { label: 'All Types', value: 'all' },
-                      ...streamTypeOptions,
-                    ]}
-                    fieldClass="lg:w-[200px]"
-                  />
-                </div>
                 <TextInput
                   value={search}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -501,7 +295,6 @@ function Content() {
                 />
               </div>
 
-              {/* Addon cards by category */}
               {filteredPresets.length === 0 && (
                 <Card className="p-8 text-center">
                   <p className="text-[--muted]">
@@ -564,7 +357,6 @@ function Content() {
           </PageWrapper>
         )}
       </AnimatePresence>
-      {/* Add/Edit Addon Modal (ensure both tabs can use it)*/}
       <AddonModal
         open={modalOpen}
         onOpenChange={setModalOpen}
@@ -577,7 +369,6 @@ function Content() {
   );
 }
 
-// Helper to generate a key based on an addons id and options
 function getPresetUniqueKey(preset: {
   type: string;
   instanceId: string;

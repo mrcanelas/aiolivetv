@@ -25,7 +25,9 @@ function Content() {
               <InheritedBadge section="formatter" />
             )}
           </div>
-          <p className="text-[--muted]">Format your streams to your liking.</p>
+          <p className="text-[--muted]">
+            Unify how Live TV streams appear in Stremio across all providers.
+          </p>
         </div>
         <div className="hidden lg:block lg:ml-auto">
           <PageControls />

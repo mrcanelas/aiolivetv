@@ -7,6 +7,10 @@ import React, {
 } from 'react';
 import { useMode } from './mode';
 import { MENU_IDS, type MenuId } from '../../../core/src/utils/fieldMeta';
+import {
+  CONFIGURE_VISIBLE_MENUS,
+  isConfigureMenuVisible,
+} from '@/constants/configure-menus';
 import { useStatus } from './status';
 import { useUserData } from './userData';
 
@@ -44,7 +48,7 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     Boolean(user.uuid && user.password);
 
   const menus = useMemo(() => {
-    let availableMenus = VALID_MENUS as readonly MenuId[];
+    let availableMenus = VALID_MENUS.filter(isConfigureMenuVisible);
     if (mode === 'noob') {
       availableMenus = availableMenus.filter(
         (menu) => !PRO_ONLY_MENUS.includes(menu)
@@ -56,6 +60,8 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     return availableMenus;
   }, [mode, statsAvailable]);
 
+  const defaultMenu = CONFIGURE_VISIBLE_MENUS[0];
+
   // Get initial menu from URL or default to 'about'
   const initialMenu = (() => {
     if (typeof window !== 'undefined') {
@@ -65,10 +71,16 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
         return menu as MenuId;
       }
     }
-    return 'about';
+    return defaultMenu;
   })();
 
   const [selectedMenu, setInternalSelectedMenu] = useState<MenuId>(initialMenu);
+
+  useEffect(() => {
+    if (!menus.includes(selectedMenu)) {
+      setInternalSelectedMenu(menus[0] ?? defaultMenu);
+    }
+  }, [menus, selectedMenu, defaultMenu]);
 
   const setSelectedMenu = (menu: MenuId) => {
     // reset scroll position

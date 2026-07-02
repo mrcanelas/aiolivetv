@@ -1,14 +1,15 @@
+import { CONFIGURE_VISIBLE_MISC_SUB_TABS } from '@/constants/configure-menus';
 import { PageWrapper } from '../../shared/page-wrapper';
 import { PageControls } from '../../shared/page-controls';
 import { MenuTabs } from '../../shared/menu-tabs';
 import { useMode } from '@/context/mode';
 import { useSubTab } from '@/context/sub-tab';
-import { FaRocket, FaPlay, FaEye } from 'react-icons/fa';
+import { FaEye } from 'react-icons/fa';
 import { FiSettings, FiLink } from 'react-icons/fi';
-import { BackgroundOptimization } from './_components/background-optimization';
-import { PlaybackBehavior } from './_components/playback-behavior';
+import { MdOutlineBuild } from 'react-icons/md';
 import { DisplayDebug } from './_components/display-debug';
 import { ParentConfig } from './_components/parent-config';
+import { StreamProbeSettings } from './_components/stream-probe-settings';
 
 export function MiscellaneousMenu() {
   return (
@@ -40,29 +41,14 @@ function Content() {
       <MenuTabs
         tabs={[
           {
-            value: 'background',
-            label: 'Background',
-            icon: <FaRocket className="w-4 h-4" />,
-            content: <BackgroundOptimization />,
-          },
-          {
-            value: 'playback',
-            label: 'Playback',
-            icon: <FaPlay className="w-4 h-4" />,
-            content:
-              mode === 'pro' ? (
-                <PlaybackBehavior />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-                  <FiSettings className="w-10 h-10 text-[--muted]" />
-                  <p className="text-lg font-semibold">
-                    Advanced Mode Required
-                  </p>
-                  <p className="text-sm text-[--muted]">
-                    Playback settings are only available in Advanced mode.
-                  </p>
-                </div>
-              ),
+            value: 'builtins',
+            label: 'Built-ins',
+            icon: <MdOutlineBuild className="w-4 h-4" />,
+            content: (
+              <div className="space-y-6">
+                <StreamProbeSettings />
+              </div>
+            ),
           },
           {
             value: 'display',
@@ -89,7 +75,11 @@ function Content() {
             icon: <FiLink className="w-4 h-4" />,
             content: <ParentConfig />,
           },
-        ]}
+        ].filter((tab) =>
+          (CONFIGURE_VISIBLE_MISC_SUB_TABS as readonly string[]).includes(
+            tab.value
+          )
+        )}
         activeTab={activeTab}
         onTabChange={handleTabChange}
       />

@@ -224,14 +224,15 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   hideErrorsForResources: { label: 'Hide Errors for Resources', group: 'misc', type: 'list', menu: 'miscellaneous', subTab: 'display', sectionId: 'hideErrors' },
   externalDownloads: { label: 'External Downloads', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'display' },
   preloadStreams: { label: 'Preload Streams', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'background' },
+  streamProbe: { label: 'Stream Probe (ffprobe)', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'builtins', keywords: ['ffprobe', 'live tv', 'codec', 'resolution'] },
   precacheSelector: { label: 'Precache Selector', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'background' },
   precacheSingleStream: { label: 'Precache Single Stream', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'background' },
 
   dynamicAddonFetching: { label: 'Dynamic Addon Fetching', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'addons', sectionId: 'fetchStrategy', keywords: ['exit condition', 'dynamic fetching', 'fetch strategy'] },
   addonCategoryColors: { label: 'Addon Category Colors', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'addons' },
-  catalogModifications: { label: 'Catalog Modifications', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'catalogs' },
+  catalogModifications: { label: 'Catalog Modifications', group: 'misc', type: 'scalar', menu: 'channels' },
   channelMappings: { label: 'Channel Mappings', group: 'metadata', type: 'list', identityKey: 'id', menu: 'channels', keywords: ['live tv', 'm3u', 'xmltv'] },
-  mergedCatalogs: { label: 'Merged Catalogs', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'catalogs' },
+  mergedCatalogs: { label: 'Merged Catalogs', group: 'misc', type: 'scalar', menu: 'channels' },
 
   nzbFailover: { label: 'NZB Failover', group: 'misc', type: 'scalar', menu: 'services', subTab: 'builtin' },
   serviceWrap: { label: 'Service Wrap', group: 'misc', type: 'scalar', menu: 'services', subTab: 'builtin' },

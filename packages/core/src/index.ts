@@ -61,3 +61,11 @@ export type {
   DeclaredStreamInput,
   DeclaredStreamSource,
 } from './streams/declared.js';
+export {
+  formatProbedStreamSummary,
+  mergeDeclaredAndProbed,
+  parseFfprobeJson,
+  probedStreamToParsedFile,
+} from './streams/probed.js';
+export type { ProbedStreamInfo } from './streams/probed.js';
+export { enrichStreamsWithProbe } from './streams/stream-probe.js';

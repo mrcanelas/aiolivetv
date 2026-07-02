@@ -809,6 +809,12 @@ export const UserDataSchema = z.object({
       singleStream: z.boolean().optional(),
     })
     .optional(),
+  streamProbe: z
+    .object({
+      enabled: z.boolean().optional(),
+      timeoutMs: z.number().int().min(1000).max(60_000).optional(),
+    })
+    .optional(),
   services: ServiceList.optional(),
   presets: PresetList,
   addonCategoryColors: z.record(z.string(), z.string()).optional(), // maps custom category name → colour key

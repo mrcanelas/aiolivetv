@@ -14,17 +14,15 @@ import { useMode } from '@/context/mode';
 import { useStatus } from '@/context/status';
 import { useUserData } from '@/context/userData';
 import { FIELD_META, type MenuId } from '../../../../core/src/utils/fieldMeta';
+import { isConfigureMenuVisible } from '@/constants/configure-menus';
 import {
   BiInfoCircle,
-  BiCloud,
   BiExtension,
   BiFilterAlt,
-  BiSort,
   BiPen,
-  BiServer,
   BiCog,
   BiSave,
-  BiBarChartAlt2,
+  BiTv,
 } from 'react-icons/bi';
 
 const MENU_ITEMS: Array<{
@@ -37,19 +35,10 @@ const MENU_ITEMS: Array<{
   requiresStats?: boolean;
 }> = [
   { id: 'about', label: 'About', icon: <BiInfoCircle /> },
-  { id: 'services', label: 'Services', icon: <BiCloud /> },
   { id: 'addons', label: 'Addons', icon: <BiExtension /> },
-  { id: 'filters', label: 'Filters', icon: <BiFilterAlt /> },
-  { id: 'sorting', label: 'Sorting', icon: <BiSort />, proOnly: true },
+  { id: 'channels', label: 'Channels', icon: <BiTv /> },
   { id: 'formatter', label: 'Formatter', icon: <BiPen /> },
-  { id: 'proxy', label: 'Proxy', icon: <BiServer /> },
   { id: 'miscellaneous', label: 'Miscellaneous', icon: <BiCog /> },
-  {
-    id: 'stats',
-    label: 'Stats',
-    icon: <BiBarChartAlt2 />,
-    requiresStats: true,
-  },
   { id: 'save-install', label: 'Save & Install', icon: <BiSave /> },
 ];
 
@@ -155,7 +144,9 @@ export function CommandPalette() {
     () =>
       MENU_ITEMS.filter(
         (m) =>
-          (mode === 'pro' || !m.proOnly) && (!m.requiresStats || statsAvailable)
+          isConfigureMenuVisible(m.id) &&
+          (mode === 'pro' || !m.proOnly) &&
+          (!m.requiresStats || statsAvailable)
       ),
     [mode, statsAvailable]
   );
@@ -205,6 +196,7 @@ export function CommandPalette() {
     }
 
     for (const tab of FILTER_TABS) {
+      if (!isConfigureMenuVisible('filters')) continue;
       const score = bestScore(['filter tab', tab.label, tab.id], q);
       if (score > 0) {
         results.push({
@@ -228,6 +220,7 @@ export function CommandPalette() {
     for (const [key, meta] of Object.entries(FIELD_META) as Array<
       [string, (typeof FIELD_META)[keyof typeof FIELD_META]]
     >) {
+      if (!isConfigureMenuVisible(meta.menu)) continue;
       const score = bestScore(
         [meta.label, key, meta.menu, meta.subTab, ...(meta.keywords ?? [])],
         q
