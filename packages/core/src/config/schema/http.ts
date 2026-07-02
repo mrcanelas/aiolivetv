@@ -15,7 +15,7 @@ export const httpSchema = {
   defaultUserAgent: {
     schema: userAgentString,
     transform: applyUserAgentTemplate,
-    default: 'AIOStreams/{version}',
+    default: 'AIOLiveTV/{version}',
     label: 'Default user agent',
     description:
       'Default User-Agent header for outbound HTTP requests. Supports `{version}` and `{random}` placeholders.',
@@ -26,10 +26,10 @@ export const httpSchema = {
   aiostreamsUserAgent: {
     schema: userAgentString,
     transform: applyUserAgentTemplate,
-    default: 'AIOStreams/{version}',
-    label: 'AIOStreams user agent',
+    default: 'AIOLiveTV/{version}',
+    label: 'Addon user agent',
     description:
-      'User-Agent identifying AIOStreams to upstream services. Supports `{version}` and `{random}` placeholders.',
+      'User-Agent identifying this addon to upstream services. Supports `{version}` and `{random}` placeholders.',
     env: 'AIOSTREAMS_USER_AGENT',
     requiresRestart: true,
     secret: false,

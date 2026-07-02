@@ -11,6 +11,7 @@ import {
   useConfirmationDialog,
   ConfirmationDialog,
 } from './confirmation-dialog';
+import { PRODUCT_NAME } from '@/constants/branding';
 
 type SocialIconProps = {
   id:
@@ -61,7 +62,7 @@ export function SocialIcon({
     description: (
       <>
         This link was added by a template creator and is not verified or
-        endorsed by AIOStreams.
+        endorsed by {PRODUCT_NAME}.
         <br />
         <br />
         You are being taken to{' '}

@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@/constants/branding';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
 import { Switch } from '../../../ui/switch';
@@ -26,12 +27,12 @@ export function PlaybackBehavior() {
         description={
           <div className="space-y-2">
             <p>
-              Configure how AIOStreams suggests the next stream for Stremio's
+              Configure how {PRODUCT_NAME} suggests the next stream for Stremio's
               auto-play feature.
             </p>
             <Alert intent="info-basic">
               <p className="text-sm">
-                AIOStreams does not (and cannot) directly control auto-play. It
+                {PRODUCT_NAME} does not (and cannot) directly control auto-play. It
                 uses the{' '}
                 <code>
                   <a

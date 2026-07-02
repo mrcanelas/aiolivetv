@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { Button } from '../../../ui/button';
 import { Modal } from '../../../ui/modal';
 import { Popover } from '../../../ui/popover';
@@ -151,9 +152,9 @@ export function AddonCard({
         <div className="space-y-4">
           <p className="text-sm leading-relaxed">
             Built-in addons are addons whose code lives directly inside
-            AIOStreams. You still install and configure them from the
+            {PRODUCT_NAME}. You still install and configure them from the
             marketplace just like any other addon (such as Comet or Torrentio),
-            but they run locally on this AIOStreams instance.
+            but they run locally on this {PRODUCT_NAME} instance.
           </p>
           <div className="bg-[--subtle] rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium">Why does this matter?</p>
@@ -161,13 +162,13 @@ export function AddonCard({
               <li>Not affected by rate limits from other addon servers</li>
               <li>Faster response times since there's no network delay</li>
               <li>
-                Exclusive to AIOStreams and can't be installed directly to
+                Exclusive to {PRODUCT_NAME} and can't be installed directly to
                 Stremio
               </li>
             </ul>
           </div>
           <p className="text-xs text-[--muted] italic">
-            Think of it like having the addon server built into AIOStreams
+            Think of it like having the addon server built into {PRODUCT_NAME}
             itself!
           </p>
         </div>

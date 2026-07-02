@@ -19,6 +19,7 @@ import {
   BiTask,
   BiTerminal,
 } from 'react-icons/bi';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { PageWrapper } from '@/components/shared/page-wrapper';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/core/styling';
@@ -212,7 +213,7 @@ export function DashboardHome() {
       <div>
         <h2>Dashboard</h2>
         <p className="text-[--muted]">
-          Live overview of this AIOStreams instance.
+          Live overview of this {PRODUCT_NAME} instance.
         </p>
       </div>
 

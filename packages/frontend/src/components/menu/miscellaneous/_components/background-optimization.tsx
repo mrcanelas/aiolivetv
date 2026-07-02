@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@/constants/branding';
 import { useUserData } from '@/context/userData';
 import { useStatus } from '@/context/status';
 import { SettingsCard } from '../../../shared/settings-card';
@@ -90,7 +91,7 @@ export function BackgroundOptimization() {
                   <code>condition</code> - When precaching should activate
                 </li>
                 <li>
-                  <code>streamsToSelectFrom</code> - Which streams AIOStreams
+                  <code>streamsToSelectFrom</code> - Which streams {PRODUCT_NAME}
                   should choose from
                 </li>
               </ul>

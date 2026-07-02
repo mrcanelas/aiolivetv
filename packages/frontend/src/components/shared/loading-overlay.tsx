@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/components/ui/core/styling';
 import { Spinner } from '@/components/ui/loading-spinner';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { TextGenerateEffect } from './text-generate-effect';
 
 /**
@@ -23,7 +24,7 @@ export function LoadingOverlayWithLogo({ title }: { title?: string }) {
       >
         {/* <img
           src="/logo.png"
-          alt="AIOStreams"
+          alt={PRODUCT_NAME}
           className="h-16 w-16 object-contain select-none"
           draggable={false}
         /> */}

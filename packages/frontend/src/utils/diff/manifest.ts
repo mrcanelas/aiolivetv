@@ -1,4 +1,5 @@
 import { DiffAnnotation } from '@/components/shared/diff-viewer';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { DiffItem, getObjectDiff } from './diff';
 
 interface ManifestCatalog {
@@ -359,7 +360,7 @@ function buildAnnotations(
           className: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
           severity: 'critical',
           description:
-            "New ID prefixes were added to the manifest. Stremio won't know that this install supports these new prefixes, so it won't query AIOStreams for matching content until you reinstall.",
+            `New ID prefixes were added to the manifest. Stremio won't know that this install supports these new prefixes, so it won't query ${PRODUCT_NAME} for matching content until you reinstall.`,
         });
       }
       continue;
@@ -388,7 +389,7 @@ function buildAnnotations(
           label: '⚑ NEW ID PREFIXES',
           className: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
           severity: 'critical',
-          description: `Stremio won't know that this install supports the new ID prefix(es) for the ${resourceName} resource. Until you reinstall, Stremio won't query AIOStreams for ${resourceName} content with these new prefixes.`,
+          description: `Stremio won't know that this install supports the new ID prefix(es) for the ${resourceName} resource. Until you reinstall, Stremio won't query ${PRODUCT_NAME} for ${resourceName} content with these new prefixes.`,
         });
       }
       continue;
@@ -411,7 +412,7 @@ function buildAnnotations(
         label: '⚑ NEW RESOURCE',
         className: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
         severity: 'critical',
-        description: `${resourceName} support was added. Stremio won't request ${resourceName} content from AIOStreams until you reinstall — e.g. if subtitles were added, they won't appear until then.`,
+        description: `${resourceName} support was added. Stremio won't request ${resourceName} content from ${PRODUCT_NAME} until you reinstall — e.g. if subtitles were added, they won't appear until then.`,
       });
     }
   }

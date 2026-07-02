@@ -7,6 +7,7 @@ import { Template, UserData } from '@aiostreams/core';
 import { useStatus } from '@/context/status';
 import { TextInput } from '../../ui/text-input';
 import { Textarea } from '../../ui/textarea';
+import { PRODUCT_NAME } from '@/constants/branding';
 
 export interface TemplateExportModalProps {
   open: boolean;
@@ -231,7 +232,7 @@ export function TemplateExportModal({
         <div className="space-y-3">
           <TextInput
             label="Template Name"
-            placeholder="e.g. My AIOStreams setup"
+            placeholder={`e.g. My ${PRODUCT_NAME} setup`}
             value={templateName}
             onValueChange={setTemplateName}
             required

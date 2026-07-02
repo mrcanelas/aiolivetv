@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@/constants/branding';
 import { useStatus } from '@/context/status';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
@@ -35,7 +36,7 @@ export function BuiltinSettings() {
               serviceWrap: { ...prev.serviceWrap, enabled: v },
             }));
           }}
-          help="When enabled, AIOStreams configures supported addons to return raw torrents, then resolves them through your debrid services."
+          help={`When enabled, ${PRODUCT_NAME} configures supported addons to return raw torrents, then resolves them through your debrid services.`}
         />
 
         {userData.serviceWrap?.enabled && (
@@ -135,7 +136,7 @@ export function BuiltinSettings() {
       <SettingsCard
         title="NZB Failover"
         id="nzbFailover"
-        description="When a Usenet stream fails to play, AIOStreams will automatically try the next best NZB URLs from your sorted results. Only applies to built-in Usenet addons."
+        description={`When a Usenet stream fails to play, ${PRODUCT_NAME} will automatically try the next best NZB URLs from your sorted results. Only applies to built-in Usenet addons.`}
       >
         <Switch
           label="Enable"

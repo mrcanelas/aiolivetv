@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@/constants/branding';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
 import { Switch } from '../../../ui/switch';
@@ -13,7 +14,7 @@ export function DisplayDebug() {
       <SettingsCard
         title="Statistic Streams"
         id="statistics"
-        description="AIOStreams will return the statistics of stream fetches and response times for each addon if enabled."
+        description={`${PRODUCT_NAME} will return the statistics of stream fetches and response times for each addon if enabled.`}
       >
         <Switch
           label="Enable"
@@ -107,7 +108,7 @@ export function DisplayDebug() {
       <SettingsCard id="hideErrors" title="Hide Errors">
         <Switch
           label="Hide Errors"
-          help="AIOStreams will attempt to return the errors in responses to streams, catalogs etc. Turning this on will hide the errors."
+          help={`${PRODUCT_NAME} will attempt to return the errors in responses to streams, catalogs etc. Turning this on will hide the errors.`}
           side="right"
           value={userData.hideErrors}
           onValueChange={(value) => {

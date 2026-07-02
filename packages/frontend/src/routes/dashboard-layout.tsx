@@ -27,6 +27,7 @@ import {
   BiSliderAlt,
 } from 'react-icons/bi';
 import { LayoutHeaderBackground } from '@/components/layout-header-background';
+import { PRODUCT_LOGO_PATH, PRODUCT_NAME } from '@/constants/branding';
 
 // Order mirrors how operators typically navigate the dashboard: dashboards
 // at the top, operational tools in the middle, infrastructure (Proxy) before
@@ -68,8 +69,8 @@ export function DashboardLayout() {
   const header = (
     <div className="mb-4 p-4 pb-0 flex flex-col items-center w-full">
       <img
-        src="/logo.png"
-        alt="AIOStreams"
+        src={PRODUCT_LOGO_PATH}
+        alt={PRODUCT_NAME}
         className="max-w-[90px] max-h-[60px] object-contain p-4"
       />
       <span className="text-xs text-gray-500">Dashboard</span>

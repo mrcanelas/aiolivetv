@@ -2,6 +2,7 @@ import React from 'react';
 import { toast } from 'sonner';
 import { BiPowerOff } from 'react-icons/bi';
 import { PageWrapper } from '@/components/shared/page-wrapper';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
@@ -158,9 +159,9 @@ export function SystemPage() {
   const [cpuView, setCpuView] = React.useState<CpuView>('average');
   const [stopping, setStopping] = React.useState(false);
   const stopConfirm = useConfirmationDialog({
-    title: 'Stop AIOStreams',
+    title: `Stop ${PRODUCT_NAME}`,
     description:
-      'This halts the AIOStreams process only (never the host). It stays down until something starts it again.',
+      `This halts the ${PRODUCT_NAME} process only (never the host). It stays down until something starts it again.`,
     actionText: 'Stop',
     actionIntent: 'alert-subtle',
     onConfirm: () => {

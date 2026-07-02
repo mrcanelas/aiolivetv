@@ -39,7 +39,7 @@ import { toast } from 'sonner';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useMode } from '@/context/mode';
 import { DonationModal } from '@/components/shared/donation-modal';
-import { useSave } from '@/context/save';
+import { PRODUCT_NAME } from '@/constants/branding';
 
 type MenuItem = VerticalMenuItem & {
   id: MenuId;
@@ -223,7 +223,7 @@ export function MainSidebar() {
                   : '/mini-stable-white.png'
                 : user.userData.addonLogo || '/logo.png'
             }
-            alt="logo"
+            alt={PRODUCT_NAME}
             className="max-w-[90px] max-h-[60px] object-contain p-4"
           />
         </div>

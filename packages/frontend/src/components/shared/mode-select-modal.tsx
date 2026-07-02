@@ -3,6 +3,7 @@ import { Modal } from '../ui/modal';
 import { ModeSwitch } from '../ui/mode-switch/mode-switch';
 import { useMode } from '@/context/mode';
 import { Button } from '../ui/button';
+import { PRODUCT_NAME } from '@/constants/branding';
 
 interface ModeSelectModalProps {
   open: boolean;
@@ -21,7 +22,7 @@ export function ModeSelectModal({ open, onOpenChange }: ModeSelectModalProps) {
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Welcome to AIOStreams!"
+      title={`Welcome to ${PRODUCT_NAME}!`}
       hideCloseButton
     >
       <div className="flex flex-col gap-6">

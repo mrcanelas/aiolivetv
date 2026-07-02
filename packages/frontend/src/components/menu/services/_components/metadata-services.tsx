@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@/constants/branding';
 import { useStatus } from '@/context/status';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
@@ -12,7 +13,7 @@ export function MetadataServices() {
       <SettingsCard
         id="tmdb"
         title="TMDB"
-        description={`Optionally provide your TMDB API Key and Read Access Token here. AIOStreams only needs one of them for title matching and its recommended and precaching to be able to
+        description={`Optionally provide your TMDB API Key and Read Access Token here. ${PRODUCT_NAME} only needs one of them for title matching and its recommended and precaching to be able to
            determine when to move to the next season. Some addons in the marketplace will require one or the other too.`}
       >
         <PasswordInput

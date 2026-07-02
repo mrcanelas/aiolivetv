@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@/constants/branding';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
 import { Select } from '../../../ui/select';
@@ -217,7 +218,7 @@ export function PosterServices() {
         }
         help={
           <span>
-            If enabled, AIOStreams will use the selected poster service to fetch
+            If enabled, {PRODUCT_NAME} will use the selected poster service to fetch
             posters for single meta items — which generally means items in your
             Library and Continue Watching.
           </span>
@@ -236,11 +237,11 @@ export function PosterServices() {
         }
         help={
           <span>
-            If enabled, poster URLs will first contact AIOStreams and then be
+            If enabled, poster URLs will first contact {PRODUCT_NAME} and then be
             redirected to the selected poster service. This allows fallback
             posters to be used if the selected poster service is down or does
             not have a poster for that item. It can however cause a minimal
-            slowdown due to having to contact AIOStreams first.
+            slowdown due to having to contact {PRODUCT_NAME} first.
           </span>
         }
         value={userData.usePosterRedirectApi || false}

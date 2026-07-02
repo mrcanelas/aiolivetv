@@ -1363,7 +1363,7 @@ function SetupChoiceModal({
       open={open}
       onOpenChange={onOpenChange}
       title="Get Started"
-      description="Choose how you'd like to set up AIOStreams"
+      description="Choose how you'd like to set up AIOLiveTV"
     >
       <div className="space-y-4">
         <button

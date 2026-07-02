@@ -3,6 +3,7 @@ import { PageWrapper } from '../../shared/page-wrapper';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { SettingsNavCard } from '../../shared/settings-card';
 import { useUserData } from '@/context/userData';
+import { PRODUCT_NAME } from '@/constants/branding';
 import {
   FaBolt,
   FaClock,
@@ -2183,7 +2184,7 @@ function Content() {
                 <SettingsCard title="Help">
                   <div className="space-y-3">
                     <p className="text-sm text-[--muted]">
-                      This filter uses AIOStreams'{' '}
+                      This filter uses {PRODUCT_NAME}'s{' '}
                       <a
                         href="https://docs.aiostreams.viren070.me/reference/stream-expressions"
                         target="_blank"

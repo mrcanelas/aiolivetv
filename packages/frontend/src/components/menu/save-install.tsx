@@ -1,4 +1,5 @@
 import React from 'react';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { Button } from '@/components/ui/button';
 import { TextInput } from '@/components/ui/text-input';
 import { applyMigrations, useUserData } from '@/context/userData';
@@ -1534,7 +1535,7 @@ function Content() {
       );
 
       toast.success(
-        'Password changed successfully. Please reinstall AIOStreams.'
+        `Password changed successfully. Please reinstall ${PRODUCT_NAME}.`
       );
       setPassword(changePasswordData.newPassword);
       setEncryptedPassword(result.encryptedPassword);
@@ -1647,7 +1648,7 @@ function Content() {
           description={
             <Alert
               intent="warning"
-              description="Changing your password will invalidate ALL existing installations. You will need to re-install AIOStreams after this change."
+              description={`Changing your password will invalidate ALL existing installations. You will need to re-install ${PRODUCT_NAME} after this change.`}
             />
           }
         >
@@ -1770,7 +1771,7 @@ function Content() {
           open={chillLinkModal.isOpen}
           onOpenChange={chillLinkModal.toggle}
           title="Install in Chillio"
-          description="Add your AIOStreams addon via the ChillLink protocol"
+          description={`Add your ${PRODUCT_NAME} addon via the ChillLink protocol`}
         >
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
@@ -1798,7 +1799,7 @@ function Content() {
           open={seanimeModal.isOpen}
           onOpenChange={seanimeModal.toggle}
           title="Install in Seanime"
-          description="Stream AIOStreams content directly within Seanime"
+          description={`Stream ${PRODUCT_NAME} content directly within Seanime`}
         >
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between gap-2 text-xs">
@@ -1936,8 +1937,8 @@ function Content() {
         <Modal
           open={jellyfinModal.isOpen}
           onOpenChange={jellyfinModal.toggle}
-          title="AIOStreams for Jellyfin"
-          description="Install the Gelato plugin to bring AIOStreams to Jellyfin"
+          title={`${PRODUCT_NAME} for Jellyfin`}
+          description={`Install the Gelato plugin to bring ${PRODUCT_NAME} to Jellyfin`}
         >
           <div className="space-y-4">
             <p className="text-sm text-gray-300">
@@ -1960,12 +1961,12 @@ function Content() {
         <Modal
           open={aniyomiModal.isOpen}
           onOpenChange={aniyomiModal.toggle}
-          title="AIOStreams for Aniyomi / Animiru"
-          description="Install the extension to use AIOStreams in Aniyomi and Animiru"
+          title={`${PRODUCT_NAME} for Aniyomi / Animiru`}
+          description={`Install the extension to use ${PRODUCT_NAME} in Aniyomi and Animiru`}
         >
           <div className="space-y-4">
             <p className="text-sm text-gray-300">
-              This unofficial extension brings AIOStreams support to Aniyomi and
+              This unofficial extension brings {PRODUCT_NAME} support to Aniyomi and
               forks (e.g. Animiru).
             </p>
             <Button

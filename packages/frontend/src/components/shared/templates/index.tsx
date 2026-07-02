@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Modal } from '../../ui/modal';
 import { ConfirmationDialog } from '../confirmation-dialog';
 import { useUserData } from '@/context/userData';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { useStatus } from '@/context/status';
 import { useMenu } from '@/context/menu';
 import { useMode } from '@/context/mode';
@@ -164,7 +165,7 @@ export function ConfigTemplatesModal({
         }}
         onOpenAutoFocus={(e) => e.preventDefault()}
         title="Templates"
-        description="Browse and load pre-configured templates for your AIOStreams setup"
+        description={`Browse and load pre-configured templates for your ${PRODUCT_NAME} setup`}
         contentClass="max-w-5xl w-full"
       >
         <div className="space-y-4 min-w-0 overflow-hidden">

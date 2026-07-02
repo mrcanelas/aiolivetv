@@ -1,5 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { useNavigate } from '@tanstack/react-router';
+import {
+  PRODUCT_LOGO_PATH,
+  PRODUCT_NAME,
+  PRODUCT_TAGLINE,
+} from '@/constants/branding';
 
 export function IndexPage() {
   const navigate = useNavigate();
@@ -8,15 +13,12 @@ export function IndexPage() {
     <main className="min-h-screen flex flex-col items-center justify-center gap-8 px-6 text-center">
       <div className="flex flex-col items-center gap-4">
         <img
-          src="/logo.png"
-          alt="AIOStreams"
+          src={PRODUCT_LOGO_PATH}
+          alt={PRODUCT_NAME}
           className="max-h-[90px] object-contain"
         />
-        <h1 className="text-3xl font-semibold tracking-tight">AIOStreams</h1>
-        <p className="max-w-md text-[--muted]">
-          The all-in-one addon for Stremio. Configure your addon or manage this
-          instance from the dashboard.
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">{PRODUCT_NAME}</h1>
+        <p className="max-w-md text-[--muted]">{PRODUCT_TAGLINE}</p>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3">

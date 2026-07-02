@@ -8,6 +8,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import { BiImport } from 'react-icons/bi';
+import { PRODUCT_NAME } from '@/constants/branding';
 import { Button, IconButton } from '../../../ui/button';
 import { TextInput } from '../../../ui/text-input';
 import { Tooltip } from '../../../ui/tooltip';
@@ -346,7 +347,7 @@ export function TemplateBrowseStep({
             {sources.map((source: string) => {
               const sourceDescription: Record<string, string> = {
                 all: 'All sources',
-                builtin: 'Provided with AIOStreams',
+                builtin: `Provided with ${PRODUCT_NAME}`,
                 custom: 'Added by the instance hoster',
                 external: 'Imported by you',
               };

@@ -7,6 +7,10 @@ import { login, APIError } from '@/lib/api';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { sessionQuery } from '@/lib/queries';
+import {
+  PRODUCT_LOGO_PATH,
+  PRODUCT_NAME,
+} from '@/constants/branding';
 
 /**
  * Sanitises a `?next=` redirect target. Only same-origin absolute paths are
@@ -85,13 +89,13 @@ export function LoginPage() {
       <Card className="w-full max-w-sm p-6">
         <div className="flex flex-col items-center gap-2 mb-6">
           <img
-            src="/logo.png"
-            alt="AIOStreams"
+            src={PRODUCT_LOGO_PATH}
+            alt={PRODUCT_NAME}
             className="max-h-[60px] object-contain"
           />
           <h1 className="text-xl font-semibold">Sign in</h1>
           <p className="text-sm text-[--muted] text-center">
-            Log in to access this AIOStreams instance.
+            Log in to access this {PRODUCT_NAME} instance.
           </p>
           <p className="text-xs text-[--muted] text-center">
             Use a username and password from your instance's{' '}
