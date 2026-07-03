@@ -14,7 +14,7 @@ import { PageControls } from '@/components/shared/page-controls';
 import { PageWrapper } from '@/components/shared/page-wrapper';
 import { SettingsCard } from '@/components/shared/settings-card';
 import { IconButton } from '@/components/ui/button';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LoadingSpinner, Spinner } from '@/components/ui/loading-spinner';
 import { TextInput } from '@/components/ui/text-input';
 import { useUserData } from '@/context/userData';
 import { useDisclosure } from '@/hooks/disclosure';
@@ -49,6 +49,7 @@ export function ChannelsMenu() {
     null
   );
   const [editChannelId, setEditChannelId] = React.useState<string | null>(null);
+  const [isMatchingStreams, setIsMatchingStreams] = React.useState(false);
   const mappingModal = useDisclosure(false);
   const editModal = useDisclosure(false);
   const queryClient = useQueryClient();
@@ -62,10 +63,21 @@ export function ChannelsMenu() {
   const queryKey = ['channels', channelsConfigKey] as const;
   const query = useQuery({
     queryKey,
-    queryFn: () => fetchChannels(userDataRef.current),
+    queryFn: () => fetchChannels(userDataRef.current, { autoMatch: false }),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
+  const refreshStreamMappings = React.useCallback(async () => {
+    setIsMatchingStreams(true);
+    try {
+      const data = await fetchChannels(userDataRef.current, {
+        autoMatch: true,
+      });
+      queryClient.setQueryData(queryKey, data);
+    } finally {
+      setIsMatchingStreams(false);
+    }
+  }, [queryClient, queryKey]);
   const channels = query.data ?? [];
   const isInitialLoading = query.isPending && channels.length === 0;
   const suggestionCount = countSuggestions(channels);
@@ -214,6 +226,42 @@ export function ChannelsMenu() {
             }
           : channel
       )
+    );
+  };
+
+  const rejectAllSuggestions = (channelId: string) => {
+    setChannels((current) =>
+      current.map((channel) => {
+        if (channel.id !== channelId) return channel;
+        const suggestions = channel.mappings.filter((mapping) =>
+          isChannelSuggestion(mapping.confidence)
+        );
+        if (suggestions.length === 0) return channel;
+        const existing = new Set(
+          (channel.rejectedStreams ?? []).map(
+            (rejected) => `${rejected.addonId}\0${rejected.channelId}`
+          )
+        );
+        const rejectedStreams = [
+          ...(channel.rejectedStreams ?? []),
+          ...suggestions
+            .filter(
+              (mapping) =>
+                !existing.has(`${mapping.addonId}\0${mapping.channelId}`)
+            )
+            .map((mapping) => ({
+              addonId: mapping.addonId,
+              channelId: mapping.channelId,
+            })),
+        ];
+        return {
+          ...channel,
+          mappings: channel.mappings.filter(
+            (mapping) => !isChannelSuggestion(mapping.confidence)
+          ),
+          rejectedStreams,
+        };
+      })
     );
   };
 
@@ -520,8 +568,8 @@ export function ChannelsMenu() {
         <div>
           <h2>Channels</h2>
           <p className="text-[--muted]">
-            Review channels and their live stream mappings. Suggestions stay in
-            draft until you accept them.
+            Channels load from your metadata provider. Use refresh to scan stream
+            sources and generate mapping suggestions.
           </p>
         </div>
         <div className="hidden lg:ml-auto lg:block">
@@ -563,10 +611,16 @@ export function ChannelsMenu() {
             <IconButton
               rounded
               intent="primary-subtle"
-              icon={<BiRefresh className="h-5 w-5" />}
-              onClick={() => query.refetch()}
-              disabled={query.isFetching}
-              title="Refresh channels"
+              icon={
+                isMatchingStreams ? (
+                  <Spinner className="h-5 w-5" />
+                ) : (
+                  <BiRefresh className="h-5 w-5" />
+                )
+              }
+              onClick={() => void refreshStreamMappings()}
+              disabled={isMatchingStreams || isInitialLoading}
+              title="Scan stream sources and match channels"
             />
           </div>
         }
@@ -617,6 +671,11 @@ export function ChannelsMenu() {
                 </div>
               ) : null}
             </div>
+            {isMatchingStreams ? (
+              <p className="text-xs text-[--muted]">
+                Scanning stream sources and matching channels...
+              </p>
+            ) : null}
             {suggestionCount > 0 ? (
               <p className="text-xs text-amber-400">
                 {suggestionCount} mapping suggestion
@@ -691,6 +750,10 @@ export function ChannelsMenu() {
         onAcceptAllSuggestions={() => {
           if (!mappingChannelId) return;
           acceptAllSuggestions(mappingChannelId);
+        }}
+        onRejectAllSuggestions={() => {
+          if (!mappingChannelId) return;
+          rejectAllSuggestions(mappingChannelId);
         }}
         onMoveMapping={(index, direction) => {
           if (!mappingChannelId) return;

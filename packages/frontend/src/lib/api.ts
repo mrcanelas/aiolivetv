@@ -463,9 +463,12 @@ export async function fetchCatalogs(userData: UserData) {
   });
 }
 
-export async function fetchChannels(userData: UserData) {
+export async function fetchChannels(
+  userData: UserData,
+  options?: { autoMatch?: boolean }
+) {
   return api<ChannelInfo[]>('POST /catalogs/channels', {
-    body: { userData },
+    body: { userData, autoMatch: options?.autoMatch ?? false },
   });
 }
 

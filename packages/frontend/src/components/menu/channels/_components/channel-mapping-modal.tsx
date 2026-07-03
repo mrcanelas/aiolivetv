@@ -34,6 +34,7 @@ type ChannelMappingModalProps = {
   onAcceptSuggestion: (addonId: string, streamChannelId: string) => void;
   onRejectSuggestion: (addonId: string, streamChannelId: string) => void;
   onAcceptAllSuggestions: () => void;
+  onRejectAllSuggestions: () => void;
   onMoveMapping: (index: number, direction: -1 | 1) => void;
   onSplitMapping: (addonId: string, streamChannelId: string) => void;
   onLinkStreamSource: () => void;
@@ -55,6 +56,7 @@ export function ChannelMappingModal({
   onAcceptSuggestion,
   onRejectSuggestion,
   onAcceptAllSuggestions,
+  onRejectAllSuggestions,
   onMoveMapping,
   onSplitMapping,
   onLinkStreamSource,
@@ -107,13 +109,23 @@ export function ChannelMappingModal({
               {pendingCount} suggestion{pendingCount === 1 ? '' : 's'} pending
               review
             </p>
-            <Button
-              size="sm"
-              leftIcon={<BiCheck />}
-              onClick={onAcceptAllSuggestions}
-            >
-              Accept all
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                intent="alert-subtle"
+                leftIcon={<BiX />}
+                onClick={onRejectAllSuggestions}
+              >
+                Reject all
+              </Button>
+              <Button
+                size="sm"
+                leftIcon={<BiCheck />}
+                onClick={onAcceptAllSuggestions}
+              >
+                Accept all
+              </Button>
+            </div>
           </div>
         ) : null}
 

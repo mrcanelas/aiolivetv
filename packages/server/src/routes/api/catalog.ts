@@ -123,6 +123,7 @@ router.post(
   '/channels',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const autoMatch = req.body.autoMatch === true;
       const validatedUserData = await validateDraft(req, req.body.userData);
       const configuredMappings = validatedUserData.channelMappings ?? [];
       validatedUserData.channelMappings = undefined;
@@ -198,6 +199,7 @@ router.post(
         const canStream =
           supportsStream && addonProvidesResource(addon, 'stream');
         if (!contributesChannels && !canStream) continue;
+        if (!autoMatch && !contributesChannels) continue;
 
         for (const catalog of manifest.catalogs.filter((item) =>
           isLiveChannelType(item.type)
@@ -342,6 +344,44 @@ router.post(
       const markChannelAssigned = (candidate: Candidate) => {
         assigned.add(candidateKey(candidate.addonId, candidate.id));
       };
+      const addConfiguredStreamSource = (
+        channel: Channel,
+        source: {
+          addonId: string;
+          channelId: string;
+          name?: string;
+          confidence?: number;
+          enabled?: boolean;
+        },
+        candidate?: Candidate
+      ) => {
+        if (candidate?.canStream) {
+          addStreamSource(
+            channel,
+            candidate,
+            source.confidence ?? 0,
+            source.enabled !== false
+          );
+          return;
+        }
+        const addon = aio.getAddon(source.addonId);
+        channel.mappings.push({
+          id: source.channelId,
+          addonId: source.addonId,
+          addonName: addon?.name ?? source.addonId,
+          channelId: source.channelId,
+          name: source.name ?? source.channelId,
+          poster: null,
+          epgProvider: false,
+          canStream: true,
+          contributesChannels: false,
+          confidence: source.confidence ?? 1,
+          enabled: source.enabled !== false,
+          declared: source.name
+            ? (parseDeclaredStreamInfo({ name: source.name }) ?? null)
+            : null,
+        });
+      };
       const buildAvailableStreamSources = (channel: Channel) => {
         const used = new Set(
           channel.mappings.map(
@@ -411,12 +451,7 @@ router.post(
           });
         }
         for (const { candidate, source } of streamSources) {
-          addStreamSource(
-            channel,
-            candidate,
-            source.confidence ?? 0,
-            source.enabled !== false
-          );
+          addConfiguredStreamSource(channel, source, candidate);
         }
         markChannelAssigned(canonical ?? {
           id: configured.id,
@@ -452,70 +487,72 @@ router.post(
       }
 
       // Pass 2: attach stream sources to existing channels or create stream-native channels.
-      const autoMatchStreams =
-        streamCandidates.length * channels.length <= MAX_AUTO_MATCH_PAIRS;
-      for (const candidate of streamCandidates.sort(
-        (a, b) => Number(b.epgProvider) - Number(a.epgProvider)
-      )) {
-        if (hiddenChannelIds.has(candidate.id)) continue;
-        if (assigned.has(candidateKey(candidate.addonId, candidate.id))) continue;
-        let best: { channel: Channel; confidence: number } | undefined;
-        let suggestion: { channel: Channel; confidence: number } | undefined;
-        if (autoMatchStreams) {
-          for (const channel of channels) {
-            if (
-              channel.mappings.some(
-                (mapping) =>
-                  mapping.addonId === candidate.addonId &&
-                  mapping.channelId === candidate.id
+      if (autoMatch) {
+        const autoMatchStreams =
+          streamCandidates.length * channels.length <= MAX_AUTO_MATCH_PAIRS;
+        for (const candidate of streamCandidates.sort(
+          (a, b) => Number(b.epgProvider) - Number(a.epgProvider)
+        )) {
+          if (hiddenChannelIds.has(candidate.id)) continue;
+          if (assigned.has(candidateKey(candidate.addonId, candidate.id))) continue;
+          let best: { channel: Channel; confidence: number } | undefined;
+          let suggestion: { channel: Channel; confidence: number } | undefined;
+          if (autoMatchStreams) {
+            for (const channel of channels) {
+              if (
+                channel.mappings.some(
+                  (mapping) =>
+                    mapping.addonId === candidate.addonId &&
+                    mapping.channelId === candidate.id
+                )
               )
-            )
-              continue;
-            const canonical = resolveCanonical(channel);
-            const confidence = getChannelMatchConfidence(
-              { ...candidate, logo: candidate.poster ?? undefined },
-              { ...canonical, logo: canonical.poster ?? undefined }
-            );
-            if (
-              confidence > 0 &&
-              (!suggestion || confidence > suggestion.confidence)
-            ) {
-              suggestion = { channel, confidence };
+                continue;
+              const canonical = resolveCanonical(channel);
+              const confidence = getChannelMatchConfidence(
+                { ...candidate, logo: candidate.poster ?? undefined },
+                { ...canonical, logo: canonical.poster ?? undefined }
+              );
+              if (
+                confidence > 0 &&
+                (!suggestion || confidence > suggestion.confidence)
+              ) {
+                suggestion = { channel, confidence };
+              }
+              if (
+                isHighConfidenceChannelMatch(confidence) &&
+                (!best || confidence > best.confidence)
+              )
+                best = { channel, confidence };
             }
-            if (
-              isHighConfidenceChannelMatch(confidence) &&
-              (!best || confidence > best.confidence)
-            )
-              best = { channel, confidence };
           }
-        }
-        if (best) {
-          if (!isRejected(best.channel.id, candidate)) {
-            addStreamSource(best.channel, candidate, 1);
+          if (best) {
+            if (!isRejected(best.channel.id, candidate)) {
+              addStreamSource(best.channel, candidate, 1);
+            }
+          } else if (
+            suggestion &&
+            suggestion.confidence > 0 &&
+            !isRejected(suggestion.channel.id, candidate)
+          ) {
+            addStreamSource(
+              suggestion.channel,
+              candidate,
+              suggestion.confidence
+            );
+          } else if (candidate.contributesChannels) {
+            const channel: Channel = {
+              id: candidate.id,
+              name: candidate.name,
+              poster: candidate.poster,
+              canonicalAddonId: candidate.addonId,
+              enabled: true,
+              rejectedStreams: [],
+              mappings: [],
+              availableStreamSources: [],
+            };
+            addStreamSource(channel, candidate, 1);
+            channels.push(channel);
           }
-        } else if (
-          suggestion &&
-          suggestion.confidence > 0 &&
-          !isRejected(suggestion.channel.id, candidate)
-        ) {
-          addStreamSource(
-            suggestion.channel,
-            candidate,
-            suggestion.confidence
-          );
-        } else if (candidate.contributesChannels) {
-          const channel: Channel = {
-            id: candidate.id,
-            name: candidate.name,
-            poster: candidate.poster,
-            canonicalAddonId: candidate.addonId,
-            enabled: true,
-            rejectedStreams: [],
-            mappings: [],
-            availableStreamSources: [],
-          };
-          addStreamSource(channel, candidate, 1);
-          channels.push(channel);
         }
       }
 
