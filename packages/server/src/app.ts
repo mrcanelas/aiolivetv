@@ -89,13 +89,16 @@ export enum StaticFiles {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** UserData with Live TV channel mappings can exceed Express's 100kb default. */
+const JSON_BODY_LIMIT = '5mb';
+
 export const frontendRoot = path.join(__dirname, '../../frontend/dist');
 export const staticRoot = path.join(__dirname, './static');
 
 app.use(ipMiddleware);
 app.use(loggerMiddleware);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 
 // Allow all origins in development for easier testing
 if (appConfig.bootstrap.nodeEnv === 'development') {
