@@ -122,6 +122,7 @@ export function ChannelsMenu() {
         })
         .filter(
           (channel) =>
+            !channel.enabled ||
             channel.streams.length > 0 ||
             (channel.rejectedStreams?.length ?? 0) > 0 ||
             customizedIds.has(channel.id)

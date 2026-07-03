@@ -50,6 +50,7 @@ import {
   getCanonicalChannelId,
   getChannelMapping,
   isChannelAddonEnabled,
+  isLiveChannelVisible,
   isLiveChannelType,
   isManualStreamSource,
   buildManualParsedStreams,
@@ -969,7 +970,7 @@ export async function getStreams(
   const context = StreamContext.create(type, channelId, ctx.userData);
   ctx.streamContext = context;
 
-  if (channelMapping?.enabled === false) {
+  if (isLiveChannel && !isLiveChannelVisible(ctx.userData, channelId)) {
     return {
       success: true,
       data: { streams: [], statistics: [] },
@@ -1242,7 +1243,7 @@ export async function getMeta(
     ? getChannelMapping(ctx.userData, channelId)
     : undefined;
 
-  if (isLiveChannel && channelMapping?.enabled === false) {
+  if (isLiveChannel && !isLiveChannelVisible(ctx.userData, channelId)) {
     return { success: false, data: null, errors: [] };
   }
 

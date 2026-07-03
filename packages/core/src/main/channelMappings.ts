@@ -41,6 +41,14 @@ export function getChannelMapping(userData: UserData, channelId: string) {
   return userData.channelMappings?.find((channel) => channel.id === channelId);
 }
 
+export function isLiveChannelVisible(userData: UserData, channelId: string) {
+  const mapping = getChannelMapping(userData, channelId);
+  if (!mapping) return true;
+  if (mapping.hidden) return false;
+  if (mapping.enabled === false) return false;
+  return true;
+}
+
 function normaliseId(value?: string) {
   return decodeHtmlEntities(value ?? '')
     .normalize('NFKD')

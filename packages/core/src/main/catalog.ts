@@ -17,7 +17,7 @@ import type {
 } from '../db/schemas.js';
 import type { Manifest } from '../db/index.js';
 import type { AIOStreamsContext, AIOStreamsCatalogResponse, AIOStreamsResponse } from './types.js';
-import { isLiveChannelType } from './channelMappings.js';
+import { isLiveChannelType, isLiveChannelVisible } from './channelMappings.js';
 import {
   shuffleCache,
   mergedCatalogCache,
@@ -758,7 +758,9 @@ export async function getCatalog(
     return {
       success: true,
       data: [],
-      metasDetailed: result.metasDetailed ?? [],
+      metasDetailed: (result.metasDetailed ?? []).filter((meta) =>
+        isLiveChannelVisible(ctx.userData, meta.id)
+      ),
       errors: [],
     };
   }
@@ -795,25 +797,9 @@ export async function getCatalog(
 
   return {
     success: true,
-    data:
-      isLiveChannelType(type)
-        ? catalog.filter((item) => {
-            const mapping = ctx.userData.channelMappings?.find((channel) =>
-              channel.streams?.some(
-                (source) =>
-                  source.addonId === addonInstanceId &&
-                  source.channelId === item.id
-              )
-            );
-            if (!mapping) return true;
-            return (
-              mapping.enabled !== false &&
-              mapping.id === item.id &&
-              (!mapping.canonicalAddonId ||
-                mapping.canonicalAddonId === addonInstanceId)
-            );
-          })
-        : catalog,
+    data: isLiveChannelType(type)
+      ? catalog.filter((item) => isLiveChannelVisible(ctx.userData, item.id))
+      : catalog,
     errors: [],
   };
 }
