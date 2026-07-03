@@ -68,8 +68,10 @@ export async function enrichStreamWithProbe(
   try {
     const probed = await probeStreamUrl(stream.url, timeoutMs);
     stream.parsedFile = mergeDeclaredAndProbed(declared, probed);
-    const playable = await probeWebPlayable(stream.url, timeoutMs);
-    if (!playable) stream.notWebReady = true;
+    if (!stream.addon.resultPassthrough) {
+      const playable = await probeWebPlayable(stream.url, timeoutMs);
+      if (!playable) stream.notWebReady = true;
+    }
   } catch (error) {
     logger.debug(
       {

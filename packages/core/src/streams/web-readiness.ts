@@ -90,7 +90,6 @@ export async function resolveNotWebReady(
   if (stream.notWebReady != null) {
     return stream.notWebReady ? true : undefined;
   }
-  if (hasStreamProxyHeaders(stream)) return true;
   if (!stream.url || !options?.probe) return undefined;
   const playable = await probeWebPlayable(
     stream.url,
@@ -99,12 +98,19 @@ export async function resolveNotWebReady(
   return playable ? undefined : true;
 }
 
+function usesProviderWebHints(stream: ParsedStream) {
+  return Boolean(stream.addon.resultPassthrough);
+}
+
 export async function applyLiveStreamWebHints(
   streams: ParsedStream[],
   options?: { probe?: boolean; timeoutMs?: number }
 ): Promise<ParsedStream[]> {
   return Promise.all(
     streams.map(async (stream) => {
+      if (usesProviderWebHints(stream)) {
+        return stream.notWebReady ? { ...stream, notWebReady: true } : stream;
+      }
       const notWebReady = await resolveNotWebReady(stream, options);
       if (!notWebReady) return stream;
       return { ...stream, notWebReady: true };
