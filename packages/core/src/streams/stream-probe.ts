@@ -1,5 +1,6 @@
 import type { ParsedFile, ParsedStream, UserData } from '../db/schemas.js';
 import { Cache, createLogger } from '../utils/index.js';
+import { canRunFfprobe } from '../utils/runtime.js';
 import { parseDeclaredStreamInfo } from './declared.js';
 import { runFfprobe } from './ffprobe-runner.js';
 import {
@@ -115,9 +116,12 @@ export async function enrichStreamsWithProbe(
   userData: UserData
 ): Promise<ParsedStream[]> {
   if (!userData.streamProbe?.enabled) return streams;
+  if (!canRunFfprobe()) {
+    logger.debug('stream probe skipped: ffprobe is not available');
+    return streams;
+  }
 
-  const timeoutMs =
-    userData.streamProbe.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
+  const timeoutMs = userData.streamProbe.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const probeTargets = streams.filter(shouldProbeStream);
   if (probeTargets.length === 0) return streams;
 

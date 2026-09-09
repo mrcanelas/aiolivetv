@@ -12,6 +12,7 @@ import {
   getTimeTakenSincePoint,
   shouldProxy,
   canUseProxy,
+  isEphemeralRuntime,
 } from '@aiostreams/core';
 import { z } from 'zod';
 import { request, Dispatcher } from 'undici';
@@ -216,6 +217,16 @@ interface ProxyParams {
 router.all(
   '/:encryptedAuthAndData{/:filename}',
   async (req: Request<ProxyParams>, res: Response, next: NextFunction) => {
+    if (isEphemeralRuntime()) {
+      next(
+        new APIError(
+          constants.ErrorCode.FORBIDDEN,
+          undefined,
+          'Media proxy is disabled on Vercel. Stream URLs are returned directly to Stremio.'
+        )
+      );
+      return;
+    }
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substring(7);
     let upstreamResponse: Dispatcher.ResponseData | undefined;

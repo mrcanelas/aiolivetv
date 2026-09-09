@@ -14,6 +14,7 @@ import {
 } from 'envalid';
 import { randomBytes } from 'crypto';
 import fs from 'fs';
+import { isEphemeralRuntime } from './runtime.js';
 
 /**
  * Bootstrap environment validation.
@@ -107,6 +108,18 @@ const proxyAuth = makeValidator((x) => {
   return userMap;
 });
 
+const databaseUri = makeValidator((x) => {
+  if (typeof x !== 'string' || x.trim() === '') {
+    throw new EnvError('DATABASE_URI cannot be empty');
+  }
+  if (isEphemeralRuntime() && x.startsWith('sqlite:')) {
+    throw new EnvError(
+      'SQLite is not supported on Vercel because the instance filesystem is not persistent. Set DATABASE_URI to a PostgreSQL connection string (postgresql://...).'
+    );
+  }
+  return x;
+});
+
 const connectionLimits = makeValidator((x) => {
   if (typeof x !== 'string') {
     throw new EnvError('Connection limits must be a string');
@@ -142,6 +155,12 @@ export function resolveServiceTime(
 ): number {
   return map[serviceId] ?? map['*'] ?? 0;
 }
+
+const defaultListenPort = process.env.PORT
+  ? Number(process.env.PORT)
+  : isEphemeralRuntime()
+    ? 80
+    : 3000;
 
 export const Env = cleanEnv(process.env, {
   VERSION: readonly({
@@ -184,7 +203,7 @@ export const Env = cleanEnv(process.env, {
     devDefault: `http://localhost:${process.env.PORT || 3000}`,
   }),
   INTERNAL_URL: url({
-    default: `http://localhost:${process.env.PORT || 3000}`,
+    default: `http://localhost:${defaultListenPort}`,
     desc: 'Internal URL of the addon, used for internal communication between built-in addons and the server',
   }),
   INTERNAL_SECRET: readonly({
@@ -192,16 +211,20 @@ export const Env = cleanEnv(process.env, {
     desc: 'Internal secret for the addon, used for internal communication between built-in addons and the server',
   }),
   PORT: port({
-    default: 3000,
-    desc: 'Port to run the addon on',
+    default: defaultListenPort,
+    desc: 'Port to run the addon on. Vercel Container Functions default to 80 unless PORT is set.',
   }),
   SECRET_KEY: secretKey({
     desc: 'Session/encryption secret used to derive keys for stored configurations. Must be a 64-character hex string. Generate with `openssl rand -hex 32`. Cannot be changed after first run. (Legacy alias `SESSION_SECRET` is still accepted for one minor release.)',
     example: 'Generate using: openssl rand -hex 32',
   }),
-  DATABASE_URI: str({
+  DATABASE_URI: databaseUri({
     default: 'sqlite://./data/db.sqlite',
-    desc: 'Database URI for the addon',
+    desc: 'Database URI for the addon. PostgreSQL is required on Vercel.',
+  }),
+  DATABASE_POOL_MAX: num({
+    default: isEphemeralRuntime() ? 3 : 10,
+    desc: 'Maximum PostgreSQL connections per process. Keep this low on Vercel because each instance opens its own pool.',
   }),
   REDIS_URI: str({
     default: undefined,
@@ -210,6 +233,10 @@ export const Env = cleanEnv(process.env, {
   REDIS_TIMEOUT: num({
     default: 5000,
     desc: 'Redis timeout for the addon',
+  }),
+  CRON_SECRET: str({
+    default: undefined,
+    desc: 'Bearer token required by /api/internal/tasks/* (Vercel Cron).',
   }),
   SETTINGS_REFRESH_INTERVAL: num({
     default: 30,
@@ -226,11 +253,11 @@ export const Env = cleanEnv(process.env, {
     choices: ['text', 'json'],
   }),
   LOG_BUFFER_MAX_BYTES: num({
-    default: 67108864,
+    default: isEphemeralRuntime() ? 2_097_152 : 67_108_864,
     desc: 'Max bytes of recent log lines kept in memory for the dashboard Logs page.',
   }),
   LOG_BUFFER_MAX_ENTRIES: num({
-    default: 200000,
+    default: isEphemeralRuntime() ? 5_000 : 200_000,
     desc: 'Hard cap on the number of recent log lines kept in memory for the dashboard Logs page.',
   }),
   AIOSTREAMS_AUTH: proxyAuth({

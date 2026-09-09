@@ -6,6 +6,7 @@ import {
   ExtrasParser,
   makeUrlLogSafe,
 } from '../utils/index.js';
+import { canRunFfprobe } from '../utils/runtime.js';
 import { config as appConfig } from '../config/index.js';
 import { getAddonName } from '../utils/general.js';
 import { Wrapper } from './wrapper.js';
@@ -186,7 +187,9 @@ function findMappedStreamAddon(
   _mappedId: string,
   addonId: string
 ): Addon | undefined {
-  const addon = ctx.addons.find((candidate) => candidate.instanceId === addonId);
+  const addon = ctx.addons.find(
+    (candidate) => candidate.instanceId === addonId
+  );
   if (!addon?.instanceId) return undefined;
   if (!resolveAddonStreamType(ctx, addon.instanceId, preferredType)) {
     return undefined;
@@ -462,14 +465,20 @@ export async function processStreams(
   finalStreams = await ctx.limiter.limit(finalStreams);
   limitMs = Date.now() - limitStart;
 
-  if (ctx.userData.streamProbe?.enabled && isLiveChannelType(type)) {
+  if (
+    ctx.userData.streamProbe?.enabled &&
+    canRunFfprobe() &&
+    isLiveChannelType(type)
+  ) {
     finalStreams = await enrichStreamsWithProbe(finalStreams, ctx.userData);
     finalStreams = await applyLiveStreamWebHints(finalStreams, {
       probe: true,
       timeoutMs: ctx.userData.streamProbe.timeoutMs,
     });
   } else if (isLiveChannelType(type)) {
-    finalStreams = await applyLiveStreamWebHints(finalStreams, { probe: false });
+    finalStreams = await applyLiveStreamWebHints(finalStreams, {
+      probe: false,
+    });
   }
 
   if (nzbFailoverOpts?.position === 'beforeSEL') {
@@ -773,15 +782,19 @@ async function loadCanonicalChannelCandidate(
     };
   }
 
-  for (const candidate of collectLiveChannelMetaCandidates(ctx, type, channelId)) {
+  for (const candidate of collectLiveChannelMetaCandidates(
+    ctx,
+    type,
+    channelId
+  )) {
     try {
       const metaType =
-        resolveAddonMetaType(
-          ctx,
-          candidate.instanceId,
-          candidate.metaType
-        ) ?? candidate.metaType;
-      const meta = await new Wrapper(candidate.addon).getMeta(metaType, channelId);
+        resolveAddonMetaType(ctx, candidate.instanceId, candidate.metaType) ??
+        candidate.metaType;
+      const meta = await new Wrapper(candidate.addon).getMeta(
+        metaType,
+        channelId
+      );
       return {
         id: channelId,
         name: decodeHtmlEntities(meta.name ?? channelId),
@@ -957,7 +970,8 @@ export async function getStreams(
   const liveStreamPlan = isLiveChannel
     ? await resolveLiveStreamFetchPlan(ctx, type, channelId)
     : undefined;
-  let supportedAddons = liveStreamPlan?.addons ?? getAddonsForResource(ctx, 'stream', type, id);
+  let supportedAddons =
+    liveStreamPlan?.addons ?? getAddonsForResource(ctx, 'stream', type, id);
 
   logger.debug(
     {
@@ -982,7 +996,9 @@ export async function getStreams(
   ctx.precomputer.resetPrecomputeTimings();
 
   const fetchStart = Date.now();
-  const channelAddonIds = isLiveChannel ? liveStreamPlan!.channelIds : undefined;
+  const channelAddonIds = isLiveChannel
+    ? liveStreamPlan!.channelIds
+    : undefined;
   const addonStreamTypes = isLiveChannel
     ? liveStreamPlan!.streamTypes
     : undefined;
@@ -1000,12 +1016,12 @@ export async function getStreams(
   const fetchMs = Date.now() - fetchStart;
 
   let fetchedStreams = isLiveChannel
-      ? orderLiveStreamsByMapping(
-          streams,
-          buildManualParsedStreams(ctx.userData, channelId),
-          channelMapping?.streams
-        )
-      : streams;
+    ? orderLiveStreamsByMapping(
+        streams,
+        buildManualParsedStreams(ctx.userData, channelId),
+        channelMapping?.streams
+      )
+    : streams;
 
   if (
     ctx.userData.statistics?.enabled &&
@@ -1277,12 +1293,12 @@ export async function getMeta(
           (stream) => stream.addonId === candidate.instanceId
         )?.channelId ?? channelId;
       const metaType =
-        resolveAddonMetaType(
-          ctx,
-          candidate.instanceId,
-          candidate.metaType
-        ) ?? candidate.metaType;
-      const meta = await new Wrapper(candidate.addon).getMeta(metaType, mappedId);
+        resolveAddonMetaType(ctx, candidate.instanceId, candidate.metaType) ??
+        candidate.metaType;
+      const meta = await new Wrapper(candidate.addon).getMeta(
+        metaType,
+        mappedId
+      );
       if (isLiveChannel) {
         meta.id = channelId;
         meta.videos = meta.videos?.map((video) =>

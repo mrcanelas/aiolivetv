@@ -20,6 +20,9 @@ export const logStartupInfo = () => {
     `  Version:       ${appConfig.bootstrap.version} (${appConfig.bootstrap.tag})`
   );
   logger.info(`  Node Env:      ${appConfig.bootstrap.nodeEnv.toUpperCase()}`);
+  if (appConfig.bootstrap.ephemeralRuntime) {
+    logger.info('  Runtime:       ephemeral (Vercel)');
+  }
   logger.info(`  Git Commit:    ${appConfig.bootstrap.gitCommit.slice(0, 8)}`);
   logger.info(`  Build Time:    ${appConfig.bootstrap.buildTime}`);
   logger.info(`  Current Time:  ${currentTime} UTC`);
@@ -38,6 +41,9 @@ export const logStartupInfo = () => {
       './data/db.sqlite'
     : appConfig.bootstrap.databaseUri.replace(/:\/\/[^@]+@/, '://***@');
   logger.info(`  Database:      ${dbType}  ${dbDisplay}`);
+  if (dbType !== 'SQLITE') {
+    logger.info(`  DB Pool Max:   ${appConfig.bootstrap.databasePoolMax}`);
+  }
   if (appConfig.bootstrap.redisUri) {
     logger.info(`  Redis:         ${appConfig.bootstrap.redisUri}`);
   }

@@ -93,6 +93,27 @@ export async function refreshConfigIfChanged(): Promise<boolean> {
   return settingsStore.refreshIfChanged();
 }
 
+const SETTINGS_REQUEST_BOUNDARY_MS = 30_000;
+let lastSettingsCheck = 0;
+let settingsCheckPromise: Promise<boolean> | null = null;
+
+/**
+ * Reload runtime settings at the start of a request, throttled so multiple
+ * concurrent requests share one version check. Used on ephemeral runtimes
+ * where `settings-sync` timers are not scheduled.
+ */
+export async function refreshSettingsAtRequestBoundary(): Promise<void> {
+  if (bootstrap.settingsRefreshInterval <= 0) return;
+  if (Date.now() - lastSettingsCheck < SETTINGS_REQUEST_BOUNDARY_MS) return;
+  if (!settingsCheckPromise) {
+    settingsCheckPromise = settingsStore.refreshIfChanged().finally(() => {
+      lastSettingsCheck = Date.now();
+      settingsCheckPromise = null;
+    });
+  }
+  await settingsCheckPromise;
+}
+
 /**
  * Subscribe to live config changes. Fires after every set/delete/reload that
  * actually changes the effective value of at least one field. Use this to

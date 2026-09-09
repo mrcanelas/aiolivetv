@@ -7,6 +7,7 @@
  * timers (debrid keepalive, SSE heartbeats) are intentionally out of scope.
  */
 import { createLogger } from '../logging/logger.js';
+import { shouldScheduleBackgroundTasks } from '../utils/runtime.js';
 
 const logger = createLogger('tasks');
 
@@ -105,7 +106,12 @@ class TaskManagerImpl {
       nextRunAt: null,
     };
     this.tasks.set(def.id, entry);
-    if (def.kind === 'scheduled' && def.enabled && def.intervalMs) {
+    if (
+      def.kind === 'scheduled' &&
+      def.enabled &&
+      def.intervalMs &&
+      shouldScheduleBackgroundTasks()
+    ) {
       this.schedule(entry);
     }
   }
@@ -176,6 +182,7 @@ class TaskManagerImpl {
       entry.retryTimer = null;
     }
     if (result.ok) return;
+    if (!shouldScheduleBackgroundTasks()) return;
     const delay = entry.def.retryIntervalMs;
     if (!delay || delay <= 0 || !entry.def.enabled) return;
     const clamped = Math.min(delay, MAX_TIMEOUT_MS);

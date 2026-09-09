@@ -8,6 +8,7 @@ import type {
 } from './types.js';
 import { SqlFragment } from '../sql.js';
 import { DbError, classifyPgError } from '../errors.js';
+import { postgresPoolConfig } from './postgres-pool.js';
 
 /**
  * Postgres `NOW() - amount * INTERVAL '1 unit'`. The unit is from a
@@ -68,13 +69,7 @@ export class PostgresDriver implements DbDriver {
   private readonly pool: Pool;
 
   constructor(connectionString: string) {
-    this.pool = new Pool({
-      connectionString,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-      keepAlive: true,
-      keepAliveInitialDelayMillis: 10000,
-    });
+    this.pool = new Pool(postgresPoolConfig(connectionString));
     // surface but don't crash on idle-client errors
     this.pool.on('error', () => {});
   }

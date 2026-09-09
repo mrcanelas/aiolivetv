@@ -55,6 +55,7 @@ import {
   internalMiddleware,
   stremioStreamRateLimiter,
   requireSessionIfAuthRequired,
+  requestBoundaryMiddleware,
 } from './middlewares/index.js';
 
 import {
@@ -68,6 +69,7 @@ import { createResponse } from './utils/responses.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import internalTasksApi from './routes/api/internal-tasks.js';
 const app: Express = express();
 const logger = createLogger('server');
 
@@ -97,6 +99,7 @@ export const staticRoot = path.join(__dirname, './static');
 
 app.use(ipMiddleware);
 app.use(loggerMiddleware);
+app.use(requestBoundaryMiddleware);
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 
@@ -143,6 +146,7 @@ apiRouter.use((req, res) => {
 });
 
 app.use(`/api/v${constants.API_VERSION}`, apiRouter);
+app.use('/api/internal/tasks', internalTasksApi);
 
 // Stremio Routes
 const stremioRouter = express.Router({ mergeParams: true });

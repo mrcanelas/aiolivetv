@@ -1,6 +1,7 @@
 import type { Stream } from '../db/index.js';
 import type { ParsedStream } from '../db/schemas.js';
 import { makeRequest } from '../utils/index.js';
+import { canRunFfprobe } from '../utils/runtime.js';
 import { runFfprobe } from './ffprobe-runner.js';
 import { parseFfprobeJson } from './probed.js';
 
@@ -65,8 +66,10 @@ export async function probeWebPlayable(
       return false;
     }
   } catch {
-    // fall through to ffprobe
+    // fall through to ffprobe when a binary is available
   }
+
+  if (!canRunFfprobe()) return false;
 
   try {
     const raw = await runFfprobe(url, {

@@ -1,8 +1,15 @@
 import { z } from 'zod';
-import { fromUrlSafeBase64, makeRequest, toUrlSafeBase64 } from '../../utils/index.js';
+import {
+  fromUrlSafeBase64,
+  makeRequest,
+  toUrlSafeBase64,
+} from '../../utils/index.js';
 
 export const CHANNEL_ID_PREFIX = 'aiolivetv:';
 export { LIVE_TV_CATALOG_PAGE_SIZE } from './epg.js';
+
+/** Upper bound for M3U/XMLTV downloads to keep Function memory in check. */
+export const MAX_LIVE_TV_SOURCE_BYTES = 50 * 1024 * 1024;
 
 export const LiveTvSourceConfigSchema = z.object({
   sourceUrl: z.url(),
@@ -56,7 +63,8 @@ export function programRuntime(startTime: string, endTime: string) {
 }
 
 export async function fetchSourceText(
-  config: LiveTvSourceConfig
+  config: LiveTvSourceConfig,
+  options?: { maxBytes?: number }
 ): Promise<string> {
   const response = await makeRequest(config.sourceUrl, {
     timeout: config.timeout,
@@ -66,5 +74,16 @@ export async function fetchSourceText(
       `Source returned ${response.status} ${response.statusText}`
     );
   }
-  return response.text();
+  const maxBytes = options?.maxBytes ?? MAX_LIVE_TV_SOURCE_BYTES;
+  const contentLength = Number(response.headers?.get?.('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error(
+      `Source exceeds maximum size of ${maxBytes} bytes (${contentLength})`
+    );
+  }
+  const data = await response.text();
+  if (Buffer.byteLength(data) > maxBytes) {
+    throw new Error(`Source exceeds maximum size of ${maxBytes} bytes`);
+  }
+  return data;
 }

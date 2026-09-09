@@ -1,10 +1,17 @@
 import { spawn } from 'node:child_process';
+import { canRunFfprobe } from '../utils/runtime.js';
+
+export { canRunFfprobe };
 
 export async function runFfprobe(
   url: string,
   options: { binaryPath?: string; timeoutMs?: number } = {}
 ): Promise<string> {
-  const binaryPath = options.binaryPath ?? process.env.FFPROBE_PATH ?? 'ffprobe';
+  const binaryPath =
+    options.binaryPath ?? process.env.FFPROBE_PATH ?? 'ffprobe';
+  if (!options.binaryPath && !canRunFfprobe()) {
+    throw new Error('ffprobe is not available in this runtime');
+  }
   const timeoutMs = options.timeoutMs ?? 15_000;
 
   return new Promise((resolve, reject) => {

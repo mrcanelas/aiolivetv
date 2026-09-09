@@ -4,6 +4,7 @@ import { sql, join } from '../db/sql.js';
 import { config } from '../config/index.js';
 import { createLogger } from '../logging/logger.js';
 import { TaskManager } from '../tasks/index.js';
+import { isEphemeralRuntime } from '../utils/runtime.js';
 
 const logger = createLogger('analytics');
 
@@ -418,10 +419,12 @@ export function startAnalytics(): void {
     },
   });
   // First rollup shortly after boot so the dashboard isn't empty.
-  setTimeout(
-    () => void TaskManager.runNow('analytics-rollup').catch(() => undefined),
-    30_000
-  ).unref?.();
+  if (!isEphemeralRuntime()) {
+    setTimeout(
+      () => void TaskManager.runNow('analytics-rollup').catch(() => undefined),
+      30_000
+    ).unref?.();
+  }
 }
 
 /** Flush remaining events (called on graceful shutdown). */

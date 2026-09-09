@@ -4,6 +4,7 @@ import { URL } from 'url';
 import type { DbDriver, Dialect } from './driver/types.js';
 import { SqliteDriver } from './driver/sqlite.js';
 import { PostgresDriver } from './driver/postgres.js';
+import { isEphemeralRuntime } from '../utils/runtime.js';
 
 type ParsedUri =
   | { dialect: 'sqlite'; filename: string }
@@ -36,6 +37,11 @@ function parseUri(uri: string): ParsedUri {
 export function createDriver(uri: string): DbDriver {
   const parsed = parseUri(uri);
   if (parsed.dialect === 'sqlite') {
+    if (isEphemeralRuntime()) {
+      throw new Error(
+        'SQLite is not supported on Vercel because the instance filesystem is not persistent. Set DATABASE_URI to a PostgreSQL connection string (postgresql://...).'
+      );
+    }
     const parentDir = path.dirname(parsed.filename);
     if (parentDir && !fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });

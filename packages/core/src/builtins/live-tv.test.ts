@@ -295,10 +295,7 @@ describe('channel mappings', () => {
         { id: 'stream', name: streamName },
         channel
       );
-      expect(
-        confidence,
-        `expected no match for ${streamName}`
-      ).toBe(0);
+      expect(confidence, `expected no match for ${streamName}`).toBe(0);
     }
     for (const streamName of ['A&E FHD', 'A&E HD', 'A&E SD']) {
       const confidence = getChannelMatchConfidence(
@@ -327,5 +324,27 @@ describe('channel mappings', () => {
         `expected auto-match for ${streamName}`
       ).toBe(true);
     }
+  });
+
+  it('rejects oversized live TV source downloads', async () => {
+    const { fetchSourceText } = await import('./live-tv/shared.js');
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: true,
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === 'content-length'
+            ? String(60 * 1024 * 1024)
+            : null,
+      },
+      text: async () => '',
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+
+    await expect(
+      fetchSourceText({
+        sourceUrl: 'https://example.com/huge.m3u',
+        timeout: 1000,
+        timeShiftMinutes: 0,
+      })
+    ).rejects.toThrow(/maximum size/);
   });
 });

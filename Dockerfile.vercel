@@ -1,0 +1,82 @@
+FROM node:24-slim AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+ENV NODE_ENV=production
+RUN corepack enable
+
+FROM base AS builder
+
+WORKDIR /build
+
+COPY LICENSE ./
+
+COPY package*.json ./
+COPY packages/server/package*.json ./packages/server/
+COPY packages/core/package*.json ./packages/core/
+COPY packages/frontend/package*.json ./packages/frontend/
+COPY packages/seanime-extensions/package*.json ./packages/seanime-extensions/
+COPY pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY pnpm-lock.yaml ./pnpm-lock.yaml
+COPY patches ./patches
+
+RUN pnpm install --frozen-lockfile
+
+COPY tsconfig.*json ./
+
+COPY packages/server ./packages/server
+COPY packages/core ./packages/core
+COPY packages/frontend ./packages/frontend
+COPY packages/seanime-extensions ./packages/seanime-extensions
+COPY scripts ./scripts
+COPY resources ./resources
+
+RUN pnpm run build
+
+RUN rm -rf node_modules
+RUN rm -rf packages/core/node_modules
+RUN rm -rf packages/server/node_modules
+RUN rm -rf packages/frontend/node_modules
+RUN rm -rf packages/seanime-extensions/node_modules
+
+RUN pnpm install --prod --frozen-lockfile
+
+FROM builder AS runtime
+WORKDIR /runtime
+
+COPY --from=builder /build/package*.json /build/LICENSE ./
+COPY --from=builder /build/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=builder /build/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder /build/patches ./patches
+
+COPY --from=builder /build/packages/core/package.*json ./packages/core/
+COPY --from=builder /build/packages/server/package.*json ./packages/server/
+
+COPY --from=builder /build/packages/core/dist ./packages/core/dist
+COPY --from=builder /build/packages/frontend/dist ./packages/frontend/dist
+COPY --from=builder /build/packages/server/dist ./packages/server/dist
+COPY --from=builder /build/packages/server/src/static ./packages/server/dist/static
+COPY --from=builder /build/packages/seanime-extensions/dist ./packages/seanime-extensions/dist
+
+COPY --from=builder /build/resources ./resources
+COPY --from=builder /build/scripts ./scripts
+
+COPY --from=builder /build/node_modules ./node_modules
+COPY --from=builder /build/packages/core/node_modules ./packages/core/node_modules
+COPY --from=builder /build/packages/server/node_modules ./packages/server/node_modules
+
+FROM gcr.io/distroless/nodejs24-debian12 AS production
+
+LABEL org.opencontainers.image.title="AIOLiveTV"
+LABEL org.opencontainers.image.description="AIOLiveTV combines live TV metadata and stream sources into one configurable Stremio addon."
+LABEL org.opencontainers.image.licenses="GPL-3.0"
+
+WORKDIR /app
+
+COPY --from=runtime /runtime /app
+
+ENV NODE_ENV=production
+ENV PORT=80
+EXPOSE 80
+
+CMD ["/app/packages/server/dist/server.js"]

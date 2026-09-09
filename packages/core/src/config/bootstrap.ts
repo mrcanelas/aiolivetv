@@ -1,4 +1,5 @@
 import { Env } from '../utils/env.js';
+import { isEphemeralRuntime } from '../utils/runtime.js';
 
 /**
  * Bootstrap config - env-only values needed *before* the DB-backed
@@ -11,8 +12,11 @@ export const bootstrap = {
   internalUrl: Env.INTERNAL_URL,
   internalSecret: Env.INTERNAL_SECRET,
   databaseUri: Env.DATABASE_URI,
+  databasePoolMax: Env.DATABASE_POOL_MAX,
   redisUri: Env.REDIS_URI,
   redisTimeout: Env.REDIS_TIMEOUT,
+  cronSecret: Env.CRON_SECRET,
+  ephemeralRuntime: isEphemeralRuntime(),
   settingsRefreshInterval: Env.SETTINGS_REFRESH_INTERVAL,
   secretKey: Env.SECRET_KEY,
   auth: Env.AIOSTREAMS_AUTH,

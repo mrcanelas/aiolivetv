@@ -1,0 +1,114 @@
+---
+title: Vercel
+description: Deploy AIOLiveTV on Vercel as a Container Function with PostgreSQL and Redis.
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+AIOLiveTV can run on [Vercel](https://vercel.com) as a **Container Function**.
+The Express server and the React frontend stay in the same image; there is no
+Next.js rewrite.
+
+Vercel detects `Dockerfile.vercel` at the repository root and routes all
+traffic to that container. Scheduled maintenance uses [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) against `/api/internal/tasks/*`.
+
+<Callout type="warn">
+  The instance filesystem is not persistent. SQLite, the `data/` directory, and
+  in-memory caches are not shared between instances. Use PostgreSQL and Redis.
+</Callout>
+
+## What stays on Vercel
+
+- Dashboard, login, and configuration
+- Manifest, catalog, meta, stream, and EPG responses
+- Built-in Live TV addons (M3U, XMLTV, Xtream, Vivo TV, Claro TV)
+- Cron-triggered maintenance (inactive users, expired SQL cache, analytics rollup)
+
+## What does not run on Vercel
+
+- SQLite
+- Anime Database and SeaDex file-backed datasets
+- Stream Probe / `ffprobe` (unless `FFPROBE_PATH` is provided)
+- Built-in media proxy (video bytes must go from the provider to Stremio)
+- Process-local timers (`setTimeout` background tasks)
+
+## Required services
+
+1. **PostgreSQL** — Neon, Supabase, or any external Postgres. Prefer a **pooler** URL.
+2. **Redis / Valkey** — Upstash or another Redis compatible with `rediss://`.
+
+## Environment variables
+
+Set these in the Vercel project settings. Do **not** set `PORT`; the platform provides it.
+
+```env
+BASE_URL=https://aiolivetv.seudominio.com
+SECRET_KEY=<64-character-hex>
+DATABASE_URI=postgresql://usuario:senha@host:porta/banco
+DATABASE_POOL_MAX=3
+REDIS_URI=rediss://usuario:senha@host:porta
+REDIS_TIMEOUT=5000
+NODE_ENV=production
+SYSTEM_LIFECYCLE_ENABLED=false
+LOG_LEVEL=info
+LOG_FORMAT=json
+CRON_SECRET=<long-random-secret>
+```
+
+Keep `SECRET_KEY` stable. Changing it makes existing encrypted configurations
+undecryptable.
+
+Optional: `ANALYTICS_ENABLED=false` for the first deploy. Analytics that remain
+enabled are written to PostgreSQL; the in-memory buffer is flushed at the end
+of each request.
+
+## Deploy
+
+<Steps>
+  <Step>
+    Create a Vercel project from this repository. The build uses
+    `Dockerfile.vercel` automatically.
+  </Step>
+  <Step>
+    Attach PostgreSQL and Redis, then set the environment variables above.
+  </Step>
+  <Step>
+    Create a Preview Deployment and open `/api/v1/health`.
+  </Step>
+  <Step>
+    Create a test configuration in the dashboard, install the manifest in
+    Stremio, and verify catalog, meta, stream, and EPG responses.
+  </Step>
+  <Step>
+    Confirm that stream URLs point at the original provider, not at the Vercel
+    host.
+  </Step>
+</Steps>
+
+<Callout type="info">
+  Raise the Function `maxDuration` in the Vercel project if large M3U or XMLTV
+  sources need more than the plan default. Keep the built-in proxy disabled.
+</Callout>
+
+## Cron jobs
+
+`vercel.json` registers:
+
+| Path | Schedule |
+| --- | --- |
+| `/api/internal/tasks/prune-users` | `0 4 * * *` |
+| `/api/internal/tasks/clear-expired-cache` | `30 4 * * *` |
+| `/api/internal/tasks/analytics-rollup` | `0 5 * * *` |
+
+Each request must include `Authorization: Bearer ${CRON_SECRET}`. Vercel adds
+this header automatically when `CRON_SECRET` is set.
+
+## First-deploy defaults
+
+- PostgreSQL and Redis: required for a healthy production deploy
+- M3U, XMLTV/EPG, Xtream, Vivo TV, Claro TV: enabled from user configuration
+- Stream Probe: disabled unless `FFPROBE_PATH` is set
+- Media proxy: disabled
+- Anime Database, SeaDex, Prowlarr: not initialised
+- System lifecycle (restart/stop process): disabled

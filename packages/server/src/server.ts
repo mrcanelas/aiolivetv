@@ -1,7 +1,6 @@
 ﻿import app from './app.js';
 
 import {
-  Env,
   config as appConfig,
   createLogger,
   initDb,
@@ -23,6 +22,7 @@ import {
   startAnalytics,
   stopAnalytics,
   TaskManager,
+  isEphemeralRuntime,
 } from '@aiostreams/core';
 import { randomBytes } from 'crypto';
 
@@ -153,16 +153,30 @@ async function start() {
     await initialiseTemplates();
     logStartupInfo();
     await initialiseRedis();
-    initialiseAnimeDatabase();
-    initialiseSeaDexDataset();
+    if (!isEphemeralRuntime()) {
+      initialiseAnimeDatabase();
+      initialiseSeaDexDataset();
+      await initialiseProwlarr();
+    } else {
+      logger.info(
+        'Ephemeral runtime detected: skipping Anime Database, SeaDex dataset, and Prowlarr initialisation'
+      );
+    }
     RegexAccess.initialise();
     SelAccess.initialise();
-    await initialiseProwlarr();
     registerPruneTask();
     registerCacheTasks();
     await initialiseAuth();
     startAnalytics();
-    const server = app.listen(appConfig.bootstrap.port, (error) => {
+    if (isEphemeralRuntime()) {
+      if (appConfig.proxy.default.enabled || appConfig.proxy.force.enabled) {
+        logger.warn(
+          'Built-in media proxy is enabled. On Vercel, video bytes should not flow through the Function; disable the proxy and return source URLs to Stremio.'
+        );
+      }
+    }
+    let server: ReturnType<typeof app.listen>;
+    const onListen = (error?: Error) => {
       if (error) {
         logger.error('Failed to start server:', error);
         process.exit(1);
@@ -170,7 +184,10 @@ async function start() {
       logger.info(
         `Server running on port ${appConfig.bootstrap.port}: ${JSON.stringify(server.address())}`
       );
-    });
+    };
+    server = isEphemeralRuntime()
+      ? app.listen(appConfig.bootstrap.port, '0.0.0.0', onListen)
+      : app.listen(appConfig.bootstrap.port, onListen);
   } catch (error) {
     if (error instanceof ConfigStartupError) throw error;
     logger.error('Failed to start server:', error);

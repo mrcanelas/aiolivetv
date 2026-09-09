@@ -38,12 +38,14 @@ These are validated at startup and cannot be set from the dashboard.
 | --------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BASE_URL`                  | —                           | **Required.** Public URL of your instance, including protocol (e.g. `https://aiostreams.example.com`).                                                                                                                                         |
 | `SECRET_KEY`                | —                           | **Required.** 64-character hex string used to encrypt stored configurations. Generate with `openssl rand -hex 32`. Cannot be changed after first run. The legacy alias `SESSION_SECRET` is still accepted for one minor release.               |
-| `PORT`                      | `3000`                      | Port the server listens on.                                                                                                                                                                                                                    |
-| `DATABASE_URI`              | `sqlite://./data/db.sqlite` | Database connection URI. Supports SQLite and PostgreSQL (`postgres://user:pass@host:port/db`).                                                                                                                                                 |
-| `REDIS_URI`                 | —                           | Redis URI for shared caching. Recommended for multi-instance deployments; single-container setups can leave this unset.                                                                                                                        |
+| `PORT`                      | `3000` (`80` on Vercel)     | Port the server listens on. Do not set this manually on Vercel; the platform provides it.                                                                                                                                                      |
+| `DATABASE_URI`              | `sqlite://./data/db.sqlite` | Database connection URI. Supports SQLite and PostgreSQL (`postgres://user:pass@host:port/db`). **PostgreSQL is required on Vercel**; SQLite is rejected when `VERCEL=1`. Prefer a pooled connection string. |
+| `DATABASE_POOL_MAX`         | `10` (`3` on Vercel)        | Maximum PostgreSQL connections per process. Keep this low on Vercel because each instance opens its own pool.                                                                                            |
+| `REDIS_URI`                 | —                           | Redis URI for shared caching. Recommended for multi-instance deployments and required for consistent cache on Vercel.                                                                                    |
 | `REDIS_TIMEOUT`             | `5000`                      | Redis client connect timeout in milliseconds.                                                                                                                                                                                                  |
-| `SETTINGS_REFRESH_INTERVAL` | `30`                        | How often (seconds) each instance polls the DB settings version and reloads runtime config if another instance changed a setting via the dashboard. Keeps multi-instance deployments consistent. Set `0` to disable on single-instance setups. |
-| `INTERNAL_URL`              | `http://localhost:${PORT}`  | Internal URL used for communication with built-in addons. The default is fine for almost all setups.                                                                                                                                           |
+| `SETTINGS_REFRESH_INTERVAL` | `30`                        | How often (seconds) each instance polls the DB settings version and reloads runtime config if another instance changed a setting via the dashboard. Keeps multi-instance deployments consistent. Set `0` to disable on single-instance setups. On Vercel, settings are also refreshed at the start of requests. |
+| `INTERNAL_URL`              | `http://localhost:${PORT}`  | Internal URL used for communication with built-in addons. The default is fine for almost all setups, including Vercel Container Functions.                                                                                                                                                                   |
+| `CRON_SECRET`               | —                           | Bearer token required by `/api/internal/tasks/*`. Vercel Cron Jobs send `Authorization: Bearer ${CRON_SECRET}` automatically when this variable is set.                                                                                                                                                      |
 
 <Callout type="warn">
   `SECRET_KEY` is required and must be a 64-character hexadecimal string.
@@ -68,8 +70,8 @@ These configure the logger
 | ------------------------ | ---------- | ------------------------------------------------------------------------- |
 | `LOG_LEVEL`              | `info`     | `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`.             |
 | `LOG_FORMAT`             | `json`     | `text` or `json`. `json` is recommended for production.                   |
-| `LOG_BUFFER_MAX_BYTES`   | `67108864` | Max bytes of recent log lines kept in memory for the dashboard Logs page. |
-| `LOG_BUFFER_MAX_ENTRIES` | `200000`   | Hard cap on recent log lines kept in memory for the dashboard Logs page.  |
+| `LOG_BUFFER_MAX_BYTES`   | `67108864` (`2097152` on Vercel) | Max bytes of recent log lines kept in memory for the dashboard Logs page. |
+| `LOG_BUFFER_MAX_ENTRIES` | `200000` (`5000` on Vercel)      | Hard cap on recent log lines kept in memory for the dashboard Logs page.  |
 
 ### Runtime / Build
 

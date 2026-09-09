@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "public-instances",
-    "deployment"
+    "deployment",
+    "vercel"
   ]
 }
