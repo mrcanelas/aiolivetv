@@ -6,10 +6,6 @@ import {
   formatApi,
   catalogApi,
   postersApi,
-  gdriveApi,
-  debridApi,
-  searchApi,
-  animeApi,
   proxyApi,
   templatesApi,
   syncApi,
@@ -26,25 +22,7 @@ import {
   addonCatalog,
   alias,
 } from './routes/stremio/index.js';
-import {
-  manifest as chillLinkManifest,
-  streams as chillLinkStreams,
-} from './routes/chilllink/index.js';
-import seanimeExtensionsRouter from './routes/seanime/extensions.js';
-import {
-  gdrive,
-  torboxSearch,
-  torznab,
-  newznab,
-  prowlarr,
-  knaben,
-  eztv,
-  torrentGalaxy,
-  seadex,
-  easynews,
-  library,
-  liveTv,
-} from './routes/builtins/index.js';
+import { liveTv } from './routes/builtins/index.js';
 import {
   ipMiddleware,
   loggerMiddleware,
@@ -117,20 +95,6 @@ apiRouter.use('/status', statusApi);
 apiRouter.use('/format', formatApi);
 apiRouter.use('/catalogs', catalogApi);
 apiRouter.use('/posters', postersApi);
-apiRouter.use('/oauth/exchange/gdrive', gdriveApi);
-apiRouter.use('/debrid', debridApi);
-apiRouter.use(
-  '/search',
-  (req, res, next) => {
-    if (!appConfig.api.enableSearchApi) {
-      res.status(403).json({ error: 'Search API is disabled', success: false });
-      return;
-    }
-    next();
-  },
-  searchApi
-);
-apiRouter.use('/anime', animeApi);
 apiRouter.use('/proxy', proxyApi);
 apiRouter.use('/templates', templatesApi);
 apiRouter.use('/sync', syncApi);
@@ -173,33 +137,8 @@ stremioAuthRouter.use('/addon_catalog', addonCatalog);
 app.use('/stremio', stremioRouter); // For public routes
 app.use('/stremio/:uuid/:encryptedPassword', stremioAuthRouter); // For authenticated routes
 
-const chillLinkRouter = express.Router({ mergeParams: true });
-chillLinkRouter.use(corsMiddleware);
-chillLinkRouter.use(userDataMiddleware);
-chillLinkRouter.use('/manifest', chillLinkManifest);
-chillLinkRouter.use('/streams', chillLinkStreams);
-
-app.use('/chilllink/:uuid/:encryptedPassword', chillLinkRouter);
-
-const seanimeRouter = express.Router({ mergeParams: true });
-seanimeRouter.use(corsMiddleware);
-seanimeRouter.use(seanimeExtensionsRouter);
-
-app.use('/seanime', seanimeRouter);
-
 const builtinsRouter = express.Router();
 builtinsRouter.use(internalMiddleware);
-builtinsRouter.use('/gdrive', gdrive);
-builtinsRouter.use('/torbox-search', torboxSearch);
-builtinsRouter.use('/torznab', torznab);
-builtinsRouter.use('/newznab', newznab);
-builtinsRouter.use('/prowlarr', prowlarr);
-builtinsRouter.use('/knaben', knaben);
-builtinsRouter.use('/eztv', eztv);
-builtinsRouter.use('/torrent-galaxy', torrentGalaxy);
-builtinsRouter.use('/seadex', seadex);
-builtinsRouter.use('/easynews', easynews);
-builtinsRouter.use('/library', library);
 builtinsRouter.use('/live-tv', liveTv);
 app.use('/builtins', builtinsRouter);
 

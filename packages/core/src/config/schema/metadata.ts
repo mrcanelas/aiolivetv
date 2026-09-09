@@ -59,10 +59,10 @@ export const metadataSchema = {
   animeDb: {
     levelOfDetail: {
       schema: z.enum(['none', 'required', 'full']),
-      default: 'required',
+      default: 'none',
       label: 'Anime DB level of detail',
       description:
-        '"none" disables the anime DB; "required" loads only required mappings; "full" loads everything.',
+        '"none" disables the anime DB (AIOLiveTV default); "required" loads only required mappings; "full" loads everything.',
       env: 'ANIME_DB_LEVEL_OF_DETAIL',
       requiresRestart: true,
       secret: false,

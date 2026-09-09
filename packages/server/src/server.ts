@@ -11,13 +11,10 @@ import {
   Cache,
   RegexAccess,
   SelAccess,
-  AnimeDatabase,
   ConfigStartupError,
-  ProwlarrAddon,
   TemplateManager,
   maskSensitiveInfo,
   constants,
-  SeaDexDataset,
   ensureConfigAccessKey,
   startAnalytics,
   stopAnalytics,
@@ -100,28 +97,6 @@ async function initialiseRedis() {
   }
 }
 
-async function initialiseAnimeDatabase() {
-  try {
-    await AnimeDatabase.getInstance().initialise();
-  } catch (error) {
-    logger.error('Failed to initialise AnimeDatabase:', error);
-  }
-}
-
-async function initialiseSeaDexDataset() {
-  try {
-    await SeaDexDataset.getInstance().initialise();
-  } catch {}
-}
-
-async function initialiseProwlarr() {
-  try {
-    await ProwlarrAddon.fetchpreconfiguredIndexers();
-  } catch (error) {
-    logger.error('Failed to initialise Prowlarr:', error);
-  }
-}
-
 async function initialiseTemplates() {
   try {
     await TemplateManager.loadTemplates();
@@ -153,15 +128,6 @@ async function start() {
     await initialiseTemplates();
     logStartupInfo();
     await initialiseRedis();
-    if (!isEphemeralRuntime()) {
-      initialiseAnimeDatabase();
-      initialiseSeaDexDataset();
-      await initialiseProwlarr();
-    } else {
-      logger.info(
-        'Ephemeral runtime detected: skipping Anime Database, SeaDex dataset, and Prowlarr initialisation'
-      );
-    }
     RegexAccess.initialise();
     SelAccess.initialise();
     registerPruneTask();

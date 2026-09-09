@@ -35,6 +35,9 @@ export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
   'custom',
   'frost-view',
   'minha-tv',
+  'usa-tv',
+  'argentina-tv',
+  'debridio-tv',
 ] as const;
 
 const MARKETPLACE_PRESET_SET = new Set<string>(LIVE_TV_MARKETPLACE_PRESET_IDS);

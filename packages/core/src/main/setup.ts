@@ -26,6 +26,13 @@ export async function applyPresets(ctx: AIOStreamsContext): Promise<void> {
 
   for (const preset of ctx.userData.presets.filter((p) => p.enabled)) {
     try {
+      if (!PresetManager.has(preset.type)) {
+        logger.warn(
+          { type: preset.type },
+          'Skipping preset that is not a Live TV source'
+        );
+        continue;
+      }
       const Preset = PresetManager.fromId(preset.type);
       if (Preset.METADATA.DISABLED) {
         throw new Error(

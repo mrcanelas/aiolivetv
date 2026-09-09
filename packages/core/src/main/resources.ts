@@ -1202,6 +1202,7 @@ export async function getStreams(
     }
   }
   for (const [presetType, list] of byPresetType) {
+    if (!PresetManager.has(presetType)) continue;
     const PresetClass = PresetManager.fromId(presetType);
     if (typeof PresetClass.onStreamsReady === 'function') {
       PresetClass.onStreamsReady(list);

@@ -449,20 +449,6 @@ function InstallCard({
 
           <div className="flex flex-col gap-3 flex-1 min-h-0 lg:overflow-y-auto pr-1">
             <AppCard
-              logoSrc="https://link.chillio.app/app-icon.png"
-              name="Chillio"
-              description="Via ChillLink protocol"
-              onClick={onOpenChillio}
-            />
-            <AppCard
-              logoSrc="https://seanime.app/seanime-logo.png"
-              name="Seanime"
-              description="Anime-focused client"
-              onClick={onOpenSeanime}
-              disabled={disableSeanimeCard}
-              disabledReason={seanimeDisabledReason}
-            />
-            <AppCard
               logoSrc="https://raw.githubusercontent.com/jellyfin/jellyfin-ux/refs/heads/master/logos/PNG-4x/jellyfin-icon--color-on-dark.png"
               name="Jellyfin"
               description="Via Gelato plugin"
