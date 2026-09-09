@@ -61,7 +61,7 @@ Abra `http://localhost:3000/stremio/configure`.
 
 ### Vercel
 
-Use PostgreSQL e Redis externos. O arquivo `Dockerfile.vercel` é detectado automaticamente. Guia: [Deploy on Vercel](packages/docs/content/docs/getting-started/vercel.mdx).
+Use PostgreSQL e Redis externos. No projeto, Framework Preset = **Container** e Root Directory na raiz do repositório. Guia: [Deploy on Vercel](packages/docs/content/docs/getting-started/vercel.mdx).
 
 ### A partir do código
 

@@ -10,14 +10,21 @@ AIOLiveTV can run on [Vercel](https://vercel.com) as a **Container Function**.
 The Express server and the React frontend stay in the same image; there is no
 Next.js rewrite.
 
-Vercel detects `Dockerfile.vercel` at the repository root and routes all
-traffic to that container. Scheduled maintenance uses [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) against `/api/internal/tasks/*`.
+Vercel builds `Dockerfile.vercel` as a **Container** service and routes every
+request to that image. Scheduled maintenance uses [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) against `/api/internal/tasks/*`.
+
+<Callout type="error">
+  In Project Settings → General → Framework Settings, set **Framework Preset**
+  to **Container** (or **Services**). Clear any **Build Command** and **Output
+  Directory** overrides. `framework: null` plus `pnpm run build` makes Vercel
+  look for a `public/` folder and fail with `No Output Directory named
+  "public"`.
+</Callout>
 
 <Callout type="error">
   Keep **Root Directory** empty (the Git repository root). If it is set to
   `packages/docs`, Vercel builds the documentation site instead of the addon
-  container. That static export writes to `out/` and the platform returns
-  `404: NOT_FOUND` on `/` unless Output Directory is `out`.
+  container.
 </Callout>
 
 <Callout type="warn">
@@ -74,8 +81,9 @@ of each request.
 
 <Steps>
   <Step>
-    Create a Vercel project from this repository. The build uses
-    `Dockerfile.vercel` automatically.
+    Create a Vercel project from this repository. Set Framework Preset to
+    **Container**. Vercel builds `Dockerfile.vercel` and routes all traffic to
+    that image.
   </Step>
   <Step>
     Attach PostgreSQL and Redis, then set the environment variables above.
