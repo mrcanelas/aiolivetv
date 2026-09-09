@@ -84,7 +84,16 @@ describe('Vivo TV builtin', () => {
       ok: true,
       json: async () => ({
         Content: {
-          List: [{ Pid: 'AGE1', Description: 'L', Images: {} }],
+          List: [
+            {
+              Pid: 'AGE1',
+              Description: 'L',
+              Images: {
+                Cover: [{ Url: 'https://cdn.example/cover-l.png' }],
+                Icon: [{ Url: 'https://cdn.example/icon-l.png' }],
+              },
+            },
+          ],
         },
       }),
     };
@@ -106,6 +115,7 @@ describe('Vivo TV builtin', () => {
             ReleaseDate: 1_717_900_000,
             GenrePids: ['GEN1'],
             ActorPids: ['PER1'],
+            AgeRatingPid: 'AGE1',
             Images: {
               VideoFrame: [{ Url: 'https://cdn.example/frame.jpg' }],
             },
@@ -147,6 +157,13 @@ describe('Vivo TV builtin', () => {
       overview: 'Notícias do dia',
       genres: ['Notícias'],
       cast: ['Apresentador'],
+      ratings: [
+        {
+          value: 'L',
+          system: 'ClassInd',
+          icon: 'https://cdn.example/cover-l.png',
+        },
+      ],
     });
   });
 });

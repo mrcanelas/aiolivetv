@@ -1,4 +1,4 @@
-import type { Meta, MetaPreview } from '../../db/index.js';
+import type { ContentRating, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { programRuntime } from './shared.js';
 
@@ -29,6 +29,26 @@ export interface EpgProgramVideoInput {
   categories?: string[];
   cast?: string[];
   directors?: string[];
+  ratings?: ContentRating[];
+}
+
+export function toContentRatings(
+  ratings?: Array<{ value?: string; system?: string; icon?: string }>
+): ContentRating[] | undefined {
+  const normalized = (ratings ?? [])
+    .map((rating) => {
+      const value = rating.value?.trim();
+      if (!value) return undefined;
+      const system = rating.system?.trim();
+      const icon = rating.icon?.trim();
+      return {
+        value,
+        ...(system ? { system } : {}),
+        ...(icon ? { icon } : {}),
+      };
+    })
+    .filter((rating): rating is ContentRating => Boolean(rating));
+  return normalized.length ? normalized : undefined;
 }
 
 export function parseCatalogExtras(extras?: string): CatalogExtras {
@@ -109,6 +129,7 @@ export function programToVideo(input: EpgProgramVideoInput): NonNullable<
     genres: input.categories,
     cast: input.cast,
     directors: input.directors,
+    ratings: toContentRatings(input.ratings),
     released: input.startTime,
     releaseInfo: input.airedYear ?? input.startTime.slice(0, 4),
     runtime: programRuntime(input.startTime, input.endTime),

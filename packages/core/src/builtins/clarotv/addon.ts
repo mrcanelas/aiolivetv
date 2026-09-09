@@ -12,6 +12,7 @@ import {
   shiftedProgramOverlapsUtcDay,
   programToVideo,
   resolveGuideDate,
+  toContentRatings,
   utcDayUnixBounds,
   type CatalogHandlerResponse,
 } from '../live-tv/epg.js';
@@ -52,6 +53,9 @@ interface ClaroScheduleItem {
   image?: string;
   startTime: number;
   endTime: number;
+  rating?: string;
+  parentalRating?: string;
+  ageRating?: string;
 }
 
 interface ClaroLiveChannelsResponse {
@@ -211,6 +215,12 @@ function scheduleToVideo(
     thumbnail,
     startTime,
     endTime,
+    ratings: toContentRatings([
+      {
+        value: item.rating ?? item.parentalRating ?? item.ageRating,
+        system: 'ClassInd',
+      },
+    ]),
   });
 }
 

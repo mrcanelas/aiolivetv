@@ -1144,6 +1144,13 @@ const MetaLinkSchema = z
   })
   .passthrough();
 
+export const ContentRatingSchema = z.object({
+  value: z.string().min(1),
+  system: z.string().optional(),
+  icon: z.string().optional(),
+});
+export type ContentRating = z.infer<typeof ContentRatingSchema>;
+
 const MetaVideoSchema = z
   .object({
     id: z.string(),
@@ -1157,6 +1164,7 @@ const MetaVideoSchema = z
     season: z.number().or(z.null()).optional(),
     trailers: z.array(TrailerSchema).or(z.null()).optional(),
     overview: z.string().or(z.null()).optional(),
+    ratings: z.array(ContentRatingSchema).optional(),
   })
   .passthrough();
 

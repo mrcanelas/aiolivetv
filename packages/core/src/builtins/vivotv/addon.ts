@@ -55,6 +55,7 @@ interface VivoGenre {
 
 interface VivoRating {
   Pid: string;
+  Title?: string;
   Description?: string;
   Images?: {
     Cover?: Array<{ Url?: string }>;
@@ -90,6 +91,8 @@ interface VivoReferenceData {
   ratings: Map<string, { value?: string; icon?: string }>;
   persons: Map<string, string>;
 }
+
+const VIVO_RATING_SYSTEM = 'ClassInd';
 
 function normalizeChannelTitle(title: string): string {
   return decodeHtmlEntities(title.replace(/HD | HD/g, '').trim());
@@ -235,19 +238,16 @@ async function loadReferenceData(
     (genresBody?.Content?.List ?? []).map((genre) => [genre.Pid, genre.Title])
   );
   const ratings = new Map(
-    (ratingsBody?.Content?.List ?? []).map((rating) => {
-      const icon =
-        rating.Images?.Cover?.[0]?.Url ??
-        rating.Images?.Icon?.[0]?.Url ??
-        undefined;
-      return [
-        rating.Pid,
-        {
-          value: rating.Description,
-          icon: icon ? channelLogoUrl(icon) : undefined,
-        },
-      ];
-    })
+    (ratingsBody?.Content?.List ?? []).map((rating) => [
+      rating.Pid,
+      {
+        value: rating.Description,
+        icon:
+          rating.Images?.Cover?.[0]?.Url ||
+          rating.Images?.Icon?.[0]?.Url ||
+          undefined,
+      },
+    ])
   );
   const personsMap = new Map(
     persons.map((person) => [person.Pid, person.Title])
@@ -276,6 +276,22 @@ function resolveGenres(
   return pids
     .map((pid) => reference.genres.get(pid))
     .filter((name): name is string => Boolean(name));
+}
+
+function resolveRating(
+  pid: string | undefined,
+  reference: VivoReferenceData
+): Array<{ value: string; system: string; icon?: string }> | undefined {
+  if (!pid) return undefined;
+  const rating = reference.ratings.get(pid);
+  if (!rating?.value) return undefined;
+  return [
+    {
+      value: rating.value,
+      system: VIVO_RATING_SYSTEM,
+      ...(rating.icon ? { icon: rating.icon } : {}),
+    },
+  ];
 }
 
 async function loadSchedulesForUtcDay(
@@ -321,7 +337,6 @@ function scheduleToVideo(
   const airedYear = item.ReleaseDate
     ? new Date(item.ReleaseDate * 1000).toISOString().slice(0, 4)
     : undefined;
-
   return programToVideo({
     channelEncodedId: encodedId,
     title,
@@ -334,6 +349,7 @@ function scheduleToVideo(
     categories: genres,
     cast,
     directors,
+    ratings: resolveRating(item.AgeRatingPid, reference),
   });
 }
 

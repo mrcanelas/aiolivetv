@@ -89,6 +89,7 @@ describe('Claro TV+ builtin', () => {
                     'https://cdn.example/frame-{{image-size-placeholder}}.jpg',
                   startTime: 1_718_000_000,
                   endTime: 1_718_003_600,
+                  parentalRating: '12',
                 },
               ],
             },
@@ -118,6 +119,7 @@ describe('Claro TV+ builtin', () => {
       season: 1,
       episode: 2,
       thumbnail: 'https://cdn.example/frame-420_236.jpg',
+      ratings: [{ value: '12', system: 'ClassInd' }],
     });
   });
 });

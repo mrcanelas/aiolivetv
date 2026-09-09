@@ -63,6 +63,7 @@ function mapProgramToVideo(
     categories: program.categories,
     cast: program.cast,
     directors: program.directors,
+    ratings: program.ratings,
   });
 }
 

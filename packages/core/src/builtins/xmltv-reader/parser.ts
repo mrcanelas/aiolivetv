@@ -1,5 +1,7 @@
 import { parseStringPromise } from 'xml2js';
+import type { ContentRating } from '../../db/index.js';
 import { decodeHtmlEntities } from '../../utils/text.js';
+import { toContentRatings } from '../live-tv/epg.js';
 
 export interface XmltvChannel {
   id: string;
@@ -22,6 +24,7 @@ interface XmltvProgram {
   categories?: string[];
   cast?: string[];
   directors?: string[];
+  ratings?: ContentRating[];
 }
 
 export interface XmltvData {
@@ -114,6 +117,29 @@ function programRuntime(startTime: string, endTime: string) {
   return minutes > 0 ? `${minutes} min` : undefined;
 }
 
+function parseRatings(input: unknown): ContentRating[] | undefined {
+  const entries = Array.isArray(input) ? input : input ? [input] : [];
+  return toContentRatings(
+    entries.map((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return { value: value(entry) };
+      }
+      const node = entry as {
+        $?: { system?: string };
+        value?: unknown;
+        icon?: Array<{ $?: { src?: string } }>;
+      };
+      return {
+        value: value(
+          Array.isArray(node.value) ? node.value[0] : node.value
+        ),
+        system: value(node.$?.system),
+        icon: value(node.icon?.[0]?.$?.src),
+      };
+    })
+  );
+}
+
 export async function parseXmltvData(xml: string): Promise<XmltvData> {
   const document = await parseStringPromise(xml);
   const channels = Array.isArray(document?.tv?.channel)
@@ -176,6 +202,7 @@ export async function parseXmltvData(xml: string): Promise<XmltvData> {
         categories: values(program?.category),
         cast: values(program?.credits?.[0]?.actor),
         directors: values(program?.credits?.[0]?.director),
+        ratings: parseRatings(program?.rating),
       };
     })
     .filter((program: XmltvProgram | undefined): program is XmltvProgram =>

@@ -60,7 +60,7 @@ describe('live TV sources', () => {
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
       text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /><rating system="MPAA"><value>PG</value><icon src="https://example.com/pg.png" /></rating></programme></tv>',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     const addon = new XmltvAddon({
       sourceUrl: 'https://example.com/guide.xml',
@@ -76,7 +76,7 @@ describe('live TV sources', () => {
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
       text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /></programme></tv>',
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /><rating system="MPAA"><value>PG</value><icon src="https://example.com/pg.png" /></rating></programme></tv>',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-28T12:00:00.000Z'));
@@ -95,6 +95,13 @@ describe('live TV sources', () => {
       genres: ['News'],
       cast: ['Jane Doe'],
       directors: ['John Doe'],
+      ratings: [
+        {
+          value: 'PG',
+          system: 'MPAA',
+          icon: 'https://example.com/pg.png',
+        },
+      ],
     });
   });
 
