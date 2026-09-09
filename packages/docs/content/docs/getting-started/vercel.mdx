@@ -13,6 +13,13 @@ Next.js rewrite.
 Vercel detects `Dockerfile.vercel` at the repository root and routes all
 traffic to that container. Scheduled maintenance uses [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) against `/api/internal/tasks/*`.
 
+<Callout type="error">
+  Keep **Root Directory** empty (the Git repository root). If it is set to
+  `packages/docs`, Vercel builds the documentation site instead of the addon
+  container. That static export writes to `out/` and the platform returns
+  `404: NOT_FOUND` on `/` unless Output Directory is `out`.
+</Callout>
+
 <Callout type="warn">
   The instance filesystem is not persistent. SQLite, the `data/` directory, and
   in-memory caches are not shared between instances. Use PostgreSQL and Redis.
