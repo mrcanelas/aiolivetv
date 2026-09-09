@@ -95,7 +95,7 @@ export class EasynewsSearchAddon extends BaseDebridAddon<EasynewsSearchAddonConf
       try {
         BuiltinProxy.validateAuth(this.userData.aiostreamsAuth);
       } catch (error) {
-        throw new Error('Invalid AIOStreams Auth.');
+        throw new Error('Invalid AIOLiveTV Auth.');
       }
     }
     const queryLimit = createQueryLimit();

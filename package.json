@@ -23,7 +23,7 @@
     "start:frontend:dev": "pnpm -F frontend run dev",
     "validate:live-tv": "pnpm -F core build && tsx scripts/validate-live-tv-e2e.ts"
   },
-  "author": "Viren070",
+  "author": "mrcanelas",
   "license": "MIT",
   "workspaces": [
     "packages/*"

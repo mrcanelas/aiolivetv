@@ -171,7 +171,7 @@ export function TemplateOpener({
           {children && <div className="text-sm">{children}</div>}
           <Steps>
             <Step>
-              Open your AIOStreams configure page, go to the{' '}
+              Open your AIOLiveTV configure page, go to the{' '}
               <strong>About</strong> menu and click{' '}
               <strong>Use a Template</strong>.
             </Step>

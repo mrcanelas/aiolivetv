@@ -1,5 +1,5 @@
 /**
- * Pure functions for evaluating AIOStreams expressions in templates.
+ * Pure functions for evaluating AIOLiveTV expressions in templates.
  */
 
 /**

@@ -138,7 +138,7 @@ async function initialiseAuth() {
       appConfig.bootstrap.auth.get(constants.PUBLIC_NZB_PROXY_USERNAME) ||
         randomBytes(32).toString('hex')
     );
-    logger.info('AIOStreams Public NZB Proxy is enabled.', {
+    logger.info('Public NZB Proxy is enabled.', {
       username: constants.PUBLIC_NZB_PROXY_USERNAME,
       password: maskSensitiveInfo(
         appConfig.bootstrap.auth.get(constants.PUBLIC_NZB_PROXY_USERNAME) || ''

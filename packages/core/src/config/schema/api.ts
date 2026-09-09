@@ -116,7 +116,7 @@ export const apiSchema = {
     default: null,
     label: 'Provide stream data',
     description:
-      'Whether stream metadata is included in Stremio stream responses. `null` (default) auto-detects from User-Agent (AIOStreams/* always gets it). `true`/`false` overrides for everyone. An IP list enables it only for matching request IPs.',
+      'Whether stream metadata is included in Stremio stream responses. `null` (default) auto-detects from User-Agent (AIOLiveTV/* or AIOStreams/* always gets it). `true`/`false` overrides for everyone. An IP list enables it only for matching request IPs.',
     env: 'PROVIDE_STREAM_DATA',
     requiresRestart: false,
     secret: false,

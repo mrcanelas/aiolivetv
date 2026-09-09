@@ -1,6 +1,6 @@
 ---
 title: v2.30 Changes
-description: What changed in AIOStreams v2.30 and the few actions self-hosters need to take.
+description: What changed in AIOLiveTV v2.30 and the few actions self-hosters need to take.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
@@ -51,8 +51,8 @@ instead, one `serviceId.credentialId=value` entry per line (or `\n` separated if
 multi-line env variables are not available in your environment):
 
 <Callout type="info">
-  You can find a list of all service IDs [here](https://github.com/Viren070/AIOStreams/blob/2f42d4723e036b941154819552165379fd4ce3dc/packages/core/src/utils/constants.ts#L228-L243)
-  and a list of credential IDs [here](https://github.com/Viren070/AIOStreams/blob/2f42d4723e036b941154819552165379fd4ce3dc/packages/core/src/utils/constants.ts#L329-L779).
+  You can find a list of all service IDs [here](https://github.com/mrcanelas/aiolivetv/blob/2f42d4723e036b941154819552165379fd4ce3dc/packages/core/src/utils/constants.ts#L228-L243)
+  and a list of credential IDs [here](https://github.com/mrcanelas/aiolivetv/blob/2f42d4723e036b941154819552165379fd4ce3dc/packages/core/src/utils/constants.ts#L329-L779).
 </Callout>
 
 ```sh
@@ -150,7 +150,7 @@ nothing broken about leaving them in place.
 When you're ready, keep only the
 [bootstrap variables](/configuration/environment-variables) in `.env` and move
 everything else via the built-in import. The updated
-[`.env.sample`](https://github.com/Viren070/AIOStreams/blob/main/.env.sample)
+[`.env.sample`](https://github.com/mrcanelas/aiolivetv/blob/main/.env.sample)
 reflects this split.
 
 <Accordions>
@@ -175,7 +175,7 @@ reflects this split.
         Keep the bootstrap variables — these cannot be set via the UI.
       </Step>
       <Step>
-        Restart/recreate AIOStreams with your updated environment configuration.
+        Restart/recreate AIOLiveTV with your updated environment configuration.
         All runtime settings can now be managed from the dashboard.
       </Step>
     </Steps>

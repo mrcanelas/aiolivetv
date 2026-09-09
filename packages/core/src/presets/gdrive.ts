@@ -48,7 +48,7 @@ export class GDrivePreset extends Preset {
             {
               id: 'refreshToken',
               name: 'Authorise',
-              description: 'Authorise AIOStreams to access your Google Drive',
+              description: 'Authorise AIOLiveTV to access your Google Drive',
               type: 'oauth',
               required: true,
               oauth: {

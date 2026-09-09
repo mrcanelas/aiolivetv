@@ -220,7 +220,7 @@ export class NewznabAddon extends BaseNabAddon<NewznabAddonConfig, NewznabApi> {
       try {
         BuiltinProxy.validateAuth(auth);
       } catch (error) {
-        throw new Error('Invalid AIOStreams Proxy Auth Credentials');
+        throw new Error('Invalid AIOLiveTV Proxy Auth Credentials');
       }
       const proxy = createProxy({
         id: constants.BUILTIN_SERVICE,

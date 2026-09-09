@@ -192,7 +192,7 @@ export function validateAddon(ctx: AIOStreamsContext, addon: Addon): void {
       'detected self-scraping attempt'
     );
     throw new Error(
-      `${getAddonName(addon)} would cause infinite self scraping, ensure you wrap a different AIOStreams user.`
+      `${getAddonName(addon)} would cause infinite self scraping, ensure you wrap a different AIOLiveTV user.`
     );
   } else if (
     ((baseUrl && manifestUrl.host === baseUrl.host) ||
@@ -202,7 +202,7 @@ export function validateAddon(ctx: AIOStreamsContext, addon: Addon): void {
     appConfig.userLimits.selfScraping.disabled === true
   ) {
     throw new Error(
-      `Scraping the same AIOStreams instance is disabled. Please use a different AIOStreams instance, or enable it through the environment variables.`
+      `Scraping the same AIOLiveTV instance is disabled. Please use a different AIOLiveTV instance, or enable it through the environment variables.`
     );
   }
   if (

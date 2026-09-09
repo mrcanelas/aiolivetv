@@ -1,13 +1,13 @@
 ---
 title: Templates
-description: Complete reference for writing AIOStreams configuration templates.
+description: Complete reference for writing AIOLiveTV configuration templates.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Steps, Step } from 'fumadocs-ui/components/steps';
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 
-A template is a shareable JSON file that applies a partial AIOStreams configuration to a user's instance. Templates support dynamic expressions, user inputs, and service-conditional logic — making them powerful enough to cover most configuration scenarios without hardcoding anything.
+A template is a shareable JSON file that applies a partial AIOLiveTV configuration to a user's instance. Templates support dynamic expressions, user inputs, and service-conditional logic — making them powerful enough to cover most configuration scenarios without hardcoding anything.
 
 ---
 
@@ -388,7 +388,7 @@ When `changelogUrl` is present it takes full precedence — the inline `changelo
 
 ### `CHANGELOG.md` Format
 
-AIOStreams parses this file with a strict format:
+AIOLiveTV parses this file with a strict format:
 
 ```markdown
 # Changelog
@@ -424,16 +424,16 @@ Instance hosters can add templates via:
 
 ### Deep link
 
-Send a user directly to the template import flow by appending query parameters to any AIOStreams URL:
+Send a user directly to the template import flow by appending query parameters to any AIOLiveTV URL:
 
 ```
-https://your-aiostreams.example.com/stremio/configure?template=https://example.com/my-template.json
+https://your-aiolivetv.example.com/stremio/configure?template=https://example.com/my-template.json
 ```
 
 With a specific template pre-selected from a multi-template file:
 
 ```
-https://your-aiostreams.example.com/stremio/configure?template=https://example.com/templates.json&templateId=author.my-template
+https://your-aiolivetv.example.com/stremio/configure?template=https://example.com/templates.json&templateId=author.my-template
 ```
 
 <Callout type="warn">

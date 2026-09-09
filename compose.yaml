@@ -1,7 +1,7 @@
 services:
-  aiostreams:
-    image: ghcr.io/viren070/aiostreams:latest
-    container_name: aiostreams
+  aiolivetv:
+    build: .
+    container_name: aiolivetv
     restart: unless-stopped
     ports:
       - 3000:3000

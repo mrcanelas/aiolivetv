@@ -10,14 +10,12 @@ import {
   BookOpenIcon,
   HeartIcon,
   CoffeeIcon,
-  MessageCircleIcon,
   PencilIcon,
   PlusIcon,
   BellIcon,
 } from 'lucide-react';
-import { FaGithub, FaDiscord, FaChevronRight } from 'react-icons/fa';
+import { FaGithub, FaChevronRight } from 'react-icons/fa';
 import { BiDonateHeart, BiLogInCircle, BiLogOutCircle } from 'react-icons/bi';
-import { AiOutlineDiscord } from 'react-icons/ai';
 import { FiGithub } from 'react-icons/fi';
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -31,6 +29,10 @@ import { toast } from 'sonner';
 import { useMenu } from '@/context/menu';
 import { useMode } from '@/context/mode';
 import { DonationModal } from '../shared/donation-modal';
+import {
+  PRODUCT_GITHUB_URL,
+  PRODUCT_ISSUES_URL,
+} from '@/constants/branding';
 import { ModeSwitch } from '../ui/mode-switch/mode-switch';
 import { ModeSelectModal } from '../shared/mode-select-modal';
 import { ConfigModal } from '../config-modal';
@@ -204,8 +206,7 @@ AIOLiveTV combines live channel metadata and stream sources into one configurabl
   const version = status?.tag || 'Unknown';
   const channel: 'stable' | 'nightly' | 'dev' =
     status?.channel ?? (version.startsWith('v') ? 'stable' : 'nightly');
-  const githubUrl = 'https://github.com/mrcanelas/aiolivetv';
-  const discordUrl = 'https://discord.viren070.me';
+  const githubUrl = PRODUCT_GITHUB_URL;
   const donationModal = useDisclosure(false);
   const customizeModal = useDisclosure(false);
   const signInModal = useDisclosure(false);
@@ -571,28 +572,22 @@ AIOLiveTV combines live channel metadata and stream sources into one configurabl
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1">
                 <QuickLink
-                  href="https://docs.aiostreams.viren070.me"
+                  href={`${githubUrl}/blob/main/packages/docs/content/docs/getting-started/index.mdx`}
                   icon={<BookOpenIcon className="w-7 h-7" />}
                 >
                   Docs
                 </QuickLink>
                 <QuickLink
-                  href="https://docs.aiostreams.viren070.me/configuration/setup"
+                  href={`${githubUrl}/blob/main/packages/docs/content/docs/getting-started/vercel.mdx`}
                   icon={<BookOpenIcon className="w-7 h-7" />}
                 >
                   Setup Guide
                 </QuickLink>
                 <QuickLink
-                  href="https://guides.viren070.me/stremio"
+                  href={PRODUCT_ISSUES_URL}
                   icon={<InfoIcon className="w-7 h-7" />}
                 >
-                  Stremio Guide
-                </QuickLink>
-                <QuickLink
-                  href={discordUrl}
-                  icon={<AiOutlineDiscord className="w-7 h-7" />}
-                >
-                  Discord
+                  Issues
                 </QuickLink>
                 <QuickLink
                   href={githubUrl}
@@ -865,7 +860,7 @@ function ChangelogBox({
   const fetchReleases = React.useCallback(async (page: number = 1) => {
     try {
       const response = await fetch(
-        `https://api.github.com/repos/viren070/aiostreams/releases?per_page=100&page=${page}`
+        `https://api.github.com/repos/mrcanelas/aiolivetv/releases?per_page=100&page=${page}`
       );
 
       if (!response.ok) throw new Error('Failed to fetch releases');

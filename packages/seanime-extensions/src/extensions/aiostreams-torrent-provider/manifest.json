@@ -1,18 +1,18 @@
 {
   "id": "aiostreams-torrent-provider",
-  "name": "AIOStreams",
+  "name": "AIOLiveTV",
   "version": "0.8.3",
   "manifestURI": "",
   "language": "typescript",
   "type": "anime-torrent-provider",
-  "description": "AIOStreams bridge for Seanime anime torrent search.",
-  "author": "Viren070",
+  "description": "AIOLiveTV bridge for Seanime anime torrent search.",
+  "author": "mrcanelas",
   "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons/png/aiostreams-light.png",
   "lang": "multi",
   "payloadURI": "",
-  "website": "https://docs.aiostreams.viren070.me",
-  "readme": "https://docs.aiostreams.viren070.me/guides/seanime",
-  "notes": "You need an existing AIOStreams instance and configuration to use this plugin.",
+  "website": "https://github.com/mrcanelas/aiolivetv",
+  "readme": "https://github.com/mrcanelas/aiolivetv/blob/main/packages/docs/content/docs/guides/seanime.mdx",
+  "notes": "You need an existing AIOLiveTV instance and configuration to use this plugin.",
   "isDevelopment": true,
   "userConfig": {
     "requiresConfig": true,
@@ -20,13 +20,13 @@
     "fields": [
       {
         "name": "manifestUrl",
-        "label": "AIOStreams Manifest URL",
+        "label": "AIOLiveTV Manifest URL",
         "type": "text",
         "default": ""
       },
       {
         "name": "searchId",
-        "label": "AIOStreams Search ID",
+        "label": "AIOLiveTV Search ID",
         "type": "select",
         "default": "imdbId",
         "options": [

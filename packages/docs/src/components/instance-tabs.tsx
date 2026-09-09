@@ -12,7 +12,7 @@ export function InstanceTabs() {
         return (
           <Tab key={instance.id} value={instance.name}>
             <h3 className="mt-0 flex items-center gap-2">
-              {instance.name} AIOStreams
+              {instance.name} AIOLiveTV
             </h3>
 
             {instance.hostedBy && (

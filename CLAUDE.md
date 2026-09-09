@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-AIOStreams is a Stremio "super-addon" that aggregates results from many upstream Stremio addons + debrid/usenet services, then deduplicates, filters, sorts, formats and (optionally) proxies the streams before returning them to Stremio. It is a single-process Node service that also serves a React SPA configuration UI.
+AIOLiveTV is a Stremio addon that aggregates live TV metadata and streams from XMLTV, M3U, Xtream and other channel sources, then matches equivalent channels and returns catalog, meta and stream resources to Stremio. It is a single-process Node service that also serves a React SPA configuration UI.
 
 Requires Node `>=24` and pnpm `>=11` (enforced in root `package.json` engines).
 

@@ -283,7 +283,7 @@ app.get(
       streams: [
         StremioTransformer.createErrorStream({
           errorDescription:
-            'AIOStreams v2 requires you to reconfigure. Please click this stream to reconfigure.',
+            'AIOLiveTV requires you to reconfigure. Please click this stream to reconfigure.',
           errorUrl: `${baseUrl}/stremio/configure`,
         }),
       ],

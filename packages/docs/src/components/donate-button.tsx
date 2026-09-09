@@ -2,11 +2,12 @@
 
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { SiKofi, SiGithubsponsors } from 'react-icons/si';
+import { SiGithubsponsors } from 'react-icons/si';
 import { FaHeart, FaTimes } from 'react-icons/fa';
+import { FiGithub } from 'react-icons/fi';
 
-const KOFI_URL = 'https://ko-fi.com/viren070';
-const SPONSORS_URL = 'https://github.com/sponsors/Viren070';
+const SPONSORS_URL = 'https://github.com/sponsors/mrcanelas';
+const GITHUB_URL = 'https://github.com/mrcanelas/aiolivetv';
 
 function DonateDialogContent() {
   return (
@@ -24,25 +25,15 @@ function DonateDialogContent() {
           </span>
           <div>
             <Dialog.Title className="text-xl font-bold text-fd-foreground">
-              Support AIOStreams
+              Support AIOLiveTV
             </Dialog.Title>
             <Dialog.Description className="mt-2 text-sm text-fd-muted-foreground max-w-xs">
-              AIOStreams is a solo project built in my free time. If you find it
-              useful, please consider supporting my work — it helps keep the
-              project alive and improving!
+              AIOLiveTV is built in free time. If you find it useful, please
+              consider supporting the project.
             </Dialog.Description>
           </div>
 
           <div className="flex flex-col gap-3 w-full mt-2">
-            <a
-              href={KOFI_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-fd-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-fd-muted"
-            >
-              <SiKofi className="size-4 text-[#FF5E5B]" />
-              Ko-fi
-            </a>
             <a
               href={SPONSORS_URL}
               target="_blank"
@@ -52,6 +43,15 @@ function DonateDialogContent() {
               <SiGithubsponsors className="size-4 text-[#EA4AAA]" />
               GitHub Sponsors
             </a>
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-fd-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-fd-muted"
+            >
+              <FiGithub className="size-4" />
+              Star on GitHub
+            </a>
           </div>
         </div>
       </Dialog.Content>
@@ -59,9 +59,6 @@ function DonateDialogContent() {
   );
 }
 
-/**
- * Full donate button with text label — used in home page CTA.
- */
 export function DonateButton({ className }: { className?: string }) {
   return (
     <Dialog.Root>
@@ -76,9 +73,6 @@ export function DonateButton({ className }: { className?: string }) {
   );
 }
 
-/**
- * Icon-only donate button — used in the navbar / sidebar via type: 'custom' link.
- */
 export function DonateIconButton() {
   return (
     <Dialog.Root>

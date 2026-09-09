@@ -146,6 +146,7 @@ export const PUBLIC_NZB_PROXY_USERNAME = 'public_nzb_proxy_user';
 const API_VERSION = 1;
 
 export const REDIS_PREFIX = 'aiostreams:';
+export const PROJECT_GITHUB_URL = 'https://github.com/mrcanelas/aiolivetv';
 
 export const DEFAULT_PRECACHE_SELECTOR =
   'count(cached(streams)) == 0 ? uncached(streams) : []';
@@ -304,9 +305,9 @@ export const PROXY_SERVICE_DETAILS: Record<
   [BUILTIN_SERVICE]: {
     id: BUILTIN_SERVICE,
     name: 'Builtin Proxy',
-    description: 'A proxy service that is built into the core of AIOStreams',
+    description: 'A proxy service that is built into the core of AIOLiveTV',
     credentialDescription:
-      'A valid username:password pair for this AIOStreams instance, defined in the `AIOSTREAMS_AUTH` environment variable.',
+      'A valid username:password pair for this AIOLiveTV instance, defined in the `AIOSTREAMS_AUTH` environment variable.',
   },
   [STREMTHRU_SERVICE]: {
     id: STREMTHRU_SERVICE,
@@ -461,7 +462,7 @@ const SERVICE_DETAILS: Record<
       {
         id: 'note',
         name: 'Configuration Help',
-        description: `**URL:** Use internal URL for local setups (e.g., http://nzbdav:3000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).\n\nFor detailed setup instructions, see the [Usenet Wiki](https://github.com/Viren070/AIOStreams/wiki/Usenet#configuring-the-service-in-aiostreams).`,
+        description: `**URL:** Use internal URL for local setups (e.g., http://nzbdav:3000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).\n\nFor detailed setup instructions, see the [Usenet guide](https://github.com/mrcanelas/aiolivetv/blob/main/packages/docs/content/docs/guides/usenet.mdx).`,
         type: 'alert',
         intent: 'info',
         required: false,
@@ -508,9 +509,9 @@ const SERVICE_DETAILS: Record<
       },
       {
         id: 'aiostreamsAuth',
-        name: 'AIOStreams Auth Token (Optional)',
+        name: 'AIOLiveTV Auth Token (Optional)',
         description:
-          'If you would like to proxy your NzbDAV streams, you will need to provide a username:password pair for your AIOStreams instance, defined in the `AIOSTREAMS_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
+          'If you would like to proxy your NzbDAV streams, you will need to provide a username:password pair for your AIOLiveTV instance, defined in the `AIOSTREAMS_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
         type: 'password',
         required: false,
       },
@@ -526,7 +527,7 @@ const SERVICE_DETAILS: Record<
       {
         id: 'note',
         name: 'Configuration Help',
-        description: `**URL:** Use internal URL for local setups (e.g., http://altmount:8000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).\n\nFor detailed setup instructions, see the [Usenet Wiki](https://github.com/Viren070/AIOStreams/wiki/Usenet#configuring-the-service-in-aiostreams).`,
+        description: `**URL:** Use internal URL for local setups (e.g., http://altmount:8000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).\n\nFor detailed setup instructions, see the [Usenet guide](https://github.com/mrcanelas/aiolivetv/blob/main/packages/docs/content/docs/guides/usenet.mdx).`,
         type: 'alert',
         intent: 'info',
         required: false,
@@ -573,9 +574,9 @@ const SERVICE_DETAILS: Record<
       },
       {
         id: 'aiostreamsAuth',
-        name: 'AIOStreams Auth Token (Optional)',
+        name: 'AIOLiveTV Auth Token (Optional)',
         description:
-          'If you would like to proxy your AltMount streams, you will need to provide a username:password pair for your AIOStreams instance, defined in the `AIOSTREAMS_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
+          'If you would like to proxy your AltMount streams, you will need to provide a username:password pair for your AIOLiveTV instance, defined in the `AIOSTREAMS_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
         type: 'password',
         required: false,
       },
@@ -770,7 +771,7 @@ const SERVICE_DETAILS: Record<
         id: 'note',
         name: 'Tip',
         description:
-          'If you are self-hosting both StremThru and AIOStreams, consider using the internal URL of StremThru (e.g., http://stremthru:8080) to avoid potential network issues. Your playback URLs generated by StremThru will use the `STREMTHRU_BASE_URL` environment variable.',
+          'If you are self-hosting both StremThru and AIOLiveTV, consider using the internal URL of StremThru (e.g., http://stremthru:8080) to avoid potential network issues. Your playback URLs generated by StremThru will use the `STREMTHRU_BASE_URL` environment variable.',
         type: 'alert',
         intent: 'info',
       },

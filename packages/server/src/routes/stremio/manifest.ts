@@ -49,7 +49,7 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
     types: [constants.TV_TYPE],
     logo:
       config?.addonLogo ||
-      `https://raw.githubusercontent.com/Viren070/AIOStreams/refs/heads/main/packages/frontend/public/logo${
+      `https://raw.githubusercontent.com/mrcanelas/aiolivetv/refs/heads/main/packages/frontend/public/logo${
         appConfig.branding.alternateDesign ? '_alt' : ''
       }.png`,
     behaviorHints: {

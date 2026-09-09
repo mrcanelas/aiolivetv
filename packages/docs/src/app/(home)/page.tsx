@@ -16,14 +16,14 @@ export default function HomePage() {
       {/* Hero */}
       <div className="flex flex-col items-center justify-center flex-1 text-center px-4 py-24 gap-6">
         <div className="inline-flex items-center rounded-full border border-fd-border bg-fd-muted/50 px-3 py-1 text-xs font-medium text-fd-muted-foreground">
-          Stremio Addon Aggregator
+          Live TV Aggregator
         </div>
         <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
-          AIOStreams
+          AIOLiveTV
         </h1>
         <p className="text-fd-muted-foreground max-w-xl text-lg">
-          Combine, filter, sort, and customise streams from every source — all
-          in one place.
+          Combine XMLTV, M3U, Xtream and live channel addons into one Stremio
+          addon, with or without Native EPG.
         </p>
         <div className="flex gap-3 flex-wrap justify-center">
           <Link
@@ -33,7 +33,7 @@ export default function HomePage() {
             Read the docs
           </Link>
           <Link
-            href="https://github.com/Viren070/AIOStreams"
+            href="https://github.com/mrcanelas/aiolivetv"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md border border-fd-border px-4 py-2 text-sm font-medium transition-colors hover:bg-fd-muted"
@@ -53,7 +53,7 @@ export default function HomePage() {
           <NavCard
             href="/getting-started"
             title="Getting Started"
-            description="Deploy AIOStreams and get it running in minutes."
+            description="Deploy AIOLiveTV and get it running in minutes."
             icon={FaRocket}
           />
           <NavCard
@@ -77,7 +77,7 @@ export default function HomePage() {
           <NavCard
             href="/migrations/v1-to-v2"
             title="Migration"
-            description="Upgrading from AIOStreams v1 to v2."
+            description="Upgrading from AIOStreams v1 or related forks to AIOLiveTV."
             icon={FaArrowAltCircleUp}
           />
           <NavCard

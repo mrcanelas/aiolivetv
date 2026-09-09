@@ -7,7 +7,7 @@ import { Callout } from 'fumadocs-ui/components/callout';
 import { Steps, Step } from 'fumadocs-ui/components/steps';
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 
-The **Grouping** feature lets you control _when_ different sets of your addons are asked for streams. This is useful for making AIOStreams faster by only querying fallback addons when your primary sources don't find enough results.
+The **Grouping** feature lets you control _when_ different sets of your addons are asked for streams. This is useful for making AIOLiveTV faster by only querying fallback addons when your primary sources don't find enough results.
 
 **Why use groups?**
 
@@ -21,11 +21,11 @@ The **Grouping** feature lets you control _when_ different sets of your addons a
 
 <Steps>
   <Step>
-    **Parallel fetch start** — AIOStreams begins fetching from **all groups**
+    **Parallel fetch start** — AIOLiveTV begins fetching from **all groups**
     simultaneously.
   </Step>
   <Step>
-    **Evaluate as results arrive** — as soon as Group 1 responds, AIOStreams
+    **Evaluate as results arrive** — as soon as Group 1 responds, AIOLiveTV
     evaluates Group 2's condition: 
       - If the condition is `false`, Group 2 (and all subsequent groups) are skipped immediately. 
       - If `true`, Group 2's results are included and Group 3's condition is evaluated next.
@@ -36,7 +36,7 @@ The **Grouping** feature lets you control _when_ different sets of your addons a
   </Step>
 </Steps>
 
-**Example:** AIOStreams fires off fetches for Groups 1, 2, and 3 concurrently.
+**Example:** AIOLiveTV fires off fetches for Groups 1, 2, and 3 concurrently.
 
 - Group 1 returns 3 streams → check Group 2's condition.
 - If you set Group 2 to run only when Group 1 found fewer than 5 streams, and Group 1 returned 3: the condition is `true` → Group 2 runs.

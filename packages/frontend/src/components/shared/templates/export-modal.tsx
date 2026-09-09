@@ -7,7 +7,7 @@ import { Template, UserData } from '@aiostreams/core';
 import { useStatus } from '@/context/status';
 import { TextInput } from '../../ui/text-input';
 import { Textarea } from '../../ui/textarea';
-import { PRODUCT_NAME } from '@/constants/branding';
+import { PRODUCT_GITHUB_URL, PRODUCT_NAME } from '@/constants/branding';
 
 export interface TemplateExportModalProps {
   open: boolean;
@@ -216,7 +216,7 @@ export function TemplateExportModal({
               <p>
                 See the{' '}
                 <a
-                  href="https://docs.aiostreams.viren070.me/guides/templates"
+                  href={`${PRODUCT_GITHUB_URL}/blob/main/packages/docs/content/docs/guides/templates.mdx`}
                   target="_blank"
                   className="text-[--brand] hover:text-[--brand]/80 hover:underline"
                   rel="noopener noreferrer"

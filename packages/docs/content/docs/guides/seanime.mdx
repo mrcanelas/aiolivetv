@@ -1,22 +1,22 @@
 ---
 title: Seanime Extensions
-description: A guide on using AIOStreams in Seanime.
+description: A guide on using AIOLiveTV in Seanime.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Steps, Step } from 'fumadocs-ui/components/steps';
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 
-AIOStreams comes with three extensions that integrate directly with Seanime.
+AIOLiveTV comes with three extensions that integrate directly with Seanime.
 This guide covers what each extension does and how to install it.
 
 ## Extensions
 
-### AIOStreams Plugin
+### AIOLiveTV Plugin
 
 The recommended extension for most users. It uses Seanime's plugin system to add a dedicated results panel that
-preserves all your AIOStreams sorting and formatting exactly as configured. You can open the panel from a variety of
-triggers; by default it adds an **AIOStreams** tab alongside the standard **Torrent Streaming** / **Online Streaming** /
+preserves all your AIOLiveTV sorting and formatting exactly as configured. You can open the panel from a variety of
+triggers; by default it adds an **AIOLiveTV** tab alongside the standard **Torrent Streaming** / **Online Streaming** /
 **Debrid Streaming** tabs.
 
 Supports any URL or P2P-based stream (debrid and usenet included). Stremio NNTP streams are not supported.
@@ -25,10 +25,10 @@ Supports any URL or P2P-based stream (debrid and usenet included). Stremio NNTP 
   Requires the Search API. [Instances](/getting-started/public-instances) that disable it (e.g. the **Public ElfHosted Instance**) cannot be used with this extension.
 </Callout>
 
-### AIOStreams Torrent Provider
+### AIOLiveTV Torrent Provider
 
-Adds AIOStreams as a torrent provider inside Seanime's **Torrent Streaming** / **Debrid Streaming** tab. Only the
-torrents surfaced by AIOStreams are used - any debrid configured in AIOStreams itself is ignored. Seanime's own debrid
+Adds AIOLiveTV as a torrent provider inside Seanime's **Torrent Streaming** / **Debrid Streaming** tab. Only the
+torrents surfaced by AIOLiveTV are used - any debrid configured in AIOLiveTV itself is ignored. Seanime's own debrid
 support handles debrid playback.
 
 <Callout type="warn">
@@ -36,13 +36,13 @@ support handles debrid playback.
 </Callout>
 <Callout type="info">
   This extension was developed before the Plugin system supported torrent streaming. Now that it does, the Torrent
-  Provider may be deprecated in a future release. The **AIOStreams Plugin** is preferred.
+  Provider may be deprecated in a future release. The **AIOLiveTV Plugin** is preferred.
 </Callout>
 
 ### Stremio Custom Source
 
 Exposes a Stremio addon catalogue as a Seanime custom source — useful for anime catalogues as well as standard
-movie/series ones. It does not provide streams on its own; pair it with the **AIOStreams Plugin**, which can serve
+movie/series ones. It does not provide streams on its own; pair it with the **AIOLiveTV Plugin**, which can serve
 streams for any custom source.
 
 ---
@@ -51,7 +51,7 @@ streams for any custom source.
 
 <Steps>
   <Step>
-    Configure AIOStreams as normal (e.g. using [the setup guide](/configuration/setup/)).
+    Configure AIOLiveTV as normal (e.g. using [the setup guide](/configuration/setup/)).
   </Step>
   <Step>
     On the **Save & Install** page, under the **Other Apps** section, click **Seanime**.
@@ -82,7 +82,7 @@ Then follow the steps for your extension:
   <Tab value="Torrent Provider">
     <Steps>
       <Step>
-        Copy the **Manifest URL** for the `AIOStreams Torrent Provider` shown on the Seanime pop-up.
+        Copy the **Manifest URL** for the `AIOLiveTV Torrent Provider` shown on the Seanime pop-up.
       </Step>
       <Step>
         In Seanime, go to **Extensions** → **Add Extensions**. Paste the URL next to **Install from URL** and click **Find**, then install.
@@ -98,7 +98,7 @@ Then follow the steps for your extension:
         Under **Stremio Custom Source**, click **Configure**.
       </Step>
       <Step>
-        Enter a Stremio addon manifest URL to import catalogues from. If your catalogues are already in AIOStreams, click
+        Enter a Stremio addon manifest URL to import catalogues from. If your catalogues are already in AIOLiveTV, click
         **Continue** without changing the pre-filled URL. Otherwise, replace it with another addon's manifest URL (e.g. your
         AIOMetadata URL) before continuing.
       </Step>

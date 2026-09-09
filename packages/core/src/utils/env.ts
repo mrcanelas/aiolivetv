@@ -199,7 +199,7 @@ export const Env = cleanEnv(process.env, {
   }),
   BASE_URL: url({
     desc: 'Base URL of the addon, including protocol, hostname, and optionally port',
-    example: 'https://aiostreams.example.com',
+    example: 'https://aiolivetv.example.com',
     devDefault: `http://localhost:${process.env.PORT || 3000}`,
   }),
   INTERNAL_URL: url({
@@ -262,7 +262,7 @@ export const Env = cleanEnv(process.env, {
   }),
   AIOSTREAMS_AUTH: proxyAuth({
     default: new Map<string, string>(),
-    desc: 'Authorisation credentials for this AIOStreams instance',
+    desc: 'Authorisation credentials for this AIOLiveTV instance',
   }),
   AIOSTREAMS_AUTH_ADMINS: commaSeparated({
     default: undefined,
@@ -278,6 +278,6 @@ export const Env = cleanEnv(process.env, {
   }),
   SYSTEM_LIFECYCLE_ENABLED: bool({
     default: false,
-    desc: 'Allow the dashboard System page to restart/stop the AIOStreams process.',
+    desc: 'Allow the dashboard System page to restart/stop the AIOLiveTV process.',
   }),
 });

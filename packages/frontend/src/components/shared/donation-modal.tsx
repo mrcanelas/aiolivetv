@@ -1,8 +1,11 @@
 import { Button } from '../ui/button';
-import { PRODUCT_NAME } from '@/constants/branding';
+import {
+  PRODUCT_GITHUB_URL,
+  PRODUCT_NAME,
+} from '@/constants/branding';
 import { Modal } from '../ui/modal';
 import { SiGithubsponsors } from 'react-icons/si';
-import { SiKofi } from 'react-icons/si';
+import { FiGithub } from 'react-icons/fi';
 
 export function DonationModal({
   open,
@@ -11,8 +14,7 @@ export function DonationModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const githubSponsorsUrl = 'https://github.com/sponsors/Viren070';
-  const kofiUrl = 'https://ko-fi.com/Viren070';
+  const githubSponsorsUrl = 'https://github.com/sponsors/mrcanelas';
   return (
     <Modal open={open} onOpenChange={onOpenChange} title={`Support ${PRODUCT_NAME}`}>
       <div className="flex flex-col gap-5 items-center text-center p-2">
@@ -36,11 +38,11 @@ export function DonationModal({
           </Button>
           <Button
             intent="alert-subtle"
-            onClick={() => window.open(kofiUrl, '_blank')}
-            leftIcon={<SiKofi />}
+            onClick={() => window.open(PRODUCT_GITHUB_URL, '_blank')}
+            leftIcon={<FiGithub />}
             className="w-full"
           >
-            Ko-fi
+            Star on GitHub
           </Button>
         </div>
       </div>

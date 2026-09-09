@@ -27,7 +27,7 @@ export class TopPoster extends BasePosterService {
           timeout: 10000,
           ignoreRecursion: true,
           headers: {
-            'User-Agent': `AIOStreams/${appConfig.bootstrap.version}`,
+            'User-Agent': `AIOLiveTV/${appConfig.bootstrap.version}`,
           },
         }
       );

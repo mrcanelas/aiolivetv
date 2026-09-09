@@ -1,12 +1,12 @@
 ---
 title: Configure Options
-description: A complete reference for every option on the AIOStreams configuration page.
+description: A complete reference for every option on the AIOLiveTV configuration page.
 ---
 
 ### Description
 
 <Callout type="info">
-  This is the guide for v2 of AIOStreams, looking for the guide for v1? You can
+  This is the guide for v2 of AIOLiveTV, looking for the guide for v1? You can
   find it [here](/docs/migrations/v1-to-v2).
 </Callout>
 
@@ -22,7 +22,7 @@ I will attempt to explain every single option available.
 </Callout>
 
 To get started, you'll want to head to the configuration page by clicking the "Configure" button above. Then, you'll
-need to click the big white `Configure` button on AIOStreams' configuration page.
+need to click the big white `Configure` button on AIOLiveTV's configuration page.
 
 <h4>Services</h4>
 
@@ -39,12 +39,12 @@ posters from RPDB.
 <h4>Addons</h4>
 
 Here you can manage your installed addons, add new ones, and configure them. You can also manage your catalogues here, as well as using
-the [Group](https://github.com/Viren070/AIOStreams/wiki/Groups) feature to group addons together. I will not be covering the Groups feature here, as it is not
-required and is a feature meant for advanced users. You may join the [AIOStreams Discord](https://discord.viren070.me) to view the community's configurations.
+the [Group](/guides/groups) feature to group addons together. I will not be covering the Groups feature here, as it is not
+required and is a feature meant for advanced users. You may join the [GitHub Issues](https://github.com/mrcanelas/aiolivetv/issues) to view the community's configurations.
 
 To install addons, head to the `Marketplace` tab. You can choose from a variety of addons, and filter by supported services and the type of content or streams they provide.
 You may also use the `Custom Addon` feature to add any addon you want as long as you have the manifest URL. The addons provided in the Marketplace
-are all provided for convenience's sake to ensure you can easily add addons without having to leave AIOStreams.
+are all provided for convenience's sake to ensure you can easily add addons without having to leave AIOLiveTV.
 
 Upon clicking `Configure` on an addon, you will be presented with a list of options. In most cases, you don't have to change anything, and click `Install` on the popup
 that appears. However, some addons may require you to enter credentials or API keys, and some may have additional options that you can configure.
@@ -52,10 +52,10 @@ that appears. However, some addons may require you to enter credentials or API k
 As most options are generally explained well in the popup, I'm not going to cover them here. However, I will cover some of the more important ones that tend to appear
 on every addon.
 
-- `Name` - This lets you change the name of the addon as it appears in AIOStreams. This name is only used for stream results, it does not affect any catalog names.
-- `Timeout` - This lets you change the time that AIOStreams waits for the addon to respond before it aborts the request to it. Used for all requests to the addon, including catalogues, streams, subtitles etc.
-- `Resources` - This option allows you to override the resources that AIOStreams would use from the addon. This is useful if you want to disable catalogues from the addon, but keep its streams. So you would only select `stream` here. In most cases, its recommended to leave this blank, or at the defaults - as it is automatically determined by AIOStreams later.
-- `URL` - In most cases, you will be able to override the URL of the addon here. Usually this is generated automatically by AIOStreams - A benefit of this is you never having to worry about other addon updates, as AIOStreams will always use the latest version of the addon. However, if you want to use a custom URL, you can do so here. This is useful for using a specific configuration of the addon. Note: you will need to configure any debrid services separately, debrid services configured in AIOStreams do not apply to overriden URLs.
+- `Name` - This lets you change the name of the addon as it appears in AIOLiveTV. This name is only used for stream results, it does not affect any catalog names.
+- `Timeout` - This lets you change the time that AIOLiveTV waits for the addon to respond before it aborts the request to it. Used for all requests to the addon, including catalogues, streams, subtitles etc.
+- `Resources` - This option allows you to override the resources that AIOLiveTV would use from the addon. This is useful if you want to disable catalogues from the addon, but keep its streams. So you would only select `stream` here. In most cases, its recommended to leave this blank, or at the defaults - as it is automatically determined by AIOLiveTV later.
+- `URL` - In most cases, you will be able to override the URL of the addon here. Usually this is generated automatically by AIOLiveTV - A benefit of this is you never having to worry about other addon updates, as AIOLiveTV will always use the latest version of the addon. However, if you want to use a custom URL, you can do so here. This is useful for using a specific configuration of the addon. Note: you will need to configure any debrid services separately, debrid services configured in AIOLiveTV do not apply to overriden URLs.
 
 Once you've installed your addons, you can head back to the `Installed` tab to view them. You'll be able to click
 the edit icon to edit the configuration, the delete icon to remove the addon from your installed addons, and optionally toggle the addon on or off
@@ -76,11 +76,11 @@ There are a few options available here to you to help you manage your catalogues
 - Below that, there is a settings section that you can expand which allows you to apply certain modifications to the catalogue. Each modification also has a icon button to provide quick access to toggling it.
 
 Below the catalogue section, you will notice the Groups section. Like I mentioned earlier, this is an advanced feature that allows you to group addons together and I will not be covering it here.
-The [Wiki](https://github.com/Viren070/AIOStreams/wiki/Groups) has more information on how to use this feature.
+The [Wiki](/guides/groups) has more information on how to use this feature.
 
 <h3>Filters</h3>
 
-One of AIOStreams' most recongisable feature is its advanced filtering system. This menu may look a bit overwhelming, but it is neatly organised into sections
+One of AIOLiveTV's most recongisable feature is its advanced filtering system. This menu may look a bit overwhelming, but it is neatly organised into sections
 to try and make it easier to understand.
 
 <h4>Cache</h4>
@@ -187,12 +187,12 @@ You can also optionally set a specific size limit for movies and series per reso
 Only one set of size limits will be applied at a time, meaning a resolution specific size limit will take precedence over the global size limits.
 
 <h4>Result Limits</h4>
-This section allows you to limit the number of results returned by AIOStreams.
+This section allows you to limit the number of results returned by AIOLiveTV.
 You can set a maximum number of results to return, and optionally also limit the
 number of results per: service, addon, resolution, quality, indexer, and release
 group.
 
-What this means is that AIOStreams will cut off streams after a specific group limit is reached. This means that it would keep streams
+What this means is that AIOLiveTV will cut off streams after a specific group limit is reached. This means that it would keep streams
 higher up in the list (which depends on your sorting options) and remove streams lower down in the list.
 
 <h4>Deduplicator</h4>
@@ -233,10 +233,10 @@ The sorting system uses a hierarchical approach to determine how content is sort
 
 Here, you can customise the way your streams are displayed in Stremio.
 
-You can either choose from a list of pre-defined formats, or create your own custom format using AIOStreams` [Formatter Syntax](https://github.com/Viren070/AIOStreams/wiki/Custom-Formatter)
+You can either choose from a list of pre-defined formats, or create your own custom format using AIOLiveTV's [Formatter Syntax](/reference/custom-formatter)
 
 <Callout type="info">
-  Join AIOStreams' [Discord](https://discord.viren070.me) to see the formats
+  Join AIOLiveTV's [GitHub Issues](https://github.com/mrcanelas/aiolivetv/issues) to see the formats
   created by the community, or to share your own formats!
 </Callout>
 
@@ -244,7 +244,7 @@ There is a preview section that allows you to see how your streams will look lik
 
 <h4>Proxy</h4>
 
-You can use this section to optionally configure a stream proxy for AIOStreams.
+You can use this section to optionally configure a stream proxy for AIOLiveTV.
 You can choose from either [MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) or [StremThru](https://github.com/MunifTanjim/stremthru).
 
 The rest of the options are already explained well in the UI, so I will not be covering them here.
@@ -255,7 +255,7 @@ The options on this menu are already explained well in the UI, so I will not be 
 
 <h4>Save & Install</h4>
 
-Here, you will be able to create a new user on your AIOStreams instance, or update the existing user with the current configuration.
+Here, you will be able to create a new user on your AIOLiveTV instance, or update the existing user with the current configuration.
 
 When creating a new user, you will need to set a reasonably strong password. You will also be given a unique UUID that you may need to access your configuration, should you lose your installation URL.
 
@@ -273,7 +273,7 @@ Below the installation button, you will find a backup section that allows you to
 You can use this to backup your configuration, or to share it with others. You can also use this to import configurations from other users.
 
 You can expand the `Export Settings` to toggle the `Exclude Credentials` option, which will exclude any credentials you have entered in the configuration from the exported file.
-Note that while this option filters out all sensitive information entered in AIOStreams, it will not filter out any URLs from custom addons or URLs that you have overriden.
+Note that while this option filters out all sensitive information entered in AIOLiveTV, it will not filter out any URLs from custom addons or URLs that you have overriden.
 These URLs can possible contain sensitive information, so make sure to double check the exported file before sharing it with others.
 
 <h3>FAQ</h3>
@@ -284,7 +284,7 @@ When you create a user, you are given a unique installation URL ending in `/mani
 Most apps will display a `Configure` button next to the addon, which will take you to the configuration page.
 If this does not exist, you can manually navigate to the URL by replacing `/manifest.json` with `/configure`.
 
-You may also manually go to the configuration page by navigating to `https://your-instance-url/stremio/configure` where `your-instance-url` is the URL of your AIOStreams instance,
+You may also manually go to the configuration page by navigating to `https://your-instance-url/stremio/configure` where `your-instance-url` is the URL of your AIOLiveTV instance,
 and then click the login icon on the bottom left corner, where you will be asked for your UUID and password.
 
 <h4>How do I update my configuration?</h4>
@@ -295,4 +295,4 @@ You don't have to reinstall the addon in Stremio, as the manifest URL will remai
 
 <h3>Need Help?</h3>
 
-If you need help in configuring this addon, feel free to ask in the [AIOStreams Discord](https://discord.viren070.me) in the `#support` channel,
+If you need help in configuring this addon, feel free to ask in the [GitHub Issues](https://github.com/mrcanelas/aiolivetv/issues).

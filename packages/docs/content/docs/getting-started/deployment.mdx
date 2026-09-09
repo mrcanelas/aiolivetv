@@ -1,6 +1,6 @@
 ---
 title: Deployment
-description: How to deploy AIOStreams using Docker, ElfHosted, or from source.
+description: How to deploy AIOLiveTV using Docker, Vercel, or from source.
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
@@ -9,7 +9,7 @@ import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 
 ## Docker
 
-[Docker](https://docs.docker.com/get-docker/) is the recommended way to run AIOStreams. Official images are published to both [ghcr.io](https://github.com/Viren070/AIOStreams/pkgs/container/aiostreams) and [Docker Hub](https://hub.docker.com/r/viren070/aiostreams).
+[Docker](https://docs.docker.com/get-docker/) is the recommended way to run AIOLiveTV locally or on a VPS. Build from this repository or use the compose file in the repo root.
 
 Use the `latest` tag for the latest stable release, or `nightly` for the latest commit build.
 
@@ -30,8 +30,8 @@ You can use a [free Oracle VPS](https://guides.viren070.me/selfhosting/oracle) o
     Download the compose file and sample env:
 
     ```bash
-    curl -O https://raw.githubusercontent.com/Viren070/AIOStreams/main/compose.yaml
-    curl -o .env https://raw.githubusercontent.com/Viren070/AIOStreams/main/.env.sample
+    curl -O https://raw.githubusercontent.com/mrcanelas/aiolivetv/main/compose.yaml
+    curl -o .env https://raw.githubusercontent.com/mrcanelas/aiolivetv/main/.env.sample
     ```
 
   </Step>
@@ -65,13 +65,13 @@ Stremio requires HTTPS for addons hosted outside of `localhost`. Traefik is a co
   [Afraid.org](https://freedns.afraid.org/).
 </Callout>
 
-Merge the following into your `compose.yaml`, replacing `aiostreams.example.com` and `youremail@example.com`:
+Merge the following into your `compose.yaml`, replacing `aiolivetv.example.com` and `youremail@example.com`:
 
 ```yaml
 services:
-  aiostreams:
-    image: ghcr.io/viren070/aiostreams:latest
-    container_name: aiostreams
+  aiolivetv:
+    image: ghcr.io/mrcanelas/aiolivetv:latest
+    container_name: aiolivetv
     restart: unless-stopped
     ports:
       - 3000:3000
@@ -79,9 +79,9 @@ services:
       - .env
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.aiostreams.rule=Host(`aiostreams.example.com`)'
-      - 'traefik.http.routers.aiostreams.entrypoints=websecure'
-      - 'traefik.http.routers.aiostreams.tls.certresolver=letsencrypt'
+      - 'traefik.http.routers.aiolivetv.rule=Host(`aiolivetv.example.com`)'
+      - 'traefik.http.routers.aiolivetv.entrypoints=websecure'
+      - 'traefik.http.routers.aiolivetv.tls.certresolver=letsencrypt'
     volumes:
       - ./data:/app/data
 
@@ -121,53 +121,24 @@ For a full compose template that includes popular self-hosted addons (Jackett, P
 ### Docker CLI
 
 ```bash
-# GitHub Container Registry
 docker run -p 8080:3000 \
   -e BASE_URL=http://localhost:8080 \
   -e SECRET_KEY=Your64CharacterHexKeyGoesHere \
-  -v aiostreams-data:/app/data \
-  ghcr.io/viren070/aiostreams:latest
-
-# Docker Hub
-docker run -p 8080:3000 \
-  -e BASE_URL=http://localhost:8080 \
-  -e SECRET_KEY=Your64CharacterHexKeyGoesHere \
-  -v aiostreams-data:/app/data \
-  viren070/aiostreams:latest
-```
-
-Pass additional environment variables with `-e`:
-
-```bash
-docker run -p 8080:3000 \
-  -e BASE_URL=http://localhost:8080 \
-  -e SECRET_KEY=... \
-  -e LOG_LEVEL=debug \
-  viren070/aiostreams:latest
+  -v aiolivetv-data:/app/data \
+  ghcr.io/mrcanelas/aiolivetv:latest
 ```
 
 To build from source instead of using a prebuilt image:
 
 ```bash
-git clone https://github.com/Viren070/AIOStreams.git
-cd AIOStreams
-docker build -t aiostreams .
+git clone https://github.com/mrcanelas/aiolivetv.git
+cd aiolivetv
+docker build -t aiolivetv .
 docker run -p 8080:3000 \
   -e BASE_URL=http://localhost:8080 \
   -e SECRET_KEY=Your64CharacterHexKeyGoesHere \
-  aiostreams
+  aiolivetv
 ```
-
----
-
-## ElfHosted (paid, managed)
-
-<Callout type="info">
-  Using the link below supports the project — 33% of your AIOStreams
-  subscription goes to the author.
-</Callout>
-
-AIOStreams is available as a [paid product on ElfHosted](https://store.elfhosted.com/product/aiostreams/elf/viren070/). Private instances have Torrentio enabled, avoid rate-limits, and require no self-hosting knowledge.
 
 ---
 
@@ -182,7 +153,7 @@ Jobs, and the first-deploy checklist.
 
 ## Other free platforms
 
-These platforms offer free tiers that can run AIOStreams, but they are **not permanent solutions** — they can be revoked or stop working at any time:
+These platforms offer free tiers that can run AIOLiveTV, but they are **not permanent solutions** — they can be revoked or stop working at any time:
 
 | Platform                               | Notes                                                  |
 | -------------------------------------- | ------------------------------------------------------ |
@@ -195,7 +166,7 @@ These platforms offer free tiers that can run AIOStreams, but they are **not per
 ## From source
 
 <Callout type="warn">
-  Node.js v22 and pnpm v10.15 were used during development. Earlier versions may
+  Node.js v24 and pnpm v11 were used during development. Earlier versions may
   not work.
 </Callout>
 
@@ -204,8 +175,8 @@ These platforms offer free tiers that can run AIOStreams, but they are **not per
     Clone the repository:
 
     ```bash
-    git clone https://github.com/Viren070/AIOStreams.git
-    cd AIOStreams
+    git clone https://github.com/mrcanelas/aiolivetv.git
+    cd aiolivetv
     ```
 
   </Step>

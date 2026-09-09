@@ -86,7 +86,7 @@ export class StreamNZBPreset extends Preset {
       LOGO: 'https://cdn.discordapp.com/icons/1470288400157380710/6f397b4a2e9561dc7ad43526588cfd67.png',
       URL: [],
       TIMEOUT: appConfig.presets.defaultTimeout,
-      USER_AGENT: 'AIOStreams',
+      USER_AGENT: 'AIOLiveTV',
       SUPPORTED_SERVICES: [],
       DESCRIPTION: 'Stream via nntp without any additional services.',
       OPTIONS: options,
@@ -150,7 +150,7 @@ export class StreamNZBPreset extends Preset {
       body: JSON.stringify(body),
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'AIOStreams',
+        'User-Agent': 'AIOLiveTV',
       },
     }).catch((err) => {
       logger.debug(
@@ -178,7 +178,7 @@ export class StreamNZBPreset extends Preset {
         options: options as Record<string, unknown>,
       },
       headers: {
-        'User-Agent': 'AIOStreams',
+        'User-Agent': 'AIOLiveTV',
       },
     };
   }

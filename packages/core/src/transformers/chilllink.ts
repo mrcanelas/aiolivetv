@@ -124,7 +124,7 @@ export class ChillLinkTransformer {
     const {
       errorTitle = `[❌] ${appConfig.branding.addonName}`,
       errorDescription = 'Unknown error',
-      errorUrl = 'https://github.com/Viren070/AIOStreams',
+      errorUrl = 'https://github.com/mrcanelas/aiolivetv',
     } = options;
     return {
       id: `${appConfig.branding.addonId}.error.${Math.random().toString(36).slice(2, 10)}`,

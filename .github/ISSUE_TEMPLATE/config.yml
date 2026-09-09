@@ -1,8 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: '❓ GitHub Discussions Q&A'
-    url: 'https://github.com/Viren070/AIOStreams/discussions/categories/help'
-    about: 'Ask and answer questions here.'
-  - name: '💬 Join our Discord Community'
-    url: 'https://discord.viren070.me'
-    about: 'For live discussions and community support, join our Discord server.'
+  - name: '❓ GitHub Issues'
+    url: 'https://github.com/mrcanelas/aiolivetv/issues'
+    about: 'Ask questions and report problems here.'

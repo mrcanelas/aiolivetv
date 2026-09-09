@@ -204,7 +204,7 @@ export class StremioTransformer {
     }) => ({
       name: statistic.title,
       description: statistic.description,
-      externalUrl: 'https://github.com/Viren070/AIOStreams',
+      externalUrl: constants.PROJECT_GITHUB_URL,
       streamData: {
         type: constants.STATISTIC_STREAM_TYPE,
       },
@@ -376,7 +376,7 @@ export class StremioTransformer {
     const {
       errorTitle = `[❌] ${appConfig.branding.addonName}`,
       errorDescription = 'Unknown error',
-      errorUrl = 'https://github.com/Viren070/AIOStreams',
+      errorUrl = constants.PROJECT_GITHUB_URL,
     } = options;
     return {
       name: errorTitle,
@@ -397,7 +397,7 @@ export class StremioTransformer {
     const {
       errorTitle = 'Unknown error',
       errorDescription = 'Unknown error',
-      errorUrl = 'https://github.com/Viren070/AIOStreams',
+      errorUrl = constants.PROJECT_GITHUB_URL,
     } = options;
     return {
       id: `error.${errorTitle}`,
@@ -426,7 +426,7 @@ export class StremioTransformer {
     } = options;
     return {
       transportName: 'http',
-      transportUrl: 'https://github.com/Viren070/AIOStreams',
+      transportUrl: constants.PROJECT_GITHUB_URL,
       manifest: {
         name: errorTitle,
         description: errorDescription,

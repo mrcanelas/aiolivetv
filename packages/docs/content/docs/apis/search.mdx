@@ -5,7 +5,7 @@ description: Search for streams for a movie or series across all configured sour
 
 `GET /api/v1/search`
 
-Search for streams across all enabled and configured sources in your AIOStreams instance. Results are processed through the same filtering and sorting pipeline as normal Stremio stream requests.
+Search for streams across all enabled and configured sources in your AIOLiveTV instance. Results are processed through the same filtering and sorting pipeline as normal Stremio stream requests.
 
 ---
 
@@ -163,5 +163,5 @@ When `format` is truthy, each item in `data.results` is augmented with Stremio-c
 
 ## Schemas
 
-- [UserData schema](https://github.com/Viren070/AIOStreams/blob/main/packages/core/src/db/schemas.ts) — the JSON object encoded in `x-aiostreams-user-data`
-- [SearchResult schema](https://github.com/Viren070/AIOStreams/blob/main/packages/core/src/transformers/api.ts) — the shape of each result in `data.results`
+- [UserData schema](https://github.com/mrcanelas/aiolivetv/blob/main/packages/core/src/db/schemas.ts) — the JSON object encoded in `x-aiostreams-user-data`
+- [SearchResult schema](https://github.com/mrcanelas/aiolivetv/blob/main/packages/core/src/transformers/api.ts) — the shape of each result in `data.results`

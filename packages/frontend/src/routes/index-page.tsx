@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { useNavigate } from '@tanstack/react-router';
 import {
+  PRODUCT_GITHUB_URL,
   PRODUCT_LOGO_PATH,
   PRODUCT_NAME,
   PRODUCT_TAGLINE,
@@ -39,7 +40,10 @@ export function IndexPage() {
         <Button
           intent="gray-outline"
           onClick={() =>
-            window.open('https://docs.aiostreams.viren070.me', '_blank')
+            window.open(
+              `${PRODUCT_GITHUB_URL}/blob/main/packages/docs/content/docs/getting-started/index.mdx`,
+              '_blank'
+            )
           }
         >
           Documentation

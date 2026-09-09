@@ -10,7 +10,7 @@ export const logStartupInfo = () => {
     '╔═══════════════════════════════════════════════════════════════╗'
   );
   logger.info(
-    '║                    🚀 AIOStreams Starting                     ║'
+    '║                    🚀 AIOLiveTV Starting                      ║'
   );
   logger.info(
     '╚═══════════════════════════════════════════════════════════════╝'

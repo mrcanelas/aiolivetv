@@ -45,7 +45,9 @@ router.get(
     const provideSetting = appConfig.api.provideStreamData;
     const provideStreamData =
       provideSetting === null
-        ? (req.headers['user-agent']?.includes('AIOStreams/') ?? false)
+        ? (req.headers['user-agent']?.includes('AIOLiveTV/') ||
+            req.headers['user-agent']?.includes('AIOStreams/') ||
+            false)
         : typeof provideSetting === 'boolean'
           ? provideSetting
           : provideSetting.includes(req.requestIp || '');

@@ -137,7 +137,7 @@ router.get(
         return;
       }
 
-      // Parse optional AIOStreams auth for bypass
+      // Parse optional AIOLiveTV auth for bypass
       let aiostreamsAuth: { username: string; password: string } | undefined;
       if (encodedAiostreamsAuth) {
         try {
@@ -149,7 +149,7 @@ router.get(
         } catch (e) {
           // continue without auth
           logger.debug(
-            'Invalid AIOStreams auth in URL, continuing without bypass'
+            'Invalid AIOLiveTV auth in URL, continuing without bypass'
           );
         }
       }

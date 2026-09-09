@@ -100,7 +100,7 @@ export class EasynewsSearchPreset extends BuiltinAddonPreset {
       },
       {
         id: 'aiostreamsAuth',
-        name: 'AIOStreams Auth',
+        name: 'AIOLiveTV Auth',
         description:
           appConfig.nzbProxy.easynewsEnabled === false
             ? 'You must provide a valid `username:password` from `AIOSTREAMS_AUTH` to use Easynews Search with all services except Easynews.'
@@ -168,7 +168,7 @@ export class EasynewsSearchPreset extends BuiltinAddonPreset {
         appConfig.nzbProxy.easynewsEnabled === false
       ) {
         throw new Error(
-          `${this.METADATA.NAME} requires the AIOStreams Auth option on this instance in order to use it with the following services: ${usableServices
+          `${this.METADATA.NAME} requires the AIOLiveTV Auth option on this instance in order to use it with the following services: ${usableServices
             .filter((s) => s.id !== constants.EASYNEWS_SERVICE)
             .map((s) => constants.SERVICE_DETAILS[s.id].name)
             .join(

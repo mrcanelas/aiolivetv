@@ -10,9 +10,7 @@ body:
       label: Deployment Method
       description: How are you hosting the addon?
       options:
-        - Public ElfHosted Instance
-        - Private ElfHosted Instance
-        - Cloudflare Workers
+        - Vercel
         - VPS
         - Other, specify at description
     validations:
@@ -101,7 +99,7 @@ body:
             I have filled out all of the requested information adequately. 
           required: true
         - label: >- 
-            I am using the [latest version](https://github.com/Viren070/AIOStreams/releases/latest). 
+            I am using the [latest version](https://github.com/mrcanelas/aiolivetv). 
           required: true
             
 

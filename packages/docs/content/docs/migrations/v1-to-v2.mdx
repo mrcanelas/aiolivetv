@@ -7,7 +7,7 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 
-AIOStreams v2 is a complete rewrite with a new database system for managing configurations. This guide walks through the changes required to migrate an existing v1 installation.
+AIOLiveTV is based on AIOStreams v2. Use this guide if you are migrating an **AIOStreams v1** installation.
 
 <Callout type="warn">
   v1 configurations are **not directly importable** into v2. Before proceeding,
@@ -48,9 +48,9 @@ Mount `/app/data` inside the container to a persistent location on the host:
   <Tab value="v2 (after)">
     ```yaml
     services:
-      aiostreams:
-        image: ghcr.io/viren070/aiostreams:latest
-        container_name: aiostreams
+      aiolivetv:
+        image: ghcr.io/mrcanelas/aiolivetv:latest
+        container_name: aiolivetv
         restart: unless-stopped
         ports:
           - '3000:3000'
@@ -138,4 +138,4 @@ If you used a custom stream formatter in v1, update the variable names:
 
 ---
 
-If you run into issues not covered here, join the [AIOStreams Discord](https://discord.viren070.me) for help.
+If you run into issues not covered here, join the [GitHub Issues](https://github.com/mrcanelas/aiolivetv/issues) for help.

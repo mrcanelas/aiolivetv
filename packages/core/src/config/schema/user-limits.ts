@@ -12,7 +12,7 @@ import type { RuntimeConfigSection } from '../types.js';
  * - `sel`: SEL sync access + whitelisted URLs + stream-expression limits.
  * - `sync`: shared refresh interval for whitelisted regex/SEL syncs.
  * - `disabled`: hard-disabled addons/services/hosts/stream-types.
- * - `selfScraping`: prevents addons from scraping the same AIOStreams instance.
+ * - `selfScraping`: prevents addons from scraping the same AIOLiveTV instance.
  * - `trusted`: list of trusted user UUIDs.
  */
 const accessLevel = z.enum(['none', 'trusted', 'all']);
@@ -300,7 +300,7 @@ export const userLimitsSchema = {
       default: true,
       label: 'Disable self-scraping',
       description:
-        'When true, addons cannot scrape the same AIOStreams instance.',
+        'When true, addons cannot scrape the same AIOLiveTV instance.',
       env: 'DISABLE_SELF_SCRAPING',
       requiresRestart: false,
       secret: false,

@@ -1,48 +1,44 @@
 ---
 title: Introduction
-description: An overview of AIOStreams and how to get started.
+description: An overview of AIOLiveTV and how to get started.
 ---
 
-AIOStreams is a Stremio addon that aggregates streams from all of your other addons, then applies your filters, sorting, and formatting before passing results back to Stremio.
+AIOLiveTV is a Stremio addon that aggregates live TV metadata and streams from XMLTV, M3U, Xtream and other channel sources, then matches equivalent channels before returning catalog, meta and stream resources.
 
 ## How would you like to get started?
 
 <Cards>
   <Card
-    title="Use a Public Instance"
-    href="/configuration/setup"
-    description="The quickest path. No server required — pick a community-hosted instance and import a ready-made template."
-  />
-  <Card
-    title="Self-Host"
-    href="/getting-started/deployment"
-    description="Run AIOStreams on your own server, NAS, or VPS for full control over your setup."
-  />
-  <Card
     title="Deploy on Vercel"
     href="/getting-started/vercel"
     description="Run AIOLiveTV as a Container Function with PostgreSQL and Redis."
   />
+  <Card
+    title="Self-Host"
+    href="/getting-started/deployment"
+    description="Run AIOLiveTV on your own server, NAS, or VPS for full control over your setup."
+  />
+  <Card
+    title="Configure"
+    href="/configuration/setup"
+    description="Add XMLTV, M3U and live addons, then review channel mappings."
+  />
 </Cards>
 
-## What is AIOStreams?
+## What is AIOLiveTV?
 
-At its core, AIOStreams is a **wrapper** — it fetches streams from the addons you configure and returns a single, unified list with:
+AIOLiveTV is a **Live TV aggregator** for Stremio. It can:
 
-- **Deduplication** across all addons and debrid services
-- **Consistent sorting** by quality, resolution, cache status, and more
-- **Powerful filters** — resolution, size, visual tags, regex, stream expressions, and more
-- **Custom formatting** so results look exactly how you want in Stremio
-- **Built-in addons** exclusive to AIOStreams (Usenet indexers, SeaDex, AnimeTosho, TorrentGalaxy, and more)
+- Build canonical channels from EPG when XMLTV is present
+- Infer and merge channels from stream sources when there is no EPG
+- Resolve multiple streams per channel
+- Declare Native EPG (`behaviorHints.epgProvider`) only when real EPG data exists
+
+The configuration UI reuses the existing pages **Addons**, **Streams**, **Metadata & Catalogs** and **Miscellaneous**, plus the **Channels** page.
 
 ## Other Resources
 
 <Cards>
-  <Card
-    title="Public Instances"
-    href="/getting-started/public-instances"
-    description="Compare community-hosted instances and find one that suits your needs."
-  />
   <Card
     title="Configure Options"
     href="/configuration/options"
@@ -51,7 +47,7 @@ At its core, AIOStreams is a **wrapper** — it fetches streams from the addons 
   <Card
     title="FAQ"
     href="/faq"
-    description="Answers to the most common questions about AIOStreams."
+    description="Answers to the most common questions about AIOLiveTV."
   />
   <Card
     title="Troubleshooting"

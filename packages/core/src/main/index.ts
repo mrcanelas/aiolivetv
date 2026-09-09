@@ -75,7 +75,7 @@ export class AIOStreams {
   private checkInitialised() {
     if (!this.ctx.isInitialised) {
       throw new Error(
-        'AIOStreams is not initialised. Call initialise() first.'
+        'AIOLiveTV is not initialised. Call initialise() first.'
       );
     }
   }

@@ -1829,7 +1829,7 @@ function Content() {
             <div className="space-y-2">
               <div>
                 <p className="text-sm font-medium text-white">
-                  AIOStreams Plugin{' '}
+                  Seanime Plugin{' '}
                   <span className="text-xs text-gray-500 font-normal">
                     — recommended for most
                   </span>
@@ -1870,7 +1870,7 @@ function Content() {
             <div className="space-y-2">
               <div>
                 <p className="text-sm font-medium text-white">
-                  AIOStreams Torrent Provider
+                  Seanime Torrent Provider
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   For native torrent integration. Only use this if you want a

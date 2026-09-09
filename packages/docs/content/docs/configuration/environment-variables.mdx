@@ -1,11 +1,11 @@
 ---
 title: Environment Variables
-description: Complete reference for AIOStreams environment variables and runtime settings.
+description: Complete reference for AIOLiveTV environment variables and runtime settings.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-AIOStreams has two kinds of configuration:
+AIOLiveTV has two kinds of configuration:
 
 - **Bootstrap variables** — read from the environment **only**, before the
   database is available. They configure the things needed to start the process
@@ -21,7 +21,7 @@ AIOStreams has two kinds of configuration:
 <Callout type="info">
   Recommended approach: set only the **bootstrap** variables in your `.env`,
   then configure everything else from the dashboard. The
-  [`.env.sample`](https://github.com/Viren070/AIOStreams/blob/main/.env.sample)
+  [`.env.sample`](https://github.com/mrcanelas/aiolivetv/blob/main/.env.sample)
   intentionally only contains bootstrap variables for this reason. Use
   environment overrides for runtime settings only when you need to lock a value
 </Callout>
@@ -36,7 +36,7 @@ These are validated at startup and cannot be set from the dashboard.
 
 | Variable                    | Default                     | Description                                                                                                                                                                                                                                    |
 | --------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BASE_URL`                  | —                           | **Required.** Public URL of your instance, including protocol (e.g. `https://aiostreams.example.com`).                                                                                                                                         |
+| `BASE_URL`                  | —                           | **Required.** Public URL of your instance, including protocol (e.g. `https://aiolivetv.example.com`).                                                                                                                                         |
 | `SECRET_KEY`                | —                           | **Required.** 64-character hex string used to encrypt stored configurations. Generate with `openssl rand -hex 32`. Cannot be changed after first run. The legacy alias `SESSION_SECRET` is still accepted for one minor release.               |
 | `PORT`                      | `3000` (`80` on Vercel)     | Port the server listens on. Do not set this manually on Vercel; the platform provides it.                                                                                                                                                      |
 | `DATABASE_URI`              | `sqlite://./data/db.sqlite` | Database connection URI. Supports SQLite and PostgreSQL (`postgres://user:pass@host:port/db`). **PostgreSQL is required on Vercel**; SQLite is rejected when `VERCEL=1`. Prefer a pooled connection string. |
@@ -49,7 +49,7 @@ These are validated at startup and cannot be set from the dashboard.
 
 <Callout type="warn">
   `SECRET_KEY` is required and must be a 64-character hexadecimal string.
-  AIOStreams will refuse to start without it, and changing it after first run
+  AIOLiveTV will refuse to start without it, and changing it after first run
   makes existing encrypted configurations undecryptable.
 </Callout>
 
@@ -78,7 +78,7 @@ These configure the logger
 | Variable                   | Default      | Description                                                             |
 | -------------------------- | ------------ | ----------------------------------------------------------------------- |
 | `NODE_ENV`                 | `production` | `production`, `development`, or `test`.                                 |
-| `SYSTEM_LIFECYCLE_ENABLED` | `false`      | Allow the dashboard System page to restart/stop the AIOStreams process. |
+| `SYSTEM_LIFECYCLE_ENABLED` | `false`      | Allow the dashboard System page to restart/stop the AIOLiveTV process. |
 
 ---
 
@@ -106,7 +106,7 @@ neither the environment variable nor a stored value is present.
 | `SESSION_TTL_SECONDS` | Session TTL Seconds | duration | `86400` | Lifetime of a login session before the user must log in again. Defaults to 24 hours (1d). |
 | `ALIASED_CONFIGURATIONS` | Aliased Configurations | map | *(unset)* | Map of aliases to &#123;uuid, password&#125; accessible at /stremio/u/&lt;alias&gt;/manifest.json. Env-supplied form: comma-separated `alias:uuid:password` entries. _(secret)_ |
 | `ENABLE_SEARCH_API` | Enable Search API | boolean | `true` | When true, the /api/search endpoint is mounted and reachable. _(restart required)_ |
-| `PROVIDE_STREAM_DATA` | Provide Stream Data | boolOrList | — | Whether stream metadata is included in Stremio stream responses. `null` (default) auto-detects from User-Agent (AIOStreams/* always gets it). `true`/`false` overrides for everyone. An IP list enables it only for matching request IPs. |
+| `PROVIDE_STREAM_DATA` | Provide Stream Data | boolOrList | — | Whether stream metadata is included in Stremio stream responses. `null` (default) auto-detects from User-Agent (AIOLiveTV/* or AIOStreams/* always gets it). `true`/`false` overrides for everyone. An IP list enables it only for matching request IPs. |
 | `EXPOSE_USER_COUNT` | Expose User Count | boolean | `false` | Include the total user count on the public status endpoint. |
 | `STREMIO_ADDONS_CONFIG_ISSUER` | Stremio Addons Config Issuer | string | `https://stremio-addons.net` | Issuer URL declared in the manifest for the Stremio Addons Config integration. |
 | `STREMIO_ADDONS_CONFIG_SIGNATURE` | Stremio Addons Config Signature | string | *(unset)* | Signed JWT for the Stremio Addons Config integration. Both issuer and signature must be set for the manifest field to be emitted. _(secret)_ |
@@ -116,8 +116,8 @@ neither the environment variable nor a stored value is present.
 
 | Environment Variable | UI Setting | Type | Default | Description |
 | --- | --- | --- | --- | --- |
-| `ADDON_NAME` | Addon Name | string | `AIOStreams` | Display name shown in the manifest and UI. |
-| `ADDON_ID` | Addon ID | string | `com.aiostreams.viren070` | Reverse-DNS identifier published in the manifest. _(restart required)_ |
+| `ADDON_NAME` | Addon Name | string | `AIOLiveTV` | Display name shown in the manifest and UI. |
+| `ADDON_ID` | Addon ID | string | `com.aiolivetv` | Reverse-DNS identifier published in the manifest. _(restart required)_ |
 | `CUSTOM_HTML` | Custom Html | string | — | Optional HTML injected into the configuration page. |
 | `ALTERNATE_DESIGN` | Alternate Design | boolean | `false` | Switches the frontend to the alternate design (different logo and theme). |
 
@@ -176,8 +176,8 @@ neither the environment variable nor a stored value is present.
 
 | Environment Variable | UI Setting | Type | Default | Description |
 | --- | --- | --- | --- | --- |
-| `DEFAULT_USER_AGENT` | Default User Agent | string | `AIOStreams/{version}` | Default User-Agent header for outbound HTTP requests. Supports `{version}` and `{random}` placeholders. _(restart required)_ |
-| `AIOSTREAMS_USER_AGENT` | Aiostreams User Agent | string | `AIOStreams/{version}` | User-Agent identifying AIOStreams to upstream services. Supports `{version}` and `{random}` placeholders. _(restart required)_ |
+| `DEFAULT_USER_AGENT` | Default User Agent | string | `AIOLiveTV/{version}` | Default User-Agent header for outbound HTTP requests. Supports `{version}` and `{random}` placeholders. _(restart required)_ |
+| `AIOSTREAMS_USER_AGENT` | Aiostreams User Agent | string | `AIOLiveTV/{version}` | User-Agent identifying this addon to upstream services. Supports `{version}` and `{random}` placeholders. _(restart required)_ |
 | `HOSTNAME_USER_AGENT_OVERRIDES` | Hostname User Agent Overrides | map | — | Per-hostname User-Agent overrides. Env shape: `host1:ua1,host2:ua2,...`. Takes priority over the default user agents. |
 | `ADDON_PROXY` | Addon Proxy | list | — | Outbound HTTP proxy URL(s) used when fetching addon endpoints. |
 | `ADDON_PROXY_CONFIG` | Addon Proxy Config | map | — | Per-hostname proxy enablement / index. Env shape: `host1:bool\|index,host2:bool\|index,...`. Index references `addonProxy` when configured as a list. |
@@ -689,6 +689,22 @@ neither the environment variable nor a stored value is present.
 | `DEFAULT_ARGENTINA_TV_TIMEOUT` | Argentina Tv › Default Timeout | number | — | Default timeout for the Argentina TV addon (milliseconds). Falls back to the global default when unset. |
 | `DEFAULT_ARGENTINA_TV_USER_AGENT` | Argentina Tv › Default User Agent | string | — | Default User-Agent for the Argentina TV addon. Supports `{version}`/`{random}` placeholders. |
 
+#### Frost View
+
+| Environment Variable | UI Setting | Type | Default | Description |
+| --- | --- | --- | --- | --- |
+| `FROSTVIEW_URL` | Frost View › URL | list | `["https://frostview.cloutteam.com"]` | Upstream URL(s) for the FrostView TV addon. |
+| `DEFAULT_FROSTVIEW_TIMEOUT` | Frost View › Default Timeout | number | — | Default timeout for the FrostView TV addon (milliseconds). Falls back to the global default when unset. |
+| `DEFAULT_FROSTVIEW_USER_AGENT` | Frost View › Default User Agent | string | — | Default User-Agent for the FrostView TV addon. Supports `{version}`/`{random}` placeholders. |
+
+#### Minha Tv
+
+| Environment Variable | UI Setting | Type | Default | Description |
+| --- | --- | --- | --- | --- |
+| `MINHA_TV_URL` | Minha Tv › URL | list | `["https://da5f663b4690-minhatv.baby-beamup.club"]` | Upstream URL(s) for the Minha TV addon. |
+| `DEFAULT_MINHA_TV_TIMEOUT` | Minha Tv › Default Timeout | number | — | Default timeout for the Minha TV addon (milliseconds). Falls back to the global default when unset. |
+| `DEFAULT_MINHA_TV_USER_AGENT` | Minha Tv › Default User Agent | string | — | Default User-Agent for the Minha TV addon. Supports `{version}`/`{random}` placeholders. |
+
 #### Brazuca Torrents
 
 | Environment Variable | UI Setting | Type | Default | Description |
@@ -1104,7 +1120,7 @@ neither the environment variable nor a stored value is present.
 
 | Environment Variable | UI Setting | Type | Default | Description |
 | --- | --- | --- | --- | --- |
-| `DISABLE_SELF_SCRAPING` | Self Scraping › Disabled | boolean | `true` | When true, addons cannot scrape the same AIOStreams instance. |
+| `DISABLE_SELF_SCRAPING` | Self Scraping › Disabled | boolean | `true` | When true, addons cannot scrape the same AIOLiveTV instance. |
 
 #### Trusted
 

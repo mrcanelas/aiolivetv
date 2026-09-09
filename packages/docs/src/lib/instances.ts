@@ -40,7 +40,7 @@ export const instances: Instance[] = [
     name: "Yeb's",
     hostedBy: '@nhyyeb',
     hostedByUrl: 'https://fortheweak.cloud',
-    description: 'Hosted by an AIOStreams Discord admin.',
+    description: 'Hosted by an AIOLiveTV Discord admin.',
     stable: 'https://aiostreams.fortheweak.cloud',
     nightly: 'https://aiostreams-nightly.fortheweak.cloud',
   },

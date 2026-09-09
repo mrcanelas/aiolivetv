@@ -130,7 +130,7 @@ export function applySeanimeManifestRuntimeConfig(
     try {
       networkAccess.allowedDomains = [new URL(baseUrl).hostname];
       networkAccess.reasoning =
-        'Allows the extension to access the AIOStreams server for fetching results and accessing the Anime API';
+        'Allows the extension to access the AIOLiveTV server for fetching results and accessing the Anime API';
     } catch {
       // Keep manifest defaults if baseUrl is invalid.
     }

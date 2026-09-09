@@ -6,6 +6,7 @@ import { TextInput } from '../../../ui/text-input';
 import { Combobox } from '../../../ui/combobox';
 import { IconButton } from '../../../ui/button';
 import { FaPlus, FaRegTrashAlt, FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import { PRODUCT_GITHUB_URL } from '@/constants/branding';
 import { arrayMove } from '@dnd-kit/sortable';
 
 export function AddonFetchingBehaviorCard() {
@@ -78,7 +79,7 @@ export function AddonFetchingBehaviorCard() {
     default:
       'Fetch from all addons simultaneously and wait for all addons to finish fetching before returning results.',
     groups:
-      'Organise addons into groups with conditions. Each group can be evaluated based on results from previous groups. Read the [docs](https://docs.aiostreams.viren070.me/guides/groups) for more information.',
+      'Organise addons into groups with conditions. Each group can be evaluated based on results from previous groups. Read the [docs](https://github.com/mrcanelas/aiolivetv/blob/main/packages/docs/content/docs/guides/groups.mdx) for more information.',
     dynamic:
       'All addons start fetching at the same time. As soon as any addon returns results, the exit condition is evaluated. If the condition is met, results are returned immediately and any remaining addon results are ignored.',
   };
@@ -276,7 +277,7 @@ export function AddonFetchingBehaviorCard() {
             <p>
               Write the condition using{' '}
               <a
-                href="https://docs.aiostreams.viren070.me/reference/stream-expressions"
+                href={`${PRODUCT_GITHUB_URL}/blob/main/packages/docs/content/docs/reference/stream-expressions.mdx`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[--brand] hover:underline"

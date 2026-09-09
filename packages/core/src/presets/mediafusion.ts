@@ -288,7 +288,7 @@ export class MediaFusionPreset extends Preset {
         id: 'includeP2P',
         name: 'Include P2P',
         description:
-          'Include P2P streams alongside debrid streams. You only need to turn this on if you have provided a debrid service in AIOStreams, otherwise P2P streams will always be included.',
+          'Include P2P streams alongside debrid streams. You only need to turn this on if you have provided a debrid service in AIOLiveTV, otherwise P2P streams will always be included.',
         type: 'boolean',
         default: false,
         showInSimpleMode: false,
