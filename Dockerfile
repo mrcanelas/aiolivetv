@@ -65,7 +65,6 @@ COPY --from=builder /build/packages/core/dist ./packages/core/dist
 COPY --from=builder /build/packages/frontend/dist ./packages/frontend/dist
 COPY --from=builder /build/packages/server/dist ./packages/server/dist
 COPY --from=builder /build/packages/server/src/static ./packages/server/dist/static
-COPY --from=builder /build/packages/seanime-extensions/dist ./packages/seanime-extensions/dist
 
 COPY --from=builder /build/resources ./resources
 COPY --from=builder /build/scripts ./scripts
