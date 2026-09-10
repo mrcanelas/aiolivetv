@@ -17,12 +17,21 @@ import type {
 } from '../db/schemas.js';
 import type { Manifest } from '../db/index.js';
 import type { AIOStreamsContext, AIOStreamsCatalogResponse, AIOStreamsResponse } from './types.js';
-import { isLiveChannelType, isLiveChannelVisible } from './channelMappings.js';
+import {
+  deduplicateLiveTvItems,
+  isLiveChannelType,
+  isLiveChannelVisible,
+} from './channelMappings.js';
 import {
   shuffleCache,
   mergedCatalogCache,
   type MergedCatalogSkipState,
 } from './caches.js';
+
+export {
+  LIVE_TV_MERGED_CATALOG_ID,
+  buildLiveTvMergedCatalog,
+} from './liveTvMergedCatalog.js';
 
 const logger = createLogger('core');
 
@@ -375,7 +384,7 @@ export async function getMergedCatalog(
   type: string,
   id: string,
   extras?: string
-): Promise<AIOStreamsResponse<MetaPreview[]>> {
+): Promise<AIOStreamsCatalogResponse> {
   const start = Date.now();
   const mergedCatalog = ctx.userData.mergedCatalogs?.find((mc) => mc.id === id);
 
@@ -619,7 +628,8 @@ export async function getMergedCatalog(
       return {
         encodedCatalogId,
         items: result.items,
-        fetched: result.items.length,
+        metasDetailed: result.metasDetailed,
+        fetched: result.metasDetailed?.length || result.items.length,
         success: true,
         skipped: false,
       };
@@ -659,11 +669,45 @@ export async function getMergedCatalog(
   }
 
   const itemsBySource: MetaPreview[][] = [];
-  for (const { encodedCatalogId, items, fetched, skipped } of fetchResults) {
+  const detailedBySource: Meta[][] = [];
+  const isGuide = type === constants.TV_TYPE && Boolean(parsedExtras.date);
+  for (const {
+    encodedCatalogId,
+    items,
+    metasDetailed,
+    fetched,
+    skipped,
+  } of fetchResults) {
     if (skipped) continue;
     nextSourceSkips[encodedCatalogId] =
       (skipState.sourceSkips[encodedCatalogId] || 0) + fetched;
-    itemsBySource.push(items);
+    if (isGuide && metasDetailed) {
+      detailedBySource.push(metasDetailed);
+    } else {
+      itemsBySource.push(items);
+    }
+  }
+
+  if (isGuide) {
+    let allDetailed = applyMergeMethod(
+      detailedBySource,
+      mergedCatalog.mergeMethod
+    ) as Meta[];
+    allDetailed = deduplicateLiveTvItems(ctx.userData, allDetailed);
+    const nextSkip = requestedSkip + allDetailed.length;
+    if (allDetailed.length > 0) {
+      await mergedCatalogCache.set(
+        `${baseCacheKey}-skip=${nextSkip}`,
+        { sourceSkips: nextSourceSkips },
+        3600
+      );
+    }
+    return {
+      success: true,
+      data: [],
+      metasDetailed: allDetailed,
+      errors: [],
+    };
   }
 
   let allItems: MetaPreview[] = applyMergeMethod(
@@ -680,6 +724,9 @@ export async function getMergedCatalog(
     allItems,
     mergedCatalog.deduplicationMethods
   );
+  if (type === constants.TV_TYPE) {
+    allItems = deduplicateLiveTvItems(ctx.userData, allItems);
+  }
 
   const shuffleCacheKey = `${baseCacheKey}-skip=${requestedSkip}-shuffle`;
 
@@ -730,6 +777,7 @@ export async function getCatalog(
     return {
       success: merged.success,
       data: merged.data,
+      metasDetailed: merged.metasDetailed,
       errors: merged.errors,
     };
   }

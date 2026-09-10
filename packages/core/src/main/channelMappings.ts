@@ -41,6 +41,48 @@ export function getChannelMapping(userData: UserData, channelId: string) {
   return userData.channelMappings?.find((channel) => channel.id === channelId);
 }
 
+export function findChannelMappingForId(userData: UserData, channelId: string) {
+  const canonicalId = getCanonicalChannelId(channelId);
+  return userData.channelMappings?.find(
+    (mapping) =>
+      mapping.id === canonicalId ||
+      mapping.streams?.some((stream) => stream.channelId === canonicalId)
+  );
+}
+
+export function deduplicateLiveTvItems<
+  T extends { id: string; name?: string | null },
+>(userData: UserData, items: T[]): T[] {
+  const kept: T[] = [];
+  const seenMappingIds = new Set<string>();
+
+  for (const item of items) {
+    if (!isLiveChannelVisible(userData, item.id)) continue;
+
+    const mapping = findChannelMappingForId(userData, item.id);
+    if (mapping) {
+      if (mapping.id !== getCanonicalChannelId(item.id)) continue;
+      if (seenMappingIds.has(mapping.id)) continue;
+      seenMappingIds.add(mapping.id);
+      kept.push(item);
+      continue;
+    }
+
+    const duplicate = kept.some((existing) =>
+      isHighConfidenceChannelMatch(
+        getChannelMatchConfidence(
+          { id: existing.id, name: existing.name ?? existing.id },
+          { id: item.id, name: item.name ?? item.id }
+        )
+      )
+    );
+    if (duplicate) continue;
+    kept.push(item);
+  }
+
+  return kept;
+}
+
 export function isLiveChannelVisible(userData: UserData, channelId: string) {
   const mapping = getChannelMapping(userData, channelId);
   if (!mapping) return true;

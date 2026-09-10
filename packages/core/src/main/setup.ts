@@ -14,6 +14,10 @@ import { getAddonName } from '../utils/general.js';
 import type { Addon, Resource, UserData } from '../db/index.js';
 import type { AIOStreamsContext } from './types.js';
 import { CHANNEL_ID_PREFIX } from '../builtins/live-tv/shared.js';
+import {
+  buildLiveTvMergedCatalog,
+  LIVE_TV_MERGED_CATALOG_ID,
+} from './liveTvMergedCatalog.js';
 
 const logger = createLogger('core');
 
@@ -535,6 +539,20 @@ export function buildResources(ctx: AIOStreamsContext): void {
     }
   }
 
+  const liveTvMerged = buildLiveTvMergedCatalog(
+    ctx.finalCatalogs,
+    ctx.userData.addonName || appConfig.branding.addonName,
+    ctx.userData.catalogModifications
+  );
+  if (liveTvMerged) {
+    ctx.userData.mergedCatalogs = [
+      liveTvMerged,
+      ...(ctx.userData.mergedCatalogs ?? []).filter(
+        (catalog) => catalog.id !== LIVE_TV_MERGED_CATALOG_ID
+      ),
+    ];
+  }
+
   // Build set of source catalog IDs that are part of enabled merged catalogs
   // This is done BEFORE overrideType is applied so we use the original catalog types
   const catalogsInMergedCatalogs = new Set<string>();
@@ -661,6 +679,19 @@ export function buildResources(ctx: AIOStreamsContext): void {
         }
         return catalog;
       });
+  }
+
+  if (catalogsInMergedCatalogs.size > 0) {
+    ctx.finalCatalogs = ctx.finalCatalogs.filter((catalog) => {
+      if (catalog.id.startsWith('aiostreams.merged.')) return true;
+      const key = `${catalog.id}-${catalog.type}`;
+      if (!catalogsInMergedCatalogs.has(key)) return true;
+      logger.debug(
+        { id: catalog.id, type: catalog.type },
+        'filtering out catalog: consumed by merged catalog'
+      );
+      return false;
+    });
   }
 
   normalizeLiveTvManifest(ctx);
