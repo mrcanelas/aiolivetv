@@ -6,7 +6,7 @@ on:
     paths:
       - 'packages/**'
       - '!packages/docs/**'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - 'package.json'
       - 'tsconfig.json'
       - 'tsconfig.base.json'

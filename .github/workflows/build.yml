@@ -1,15 +1,20 @@
 name: Build Addon
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
     paths:
       - 'packages/**'
-      - 'package-lock.json'
+      - 'scripts/**'
+      - 'pnpm-lock.yaml'
       - 'package.json'
       - 'tsconfig.json'
       - 'tsconfig.base.json'
+      - '.github/workflows/build.yml'
 
 jobs:
   test:
@@ -21,9 +26,29 @@ jobs:
         with:
           node-version: 24
 
-      - name: Install corepack
+      - name: Enable corepack
         run: corepack enable
-      - name: Install Dependencies
+
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build Addon
+
+      - name: Build
         run: pnpm run build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Frontend lint
+        run: pnpm -F frontend lint
+
+      - name: Frontend typecheck
+        run: pnpm -F frontend typecheck
+
+      - name: Docs typecheck
+        run: pnpm -F docs types:check
+
+      - name: Live TV e2e
+        env:
+          SECRET_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+          DATABASE_URI: sqlite://./ci-e2e.db
+        run: pnpm exec tsx scripts/validate-live-tv-e2e.ts
