@@ -1399,7 +1399,6 @@ const StatusResponseSchema = z.object({
     }),
     loggingSensitiveInfo: z.boolean(),
     searchApiDisabled: z.boolean(),
-    seanimeExtensionVersion: z.string().nullable(),
     tmdbApiAvailable: z.boolean(),
     /** Global analytics master switch (false = no events written anywhere). */
     analyticsEnabled: z.boolean(),

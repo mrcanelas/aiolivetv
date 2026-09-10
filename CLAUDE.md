@@ -13,7 +13,7 @@ Requires Node `>=24` and pnpm `>=11` (enforced in root `package.json` engines).
 All commands run from the repo root. The repo is a pnpm workspace with packages under `packages/*`.
 
 - `pnpm install` — install everything (pnpm workspaces).
-- `pnpm build` — build `core` → `server` → `frontend` → `seanime-extensions` in that order (the order matters; later packages depend on `@aiostreams/core`).
+- `pnpm build` — build `core` → `server` → `frontend` in that order (the order matters; later packages depend on `@aiostreams/core`).
 - `pnpm dev` — run `core`, `server` and `frontend` in parallel watch mode.
 - `pnpm start:dev` — `tsx watch` of `packages/server/src/server.ts` with `NODE_ENV=development` (use this when you only need the backend to reload).
 - `pnpm start` — run the built server (`node packages/server/dist/server`). Requires `pnpm build` first.
@@ -35,7 +35,6 @@ The frontend uses rsbuild (not Vite/webpack directly) — `pnpm -F frontend dev`
 - `packages/core` — the engine. Everything addon-related, all I/O, DB, cache, config, presets, builtins, stream pipeline. Other packages depend on it as `@aiostreams/core`.
 - `packages/server` — thin Express 5 app that wires `core` to HTTP. Owns routing, middleware, rate limiting, static asset serving, and the server lifecycle.
 - `packages/frontend` — React 19 SPA (rsbuild + TanStack Router + TanStack Query + Tailwind + Radix). Built output is served by the server from `packages/frontend/dist` at runtime.
-- `packages/seanime-extensions` — separate Seanime extension bundles, built independently.
 - `packages/docs` — the docs site (separate build).
 
 ### Request flow
@@ -44,7 +43,7 @@ The frontend uses rsbuild (not Vite/webpack directly) — `pnpm -F frontend dev`
 2. `packages/server/src/app.ts` mounts routers:
    - `/api/v{API_VERSION}/*` — JSON API consumed by the SPA (`user`, `health`, `status`, `format`, `catalogs`, `posters`, `oauth/exchange/gdrive`, `debrid`, `search`, `anime`, `proxy`, `templates`, `sync`, `auth`, `dashboard`). 404 handler is scoped to the API router.
    - `/stremio/...` — Stremio protocol endpoints. Public manifest/stream/configure routes are mounted directly; authenticated routes live under `/stremio/:uuid/:encryptedPassword` and go through `userDataMiddleware`, which resolves the `UserData` for the rest of the pipeline.
-   - `/chilllink/:uuid/:encryptedPassword/*`, `/seanime/*`, `/builtins/*` (the last gated by `internalMiddleware`).
+   - `/chilllink/:uuid/:encryptedPassword/*`, `/builtins/*` (the last gated by `internalMiddleware`).
    - Legacy `/:config/stream/...` returns a single "reconfigure" stream pointing at the new configure URL. Legacy `/configure` redirects to `/stremio/configure`.
    - Static: `/assets/*` is content-hashed and served with `immutable` cache headers and bypasses the static rate limiter; `/logo.png`, favicons, manifest icons go through `staticRateLimiter`; SPA fallback serves `index.html`.
 3. Stream requests construct an `AIOStreams` instance (`packages/core/src/main/index.ts`) from the resolved `UserData`. The constructor wires a pipeline of singletons: `Proxifier`, `StreamLimiter`, `StreamFilterer`, `StreamPrecomputer`, `StreamFetcher`, `StreamDeduplicator`, `StreamSorter`. The `setup.ts` helpers (`applyPresets`, `assignPublicIps`, `fetchManifests`, `buildResources`) turn the user's preset selections into concrete `Addon` instances and resolved manifests; `resources.ts` / `catalog.ts` implement the actual `getStreams` / `getCatalog` / `getMeta` / `getSubtitles` / `getAddonCatalog` calls.
