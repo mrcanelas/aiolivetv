@@ -1,0 +1,9 @@
+{
+  "version": "2.30.3",
+  "description": "Combine live TV metadata and stream sources into one configurable Stremio addon.",
+  "tag": "v2.30.3",
+  "channel": "stable",
+  "commitHash": "c3aa89dd",
+  "buildTime": "2026-09-10T15:35:53.899Z",
+  "commitTime": "2026-09-10T15:29:26.000Z"
+}
