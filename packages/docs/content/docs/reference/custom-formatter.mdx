@@ -17,6 +17,39 @@ Modifiers are chained with `::`:
 {variableName.propertyName::modifier}
 ```
 
+Field and modifier names are case-insensitive. Whitespace inside braces is
+ignored. Quoted literals can be used anywhere a field is expected:
+
+```
+{'Live'::upper}
+```
+
+### Optional groups
+
+Wrap text in `{? ... ?}` so it only renders when every field inside is present.
+Surrounding literals are dropped with the group:
+
+```
+{addon.name}{? · {stream.resolution} ?}
+```
+
+With resolution `1080p` this becomes `Vivo TV · 1080p`. Without resolution it
+becomes `Vivo TV`.
+
+### Missing vs false
+
+Conditionals accept a third branch for a missing value, distinct from false:
+
+```
+{stream.resolution::exists["{stream.resolution}"||"unknown"||"no resolution"]}
+```
+
+`::default('X')` fills a missing value without a full conditional:
+
+```
+{stream.resolution::default('SD')}
+```
+
 ---
 
 ## Variables
@@ -226,6 +259,13 @@ Modifiers are chained with `::`:
 | `::truncate(N)`                    | Truncate to `N` characters and append `…`         |
 | `::length`                         | Return length of the string                       |
 | `::reverse`                        | Reverse the string                                |
+| `::default('X')`                   | Use `X` when the value is missing                 |
+| `::in('a','b')`                    | True when the value is one of the listed options  |
+| `::translate('from','to')`         | Replace matching values                           |
+| `::date('%B %o, %Y')`              | Format an ISO date (`%Y` `%m` `%d` `%B` `%o` …)   |
+| `::languagecode`                   | Convert a language name to an ISO code            |
+| `::languageemoji`                  | Convert a language name to a flag emoji           |
+| `::subscript` / `::superscript`    | Convert digits/letters to sub/superscript         |
 
 ### Number Modifiers
 
@@ -241,6 +281,7 @@ Modifiers are chained with `::`:
 | `::rbitrate`              | Like `::bitrate` but rounded                   |
 | `::sbitrate`              | Concise bitrate (e.g. `5.2 Mbps`)              |
 | `::time`                  | Format seconds as `1h 30m`                     |
+| `::time('%H:%M')`         | Pattern duration (`%H` `%M` `%S`; `[...]` drops zeros) |
 | `::star`                  | Star rating ★ out of 5 from a 0–100 score      |
 | `::pstar`                 | Padded star rating (always 5 stars e.g. ★★★☆☆) |
 | `::hex`                   | Encode to hexadecimal                          |

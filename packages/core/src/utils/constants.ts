@@ -1481,6 +1481,12 @@ export const SNIPPETS = [
     value:
       '{stream.languages::exists["{stream.languages::join(\' • \')}"||""]}',
   },
+  {
+    name: 'Optional resolution',
+    description:
+      'Shows the resolution only when the live stream has one, dropping the separator otherwise',
+    value: '{addon.name}{? · {stream.resolution} ?}',
+  },
 ];
 
 export {
