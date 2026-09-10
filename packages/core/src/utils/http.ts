@@ -17,6 +17,7 @@ import {
 } from 'undici';
 import { socksDispatcher } from 'fetch-socks';
 import { createLogger } from '../logging/logger.js';
+import { sameOrigin } from './origin.js';
 
 const logger = createLogger('http');
 const urlCount = Cache.getInstance<string, number>(
@@ -31,6 +32,7 @@ export class PossibleRecursiveRequestError extends Error {
     this.name = 'PossibleRecursiveRequestError';
   }
 }
+
 export function makeUrlLogSafe(url: string) {
   // for each component of the path, if it is longer than 10 characters, mask it
   // and replace the query params of key 'password' with '****'
@@ -63,7 +65,7 @@ export async function makeRequest(url: string, options: RequestOptions) {
 
   if (
     appConfig.bootstrap.baseUrl &&
-    urlObj.origin === appConfig.bootstrap.baseUrl
+    sameOrigin(urlObj, appConfig.bootstrap.baseUrl)
   ) {
     const internalUrl = new URL(appConfig.bootstrap.internalUrl);
     urlObj.protocol = internalUrl.protocol;
@@ -93,7 +95,7 @@ export async function makeRequest(url: string, options: RequestOptions) {
     }
   }
 
-  if (urlObj.toString().startsWith(appConfig.bootstrap.internalUrl)) {
+  if (sameOrigin(urlObj, appConfig.bootstrap.internalUrl)) {
     headers.set(INTERNAL_SECRET_HEADER, appConfig.bootstrap.internalSecret);
   }
 

@@ -13,6 +13,7 @@ import {
   shouldProxy,
   canUseProxy,
   isEphemeralRuntime,
+  sameOrigin,
 } from '@aiostreams/core';
 import { z } from 'zod';
 import { request, Dispatcher } from 'undici';
@@ -439,7 +440,7 @@ router.all(
         const urlObj = new URL(currentUrl);
         if (
           appConfig.bootstrap.baseUrl &&
-          urlObj.origin === appConfig.bootstrap.baseUrl
+          sameOrigin(urlObj, appConfig.bootstrap.baseUrl)
         ) {
           const internalUrl = new URL(appConfig.bootstrap.internalUrl);
           urlObj.protocol = internalUrl.protocol;

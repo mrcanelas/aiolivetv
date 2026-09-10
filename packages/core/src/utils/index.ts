@@ -11,6 +11,7 @@ export * from './regex-access.js';
 export * from './sel-access.js';
 export * from './crypto.js';
 export * from './auth.js';
+export * from './origin.js';
 export * from './http.js';
 export * as constants from './constants.js';
 export * from './config.js';
