@@ -57,11 +57,11 @@ request to that image. Scheduled maintenance uses [Vercel Cron Jobs](https://ver
 Set these in the Vercel project settings. Do **not** set `PORT`; the platform provides it.
 
 ```ini
-BASE_URL=https://aiolivetv.seudominio.com
+BASE_URL=https://aiolivetv.example.com
 SECRET_KEY=<64-character-hex>
-DATABASE_URI=postgresql://usuario:senha@host:porta/banco
+DATABASE_URI=postgresql://user:password@host:port/database
 DATABASE_POOL_MAX=3
-REDIS_URI=rediss://usuario:senha@host:porta
+REDIS_URI=rediss://user:password@host:port
 REDIS_TIMEOUT=5000
 NODE_ENV=production
 SYSTEM_LIFECYCLE_ENABLED=false

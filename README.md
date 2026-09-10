@@ -5,9 +5,9 @@
 <h1 align="center">AIOLiveTV</h1>
 
 <p align="center">
-  <strong>Agregador unificado de Live TV para o Stremio.</strong>
+  <strong>A unified Live TV aggregator for Stremio.</strong>
   <br />
-  Combine XMLTV, M3U, Xtream e addons de canais em um único addon, com ou sem EPG nativo.
+  Combine XMLTV, M3U, Xtream and channel addons into a single addon, with or without Native EPG.
 </p>
 
 <p align="center">
@@ -21,31 +21,31 @@
 
 ---
 
-## O que é o AIOLiveTV?
+## What is AIOLiveTV?
 
-O AIOLiveTV adapta o fluxo do [AIOStreams](https://github.com/Viren070/AIOStreams) para TV ao vivo. Ele agrega canais e streams de várias fontes, faz matching dos equivalentes e devolve catálogo, meta e stream pelo protocolo padrão do Stremio.
+AIOLiveTV adapts the [AIOStreams](https://github.com/Viren070/AIOStreams) pipeline for live TV. It aggregates channels and streams from multiple sources, matches equivalents, and returns catalog, meta and stream resources over the standard Stremio protocol.
 
-Pode funcionar de dois jeitos:
+It can run in two modes:
 
-- **Com EPG** — o XMLTV define os canais e o addon declara Native EPG (`behaviorHints.epgProvider`).
-- **Sem EPG** — as fontes de stream definem os canais e equivalentes são mesclados por matching.
+- **With EPG** — XMLTV defines the channels and the addon declares Native EPG (`behaviorHints.epgProvider`).
+- **Without EPG** — stream sources define the channels and equivalents are merged by matching.
 
 ---
 
-## Fontes
+## Sources
 
-Tudo entra pela página **Addons** já existente:
+Everything is added from the existing **Addons** page:
 
-- XMLTV (builtin de metadata/catálogo)
-- M3U (builtin de streams; também gera canais sem EPG)
+- XMLTV (metadata/catalog builtin)
+- M3U (stream builtin; also generates channels when there is no EPG)
 - Xtream, Vivo TV, Claro TV
-- Addons Stremio externos de Live TV
+- External Stremio Live TV addons
 
-A página **Channels** permite revisar mappings, priorizar streams e habilitar ou desabilitar canais. As alterações ficam no rascunho até o **Save**.
+The **Channels** page lets you review mappings, reorder streams, and enable or disable channels. Changes stay in the draft until **Save**.
 
 ---
 
-## Como executar
+## Running it
 
 ### Docker
 
@@ -53,19 +53,19 @@ A página **Channels** permite revisar mappings, priorizar streams e habilitar o
 git clone https://github.com/mrcanelas/aiolivetv.git
 cd aiolivetv
 cp .env.sample .env
-# Defina BASE_URL e SECRET_KEY (64 caracteres hex)
+# Set BASE_URL and SECRET_KEY (64-character hex)
 docker compose up -d
 ```
 
-Abra `http://localhost:3000/stremio/configure`.
+Open `http://localhost:3000/stremio/configure`.
 
 ### Vercel
 
-Use PostgreSQL e Redis externos. No projeto, Framework Preset = **Container** e Root Directory na raiz do repositório. Guia: [Deploy on Vercel](packages/docs/content/docs/getting-started/vercel.mdx).
+Use external PostgreSQL and Redis. In the project, set Framework Preset to **Container** and keep Root Directory at the repository root. Guide: [Deploy on Vercel](packages/docs/content/docs/getting-started/vercel.mdx).
 
-### A partir do código
+### From source
 
-Requer Node `>=24` e pnpm `>=11`.
+Requires Node `>=24` and pnpm `>=11`.
 
 ```bash
 pnpm install
@@ -75,10 +75,10 @@ pnpm start
 
 ---
 
-## Créditos
+## Credits
 
-O AIOLiveTV é uma adaptação do [AIOStreams](https://github.com/Viren070/AIOStreams), de [Viren070](https://github.com/Viren070).
+AIOLiveTV is an adaptation of [AIOStreams](https://github.com/Viren070/AIOStreams) by [Viren070](https://github.com/Viren070).
 
-## Aviso
+## Disclaimer
 
-O AIOLiveTV agrega metadados e URLs de canais fornecidos pelo usuário. Ele não hospeda nem distribui conteúdo. O uso das fontes configuradas é de responsabilidade de quem opera a instância.
+AIOLiveTV aggregates metadata and channel URLs provided by the operator. It does not host or distribute media. Use of the configured sources is the responsibility of whoever runs the instance.
