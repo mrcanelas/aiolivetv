@@ -4,6 +4,8 @@
  */
 import { createServer, type Server } from 'node:http';
 
+process.env.HTTP_ALLOW_PRIVATE_URLS ??= 'true';
+
 type CoreModule = typeof import('../packages/core/dist/index.js');
 type UserData = import('../packages/core/dist/index.js').UserData;
 

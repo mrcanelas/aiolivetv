@@ -18,6 +18,12 @@ import {
 import { socksDispatcher } from 'fetch-socks';
 import { createLogger } from '../logging/logger.js';
 import { sameOrigin } from './origin.js';
+import {
+  MAX_SSRF_REDIRECTS,
+  SsrfError,
+  assertSafeOutboundUrl,
+  isRedirectStatus,
+} from './ssrf.js';
 
 const logger = createLogger('http');
 const urlCount = Cache.getInstance<string, number>(
@@ -58,6 +64,8 @@ export interface RequestOptions {
   body?: BodyInit;
   forceProxy?: string;
   rawOptions?: RequestInit;
+  /** Skip DNS/IP SSRF checks. Internal builtin calls should not set this. */
+  skipSsrf?: boolean;
 }
 
 export async function makeRequest(url: string, options: RequestOptions) {
@@ -154,17 +162,61 @@ export async function makeRequest(url: string, options: RequestOptions) {
     'http request'
   );
 
-  let response;
+  const protectFromSsrf =
+    !options.skipSsrf &&
+    !appConfig.bootstrap.allowPrivateUrls &&
+    !sameOrigin(urlObj, appConfig.bootstrap.internalUrl);
+
+  let currentUrl = urlObj;
+  let method = options.method;
+  let body = options.body;
+  let redirects = 0;
+
   try {
-    response = await fetch(urlObj.toString(), {
-      ...options.rawOptions,
-      method: options.method,
-      body: options.body,
-      headers: headers,
-      dispatcher: dispatcher,
-      signal: AbortSignal.timeout(options.timeout),
-    });
+    while (true) {
+      if (protectFromSsrf) {
+        await assertSafeOutboundUrl(currentUrl);
+      }
+
+      const response = await fetch(currentUrl.toString(), {
+        ...options.rawOptions,
+        method,
+        body,
+        headers: headers,
+        dispatcher: dispatcher,
+        ...(protectFromSsrf ? { maxRedirections: 0 } : {}),
+        signal: AbortSignal.timeout(options.timeout),
+      });
+
+      if (!protectFromSsrf || !isRedirectStatus(response.status)) {
+        return response;
+      }
+
+      const location = response.headers.get('location');
+      await response.body?.cancel().catch(() => undefined);
+      if (!location) {
+        throw new SsrfError('Redirect without Location header');
+      }
+      if (redirects >= MAX_SSRF_REDIRECTS) {
+        throw new SsrfError(`Too many redirects (max ${MAX_SSRF_REDIRECTS})`);
+      }
+      redirects += 1;
+      currentUrl = new URL(location, currentUrl);
+      if (
+        response.status === 303 ||
+        (response.status === 302 && method !== 'GET')
+      ) {
+        method = 'GET';
+        body = undefined;
+      }
+    }
   } catch (err) {
+    if (err instanceof SsrfError) {
+      logger.warn(
+        { url: makeUrlLogSafe(currentUrl.toString()), err: err.message },
+        'blocked outbound request'
+      );
+    }
     if (
       err instanceof Error &&
       err.name === 'TypeError' &&
@@ -177,8 +229,6 @@ export async function makeRequest(url: string, options: RequestOptions) {
     }
     throw err;
   }
-
-  return response;
 }
 
 const proxyAgents = new Map<string, Dispatcher>();

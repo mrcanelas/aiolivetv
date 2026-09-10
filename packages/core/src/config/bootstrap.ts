@@ -16,6 +16,7 @@ export const bootstrap = {
   redisUri: Env.REDIS_URI,
   redisTimeout: Env.REDIS_TIMEOUT,
   cronSecret: Env.CRON_SECRET,
+  allowPrivateUrls: Env.HTTP_ALLOW_PRIVATE_URLS,
   ephemeralRuntime: isEphemeralRuntime(),
   settingsRefreshInterval: Env.SETTINGS_REFRESH_INTERVAL,
   secretKey: Env.SECRET_KEY,

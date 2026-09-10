@@ -238,6 +238,10 @@ export const Env = cleanEnv(process.env, {
     default: undefined,
     desc: 'Bearer token required by /api/internal/tasks/* (Vercel Cron).',
   }),
+  HTTP_ALLOW_PRIVATE_URLS: bool({
+    default: false,
+    desc: 'Allow outbound HTTP to localhost and private/reserved IP ranges. Leave false on public or multi-user instances. Set true only for a personal LAN (local XMLTV/M3U/Prowlarr).',
+  }),
   SETTINGS_REFRESH_INTERVAL: num({
     default: 30,
     desc: 'How often (seconds) each instance polls the DB settings version and reloads runtime config if another instance changed it. Set 0 to disable (single-instance deployments).',

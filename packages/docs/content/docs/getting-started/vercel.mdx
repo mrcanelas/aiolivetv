@@ -70,6 +70,10 @@ LOG_FORMAT=json
 CRON_SECRET=<long-random-secret>
 ```
 
+Leave `HTTP_ALLOW_PRIVATE_URLS` unset (`false`). The platform must not fetch
+user-supplied XMLTV, M3U or addon URLs that point at localhost, private networks
+or cloud metadata.
+
 Keep `SECRET_KEY` stable. Changing it makes existing encrypted configurations
 undecryptable.
 
