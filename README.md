@@ -77,7 +77,7 @@ pnpm start
 
 ## Credits
 
-AIOLiveTV is an adaptation of [AIOStreams](https://github.com/Viren070/AIOStreams) by [Viren070](https://github.com/Viren070).
+AIOLiveTV is an adaptation of [AIOStreams](https://github.com/Viren070/AIOStreams) by [Viren070](https://github.com/Viren070), and is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
 ## Disclaimer
 

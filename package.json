@@ -23,7 +23,7 @@
     "validate:live-tv": "pnpm -F core build && tsx scripts/validate-live-tv-e2e.ts"
   },
   "author": "mrcanelas",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "workspaces": [
     "packages/*"
   ],

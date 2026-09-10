@@ -75,7 +75,7 @@ FROM gcr.io/distroless/nodejs24-debian12 AS production
 LABEL org.opencontainers.image.title="AIOLiveTV"
 LABEL org.opencontainers.image.source="https://github.com/mrcanelas/aiolivetv"
 LABEL org.opencontainers.image.description="AIOLiveTV combines live TV metadata and stream sources into one configurable Stremio addon."
-LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
 
 WORKDIR /app
 
