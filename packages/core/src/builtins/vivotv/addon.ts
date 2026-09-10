@@ -228,7 +228,7 @@ async function loadReferenceData(
       config.timeout
     ),
     fetchJson<{ Content?: { List?: VivoRating[] } }>(
-      `${API_BASE}/contents/all?contentTypes=AGE&fields=Pid,Title,Description,images&limit=10000`,
+      `${API_BASE}/contents/all?contentTypes=AGE&fields=Pid,Title,images&limit=10000`,
       config.timeout
     ),
     fetchPersons(config.timeout),
@@ -241,7 +241,7 @@ async function loadReferenceData(
     (ratingsBody?.Content?.List ?? []).map((rating) => [
       rating.Pid,
       {
-        value: rating.Description,
+        value: rating.Title,
         icon:
           rating.Images?.Cover?.[0]?.Url ||
           rating.Images?.Icon?.[0]?.Url ||

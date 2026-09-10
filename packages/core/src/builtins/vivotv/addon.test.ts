@@ -87,7 +87,8 @@ describe('Vivo TV builtin', () => {
           List: [
             {
               Pid: 'AGE1',
-              Description: 'L',
+              Title: 'L',
+              Description: 'Livre',
               Images: {
                 Cover: [{ Url: 'https://cdn.example/cover-l.png' }],
                 Icon: [{ Url: 'https://cdn.example/icon-l.png' }],
