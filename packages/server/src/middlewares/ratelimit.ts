@@ -9,7 +9,7 @@ import {
   APIError,
   Cache,
   REDIS_PREFIX,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 const logger = createLogger('server');
 

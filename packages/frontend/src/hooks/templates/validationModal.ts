@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Template } from '@aiostreams/core';
+import { Template } from '@aiolivetv/core';
 import { TemplateValidation } from '@/lib/templates/types';
 
 export interface ValidationModalState {

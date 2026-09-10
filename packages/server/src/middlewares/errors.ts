@@ -4,7 +4,7 @@ import {
   APIError,
   constants,
   StremioTransformer,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { createResponse } from '../utils/responses.js';
 import { ZodError } from 'zod';
 

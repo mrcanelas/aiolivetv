@@ -6,7 +6,7 @@ import {
   StatusResponse,
   ServiceId,
   MenuId,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { applyMigrations, useUserData } from '@/context/userData';
 import {
   applyTemplateConditionals,

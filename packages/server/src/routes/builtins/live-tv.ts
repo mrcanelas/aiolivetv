@@ -16,7 +16,7 @@ import {
   type VivoTvConfig,
   type ClaroTvConfig,
   type XtreamConfig,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 const router: Router = Router();
 

@@ -9,7 +9,7 @@ import {
   APIError,
   constants,
   FormatterContext,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { formatApiRateLimiter } from '../../middlewares/ratelimit.js';
 import z from 'zod';
 

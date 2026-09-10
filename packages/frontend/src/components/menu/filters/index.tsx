@@ -108,7 +108,7 @@ import {
   defaultDeduplicatorMultiGroupBehaviour,
 } from './_components/filter-utils';
 import type { SyncConfig } from './_components/synced-patterns';
-import { UserData } from '@aiostreams/core';
+import { UserData } from '@aiolivetv/core';
 import { toast } from 'sonner';
 import { Popover } from '@/components/ui/popover';
 import { AiOutlineExclamationCircle } from 'react-icons/ai';

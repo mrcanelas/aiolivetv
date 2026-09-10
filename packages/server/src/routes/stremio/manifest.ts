@@ -5,9 +5,9 @@ import {
   config as appConfig,
   constants,
   UserData,
-} from '@aiostreams/core';
-import { Manifest } from '@aiostreams/core';
-import { createLogger } from '@aiostreams/core';
+} from '@aiolivetv/core';
+import { Manifest } from '@aiolivetv/core';
+import { createLogger } from '@aiolivetv/core';
 import { stremioManifestRateLimiter } from '../../middlewares/ratelimit.js';
 
 const logger = createLogger('server');

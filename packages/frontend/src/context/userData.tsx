@@ -1,5 +1,6 @@
 import React from 'react';
-import { UserData } from '@aiostreams/core';
+import { UserData, migrateLegacyIdentityIds } from '@aiolivetv/core';
+import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 import {
   QUALITIES,
   RESOLUTIONS,
@@ -9,9 +10,10 @@ import {
 } from '../../../core/src/utils/constants';
 import { useStatus } from './status';
 
-const USER_DATA_KEY = 'aiostreams-user-data';
+const USER_DATA_KEY = 'aiolivetv-user-data';
 
 export function applyMigrations(config: any): UserData {
+  migrateLegacyIdentityIds(config);
   if (
     config &&
     config.addonPassword !== undefined &&
@@ -457,7 +459,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
   // Initialize userData from local storage or apply default
   const [userData, setUserData] = React.useState<UserData>(() => {
     try {
-      const stored = localStorage.getItem(USER_DATA_KEY);
+      const stored = readLocalStorage(USER_DATA_KEY);
       const data = stored ? JSON.parse(stored) : DefaultUserData;
       return applyMigrations(data);
     } catch {
@@ -473,7 +475,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
 
   // Effect to persist userData to local storage
   React.useEffect(() => {
-    localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    writeLocalStorage(USER_DATA_KEY, JSON.stringify(userData));
   }, [userData]);
 
   const statusApplied = React.useRef(false);

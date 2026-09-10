@@ -29,6 +29,7 @@ import {
 } from './index.js';
 import { assertConfigAccessKey } from './auth.js';
 import { parseSyncedUrl } from './sync.js';
+import { migrateLegacyIdentityIds } from './identity.js';
 import { ZodError } from 'zod';
 import {
   formatZodError as formatZodErrorImpl,
@@ -478,6 +479,7 @@ function removeInvalidPresetReferences(config: UserData) {
 }
 
 export function applyMigrations(config: any): UserData {
+  migrateLegacyIdentityIds(config);
   if (
     config &&
     config.addonPassword !== undefined &&

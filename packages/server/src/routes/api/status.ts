@@ -6,10 +6,10 @@ import {
   PresetManager,
   SelAccess,
   UserRepository,
-} from '@aiostreams/core';
-import { StatusResponse } from '@aiostreams/core';
-import { encryptString } from '@aiostreams/core';
-import { RegexAccess, FeatureControl } from '@aiostreams/core';
+} from '@aiolivetv/core';
+import { StatusResponse } from '@aiolivetv/core';
+import { encryptString } from '@aiolivetv/core';
+import { RegexAccess, FeatureControl } from '@aiolivetv/core';
 import { createResponse } from '../../utils/responses.js';
 
 const router: Router = Router();

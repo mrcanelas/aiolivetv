@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { config as appConfig } from '@aiostreams/core';
+import { config as appConfig } from '@aiolivetv/core';
 
 const uuidRegex =
   /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;

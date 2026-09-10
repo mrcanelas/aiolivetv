@@ -38,7 +38,7 @@ import {
   Star,
 } from 'lucide-react';
 import { cn } from '../ui/core/styling';
-import type { UserData } from '@aiostreams/core';
+import type { UserData } from '@aiolivetv/core';
 
 type SortCriteriaItem = {
   key: (typeof SORT_CRITERIA)[number];

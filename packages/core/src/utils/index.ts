@@ -14,6 +14,7 @@ export * from './auth.js';
 export * from './origin.js';
 export * from './http.js';
 export * from './ssrf.js';
+export * from './identity.js';
 export * as constants from './constants.js';
 export * from './config.js';
 export * from './languages.js';

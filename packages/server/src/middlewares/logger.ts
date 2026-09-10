@@ -3,7 +3,7 @@ import {
   createLogger,
   getTimeTakenSincePoint,
   makeUrlLogSafe,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 const logger = createLogger('http');
 

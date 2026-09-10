@@ -53,7 +53,7 @@ import { Select } from '@/components/ui/select';
 import { cn } from '@/components/ui/core/styling';
 import { Textarea } from '../ui/textarea';
 import { FaPlay } from 'react-icons/fa6';
-import { Template } from '@aiostreams/core';
+import { Template } from '@aiolivetv/core';
 import {
   useTemplateLoader,
   type AppliedTemplateUpdate,

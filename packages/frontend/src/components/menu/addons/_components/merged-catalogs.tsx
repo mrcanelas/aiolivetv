@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { MergedCatalog } from '@aiostreams/core';
+import {
+  MergedCatalog,
+  isMergedCatalogId,
+  MERGED_CATALOG_PREFIX,
+} from '@aiolivetv/core';
 import { useStatus } from '@/context/status';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
@@ -76,7 +80,7 @@ export function MergedCatalogsCard() {
   };
 
   const allCatalogs = (userData.catalogModifications || [])
-    .filter((c) => !c.id.startsWith('aiostreams.merged.')) // Exclude merged catalogs from being selected as sources
+    .filter((c) => !isMergedCatalogId(c.id)) // Exclude merged catalogs from being selected as sources
     .map((c) => ({
       value: `id=${encodeURIComponent(c.id)}&type=${encodeURIComponent(c.type)}`,
       name: c.name || c.id,
@@ -219,7 +223,7 @@ export function MergedCatalogsCard() {
       }));
       toast.success('Merged catalog updated');
     } else {
-      const newId = `aiostreams.merged.${Date.now()}`;
+      const newId = `${MERGED_CATALOG_PREFIX}${Date.now()}`;
       setUserData((prev) => ({
         ...prev,
         mergedCatalogs: [

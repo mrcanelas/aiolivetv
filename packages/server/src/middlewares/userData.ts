@@ -10,7 +10,7 @@ import {
   StremioTransformer,
   UserRepository,
   Env,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { syncUserDataUrls } from '../utils/syncUserData.js';
 
 const logger = createLogger('server');

@@ -3,7 +3,7 @@ import {
   config as appConfig,
   constants,
   createLogger,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { Router, Request, Response } from 'express';
 
 const logger = createLogger('server');

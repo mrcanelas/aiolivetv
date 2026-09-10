@@ -1,6 +1,6 @@
 ﻿import { Request, Response, NextFunction } from 'express';
 import { createResponse } from '../utils/responses.js';
-import { constants, appConfig } from '@aiostreams/core';
+import { constants, appConfig } from '@aiolivetv/core';
 
 const WHIELIST = ['/easynews/nzb', '/library/refresh'];
 

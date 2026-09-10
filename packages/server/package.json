@@ -1,5 +1,5 @@
 {
-  "name": "@aiostreams/server",
+  "name": "@aiolivetv/server",
   "version": "0.0.0",
   "license": "AGPL-3.0-only",
   "main": "dist/server.js",
@@ -13,7 +13,7 @@
   },
   "description": "Combine all your streams into one addon and display them with consistent formatting, sorting, and filtering.",
   "dependencies": {
-    "@aiostreams/core": "workspace:*",
+    "@aiolivetv/core": "workspace:*",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.1",
     "rate-limit-redis": "^4.3.1",

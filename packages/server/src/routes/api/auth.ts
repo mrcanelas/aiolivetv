@@ -5,7 +5,7 @@ import {
   createLogger,
   validateCredentials,
   isAdminUser,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { loginRateLimiter } from '../../middlewares/ratelimit.js';
 import {
   attachSession,

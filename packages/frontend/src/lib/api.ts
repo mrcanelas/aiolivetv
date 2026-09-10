@@ -193,7 +193,7 @@ export async function api<T>(
 // =============================================================================
 
 // Import types from core package (types only)
-import type { UserData, ParsedStream } from '@aiostreams/core';
+import type { UserData, ParsedStream } from '@aiolivetv/core';
 
 /**
  * User configuration response types

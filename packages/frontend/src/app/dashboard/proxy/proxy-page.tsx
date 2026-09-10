@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Form, Field } from '@/components/ui/form';
 import { cn } from '@/components/ui/core/styling';
+import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 import { DashboardQueryBoundary } from '@/components/shared/dashboard-query-boundary';
 import { KeyValueListField } from '../settings/_components/custom-fields';
 import { copyToClipboard } from '@/utils/clipboard';
@@ -59,7 +60,7 @@ const rel = (ms: number) => {
   return `${Math.round(s / 86400)}d ago`;
 };
 
-const HIST_KEY = 'aiostreams.proxy.generated';
+const HIST_KEY = 'aiolivetv.proxy.generated';
 
 function GenerateModal() {
   const [open, setOpen] = React.useState(false);
@@ -67,7 +68,7 @@ function GenerateModal() {
   const [busy, setBusy] = React.useState(false);
   const [history, setHistory] = React.useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+      return JSON.parse(readLocalStorage(HIST_KEY) || '[]');
     } catch {
       return [];
     }
@@ -132,7 +133,7 @@ function GenerateModal() {
             setResult(res.proxified_url);
             const next = [res.proxified_url, ...history].slice(0, 20);
             setHistory(next);
-            localStorage.setItem(HIST_KEY, JSON.stringify(next));
+            writeLocalStorage(HIST_KEY, JSON.stringify(next));
           } catch (e: any) {
             toast.error(e?.message ?? 'Failed to generate');
           } finally {

@@ -4,7 +4,7 @@ import {
   SubtitleResponse,
   createLogger,
   StremioTransformer,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { stremioSubtitleRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
 

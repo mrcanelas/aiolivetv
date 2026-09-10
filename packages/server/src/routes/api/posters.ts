@@ -5,7 +5,7 @@ import {
   createLogger,
   formatZodError,
   createPosterServiceFromParams,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { createResponse } from '../../utils/responses.js';
 import { z } from 'zod';
 

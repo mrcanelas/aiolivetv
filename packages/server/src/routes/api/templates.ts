@@ -5,7 +5,7 @@ import {
   constants,
   createLogger,
   TemplateManager,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import fs from 'fs/promises';
 import path from 'path';
 

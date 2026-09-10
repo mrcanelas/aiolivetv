@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CatalogModification } from '@aiostreams/core';
+import { CatalogModification, isMergedCatalogId } from '@aiolivetv/core';
 import { useUserData } from '@/context/userData';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -51,7 +51,7 @@ export function SortableCatalogItem({
   const { setUserData } = useUserData();
 
   // Check if this is a merged catalog
-  const isMergedCatalog = catalog.id.startsWith('aiostreams.merged.');
+  const isMergedCatalog = isMergedCatalogId(catalog.id);
 
   const style = {
     transform: CSS.Transform.toString(transform),

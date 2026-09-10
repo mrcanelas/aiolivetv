@@ -1,5 +1,6 @@
 import React from 'react';
-import { UserData } from '@aiostreams/core';
+import { UserData } from '@aiolivetv/core';
+import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 import { useUserData, DefaultUserData } from './userData';
 import { useStatus } from './status';
 import { useMenu } from './menu';
@@ -29,9 +30,9 @@ interface SaveContextType {
 
 const storageKeys = {
   allManifestChangesDismissed: (uuid: string) =>
-    `aiostreams-manifest-all-dismissed-${uuid}`,
+    `aiolivetv-manifest-all-dismissed-${uuid}`,
   insignificantManifestChangesDismissed: (uuid: string) =>
-    `aiostreams-manifest-insignificant-dismissed-${uuid}`,
+    `aiolivetv-manifest-insignificant-dismissed-${uuid}`,
 };
 
 const SaveContext = React.createContext<SaveContextType | undefined>(undefined);
@@ -121,7 +122,7 @@ export function SaveProvider({ children }: { children: React.ReactNode }) {
     try {
       const newManifest = await fetchManifest(manifestUrl);
       const dismissedKey = storageKeys.allManifestChangesDismissed(uuid);
-      const dismissedManifestStr = localStorage.getItem(dismissedKey);
+      const dismissedManifestStr = readLocalStorage(dismissedKey);
 
       const currentSavedManifest = savedManifestRef.current;
 
@@ -139,7 +140,7 @@ export function SaveProvider({ children }: { children: React.ReactNode }) {
         const insignificantKey =
           storageKeys.insignificantManifestChangesDismissed(uuid);
         const insignificantDismissed =
-          localStorage.getItem(insignificantKey) === 'true';
+          readLocalStorage(insignificantKey) === 'true';
 
         if (!severe && insignificantDismissed) {
           // Silently accept the insignificant change
@@ -232,13 +233,10 @@ export function SaveProvider({ children }: { children: React.ReactNode }) {
 
   const handleManifestDismiss = () => {
     if (dontShowManifestAgain && uuid) {
-      localStorage.setItem(
-        storageKeys.allManifestChangesDismissed(uuid),
-        'true'
-      );
+      writeLocalStorage(storageKeys.allManifestChangesDismissed(uuid), 'true');
     }
     if (dontShowInsignificantAgain && uuid && !manifestHasSignificantChanges) {
-      localStorage.setItem(
+      writeLocalStorage(
         storageKeys.insignificantManifestChangesDismissed(uuid),
         'true'
       );

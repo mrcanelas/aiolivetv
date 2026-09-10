@@ -5,7 +5,7 @@ import {
   constants,
   createLogger,
   UserRepository,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 const router: Router = Router();
 const logger = createLogger('server');
 

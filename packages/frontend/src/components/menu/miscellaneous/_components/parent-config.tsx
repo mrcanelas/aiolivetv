@@ -10,7 +10,7 @@ import { verifyParentConfig } from '@/lib/api';
 import { toast } from 'sonner';
 import { GoLink, GoUnlink } from 'react-icons/go';
 import { FiSettings } from 'react-icons/fi';
-import type { ParentConfig, FieldGroup } from '@aiostreams/core';
+import type { ParentConfig, FieldGroup } from '@aiolivetv/core';
 import { FIELD_META } from '../../../../../../core/src/utils/fieldMeta';
 
 type MergeStrategy = 'inherit' | 'extend' | 'override';

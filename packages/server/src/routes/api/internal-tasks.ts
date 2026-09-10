@@ -4,7 +4,7 @@ import {
   config as appConfig,
   createLogger,
   TaskManager,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { createResponse } from '../../utils/responses.js';
 
 const logger = createLogger('server');

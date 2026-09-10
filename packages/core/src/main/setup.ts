@@ -16,8 +16,13 @@ import type { AIOStreamsContext } from './types.js';
 import { CHANNEL_ID_PREFIX } from '../builtins/live-tv/shared.js';
 import {
   buildLiveTvMergedCatalog,
-  LIVE_TV_MERGED_CATALOG_ID,
+  isLiveTvMergedCatalogId,
+  isMergedCatalogId,
 } from './liveTvMergedCatalog.js';
+import {
+  ERROR_META_ID_PREFIX,
+  LEGACY_ERROR_META_ID_PREFIX,
+} from '../utils/identity.js';
 
 const logger = createLogger('core');
 
@@ -531,11 +536,15 @@ export function buildResources(ctx: AIOStreamsContext): void {
     ctx.supportedResources[instanceId] = addonResources;
   }
 
-  // if meta resource exists, add aiostreamserror to idPrefixes only if idPrefixes is defined
+  // if meta resource exists, add error prefixes only if idPrefixes is defined
   const metaResource = ctx.finalResources.find((r) => r.name === 'meta');
   if (metaResource) {
     if (metaResource.idPrefixes) {
-      metaResource.idPrefixes = [...metaResource.idPrefixes, 'aiostreamserror'];
+      metaResource.idPrefixes = [
+        ...metaResource.idPrefixes,
+        ERROR_META_ID_PREFIX,
+        LEGACY_ERROR_META_ID_PREFIX,
+      ];
     }
   }
 
@@ -548,7 +557,7 @@ export function buildResources(ctx: AIOStreamsContext): void {
     ctx.userData.mergedCatalogs = [
       liveTvMerged,
       ...(ctx.userData.mergedCatalogs ?? []).filter(
-        (catalog) => catalog.id !== LIVE_TV_MERGED_CATALOG_ID
+        (catalog) => !isLiveTvMergedCatalogId(catalog.id)
       ),
     ];
   }
@@ -609,7 +618,7 @@ export function buildResources(ctx: AIOStreamsContext): void {
         return aModIndex - bModIndex;
       })
       .filter((catalog) => {
-        if (catalog.id.startsWith('aiostreams.merged.')) {
+        if (isMergedCatalogId(catalog.id)) {
           const modification = ctx.userData.catalogModifications!.find(
             (mod) => mod.id === catalog.id && mod.type === catalog.type
           );
@@ -683,7 +692,7 @@ export function buildResources(ctx: AIOStreamsContext): void {
 
   if (catalogsInMergedCatalogs.size > 0) {
     ctx.finalCatalogs = ctx.finalCatalogs.filter((catalog) => {
-      if (catalog.id.startsWith('aiostreams.merged.')) return true;
+      if (isMergedCatalogId(catalog.id)) return true;
       const key = `${catalog.id}-${catalog.type}`;
       if (!catalogsInMergedCatalogs.has(key)) return true;
       logger.debug(
@@ -717,7 +726,9 @@ function normalizeLiveTvManifest(ctx: AIOStreamsContext): void {
   });
 
   for (const resourceName of ['catalog', 'meta', 'stream'] as const) {
-    const resource = ctx.finalResources.find((entry) => entry.name === resourceName);
+    const resource = ctx.finalResources.find(
+      (entry) => entry.name === resourceName
+    );
     if (!resource) continue;
     resource.types = [constants.TV_TYPE];
     resource.idPrefixes = [CHANNEL_ID_PREFIX];

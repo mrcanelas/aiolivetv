@@ -28,7 +28,7 @@ function constantTimeEquals(a: string, b: string): boolean {
 }
 
 /**
- * Validate a username/password pair against the AIOSTREAMS_AUTH credential
+ * Validate a username/password pair against the AIOLIVETV_AUTH credential
  * map. This is the same map used by the built-in proxy and NZB-grab proxying.
  */
 export function validateCredentials(
@@ -41,7 +41,7 @@ export function validateCredentials(
 }
 
 /**
- * Whether a username is an admin. If AIOSTREAMS_AUTH_ADMINS is unset/empty,
+ * Whether a username is an admin. If AIOLIVETV_AUTH_ADMINS is unset/empty,
  * every authenticated user is an admin (matches the documented env behaviour).
  */
 export function isAdminUser(username: string): boolean {
@@ -52,7 +52,7 @@ export function isAdminUser(username: string): boolean {
 
 /**
  * Whether a username is allowed to use the built-in proxy.
- * If AIOSTREAMS_AUTH_PROXY is unset/empty, all authenticated users may use it.
+ * If AIOLIVETV_AUTH_PROXY is unset/empty, all authenticated users may use it.
  */
 export function canUseProxy(username: string): boolean {
   const allowed = appConfig.bootstrap.authProxy;

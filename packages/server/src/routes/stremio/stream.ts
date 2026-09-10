@@ -7,7 +7,7 @@ import {
   StremioTransformer,
   Cache,
   IdParser,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { stremioStreamRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
 

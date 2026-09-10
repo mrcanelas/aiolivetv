@@ -307,7 +307,7 @@ export const PROXY_SERVICE_DETAILS: Record<
     name: 'Builtin Proxy',
     description: 'A proxy service that is built into the core of AIOLiveTV',
     credentialDescription:
-      'A valid username:password pair for this AIOLiveTV instance, defined in the `AIOSTREAMS_AUTH` environment variable.',
+      'A valid username:password pair for this AIOLiveTV instance, defined in the `AIOLIVETV_AUTH` environment variable.',
   },
   [STREMTHRU_SERVICE]: {
     id: STREMTHRU_SERVICE,
@@ -511,7 +511,7 @@ const SERVICE_DETAILS: Record<
         id: 'aiostreamsAuth',
         name: 'AIOLiveTV Auth Token (Optional)',
         description:
-          'If you would like to proxy your NzbDAV streams, you will need to provide a username:password pair for your AIOLiveTV instance, defined in the `AIOSTREAMS_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
+          'If you would like to proxy your NzbDAV streams, you will need to provide a username:password pair for your AIOLiveTV instance, defined in the `AIOLIVETV_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
         type: 'password',
         required: false,
       },
@@ -576,7 +576,7 @@ const SERVICE_DETAILS: Record<
         id: 'aiostreamsAuth',
         name: 'AIOLiveTV Auth Token (Optional)',
         description:
-          'If you would like to proxy your AltMount streams, you will need to provide a username:password pair for your AIOLiveTV instance, defined in the `AIOSTREAMS_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
+          'If you would like to proxy your AltMount streams, you will need to provide a username:password pair for your AIOLiveTV instance, defined in the `AIOLIVETV_AUTH` environment variable. **Other proxies will not work and you must define it here only**',
         type: 'password',
         required: false,
       },

@@ -16,7 +16,11 @@ import type {
   Preset,
 } from '../db/schemas.js';
 import type { Manifest } from '../db/index.js';
-import type { AIOStreamsContext, AIOStreamsCatalogResponse, AIOStreamsResponse } from './types.js';
+import type {
+  AIOStreamsContext,
+  AIOStreamsCatalogResponse,
+  AIOStreamsResponse,
+} from './types.js';
 import {
   deduplicateLiveTvItems,
   isLiveChannelType,
@@ -28,9 +32,12 @@ import {
   type MergedCatalogSkipState,
 } from './caches.js';
 
+import { isMergedCatalogId } from './liveTvMergedCatalog.js';
+
 export {
   LIVE_TV_MERGED_CATALOG_ID,
   buildLiveTvMergedCatalog,
+  isMergedCatalogId,
 } from './liveTvMergedCatalog.js';
 
 const logger = createLogger('core');
@@ -772,7 +779,7 @@ export async function getCatalog(
 ): Promise<AIOStreamsCatalogResponse> {
   logger.debug({ type, id, extras }, 'handling catalog request');
 
-  if (id.startsWith('aiostreams.merged.')) {
+  if (isMergedCatalogId(id)) {
     const merged = await getMergedCatalog(ctx, type, id, extras);
     return {
       success: merged.success,

@@ -19,7 +19,7 @@ import { ConfigureRoute } from './routes/configure-route';
 import { OAuthCallback } from './routes/oauth-callback';
 import { sessionQuery, statusQuery } from './lib/queries';
 import { queryClient } from './lib/query-client';
-import type { StatusResponse } from '@aiostreams/core';
+import type { StatusResponse } from '@aiolivetv/core';
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,

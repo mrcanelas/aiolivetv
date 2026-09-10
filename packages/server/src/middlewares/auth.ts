@@ -6,7 +6,7 @@ import {
   verifySession,
   issueSession,
   getConfigAccessKey,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 export const SESSION_COOKIE = 'aiostreams.session';
 
@@ -135,7 +135,7 @@ export function requireAdmin(
 
 /**
  * Applies requireSession only when the config page is auth-gated
- * (AIOSTREAMS_AUTH_REQUIRED=true). Otherwise passes through.
+ * (AIOLIVETV_AUTH_REQUIRED=true). Otherwise passes through.
  */
 export function requireSessionIfAuthRequired(
   req: Request,

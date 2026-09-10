@@ -1,5 +1,5 @@
 import React from 'react';
-import { Template } from '@aiostreams/core';
+import { Template } from '@aiolivetv/core';
 import { AlertTriangleIcon } from 'lucide-react';
 import { Modal } from '../../ui/modal';
 import { Button } from '../../ui/button';

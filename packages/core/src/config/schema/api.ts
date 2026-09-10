@@ -66,8 +66,8 @@ export const apiSchema = {
     default: false,
     label: 'Require authentication for the config page',
     description:
-      'When true, /stremio/configure requires a valid login session (any user in AIOSTREAMS_AUTH) and the config-write gate (CONFIG_ACCESS_KEY) is enforced. When false, the config page is public.',
-    env: 'AIOSTREAMS_AUTH_REQUIRED',
+      'When true, /stremio/configure requires a valid login session (any user in AIOLIVETV_AUTH) and the config-write gate (CONFIG_ACCESS_KEY) is enforced. When false, the config page is public. Legacy alias AIOSTREAMS_AUTH_REQUIRED is still accepted.',
+    env: 'AIOLIVETV_AUTH_REQUIRED',
     requiresRestart: false,
     secret: false,
   },

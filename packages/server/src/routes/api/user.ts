@@ -9,7 +9,7 @@ import {
   hmac,
   UserRepository,
   type UserAnalyticsRange,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { userApiRateLimiter } from '../../middlewares/ratelimit.js';
 import { attachSession, injectAccessKey } from '../../middlewares/auth.js';
 import { resolveUuidAliasForUserApi } from '../../middlewares/alias.js';

@@ -20,7 +20,7 @@ import {
   stopAnalytics,
   TaskManager,
   isEphemeralRuntime,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { randomBytes } from 'crypto';
 
 const logger = createLogger('server');

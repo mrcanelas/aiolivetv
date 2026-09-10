@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { CatalogModification } from '@aiostreams/core';
+import { CatalogModification, isMergedCatalogId } from '@aiolivetv/core';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
 import { IconButton } from '../../../ui/button';
@@ -197,7 +197,7 @@ export function CatalogSettingsCard({
                               ),
                           };
                           // If this is a merged catalog, also update mergedCatalogs state
-                          if (catalog.id.startsWith('aiostreams.merged.')) {
+                          if (isMergedCatalogId(catalog.id)) {
                             newState.mergedCatalogs = prev.mergedCatalogs?.map(
                               (mc) =>
                                 mc.id === catalog.id ? { ...mc, enabled } : mc

@@ -1,4 +1,4 @@
-import { createLogger } from '@aiostreams/core';
+import { createLogger } from '@aiolivetv/core';
 import { Request } from 'express';
 const logger = createLogger('server');
 

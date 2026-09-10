@@ -1,4 +1,5 @@
 import React from 'react';
+import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 
 export type Mode = 'pro' | 'noob';
 
@@ -11,13 +12,13 @@ interface ModeContextType {
 
 const ModeContext = React.createContext<ModeContextType | undefined>(undefined);
 
-const MODE_STORAGE_KEY = 'aiostreams-mode';
-const FIRST_TIME_KEY = 'aiostreams-first-time';
+const MODE_STORAGE_KEY = 'aiolivetv-mode';
+const FIRST_TIME_KEY = 'aiolivetv-first-time';
 
 export function ModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = React.useState<Mode>(() => {
     if (typeof window !== 'undefined') {
-      const savedMode = localStorage.getItem(MODE_STORAGE_KEY);
+      const savedMode = readLocalStorage(MODE_STORAGE_KEY);
       return (savedMode as Mode) || 'noob';
     }
     return 'noob';
@@ -25,7 +26,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
 
   const [isFirstTime, setIsFirstTimeState] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(FIRST_TIME_KEY) === null;
+      return readLocalStorage(FIRST_TIME_KEY) === null;
     }
     return true;
   });
@@ -33,14 +34,14 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
   const setMode = React.useCallback((newMode: Mode) => {
     setModeState(newMode);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(MODE_STORAGE_KEY, newMode);
+      writeLocalStorage(MODE_STORAGE_KEY, newMode);
     }
   }, []);
 
   const setIsFirstTime = React.useCallback((value: boolean) => {
     setIsFirstTimeState(value);
     if (typeof window !== 'undefined' && !value) {
-      localStorage.setItem(FIRST_TIME_KEY, 'false');
+      writeLocalStorage(FIRST_TIME_KEY, 'false');
     }
   }, []);
 

@@ -4,7 +4,7 @@ import {
   CatalogResponse,
   createLogger,
   StremioTransformer,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { stremioCatalogRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
 

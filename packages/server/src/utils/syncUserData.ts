@@ -3,7 +3,7 @@ import {
   RegexAccess,
   SelAccess,
   createLogger,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 const logger = createLogger('server');
 

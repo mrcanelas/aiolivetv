@@ -29,7 +29,7 @@ import {
   ConfirmationDialog,
   useConfirmationDialog,
 } from '../shared/confirmation-dialog';
-import { UserData } from '@aiostreams/core';
+import { UserData } from '@aiolivetv/core';
 import { useSave } from '@/context/save';
 import { FiExternalLink } from 'react-icons/fi';
 
@@ -734,7 +734,7 @@ function Content() {
       const now = new Date();
       const pad = (n: number) => n.toString().padStart(2, '0');
       const formattedDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-      a.download = `aiostreams-config-${formattedDate}.json`;
+      a.download = `aiolivetv-config-${formattedDate}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

@@ -30,6 +30,25 @@ try {
 } catch (error) {
   console.error('Error loading .env file', error);
 }
+
+function adoptLegacyEnv(canonical: string, legacy: string) {
+  if (
+    process.env[canonical] === undefined &&
+    process.env[legacy] !== undefined
+  ) {
+    process.env[canonical] = process.env[legacy];
+  }
+}
+
+adoptLegacyEnv('AIOLIVETV_AUTH', 'AIOSTREAMS_AUTH');
+adoptLegacyEnv('AIOLIVETV_AUTH_ADMINS', 'AIOSTREAMS_AUTH_ADMINS');
+adoptLegacyEnv('AIOLIVETV_AUTH_PROXY', 'AIOSTREAMS_AUTH_PROXY');
+adoptLegacyEnv(
+  'AIOLIVETV_AUTH_CONNECTIONS_LIMIT',
+  'AIOSTREAMS_AUTH_CONNECTIONS_LIMIT'
+);
+adoptLegacyEnv('AIOLIVETV_AUTH_REQUIRED', 'AIOSTREAMS_AUTH_REQUIRED');
+adoptLegacyEnv('AIOLIVETV_USER_AGENT', 'AIOSTREAMS_USER_AGENT');
 let metadata: any = undefined;
 try {
   function getResource(resourceName: string) {
@@ -264,21 +283,21 @@ export const Env = cleanEnv(process.env, {
     default: isEphemeralRuntime() ? 5_000 : 200_000,
     desc: 'Hard cap on the number of recent log lines kept in memory for the dashboard Logs page.',
   }),
-  AIOSTREAMS_AUTH: proxyAuth({
+  AIOLIVETV_AUTH: proxyAuth({
     default: new Map<string, string>(),
-    desc: 'Authorisation credentials for this AIOLiveTV instance',
+    desc: 'Authorisation credentials for this AIOLiveTV instance. Legacy alias AIOSTREAMS_AUTH is still accepted.',
   }),
-  AIOSTREAMS_AUTH_ADMINS: commaSeparated({
+  AIOLIVETV_AUTH_ADMINS: commaSeparated({
     default: undefined,
-    desc: 'Comma separated list of admin usernames. If not set, all users are admins.',
+    desc: 'Comma separated list of admin usernames. If not set, all users are admins. Legacy alias AIOSTREAMS_AUTH_ADMINS is still accepted.',
   }),
-  AIOSTREAMS_AUTH_PROXY: commaSeparated({
+  AIOLIVETV_AUTH_PROXY: commaSeparated({
     default: undefined,
-    desc: 'Comma separated list of usernames allowed to use the built-in proxy. If not set, all authenticated users can use the proxy.',
+    desc: 'Comma separated list of usernames allowed to use the built-in proxy. If not set, all authenticated users can use the proxy. Legacy alias AIOSTREAMS_AUTH_PROXY is still accepted.',
   }),
-  AIOSTREAMS_AUTH_CONNECTIONS_LIMIT: connectionLimits({
+  AIOLIVETV_AUTH_CONNECTIONS_LIMIT: connectionLimits({
     default: undefined,
-    desc: 'Connection limits for authenticated users',
+    desc: 'Connection limits for authenticated users. Legacy alias AIOSTREAMS_AUTH_CONNECTIONS_LIMIT is still accepted.',
   }),
   SYSTEM_LIFECYCLE_ENABLED: bool({
     default: false,

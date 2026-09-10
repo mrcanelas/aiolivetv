@@ -32,6 +32,7 @@ import { PageWrapper } from '@/components/shared/page-wrapper';
 import { Spinner } from '@/components/ui/loading-spinner';
 import { LuffyError } from '@/components/shared/luffy-error';
 import { copyToClipboard } from '@/utils/clipboard';
+import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 
 const LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
 
@@ -69,7 +70,7 @@ function formatTime(iso: string): string {
 }
 
 const ALL_MODULES = '__all__';
-const PREFS_KEY = 'aiostreams.logs.prefs';
+const PREFS_KEY = 'aiolivetv.logs.prefs';
 
 interface Prefs {
   autoscroll: boolean;
@@ -79,7 +80,7 @@ interface Prefs {
 
 function loadPrefs(): Prefs {
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
+    const raw = readLocalStorage(PREFS_KEY);
     if (raw) return { ...defaultPrefs, ...JSON.parse(raw) };
   } catch {
     /* ignore */
@@ -210,7 +211,7 @@ export function LogsPage() {
 
   useEffect(() => {
     const prefs: Prefs = { autoscroll, wrap, levels };
-    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    writeLocalStorage(PREFS_KEY, JSON.stringify(prefs));
   }, [autoscroll, wrap, levels]);
 
   const filters: LogFilters = useMemo(

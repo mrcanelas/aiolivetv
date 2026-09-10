@@ -22,7 +22,7 @@ import {
   isLiveChannelType,
   parseDeclaredStreamInfo,
   type DeclaredStreamInfo,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 const router: Router = Router();
 

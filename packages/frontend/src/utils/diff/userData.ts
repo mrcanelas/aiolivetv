@@ -1,4 +1,4 @@
-import { UserData } from '@aiostreams/core';
+import { UserData } from '@aiolivetv/core';
 import { getObjectDiff, sortKeys, DiffItem } from './diff';
 
 /** Strip volatile / identity fields that should never appear in a diff. */

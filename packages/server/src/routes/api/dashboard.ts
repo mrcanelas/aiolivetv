@@ -16,7 +16,7 @@ import {
   type AnalyticsRange,
   type LogRecord,
   type LogQuery,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { ZodError } from 'zod';
 import { requireAdmin } from '../../middlewares/auth.js';
 import { createResponse } from '../../utils/responses.js';
@@ -122,7 +122,7 @@ router.get('/logs/export', (req, res) => {
   );
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename="aiostreams-${stamp}.${ext}"`
+    `attachment; filename="aiolivetv-${stamp}.${ext}"`
   );
 
   for (const rec of logRingBuffer.iterate(query)) {
@@ -458,7 +458,7 @@ router.get('/settings/export', (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="aiostreams-settings-${stamp}.json"`
+      `attachment; filename="aiolivetv-settings-${stamp}.json"`
     );
     return res.status(200).send(JSON.stringify(payload, null, 2));
   }
@@ -566,7 +566,7 @@ router.get('/system/stream', (req, res) => {
 });
 
 /**
- * Graceful exit of *this AIOStreams process only* (never the host). Recovery
+ * Graceful exit of *this AIOLiveTV process only* (never the host). Recovery
  * is the supervisor's job. `restart` exits non-zero (42) so process managers
  * configured to restart bring it back; `stop` exits 0.
  */

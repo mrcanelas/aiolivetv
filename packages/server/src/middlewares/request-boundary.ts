@@ -4,7 +4,7 @@ import {
   flushAnalyticsNow,
   isEphemeralRuntime,
   refreshSettingsAtRequestBoundary,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 const logger = createLogger('server');
 

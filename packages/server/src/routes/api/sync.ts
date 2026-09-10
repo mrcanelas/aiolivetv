@@ -6,7 +6,7 @@ import {
   RegexAccess,
   SelAccess,
   UserRepository,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { z } from 'zod';
 import { createResponse } from '../../utils/responses.js';
 

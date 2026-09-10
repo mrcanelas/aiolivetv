@@ -41,8 +41,8 @@ import {
   constants,
   createLogger,
   Env,
-} from '@aiostreams/core';
-import { StremioTransformer } from '@aiostreams/core';
+} from '@aiolivetv/core';
+import { StremioTransformer } from '@aiolivetv/core';
 import { createResponse } from './utils/responses.js';
 import path from 'path';
 import fs from 'fs';

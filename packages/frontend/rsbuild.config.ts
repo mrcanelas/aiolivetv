@@ -10,7 +10,7 @@ const backendBaseUrl =
   parsed.PUBLIC_BACKEND_BASE_URL || 'http://localhost:3000';
 
 export default defineConfig({
-  // @aiostreams/core resolves via its built dist (self-consistent .js
+  // @aiolivetv/core resolves via its built dist (self-consistent .js
   // specifiers) — no relative-import aliasing needed. Node globals it touches
   // (Buffer, process, ...) are polyfilled for the browser; Next provided these
   // automatically, Rspack does not.

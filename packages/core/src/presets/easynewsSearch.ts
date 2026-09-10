@@ -103,8 +103,8 @@ export class EasynewsSearchPreset extends BuiltinAddonPreset {
         name: 'AIOLiveTV Auth',
         description:
           appConfig.nzbProxy.easynewsEnabled === false
-            ? 'You must provide a valid `username:password` from `AIOSTREAMS_AUTH` to use Easynews Search with all services except Easynews.'
-            : 'Optionally provide a valid `username:password` `from AIOSTREAMS_AUTH` to bypass NZB limits when using Easynews Search with non-Easynews services.',
+            ? 'You must provide a valid `username:password` from `AIOLIVETV_AUTH` to use Easynews Search with all services except Easynews.'
+            : 'Optionally provide a valid `username:password` from `AIOLIVETV_AUTH` to bypass NZB limits when using Easynews Search with non-Easynews services.',
         type: 'password',
         required: false,
       },

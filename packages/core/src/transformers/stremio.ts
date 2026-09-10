@@ -1,5 +1,6 @@
 ﻿import { constants } from '../index.js';
 import { config as appConfig } from '../config/index.js';
+import { createErrorMetaId } from '../utils/identity.js';
 import {
   Meta,
   MetaPreview,
@@ -19,7 +20,11 @@ import {
   ParsedMeta,
 } from '../db/index.js';
 import { createFormatter, FormatterContext } from '../formatters/index.js';
-import { AIOStreamsError, AIOStreamsCatalogResponse, AIOStreamsResponse } from '../main/types.js';
+import {
+  AIOStreamsError,
+  AIOStreamsCatalogResponse,
+  AIOStreamsResponse,
+} from '../main/types.js';
 import { Cache, createLogger, getTimeTakenSincePoint } from '../utils/index.js';
 import { generateBingeGroup } from './utils.js';
 
@@ -259,9 +264,7 @@ export class StremioTransformer {
     };
   }
 
-  transformCatalog(
-    response: AIOStreamsCatalogResponse
-  ): CatalogResponse {
+  transformCatalog(response: AIOStreamsCatalogResponse): CatalogResponse {
     if (response.metasDetailed !== undefined) {
       if (this.showError('catalog', response.errors)) {
         return {
@@ -412,7 +415,7 @@ export class StremioTransformer {
       errorDescription = 'Unknown error',
     } = options;
     return {
-      id: `aiostreamserror.${encodeURIComponent(JSON.stringify(options))}`,
+      id: createErrorMetaId(encodeURIComponent(JSON.stringify(options))),
       name: errorTitle,
       description: errorDescription,
       type: 'movie',

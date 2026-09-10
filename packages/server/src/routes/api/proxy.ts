@@ -14,11 +14,11 @@ import {
   canUseProxy,
   isEphemeralRuntime,
   sameOrigin,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 import { z } from 'zod';
 import { request, Dispatcher } from 'undici';
 import { pipeline } from 'stream/promises';
-import { createProxy, BuiltinProxyStats, BuiltinProxy } from '@aiostreams/core';
+import { createProxy, BuiltinProxyStats, BuiltinProxy } from '@aiolivetv/core';
 import { requireAdmin } from '../../middlewares/auth.js';
 import { corsMiddleware } from '../../middlewares/cors.js';
 import { StaticFiles } from '../../app.js';
@@ -153,7 +153,7 @@ router.get(
 );
 
 // POST /generate — produce a proxified URL. Admin-only (dashboard session).
-// Credentials are injected server-side from AIOSTREAMS_AUTH for the session
+// Credentials are injected server-side from AIOLIVETV_AUTH for the session
 // user — the proxy password never reaches the browser.
 const GenerateSchema = ProxyDataSchema.extend({
   encrypt: z.boolean().optional().default(true),
@@ -173,7 +173,7 @@ router.post(
         throw new APIError(
           constants.ErrorCode.UNAUTHORIZED,
           undefined,
-          'No AIOSTREAMS_AUTH credentials for the current session user'
+          'No AIOLIVETV_AUTH credentials for the current session user'
         );
       }
       const proxy = new BuiltinProxy({

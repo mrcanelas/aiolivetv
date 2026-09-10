@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import type { LogRecord } from '@aiostreams/core';
+import type { LogRecord } from '@aiolivetv/core';
 
 export interface LogRow {
   seq: number;

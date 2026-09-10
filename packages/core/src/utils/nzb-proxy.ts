@@ -109,7 +109,7 @@ export class NzbProxyManager {
   }
 
   /**
-   * Check if a user has admin bypass (via AIOSTREAMS_AUTH)
+   * Check if a user has admin bypass (via AIOLIVETV_AUTH)
    */
   static isAuthorised(username: string, password: string): boolean {
     const authMap = appConfig.bootstrap.auth;

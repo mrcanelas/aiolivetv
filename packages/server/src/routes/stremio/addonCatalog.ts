@@ -4,7 +4,7 @@ import {
   AIOStreams,
   createLogger,
   StremioTransformer,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 import { trackResource } from '../../middlewares/analytics.js';
 

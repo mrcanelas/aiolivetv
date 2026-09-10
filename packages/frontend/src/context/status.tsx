@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { StatusResponse } from '@aiostreams/core';
+import { StatusResponse } from '@aiolivetv/core';
 import { statusQuery } from '@/lib/queries';
 
 export type { StatusResponse };

@@ -29,8 +29,8 @@ export const httpSchema = {
     default: 'AIOLiveTV/{version}',
     label: 'Addon user agent',
     description:
-      'User-Agent identifying this addon to upstream services. Supports `{version}` and `{random}` placeholders.',
-    env: 'AIOSTREAMS_USER_AGENT',
+      'User-Agent identifying this addon to upstream services. Supports `{version}` and `{random}` placeholders. Legacy alias AIOSTREAMS_USER_AGENT is still accepted.',
+    env: 'AIOLIVETV_USER_AGENT',
     requiresRestart: true,
     secret: false,
   },

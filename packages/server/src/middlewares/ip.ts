@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { config as appConfig, createLogger } from '@aiostreams/core';
+import { config as appConfig, createLogger } from '@aiolivetv/core';
 import { isIP } from 'net';
 
 const logger = createLogger('server');

@@ -4,7 +4,7 @@ import {
   constants,
   decryptString,
   isEncrypted,
-} from '@aiostreams/core';
+} from '@aiolivetv/core';
 
 export interface BasicAuthCredentials {
   uuid: string;

@@ -99,7 +99,7 @@ export function LoginPage() {
           </p>
           <p className="text-xs text-[--muted] text-center">
             Use a username and password from your instance's{' '}
-            <code className="text-[--foreground]">AIOSTREAMS_AUTH</code>{' '}
+            <code className="text-[--foreground]">AIOLIVETV_AUTH</code>{' '}
             environment variable
           </p>
         </div>

@@ -13,7 +13,7 @@ Requires Node `>=24` and pnpm `>=11` (enforced in root `package.json` engines).
 All commands run from the repo root. The repo is a pnpm workspace with packages under `packages/*`.
 
 - `pnpm install` — install everything (pnpm workspaces).
-- `pnpm build` — build `core` → `server` → `frontend` in that order (the order matters; later packages depend on `@aiostreams/core`).
+- `pnpm build` — build `core` → `server` → `frontend` in that order (the order matters; later packages depend on `@aiolivetv/core`).
 - `pnpm dev` — run `core`, `server` and `frontend` in parallel watch mode.
 - `pnpm start:dev` — `tsx watch` of `packages/server/src/server.ts` with `NODE_ENV=development` (use this when you only need the backend to reload).
 - `pnpm start` — run the built server (`node packages/server/dist/server`). Requires `pnpm build` first.
@@ -32,7 +32,7 @@ The frontend uses rsbuild (not Vite/webpack directly) — `pnpm -F frontend dev`
 
 ### Workspace layout
 
-- `packages/core` — the engine. Everything addon-related, all I/O, DB, cache, config, presets, builtins, stream pipeline. Other packages depend on it as `@aiostreams/core`.
+- `packages/core` — the engine. Everything addon-related, all I/O, DB, cache, config, presets, builtins, stream pipeline. Other packages depend on it as `@aiolivetv/core`.
 - `packages/server` — thin Express 5 app that wires `core` to HTTP. Owns routing, middleware, rate limiting, static asset serving, and the server lifecycle.
 - `packages/frontend` — React 19 SPA (rsbuild + TanStack Router + TanStack Query + Tailwind + Radix). Built output is served by the server from `packages/frontend/dist` at runtime.
 - `packages/docs` — the docs site (separate build).
@@ -72,6 +72,6 @@ The frontend uses rsbuild (not Vite/webpack directly) — `pnpm -F frontend dev`
 ## Conventions
 
 - ES modules everywhere (`"type": "module"`). Relative imports inside a package must include the `.js` extension (TypeScript NodeNext resolution) — e.g. `from '../db/index.js'` even though the source is `.ts`.
-- Cross-package imports use the workspace name: `from '@aiostreams/core'`.
-- Logger: `createLogger('<scope>')` from `@aiostreams/core` (Pino under the hood); do not `console.log`.
+- Cross-package imports use the workspace name: `from '@aiolivetv/core'`.
+- Logger: `createLogger('<scope>')` from `@aiolivetv/core` (Pino under the hood); do not `console.log`.
 - Errors that prevent startup should be thrown as `ConfigStartupError` — `server.ts` prints those without a stack trace.

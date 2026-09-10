@@ -19,7 +19,7 @@ export interface SystemMetrics {
     perCore: number[];
     /** system-wide CPU utilisation 0..100 (average of `perCore`) */
     total: number;
-    /** AIOStreams process CPU utilisation 0..100 (normalised over all cores). */
+    /** AIOLiveTV process CPU utilisation 0..100 (normalised over all cores). */
     process: number;
   };
   memory: {

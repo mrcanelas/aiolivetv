@@ -4,7 +4,9 @@ import {
   MetaResponse,
   createLogger,
   StremioTransformer,
-} from '@aiostreams/core';
+  isErrorMetaId,
+  errorMetaPayload,
+} from '@aiolivetv/core';
 
 import { stremioMetaRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
@@ -45,10 +47,10 @@ router.get(
         userData: req.userData,
       });
 
-      if (id.startsWith('aiostreamserror.')) {
+      if (isErrorMetaId(id)) {
         res.status(200).json({
           meta: StremioTransformer.createErrorMeta(
-            JSON.parse(decodeURIComponent(id.split('.').slice(1).join('.')))
+            JSON.parse(decodeURIComponent(errorMetaPayload(id)))
           ),
         });
         return;

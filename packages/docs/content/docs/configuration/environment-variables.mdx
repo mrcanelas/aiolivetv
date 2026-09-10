@@ -58,10 +58,10 @@ These are validated at startup and cannot be set from the dashboard.
 
 | Variable                            | Default | Description                                                                                                                                                                                              |
 | ----------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AIOSTREAMS_AUTH`                   | —       | Comma-separated `username:password` pairs defining all valid credentials. e.g. `user1:pass1,user2:pass2`.                                                                                                |
-| `AIOSTREAMS_AUTH_ADMINS`            | —       | Comma-separated usernames (from `AIOSTREAMS_AUTH`) that are admins. Admins can access the configure page and admin-only endpoints (proxy stats, proxy URL generation). If unset, all users are admins.   |
-| `AIOSTREAMS_AUTH_PROXY`             | —       | Comma-separated usernames (from `AIOSTREAMS_AUTH`) allowed to use the built-in proxy. If unset, all authenticated users can use the proxy. Users not listed can still log in and access the configure page. |
-| `AIOSTREAMS_AUTH_CONNECTIONS_LIMIT` | —       | Comma-separated `username:limit` connection limits (`0` for unlimited) for the built-in proxy.                                                                                                           |
+| `AIOLIVETV_AUTH`                    | —       | Comma-separated `username:password` pairs defining all valid credentials. e.g. `user1:pass1,user2:pass2`. Legacy alias `AIOSTREAMS_AUTH` is still accepted.                                                  |
+| `AIOLIVETV_AUTH_ADMINS`             | —       | Comma-separated usernames (from `AIOLIVETV_AUTH`) that are admins. Admins can access the configure page and admin-only endpoints (proxy stats, proxy URL generation). If unset, all users are admins. Legacy alias `AIOSTREAMS_AUTH_ADMINS`. |
+| `AIOLIVETV_AUTH_PROXY`              | —       | Comma-separated usernames (from `AIOLIVETV_AUTH`) allowed to use the built-in proxy. If unset, all authenticated users can use the proxy. Users not listed can still log in and access the configure page. Legacy alias `AIOSTREAMS_AUTH_PROXY`. |
+| `AIOLIVETV_AUTH_CONNECTIONS_LIMIT`  | —       | Comma-separated `username:limit` connection limits (`0` for unlimited) for the built-in proxy. Legacy alias `AIOSTREAMS_AUTH_CONNECTIONS_LIMIT`.                                                              |
 
 ### Logging
 
@@ -102,7 +102,7 @@ neither the environment variable nor a stored value is present.
 
 | Environment Variable | UI Setting | Type | Default | Description |
 | --- | --- | --- | --- | --- |
-| `AIOSTREAMS_AUTH_REQUIRED` | Auth Required | boolean | `false` | When true, /stremio/configure requires a valid login session (any user in AIOSTREAMS_AUTH) and the config-write gate (CONFIG_ACCESS_KEY) is enforced. When false, the config page is public. |
+| `AIOLIVETV_AUTH_REQUIRED` | Auth Required | boolean | `false` | When true, /stremio/configure requires a valid login session (any user in AIOLIVETV_AUTH) and the config-write gate (CONFIG_ACCESS_KEY) is enforced. When false, the config page is public. Legacy alias AIOSTREAMS_AUTH_REQUIRED is still accepted. |
 | `CONFIG_ACCESS_KEY` | Config Access Key | string | *(unset)* | Single key embedded in a config and checked on create/update/serve. If unset while authRequired is true, one is generated and persisted automatically. Rotating it invalidates every existing config until re-saved. _(secret)_ |
 | `SESSION_TTL_SECONDS` | Session TTL Seconds | duration | `86400` | Lifetime of a login session before the user must log in again. Defaults to 24 hours (1d). |
 | `ALIASED_CONFIGURATIONS` | Aliased Configurations | map | *(unset)* | Map of aliases to &#123;uuid, password&#125; accessible at /stremio/u/&lt;alias&gt;/manifest.json. Env-supplied form: comma-separated `alias:uuid:password` entries. _(secret)_ |
@@ -178,7 +178,7 @@ neither the environment variable nor a stored value is present.
 | Environment Variable | UI Setting | Type | Default | Description |
 | --- | --- | --- | --- | --- |
 | `DEFAULT_USER_AGENT` | Default User Agent | string | `AIOLiveTV/{version}` | Default User-Agent header for outbound HTTP requests. Supports `{version}` and `{random}` placeholders. _(restart required)_ |
-| `AIOSTREAMS_USER_AGENT` | Aiostreams User Agent | string | `AIOLiveTV/{version}` | User-Agent identifying this addon to upstream services. Supports `{version}` and `{random}` placeholders. _(restart required)_ |
+| `AIOLIVETV_USER_AGENT` | Aiostreams User Agent | string | `AIOLiveTV/{version}` | User-Agent identifying this addon to upstream services. Supports `{version}` and `{random}` placeholders. Legacy alias AIOSTREAMS_USER_AGENT is still accepted. _(restart required)_ |
 | `HOSTNAME_USER_AGENT_OVERRIDES` | Hostname User Agent Overrides | map | — | Per-hostname User-Agent overrides. Env shape: `host1:ua1,host2:ua2,...`. Takes priority over the default user agents. |
 | `ADDON_PROXY` | Addon Proxy | list | — | Outbound HTTP proxy URL(s) used when fetching addon endpoints. |
 | `ADDON_PROXY_CONFIG` | Addon Proxy Config | map | — | Per-hostname proxy enablement / index. Env shape: `host1:bool\|index,host2:bool\|index,...`. Index references `addonProxy` when configured as a list. |

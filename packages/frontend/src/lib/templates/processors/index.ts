@@ -1,7 +1,7 @@
-import { Template, StatusResponse, Option } from '@aiostreams/core';
+import { Template, StatusResponse, Option } from '@aiolivetv/core';
 import { toast } from 'sonner';
 import { asConfigArray, evaluateTemplateCondition } from './conditionals';
-import * as constants from '@aiostreams/core/src/utils/constants';
+import * as constants from '@aiolivetv/core/src/utils/constants';
 import {
   ALLOWED_INPUT_TYPES,
   AllowedInputType,

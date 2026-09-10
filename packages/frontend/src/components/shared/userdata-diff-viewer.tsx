@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { UserData } from '@aiostreams/core';
+import { UserData } from '@aiolivetv/core';
 import { DiffViewer } from './diff-viewer';
 import {
   computeUserDataDiff,
