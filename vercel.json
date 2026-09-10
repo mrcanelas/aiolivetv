@@ -12,5 +12,19 @@
       "source": "/(.*)",
       "destination": { "service": "addon" }
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/internal/tasks/prune-users",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/internal/tasks/clear-expired-cache",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/internal/tasks/analytics-rollup",
+      "schedule": "0 5 * * *"
+    }
   ]
 }

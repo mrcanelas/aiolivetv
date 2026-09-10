@@ -11,7 +11,7 @@ The Express server and the React frontend stay in the same image; there is no
 Next.js rewrite.
 
 Vercel builds `Dockerfile.vercel` as a **Container** service and routes every
-request to that image.
+request to that image. Scheduled maintenance uses [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs) against `/api/internal/tasks/*`.
 
 <Callout type="error">
   In Project Settings → General → Framework Settings, set **Framework Preset**
@@ -37,6 +37,7 @@ request to that image.
 - Dashboard, login, and configuration
 - Manifest, catalog, meta, stream, and EPG responses
 - Built-in Live TV addons (M3U, XMLTV, Xtream, Vivo TV, Claro TV)
+- Cron-triggered maintenance (inactive users, expired SQL cache, analytics rollup)
 
 ## What does not run on Vercel
 
@@ -66,6 +67,7 @@ NODE_ENV=production
 SYSTEM_LIFECYCLE_ENABLED=false
 LOG_LEVEL=info
 LOG_FORMAT=json
+CRON_SECRET=<long-random-secret>
 ```
 
 Keep `SECRET_KEY` stable. Changing it makes existing encrypted configurations
@@ -103,6 +105,19 @@ of each request.
   Raise the Function `maxDuration` in the Vercel project if large M3U or XMLTV
   sources need more than the plan default. Keep the built-in proxy disabled.
 </Callout>
+
+## Cron jobs
+
+`vercel.json` registers three **daily** jobs (Hobby-compatible; more than once per day requires Pro):
+
+| Path | Schedule |
+| --- | --- |
+| `/api/internal/tasks/prune-users` | `0 4 * * *` |
+| `/api/internal/tasks/clear-expired-cache` | `30 4 * * *` |
+| `/api/internal/tasks/analytics-rollup` | `0 5 * * *` |
+
+Each request must include `Authorization: Bearer ${CRON_SECRET}`. Vercel adds
+this header automatically when `CRON_SECRET` is set.
 
 ## First-deploy defaults
 
