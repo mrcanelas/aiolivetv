@@ -252,22 +252,7 @@ export function useTemplateWizard({
         }));
       }
 
-      const addonsNeedingSetup = (migratedData.presets || [])
-        .filter((preset: any) =>
-          ['gdrive'].some((type) => preset.type.toLowerCase().includes(type))
-        )
-        .map((preset: any) => preset.options?.name || preset.type);
-
       toast.success(`Template "${templateName}" loaded successfully`);
-
-      if (addonsNeedingSetup.length > 0) {
-        setTimeout(() => {
-          toast.info(
-            `Note: ${addonsNeedingSetup.join(', ')} require additional setup. Please configure them in the Addons section.`,
-            { duration: 8000 }
-          );
-        }, 1000);
-      }
 
       setProcessedTemplate(null);
       setCurrentStep('browse');

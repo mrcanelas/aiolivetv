@@ -289,11 +289,6 @@ export interface ChannelInfo {
   }>;
 }
 
-interface GDriveTokenResponse {
-  accessToken: string;
-  refreshToken: string;
-}
-
 /**
  * Auth / session
  */
@@ -473,15 +468,6 @@ export async function fetchChannels(
 }
 
 /**
- * Exchange Google Drive OAuth code for tokens
- */
-export async function exchangeGDriveCode(code: string) {
-  return api<GDriveTokenResponse>('POST /oauth/exchange/gdrive', {
-    body: { code },
-  });
-}
-
-/**
  * Get templates
  */
 export async function fetchTemplates() {
@@ -574,5 +560,4 @@ export type {
   ResolveSyncedResponse,
   FormatStreamResponse,
   CatalogInfo,
-  GDriveTokenResponse,
 };

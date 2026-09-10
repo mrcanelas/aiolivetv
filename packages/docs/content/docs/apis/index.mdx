@@ -3,7 +3,7 @@ title: Overview
 description: Overview of the AIOLiveTV REST API.
 ---
 
-AIOLiveTV exposes a REST API that lets you query streams programmatically, look up anime mappings, and more. Responses use a consistent JSON envelope.
+AIOLiveTV exposes a REST API used by the configuration UI. Responses use a consistent JSON envelope.
 
 **Base Path:** `/api/v1`
 
@@ -42,18 +42,8 @@ All endpoints return a consistent top-level structure:
 
 <Cards>
   <Card
-    title="Search"
-    href="/apis/search"
-    description="Search for streams across all configured sources."
-  />
-  <Card
     title="User"
     href="/apis/user"
     description="Create, retrieve, update, and delete user configurations."
-  />
-  <Card
-    title="Anime"
-    href="/apis/anime"
-    description="Look up anime ID mappings across supported databases."
   />
 </Cards>

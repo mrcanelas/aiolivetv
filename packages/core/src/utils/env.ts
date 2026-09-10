@@ -259,7 +259,7 @@ export const Env = cleanEnv(process.env, {
   }),
   HTTP_ALLOW_PRIVATE_URLS: bool({
     default: false,
-    desc: 'Allow outbound HTTP to localhost and private/reserved IP ranges. Leave false on public or multi-user instances. Set true only for a personal LAN (local XMLTV/M3U/Prowlarr).',
+    desc: 'Allow outbound HTTP to localhost and private/reserved IP ranges. Leave false on public or multi-user instances. Set true only for a personal LAN (local XMLTV/M3U).',
   }),
   SETTINGS_REFRESH_INTERVAL: num({
     default: 30,

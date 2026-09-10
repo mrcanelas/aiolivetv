@@ -6,7 +6,6 @@ import {
   FaCode,
   FaFileCode,
   FaCodeBranch,
-  FaArrowAltCircleUp,
 } from 'react-icons/fa';
 import { DonateButton } from '@/components/donate-button';
 
@@ -59,7 +58,7 @@ export default function HomePage() {
           <NavCard
             href="/guides/groups"
             title="Guides"
-            description="Groups, Usenet, Scored Sorting, and Templates."
+            description="Addon groups and local development."
             icon={FaBook}
           />
           <NavCard
@@ -71,14 +70,8 @@ export default function HomePage() {
           <NavCard
             href="/apis"
             title="API"
-            description="HTTP API for search and user data operations."
+            description="HTTP API for user configuration and status."
             icon={FaCode}
-          />
-          <NavCard
-            href="/migrations/v1-to-v2"
-            title="Migration"
-            description="Upgrading from AIOStreams v1 or related forks to AIOLiveTV."
-            icon={FaArrowAltCircleUp}
           />
           <NavCard
             href="/guides/development"

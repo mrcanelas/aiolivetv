@@ -243,7 +243,6 @@ app.get('/configure', (req, res) => {
 const SPA_STATIC_ROUTES = [
   '/',
   '/login',
-  '/oauth/callback/gdrive',
   '/splashscreen',
   '/stremio/configure',
 ];

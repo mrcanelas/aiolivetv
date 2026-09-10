@@ -16,7 +16,6 @@ import {
 } from './routes/dashboard-pages';
 import { SplashscreenPage } from './routes/splashscreen-page';
 import { ConfigureRoute } from './routes/configure-route';
-import { OAuthCallback } from './routes/oauth-callback';
 import { sessionQuery, statusQuery } from './lib/queries';
 import { queryClient } from './lib/query-client';
 import type { StatusResponse } from '@aiolivetv/core';
@@ -50,12 +49,6 @@ const loginRoute = createRoute({
     }
   },
   component: LoginPage,
-});
-
-const oauthGdriveRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/oauth/callback/gdrive',
-  component: OAuthCallback,
 });
 
 const splashscreenRoute = createRoute({
@@ -183,7 +176,6 @@ const routeTree = rootRoute.addChildren([
   stremioConfigureRoute,
   stremioConfigureAuthRoute,
   loginRoute,
-  oauthGdriveRoute,
   splashscreenRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,

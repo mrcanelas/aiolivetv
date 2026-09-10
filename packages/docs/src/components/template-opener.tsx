@@ -33,11 +33,13 @@ export function TemplateOpener({
       defaultChannel === 'nightly' ? i.nightly : i.stable
     ) ?? instances[0];
 
-  const [selectedId, setSelectedId] = useState(firstInstance.id);
+  const [selectedId, setSelectedId] = useState(
+    firstInstance?.id ?? SELF_HOSTED_ID
+  );
   const [channel, setChannel] = useState<'stable' | 'nightly'>(
-    firstInstance.nightly && defaultChannel === 'nightly'
+    firstInstance?.nightly && defaultChannel === 'nightly'
       ? 'nightly'
-      : firstInstance.stable
+      : firstInstance?.stable
         ? 'stable'
         : 'nightly'
   );

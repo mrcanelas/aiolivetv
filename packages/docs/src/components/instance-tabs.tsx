@@ -3,6 +3,15 @@ import { instances } from '@/lib/instances';
 import { Callout } from 'fumadocs-ui/components/callout';
 
 export function InstanceTabs() {
+  if (instances.length === 0) {
+    return (
+      <Callout type="info">
+        AIOLiveTV does not ship official public instances. Self-host or deploy
+        on Vercel.
+      </Callout>
+    );
+  }
+
   return (
     <Tabs items={instances.map((i) => i.name)}>
       {instances.map((instance) => {
