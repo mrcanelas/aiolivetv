@@ -1,6 +1,6 @@
 {
   "version": "2.30.3",
-  "description": "Combine live TV metadata and stream sources into one configurable Stremio addon.",
+  "description": "A unified Live TV hub for Stremio. Aggregate channels from multiple addons, EPG providers and M3U playlists into a single guide.",
   "tag": "v2.30.3",
   "channel": "stable",
   "commitHash": "c3aa89dd",

@@ -1,7 +1,7 @@
 {
   "name": "aiolivetv",
   "version": "2.30.3",
-  "description": "Combine live TV metadata and stream sources into one configurable Stremio addon.",
+  "description": "A unified Live TV hub for Stremio. Aggregate channels from multiple addons, EPG providers and M3U playlists into a single guide.",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
