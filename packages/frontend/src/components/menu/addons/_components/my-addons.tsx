@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUserData, removeInvalidPresetReferences } from '@/context/userData';
 import { useStatus } from '@/context/status';
-import { Option } from '@aiolivetv/core';
+import type { Option } from '@aiolivetv/core';
 import { SettingsCard } from '../../../shared/settings-card';
 import { Button, IconButton } from '../../../ui/button';
 import { Switch } from '../../../ui/switch';

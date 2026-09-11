@@ -1,5 +1,5 @@
 import React from 'react';
-import { Option } from '@aiolivetv/core';
+import type { Option } from '@aiolivetv/core';
 import { Button } from '../../../ui/button';
 import { ModeSwitch } from '../../../ui/mode-switch/mode-switch';
 import TemplateOption from '../../template-option';

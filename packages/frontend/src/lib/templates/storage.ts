@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Template } from '@aiolivetv/core';
+import type { Template } from '@aiolivetv/core';
 import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 import { TemplateSchema } from './types';
 

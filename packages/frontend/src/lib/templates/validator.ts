@@ -1,4 +1,4 @@
-import { Template, StatusResponse } from '@aiolivetv/core';
+import type { Template, StatusResponse } from '@aiolivetv/core';
 import { asConfigArray } from './processors/conditionals';
 import { TemplateSchema, TemplateValidation, formatZodError } from './types';
 

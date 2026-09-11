@@ -29,7 +29,7 @@ import {
   ConfirmationDialog,
   useConfirmationDialog,
 } from '../shared/confirmation-dialog';
-import { UserData } from '@aiolivetv/core';
+import type { UserData } from '@aiolivetv/core';
 import { useSave } from '@/context/save';
 import { FiExternalLink } from 'react-icons/fi';
 

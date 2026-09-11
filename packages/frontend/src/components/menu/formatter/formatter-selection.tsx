@@ -2,7 +2,7 @@ import React from 'react';
 import * as constants from '../../../../../core/src/utils/constants';
 import { BUILTIN_FORMATTER_DEFINITIONS } from '../../../../../core/src/utils/formatter-definitions';
 import { useUserData } from '@/context/userData';
-import { UserData } from '@aiolivetv/core';
+import type { UserData } from '@aiolivetv/core';
 import { SettingsCard } from '../../shared/settings-card';
 import { Select } from '../../ui/select';
 import { Textarea } from '../../ui/textarea';

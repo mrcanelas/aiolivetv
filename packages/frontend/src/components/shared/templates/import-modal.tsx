@@ -1,5 +1,5 @@
 import React from 'react';
-import { Template, StatusResponse } from '@aiolivetv/core';
+import type { Template, StatusResponse } from '@aiolivetv/core';
 import { BiImport } from 'react-icons/bi';
 import { Modal } from '../../ui/modal';
 import { Button } from '../../ui/button';

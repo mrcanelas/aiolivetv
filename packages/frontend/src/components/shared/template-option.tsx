@@ -3,7 +3,7 @@ import { NumberInput } from '../ui/number-input';
 import { Switch } from '../ui/switch';
 import { Select } from '../ui/select';
 import { Combobox } from '../ui/combobox';
-import { Option, NNTPServers } from '@aiolivetv/core';
+import type { Option, NNTPServers } from '@aiolivetv/core';
 import React, { useState, useEffect } from 'react';
 import MarkdownLite from './markdown-lite';
 import { Alert } from '../ui/alert';

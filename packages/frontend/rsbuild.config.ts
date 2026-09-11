@@ -10,10 +10,10 @@ const backendBaseUrl =
   parsed.PUBLIC_BACKEND_BASE_URL || 'http://localhost:3000';
 
 export default defineConfig({
-  // @aiolivetv/core resolves via its built dist (self-consistent .js
-  // specifiers) — no relative-import aliasing needed. Node globals it touches
-  // (Buffer, process, ...) are polyfilled for the browser; Next provided these
-  // automatically, Rspack does not.
+  // Polyfill Node globals (Buffer, process) that some browser-safe core
+  // helpers still touch. Do not import runtime values from the
+  // `@aiolivetv/core` barrel — that pulls Redis, Pino, Undici and other
+  // Node-only modules into the SPA. Use `import type` or core/src helpers.
   plugins: [pluginReact(), pluginNodePolyfill()],
   source: {
     entry: { index: './src/main.tsx' },

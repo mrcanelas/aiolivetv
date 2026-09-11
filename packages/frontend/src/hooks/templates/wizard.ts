@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import {
+import type {
   Template,
   Option,
   StatusResponse,

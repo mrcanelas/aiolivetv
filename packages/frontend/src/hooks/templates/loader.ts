@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Template, StatusResponse } from '@aiolivetv/core';
+import type { Template, StatusResponse } from '@aiolivetv/core';
 import { fetchTemplates } from '@/lib/api';
 import { TemplateValidation, TEMPLATE_CACHE } from '@/lib/templates/types';
 import {

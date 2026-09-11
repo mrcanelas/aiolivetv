@@ -20,7 +20,7 @@ import {
   FaArrowDown,
   FaLink,
 } from 'react-icons/fa';
-import { UserData } from '@aiolivetv/core';
+import type { UserData } from '@aiolivetv/core';
 
 /** Parse a `<SYNCED: url>` placeholder, returning the URL or null. */
 function parseSyncedUrl(value: string): string | null {

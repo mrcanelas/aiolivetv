@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Template, StatusResponse } from '@aiolivetv/core';
+import type { Template, StatusResponse } from '@aiolivetv/core';
 import { useConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import { TemplateValidation } from '@/lib/templates/types';
 import {

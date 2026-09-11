@@ -1,5 +1,5 @@
 import { z, ZodError } from 'zod';
-import { Template, Option } from '@aiolivetv/core';
+import type { Template, Option } from '@aiolivetv/core';
 import * as constants from '../../../../core/src/utils/constants';
 
 export const formatZodError = (error: ZodError) => {

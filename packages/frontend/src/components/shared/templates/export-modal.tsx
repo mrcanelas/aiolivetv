@@ -3,7 +3,7 @@ import { Modal } from '../../ui/modal';
 import { Button } from '../../ui/button';
 import { Alert } from '../../ui/alert';
 import { toast } from 'sonner';
-import { Template, UserData } from '@aiolivetv/core';
+import type { Template, UserData } from '@aiolivetv/core';
 import { useStatus } from '@/context/status';
 import { TextInput } from '../../ui/text-input';
 import { Textarea } from '../../ui/textarea';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserData } from '@aiolivetv/core';
+import type { UserData } from '@aiolivetv/core';
 import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 import { useUserData, DefaultUserData } from './userData';
 import { useStatus } from './status';

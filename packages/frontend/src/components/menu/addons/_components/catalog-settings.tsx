@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { CatalogModification, isMergedCatalogId } from '@aiolivetv/core';
+import type { CatalogModification } from '@aiolivetv/core';
+import { isMergedCatalogId } from '@/lib/identity';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';
 import { IconButton } from '../../../ui/button';

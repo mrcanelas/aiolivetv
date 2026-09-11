@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import {
-  MergedCatalog,
-  isMergedCatalogId,
-  MERGED_CATALOG_PREFIX,
-} from '@aiolivetv/core';
+import type { MergedCatalog } from '@aiolivetv/core';
+import { isMergedCatalogId, MERGED_CATALOG_PREFIX } from '@/lib/identity';
 import { useStatus } from '@/context/status';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../../../shared/settings-card';

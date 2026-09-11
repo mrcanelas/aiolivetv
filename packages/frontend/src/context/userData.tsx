@@ -1,5 +1,6 @@
 import React from 'react';
-import { UserData, migrateLegacyIdentityIds } from '@aiolivetv/core';
+import type { UserData } from '@aiolivetv/core';
+import { migrateLegacyIdentityIds } from '@/lib/identity';
 import { readLocalStorage, writeLocalStorage } from '@/utils/legacy-storage';
 import {
   QUALITIES,

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Template } from '@aiolivetv/core';
+import type { Template } from '@aiolivetv/core';
 import {
   SearchIcon,
   AlertTriangleIcon,

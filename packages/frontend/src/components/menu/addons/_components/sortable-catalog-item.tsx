@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { CatalogModification, isMergedCatalogId } from '@aiolivetv/core';
+import type { CatalogModification } from '@aiolivetv/core';
+import { isMergedCatalogId } from '@/lib/identity';
 import { useUserData } from '@/context/userData';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';

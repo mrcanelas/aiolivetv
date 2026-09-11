@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ParsedStream } from '../../../../../core/src/db/schemas';
+import type { ParsedStream } from '../../../../../core/src/db/schemas';
 import {
   formatDeclaredStreamSummary,
   parseDeclaredStreamInfo,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Option } from '@aiolivetv/core';
+import type { Option } from '@aiolivetv/core';
 import { Button } from '../../../ui/button';
 import { Modal } from '../../../ui/modal';
 import TemplateOption from '../../../shared/template-option';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusResponse } from '@aiolivetv/core';
+import type { StatusResponse } from '@aiolivetv/core';
 import { CheckIcon } from 'lucide-react';
 import { Button } from '../../../ui/button';
 import { Alert } from '../../../ui/alert';

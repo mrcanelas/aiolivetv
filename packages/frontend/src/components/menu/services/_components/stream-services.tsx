@@ -33,7 +33,7 @@ import { Modal } from '../../../ui/modal';
 import { Alert } from '../../../ui/alert';
 import TemplateOption from '../../../shared/template-option';
 import MarkdownLite from '../../../shared/markdown-lite';
-import { StatusResponse, UserData } from '@aiolivetv/core';
+import type { StatusResponse, UserData } from '@aiolivetv/core';
 
 // Usenet service IDs
 const USENET_SERVICE_IDS: string[] = [

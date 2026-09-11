@@ -1,5 +1,5 @@
 import { PARSE_REGEX } from './regex.js';
-import { ParsedFile } from '../db/schemas.js';
+import type { ParsedFile } from '../db/schemas.js';
 import { Parser, handlers } from '@viren070/parse-torrent-title';
 import { RESOLUTIONS } from '../utils/constants.js';
 import { mapLanguageCode, convertLangCodeToName } from '../utils/languages.js';
