@@ -172,7 +172,7 @@ app.get('/logo.png', staticRateLimiter, (req, res, next) => {
 });
 app.get(
   [
-    '/favicon.ico',
+    '/favicon.png',
     '/manifest.json',
     '/web-app-manifest-192x192.png',
     '/web-app-manifest-512x512.png',
