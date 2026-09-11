@@ -30,6 +30,7 @@ import { useMenu } from '@/context/menu';
 import { useMode } from '@/context/mode';
 import { DonationModal } from '../shared/donation-modal';
 import {
+  PRODUCT_DOCS_URL,
   PRODUCT_GITHUB_URL,
   PRODUCT_ISSUES_URL,
 } from '@/constants/branding';
@@ -572,13 +573,13 @@ AIOLiveTV combines live channel metadata and stream sources into one configurabl
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1">
                 <QuickLink
-                  href={`${githubUrl}/blob/main/packages/docs/content/docs/getting-started/index.mdx`}
+                  href={`${PRODUCT_DOCS_URL}/`}
                   icon={<BookOpenIcon className="w-7 h-7" />}
                 >
                   Docs
                 </QuickLink>
                 <QuickLink
-                  href={`${githubUrl}/blob/main/packages/docs/content/docs/getting-started/vercel.mdx`}
+                  href={`${PRODUCT_DOCS_URL}/getting-started/vercel`}
                   icon={<BookOpenIcon className="w-7 h-7" />}
                 >
                   Setup Guide

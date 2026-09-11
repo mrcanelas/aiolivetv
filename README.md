@@ -63,7 +63,7 @@ Everything is added from the existing **Addons** page:
 
 The **Channels** page lets you review mappings, reorder streams, and enable or disable channels. Changes stay in the draft until **Save**.
 
-Docs: [Setup](packages/docs/content/docs/configuration/setup.mdx) · [XMLTV, M3U and Xtream](packages/docs/content/docs/guides/sources.mdx) · [Channels](packages/docs/content/docs/guides/channels.mdx)
+Docs: [Documentation](https://mrcanelas.github.io/aiolivetv/) · [Setup](https://mrcanelas.github.io/aiolivetv/configuration/setup) · [XMLTV, M3U and Xtream](https://mrcanelas.github.io/aiolivetv/guides/sources) · [Channels](https://mrcanelas.github.io/aiolivetv/guides/channels)
 
 ---
 
@@ -83,7 +83,7 @@ Open `http://localhost:3000/stremio/configure`.
 
 ### Vercel
 
-Use external PostgreSQL and Redis. In the project, set Framework Preset to **Container** and keep Root Directory at the repository root. Guide: [Deploy on Vercel](packages/docs/content/docs/getting-started/vercel.mdx).
+Use external PostgreSQL and Redis. In the project, set Framework Preset to **Container** and keep Root Directory at the repository root. Guide: [Deploy on Vercel](https://mrcanelas.github.io/aiolivetv/getting-started/vercel).
 
 ### From source
 

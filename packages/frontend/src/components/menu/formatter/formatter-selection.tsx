@@ -16,7 +16,7 @@ import { FaFileImport, FaFileExport, FaSave } from 'react-icons/fa';
 import { SnippetsButton } from './snippets-button';
 import { SavedFormattersModal } from './saved-formatters-modal';
 
-import { PRODUCT_GITHUB_URL } from '@/constants/branding';
+import { PRODUCT_DOCS_URL } from '@/constants/branding';
 
 const formatterChoices = Object.values(constants.FORMATTER_DETAILS);
 
@@ -295,7 +295,7 @@ export function FormatterSelection() {
               Type <span className="font-mono">{'{debug.jsonf}'}</span> to see
               all available variables. See the{' '}
               <a
-                href={`${PRODUCT_GITHUB_URL}/blob/main/packages/docs/content/docs/reference/custom-formatter.mdx`}
+                href={`${PRODUCT_DOCS_URL}/reference/custom-formatter`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[--brand] hover:text-[--brand]/80 hover:underline"

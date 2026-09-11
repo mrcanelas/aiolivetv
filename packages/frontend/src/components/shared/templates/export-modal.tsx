@@ -7,7 +7,7 @@ import type { Template, UserData } from '@aiolivetv/core';
 import { useStatus } from '@/context/status';
 import { TextInput } from '../../ui/text-input';
 import { Textarea } from '../../ui/textarea';
-import { PRODUCT_GITHUB_URL, PRODUCT_NAME } from '@/constants/branding';
+import { PRODUCT_DOCS_URL, PRODUCT_NAME } from '@/constants/branding';
 
 export interface TemplateExportModalProps {
   open: boolean;
@@ -216,7 +216,7 @@ export function TemplateExportModal({
               <p>
                 See the{' '}
                 <a
-                  href={`${PRODUCT_GITHUB_URL}/blob/main/packages/docs/content/docs/guides/templates.mdx`}
+                  href={`${PRODUCT_DOCS_URL}/reference/templates`}
                   target="_blank"
                   className="text-[--brand] hover:text-[--brand]/80 hover:underline"
                   rel="noopener noreferrer"

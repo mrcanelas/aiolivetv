@@ -6,3 +6,4 @@ export const PRODUCT_GITHUB_OWNER = 'mrcanelas';
 export const PRODUCT_GITHUB_REPO = 'aiolivetv';
 export const PRODUCT_GITHUB_URL = `https://github.com/${PRODUCT_GITHUB_OWNER}/${PRODUCT_GITHUB_REPO}`;
 export const PRODUCT_ISSUES_URL = `${PRODUCT_GITHUB_URL}/issues`;
+export const PRODUCT_DOCS_URL = 'https://mrcanelas.github.io/aiolivetv';

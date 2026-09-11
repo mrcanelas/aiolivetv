@@ -3,7 +3,7 @@ import { PageWrapper } from '../../shared/page-wrapper';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { SettingsNavCard } from '../../shared/settings-card';
 import { useUserData } from '@/context/userData';
-import { PRODUCT_GITHUB_URL, PRODUCT_NAME } from '@/constants/branding';
+import { PRODUCT_DOCS_URL, PRODUCT_NAME } from '@/constants/branding';
 import {
   FaBolt,
   FaClock,
@@ -2186,7 +2186,7 @@ function Content() {
                     <p className="text-sm text-[--muted]">
                       This filter uses {PRODUCT_NAME}'s{' '}
                       <a
-                        href={`${PRODUCT_GITHUB_URL}/blob/main/packages/docs/content/docs/reference/stream-expressions.mdx`}
+                        href={`${PRODUCT_DOCS_URL}/reference/stream-expressions`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[--brand] hover:underline"
@@ -2229,7 +2229,7 @@ function Content() {
                     <p className="text-sm text-[--muted]">
                       For detailed syntax and available functions, see the{' '}
                       <a
-                        href={`${PRODUCT_GITHUB_URL}/blob/main/packages/docs/content/docs/reference/stream-expressions.mdx#function-reference`}
+                        href={`${PRODUCT_DOCS_URL}/reference/stream-expressions#function-reference`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[--brand] hover:underline"
