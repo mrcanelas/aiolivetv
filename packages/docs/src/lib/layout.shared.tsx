@@ -1,6 +1,6 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import Image from 'next/image';
 import { DonateIconButton } from '@/components/donate-button';
+import { withBasePath } from '@/lib/base-path';
 
 export const gitConfig = {
   user: 'mrcanelas',
@@ -14,17 +14,15 @@ export function baseOptions(): BaseLayoutProps {
       title: (
         <>
           <span className="relative inline-flex h-6 w-6 shrink-0">
-            <Image
-              src="/logo-light.png"
+            <img
+              src={withBasePath('/logo-light.png')}
               alt="AIOLiveTV"
-              fill
-              className="object-contain transition-opacity duration-300 dark:opacity-0"
+              className="absolute inset-0 h-6 w-6 object-contain transition-opacity duration-300 dark:opacity-0"
             />
-            <Image
-              src="/logo-dark.png"
+            <img
+              src={withBasePath('/logo-dark.png')}
               alt=""
-              fill
-              className="object-contain transition-opacity duration-300 opacity-0 dark:opacity-100"
+              className="absolute inset-0 h-6 w-6 object-contain transition-opacity duration-300 opacity-0 dark:opacity-100"
             />
           </span>
           AIOLiveTV

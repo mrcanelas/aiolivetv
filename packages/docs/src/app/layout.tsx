@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Provider } from '@/components/provider';
+import { docsSiteUrl, withBasePath } from '@/lib/base-path';
 import './global.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(docsSiteUrl()),
   title: {
     template: '%s | AIOLiveTV',
     default: 'AIOLiveTV',
@@ -11,8 +13,8 @@ export const metadata: Metadata = {
   description:
     'Unified Live TV aggregator for Stremio. Combine XMLTV, M3U, Xtream and channel addons, with or without Native EPG.',
   icons: {
-    icon: '/favicon.png',
-    apple: '/logo.png',
+    icon: withBasePath('/favicon.png'),
+    apple: withBasePath('/logo.png'),
   },
 };
 
