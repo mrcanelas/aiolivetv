@@ -11,7 +11,7 @@ import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 
 [Docker](https://docs.docker.com/get-docker/) is the recommended way to run AIOLiveTV locally or on a VPS. Build from this repository or use the compose file in the repo root.
 
-Use the `latest` tag for the latest stable release, or `nightly` for the latest commit build.
+Use the `latest` tag for the latest release.
 
 <Callout type="info">
   Only **`BASE_URL`** and **`SECRET_KEY`** are required environment variables -
@@ -180,7 +180,7 @@ These platforms offer free tiers that can run AIOLiveTV, but they are **not perm
 
     ```bash
     pnpm run build
-    pnpm run metadata --channel=nightly
+    pnpm run metadata
     ```
 
   </Step>

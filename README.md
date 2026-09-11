@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/version-0.1.0--beta-blue?style=for-the-badge" alt="0.1.0-beta">
   <img src="https://img.shields.io/badge/status-public%20beta-yellow?style=for-the-badge" alt="Public beta">
   <a href="https://github.com/mrcanelas/aiolivetv/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/nightly.yml?style=for-the-badge&logo=github" alt="Build Status">
+    <img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/build.yml?style=for-the-badge&logo=github" alt="Build Status">
   </a>
   <a href="https://github.com/mrcanelas/aiolivetv">
     <img src="https://img.shields.io/github/stars/mrcanelas/aiolivetv?style=for-the-badge&logo=github" alt="GitHub Stars">

@@ -40,10 +40,6 @@ jobs:
             fi
             CHANNEL="stable"
             ;;
-          [0-9]*.[0-9]*.[0-9]*-nightly)
-            TAGS="${INPUT_REF} nightly"
-            CHANNEL="nightly"
-            ;;
           *)
             echo "Invalid Input Ref: ${INPUT_REF}"
             exit 1
