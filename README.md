@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-0.1.0--beta-blue?style=for-the-badge" alt="0.1.0-beta">
   <img src="https://img.shields.io/badge/status-public%20beta-yellow?style=for-the-badge" alt="Public beta">
   <a href="https://github.com/mrcanelas/aiolivetv/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/nightly.yml?style=for-the-badge&logo=github" alt="Build Status">
@@ -20,7 +21,7 @@
   </a>
 </p>
 
-AIOLiveTV is in **public beta**. Catalog, meta, stream and optional Native EPG work; expect breaking changes before 1.0.
+AIOLiveTV is in **public beta** (`0.1.0-beta`). Catalog, meta, stream and optional Native EPG work; expect breaking changes before 1.0. This is not a continuation of the AIOStreams 2.x version line.
 
 ---
 

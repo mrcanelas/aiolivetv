@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-beta (2026-09-10)
+
+First public beta of **AIOLiveTV**. Versioning starts at `0.1.0-beta` and does not continue the AIOStreams 2.x line. Entries from 2.30.3 downward document the AIOStreams history this project was forked from.
+
+### Features
+
+* unified live catalog with optional Native EPG (`behaviorHints.epgProvider` only when a real guide exists)
+* XMLTV, M3U, Xtream and live Stremio addons as presets
+* Channels page with high-confidence matching, suggestions, source diagnostics and conflict review
+* AGPL-3.0-only license aligned with AIOStreams
+
 ## [2.30.3](https://github.com/Viren070/AIOStreams/compare/v2.30.2...v2.30.3) (2026-06-11)
 
 

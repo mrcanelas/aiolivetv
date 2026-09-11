@@ -19,7 +19,6 @@ const isDev = channelArg === 'dev';
 
 // Get the version from package.json
 let { version, description } = require('../package.json');
-const os = require('os');
 
 let tag;
 if (isDev && refArg) {
@@ -27,16 +26,9 @@ if (isDev && refArg) {
 } else if (isNightly) {
   tag = execSync('git describe --tags --abbrev=0').toString().trim();
 } else {
-  if (os.platform() === 'win32') {
-    tag = execSync('git tag --sort=-version:refname')
-      .toString()
-      .trim()
-      .split('\n')[0];
-  } else {
-    tag = execSync('git tag --sort=-version:refname | head -n 1')
-      .toString()
-      .trim();
-  }
+  // Stable builds identify as this package version, not the newest git tag.
+  // AIOLiveTV inherited AIOStreams 2.x tags; using those would keep showing v2.30.x.
+  tag = version.startsWith('v') ? version : `v${version}`;
 }
 
 // Get the current Git commit hash
