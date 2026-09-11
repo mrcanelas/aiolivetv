@@ -10,11 +10,13 @@ import {
   XmltvAddon,
   VivoTvAddon,
   ClaroTvAddon,
+  MiTvAddon,
   XtreamAddon,
   parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
   type ClaroTvConfig,
+  type MiTvConfig,
   type XtreamConfig,
 } from '@aiolivetv/core';
 
@@ -39,6 +41,10 @@ function claroConfig(encodedConfig: string): ClaroTvConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
+function miTvConfig(encodedConfig: string): MiTvConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
 function xtreamConfig(encodedConfig: string): XtreamConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
@@ -56,7 +62,9 @@ router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
             ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
             : req.params.source === 'claro-tv'
               ? new ClaroTvAddon(claroConfig(req.params.encodedConfig))
-              : undefined;
+              : req.params.source === 'mi-tv'
+                ? new MiTvAddon(miTvConfig(req.params.encodedConfig))
+                : undefined;
     if (!addon) throw new Error(`Unsupported source: ${req.params.source}`);
     res.json(addon.getManifest());
   } catch (error) {
@@ -254,6 +262,40 @@ router.get(
     try {
       const meta = await new ClaroTvAddon(
         claroConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/mi-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const response = await new MiTvAddon(
+        miTvConfig(req.params.encodedConfig)
+      ).getCatalogResponse(skip, date);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/mi-tv/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new MiTvAddon(
+        miTvConfig(req.params.encodedConfig)
       ).getMeta(req.params.id);
       res.json({
         meta,

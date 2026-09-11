@@ -9,6 +9,7 @@ import { Preset } from './preset.js';
 import {
   M3uPreset,
   ClaroTvPreset,
+  MiTvPreset,
   VivoTvPreset,
   XmltvPreset,
   XtreamPreset,
@@ -20,6 +21,7 @@ const PRESETS = {
   xtream: XtreamPreset,
   'vivo-tv': VivoTvPreset,
   'claro-tv': ClaroTvPreset,
+  'mi-tv': MiTvPreset,
   custom: CustomPreset,
   'frost-view': FrostViewPreset,
   'minha-tv': MinhaTvPreset,

@@ -41,7 +41,7 @@ request to that image. Scheduled maintenance uses [Vercel Cron Jobs](https://ver
 
 - Dashboard, login, and configuration
 - Manifest, catalog, meta, stream, and EPG responses
-- Built-in Live TV addons (M3U, XMLTV, Xtream, Vivo TV, Claro TV)
+- Built-in Live TV addons (M3U, XMLTV, Xtream, Vivo TV, Claro TV, Mi.tv)
 - Cron-triggered maintenance (inactive users, expired SQL cache, analytics rollup)
 
 ## What does not run on Vercel
@@ -130,7 +130,7 @@ this header automatically when `CRON_SECRET` is set.
 ## First-deploy defaults
 
 - PostgreSQL and Redis: required for a healthy production deploy
-- M3U, XMLTV/EPG, Xtream, Vivo TV, Claro TV: enabled from user configuration
+- M3U, XMLTV/EPG, Xtream, Vivo TV, Claro TV, Mi.tv: enabled from user configuration
 - Stream Probe: disabled unless `FFPROBE_PATH` is set
 - Media proxy: disabled
 - System lifecycle (restart/stop process): disabled

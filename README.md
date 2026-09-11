@@ -58,7 +58,7 @@ Everything is added from the existing **Addons** page:
 | **XMLTV** | Channel metadata and programme guide |
 | **M3U** | Live streams; also creates channels when there is no EPG |
 | **Xtream Codes** | Live channels, optional EPG, and streams |
-| **Vivo TV / Claro TV+** | Guide metadata from those providers |
+| **Vivo TV / Claro TV+ / Mi.tv** | Guide metadata from those providers |
 | **Custom / community live addons** | Any Stremio Live TV manifest |
 
 The **Channels** page lets you review mappings, reorder streams, and enable or disable channels. Changes stay in the draft until **Save**.

@@ -17,10 +17,12 @@ export {
   XmltvAddon,
   VivoTvAddon,
   ClaroTvAddon,
+  MiTvAddon,
   XtreamAddon,
   type LiveTvSourceConfig,
   type VivoTvConfig,
   type ClaroTvConfig,
+  type MiTvConfig,
   type XtreamConfig,
   parseCatalogExtras,
 } from './builtins/index.js';
