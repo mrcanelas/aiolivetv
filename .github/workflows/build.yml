@@ -49,7 +49,7 @@ jobs:
 
       - name: Live TV e2e
         env:
-          SECRET_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+          SECRET_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
           DATABASE_URI: sqlite://./ci-e2e.db
           HTTP_ALLOW_PRIVATE_URLS: "true"
         run: pnpm exec tsx scripts/validate-live-tv-e2e.ts

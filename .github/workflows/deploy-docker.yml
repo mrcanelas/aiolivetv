@@ -153,6 +153,8 @@ jobs:
           done
 
       - name: Send Discord Notification
+        if: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
+        continue-on-error: true
         env:
           CHANNEL: ${{ needs.setup.outputs.channel }}
           TAGS: ${{ needs.setup.outputs.tags }}
