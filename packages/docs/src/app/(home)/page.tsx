@@ -15,7 +15,7 @@ export default function HomePage() {
       {/* Hero */}
       <div className="flex flex-col items-center justify-center flex-1 text-center px-4 py-24 gap-6">
         <div className="inline-flex items-center rounded-full border border-fd-border bg-fd-muted/50 px-3 py-1 text-xs font-medium text-fd-muted-foreground">
-          Live TV Aggregator
+          Public beta · Live TV aggregator
         </div>
         <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
           AIOLiveTV
@@ -56,9 +56,9 @@ export default function HomePage() {
             icon={FaRocket}
           />
           <NavCard
-            href="/guides/groups"
+            href="/guides/sources"
             title="Guides"
-            description="Addon groups and local development."
+            description="XMLTV, M3U, Xtream, Channels, and local development."
             icon={FaBook}
           />
           <NavCard

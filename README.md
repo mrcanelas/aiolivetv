@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/status-public%20beta-yellow?style=for-the-badge" alt="Public beta">
   <a href="https://github.com/mrcanelas/aiolivetv/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/nightly.yml?style=for-the-badge&logo=github" alt="Build Status">
   </a>
@@ -18,6 +19,8 @@
     <img src="https://img.shields.io/github/stars/mrcanelas/aiolivetv?style=for-the-badge&logo=github" alt="GitHub Stars">
   </a>
 </p>
+
+AIOLiveTV is in **public beta**. Catalog, meta, stream and optional Native EPG work; expect breaking changes before 1.0.
 
 ---
 
@@ -27,8 +30,21 @@ AIOLiveTV adapts the [AIOStreams](https://github.com/Viren070/AIOStreams) pipeli
 
 It can run in two modes:
 
-- **With EPG** — XMLTV defines the channels and the addon declares Native EPG (`behaviorHints.epgProvider`).
+- **With EPG** — XMLTV (or another guide source) defines the channels and the addon declares Native EPG (`behaviorHints.epgProvider`) only when a real guide exists.
 - **Without EPG** — stream sources define the channels and equivalents are merged by matching.
+
+```mermaid
+flowchart TD
+  A[Add XMLTV, M3U, Xtream or live addons] --> B{Guide source present?}
+  B -->|yes| C[Canonical channels from EPG]
+  B -->|no| D[Canonical channels from streams]
+  C --> E[Match streams to channels]
+  D --> E
+  E --> F[Review mappings on Channels]
+  F --> G[Save UserData]
+  G --> H[Stremio catalog / meta / stream]
+  C --> I[Native EPG when the guide catalog exists]
+```
 
 ---
 
@@ -36,12 +52,17 @@ It can run in two modes:
 
 Everything is added from the existing **Addons** page:
 
-- XMLTV (metadata/catalog builtin)
-- M3U (stream builtin; also generates channels when there is no EPG)
-- Xtream, Vivo TV, Claro TV
-- External Stremio Live TV addons
+| Source | Role |
+| --- | --- |
+| **XMLTV** | Channel metadata and programme guide |
+| **M3U** | Live streams; also creates channels when there is no EPG |
+| **Xtream Codes** | Live channels, optional EPG, and streams |
+| **Vivo TV / Claro TV+** | Guide metadata from those providers |
+| **Custom / community live addons** | Any Stremio Live TV manifest |
 
 The **Channels** page lets you review mappings, reorder streams, and enable or disable channels. Changes stay in the draft until **Save**.
+
+Docs: [Setup](packages/docs/content/docs/configuration/setup.mdx) · [XMLTV, M3U and Xtream](packages/docs/content/docs/guides/sources.mdx) · [Channels](packages/docs/content/docs/guides/channels.mdx)
 
 ---
 

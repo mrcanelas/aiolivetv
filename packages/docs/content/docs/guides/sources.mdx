@@ -1,0 +1,71 @@
+---
+title: XMLTV, M3U and Xtream
+description: Configure the Live TV builtins and how AIOLiveTV matches equivalent channels.
+---
+
+All sources are presets on the **Addons** page. There is no separate Sources screen.
+
+## XMLTV
+
+XMLTV is a **catalog and meta** builtin. It does not play video.
+
+| Option | Purpose |
+| --- | --- |
+| URL | HTTP(S) address of the `.xml` / `.xml.gz` guide |
+| Timeout | Fetch timeout in milliseconds |
+| EPG Time Shift | Minutes to add to every programme start/stop |
+| Resources | Keep **Catalog** and **Meta** |
+
+Use XMLTV when you want Native EPG. The addon advertises `behaviorHints.epgProvider` and a TV catalog with the Stremio `date` extra. AIOLiveTV only copies that hint onto **your** manifest when at least one such guide is enabled.
+
+Channel ids come from `tv/channel/@id`. Extra `<display-name>` entries become aliases. Programmes are grouped by channel id (case-insensitive).
+
+## M3U
+
+M3U is a **stream** builtin. It can also list channels when there is no EPG.
+
+| Option | Purpose |
+| --- | --- |
+| URL | Playlist URL |
+| Timeout | Fetch timeout |
+| Resources | Catalog + Meta + Stream by default. Select **Stream** only to bind URLs onto channels that another source already listed. |
+
+`tvg-id` on `#EXTINF` is the strongest match key against XMLTV. `tvg-name` and the display title are used when `tvg-id` is missing.
+
+M3U **must not** set `epgProvider`. A playlist-only configuration stays a normal live catalog.
+
+## Xtream Codes
+
+Xtream can supply catalog, meta (including EPG when the provider has it) and streams.
+
+| Option | Purpose |
+| --- | --- |
+| Server URL | Base URL, for example `http://example.com:8080` |
+| Username / Password | Account credentials |
+| Stream format | `m3u8` (HLS), `ts`, or `rtmp` |
+| Category ID | Optional live category; empty imports every live category |
+| EPG Time Shift | Same as XMLTV |
+| Resources | Catalog, Meta and Stream by default |
+
+Treat credentials like any other secret stored in `UserData`. Prefer HTTPS to the Xtream panel when the provider supports it.
+
+## Other live sources
+
+- **Vivo TV** and **Claro TV+** — guide metadata (Claro needs `CITY,STATE`). Pair them with M3U or Xtream for playback.
+- **USA TV, Argentina TV, Minha TV, FrostView, Debridio TV** — community live addons with the usual URL / timeout options.
+- **Custom addon** — any Stremio manifest that exposes live `catalog` / `meta` / `stream`.
+
+## Matching
+
+EPG is the reference when it exists. Otherwise channels are inferred from stream sources.
+
+Automatic matching only applies at **high confidence** (≥ 0.9), in this order:
+
+1. `tvg-id` (or the same value as the other side's channel id)
+2. Normalised name
+3. Aliases
+4. Country, language, categories, logo (small boosts)
+
+Partial name hits stay as **suggestions** on the [Channels](/guides/channels) page. You can always override with a manual mapping.
+
+Resolution, language and codec suffixes (`HD`, `FHD`, `H265`, …) are stripped when comparing names so `AMC FHD` can bind to `AMC`.

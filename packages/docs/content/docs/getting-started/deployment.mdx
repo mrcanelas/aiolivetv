@@ -105,19 +105,6 @@ services:
 
 Then run `docker compose up -d`.
 
-#### Torrentio / strem.fun blocks
-
-Torrentio and other `strem.fun` addons block certain server IP ranges (e.g. Oracle VPS), causing 403 errors. You can work around this with a VPN via [gluetun](https://github.com/qdm12/gluetun):
-
-```bash
-ADDON_PROXY=http://gluetun:8080
-ADDON_PROXY_CONFIG=*:false,*.strem.fun:true
-```
-
-#### Multi-addon Compose
-
-For a full compose template that includes popular self-hosted addons (Jackett, Prowlarr, etc.), see [Viren070/stremio-addons-docker-compose-template](https://github.com/Viren070/stremio-addons-docker-compose-template).
-
 ### Docker CLI
 
 ```bash

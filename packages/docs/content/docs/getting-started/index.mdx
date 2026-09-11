@@ -5,6 +5,11 @@ description: An overview of AIOLiveTV and how to get started.
 
 AIOLiveTV is a Stremio addon that aggregates live TV metadata and streams from XMLTV, M3U, Xtream and other channel sources, then matches equivalent channels before returning catalog, meta and stream resources.
 
+<Callout type="warn">
+  **Public beta.** Catalog, meta, stream and optional Native EPG work. Expect
+  breaking changes before 1.0. There is no official public instance — [self-host](/getting-started/deployment) or [deploy on Vercel](/getting-started/vercel).
+</Callout>
+
 ## How would you like to get started?
 
 <Cards>
@@ -16,7 +21,7 @@ AIOLiveTV is a Stremio addon that aggregates live TV metadata and streams from X
   <Card
     title="Self-Host"
     href="/getting-started/deployment"
-    description="Run AIOLiveTV on your own server, NAS, or VPS for full control over your setup."
+    description="Run AIOLiveTV on your own server, NAS, or VPS."
   />
   <Card
     title="Configure"
@@ -29,29 +34,53 @@ AIOLiveTV is a Stremio addon that aggregates live TV metadata and streams from X
 
 AIOLiveTV is a **Live TV aggregator** for Stremio. It can:
 
-- Build canonical channels from EPG when XMLTV is present
+- Build canonical channels from EPG when XMLTV (or another guide) is present
 - Infer and merge channels from stream sources when there is no EPG
 - Resolve multiple streams per channel
-- Declare Native EPG (`behaviorHints.epgProvider`) only when real EPG data exists
+- Declare Native EPG (`behaviorHints.epgProvider`) only when a real guide catalog exists
 
-The configuration UI reuses the existing pages **Addons**, **Streams**, **Metadata & Catalogs** and **Miscellaneous**, plus the **Channels** page.
+```txt
+Add sources (Addons page)
+        │
+        ▼
+   EPG present? ──yes──► channels from the guide
+        │ no
+        ▼
+   channels from M3U / Xtream / live addons
+        │
+        ▼
+   match streams (tvg-id, then name)
+        │
+        ▼
+   review on Channels → Save
+        │
+        ▼
+   Stremio catalog / meta / stream
+```
 
-## Other Resources
+The configuration UI keeps **Addons**, **Streams**, **Metadata & Catalogs** and **Miscellaneous**, plus **Channels**.
+
+## Other resources
 
 <Cards>
   <Card
-    title="Configure Options"
-    href="/configuration/options"
-    description="A full reference for every option on the configure page."
+    title="XMLTV, M3U and Xtream"
+    href="/guides/sources"
+    description="Builtin options and matching rules."
+  />
+  <Card
+    title="Channels"
+    href="/guides/channels"
+    description="Mappings, suggestions and Save."
   />
   <Card
     title="FAQ"
     href="/faq"
-    description="Answers to the most common questions about AIOLiveTV."
+    description="Answers to common questions."
   />
   <Card
     title="Troubleshooting"
     href="/troubleshooting"
-    description="Step-by-step fixes for common errors and issues."
+    description="HTTPS, empty catalogs and private URLs."
   />
 </Cards>

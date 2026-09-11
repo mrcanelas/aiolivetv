@@ -1,0 +1,31 @@
+---
+title: Channels
+description: Review automatic mappings, suggestions and stream priority before saving.
+---
+
+The **Channels** page is the only new configuration screen in AIOLiveTV. It reuses the same layout, cards and dialogs as the rest of the UI.
+
+## What you see
+
+Channels are listed alphabetically. Each row shows:
+
+- whether the channel is enabled
+- how many streams are bound
+- mapping status (automatic, suggestion, manual)
+
+EPG-backed channels are preferred as the canonical id when a guide is present. Without EPG, stream sources are merged by [matching](/guides/sources#matching).
+
+## What you can change
+
+- Enable or disable an entire channel (disabled channels disappear from the Stremio catalog and return no streams).
+- Accept or reject an automatic suggestion.
+- Create a manual mapping to a stream from another addon or a pasted URL.
+- Reorder bound streams (playback tries them in that order).
+
+Rejected streams are remembered so the next auto-match pass does not reattach them.
+
+## Draft until Save
+
+Edits live in the `UserData` draft (`channelMappings`). Click **Save** on **Save & Install** to persist them through the existing user API. Reloading the page before save discards the draft.
+
+The same mappings are what the Stremio `catalog`, `meta` and `stream` endpoints read after save.

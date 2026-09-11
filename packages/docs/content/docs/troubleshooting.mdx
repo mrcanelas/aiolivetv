@@ -3,6 +3,22 @@ title: Troubleshooting
 description: Step-by-step fixes for common AIOLiveTV issues.
 ---
 
+## Live TV
+
+<Accordions>
+  <Accordion title="The catalog is empty">
+    Add at least one source with the **Catalog** resource on **Addons**, then **Save**. Disabled channels on **Channels** are omitted. Confirm `/stremio/.../manifest.json` lists a `tv` catalog.
+  </Accordion>
+
+  <Accordion title="Stremio has no programme guide">
+    Native EPG is declared only when a guide source (XMLTV, Xtream with EPG, Vivo, Claro) is enabled with **Catalog**. M3U alone never sets `behaviorHints.epgProvider`.
+  </Accordion>
+
+  <Accordion title="Local XMLTV or M3U URL is rejected">
+    Set `HTTP_ALLOW_PRIVATE_URLS=true` only on a personal instance. Shared hosts must keep it `false`.
+  </Accordion>
+</Accordions>
+
 ## Results & Filter Issues
 
 <Accordions>
