@@ -10,6 +10,7 @@ export {
   type SettingRow,
 } from './repositories/settings.js';
 export * from './schemas.js';
+export * from './channelMapping.js';
 
 export { sql, raw, join, SqlFragment } from './sql.js';
 export {

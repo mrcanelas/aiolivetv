@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import * as constants from '../utils/constants.js';
 import { config } from '../config/index.js';
+import { ChannelMapping } from './channelMapping.js';
 
 /**
  * Stream Expression Language string with a runtime-configurable maximum length
@@ -390,35 +391,6 @@ const CatalogModification = z.object({
 });
 
 export type CatalogModification = z.infer<typeof CatalogModification>;
-
-const ChannelMapping = z.object({
-  id: z.string().min(1),
-  canonicalAddonId: z.string().min(1).optional(),
-  enabled: z.boolean().optional(),
-  name: z.string().min(1).optional(),
-  poster: z.string().optional(),
-  hidden: z.boolean().optional(),
-  streams: z
-    .array(
-      z.object({
-        addonId: z.string().min(1),
-        channelId: z.string().min(1),
-        url: z.string().url().optional(),
-        name: z.string().min(1).optional(),
-        confidence: z.number().min(0).max(1).optional(),
-        enabled: z.boolean().optional(),
-      })
-    )
-    .optional(),
-  rejectedStreams: z
-    .array(
-      z.object({
-        addonId: z.string().min(1),
-        channelId: z.string().min(1),
-      })
-    )
-    .optional(),
-});
 
 const MergedCatalog = z.object({
   id: z.string().min(1), // unique id for the merged catalog

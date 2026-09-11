@@ -9,16 +9,22 @@ vi.mock('../utils/index.js', () => ({
   toUrlSafeBase64: (value: string) => Buffer.from(value).toString('base64url'),
 }));
 
-const { encodeChannelId, M3uAddon, parseM3u, XmltvAddon, parseXmltv } =
-  await Promise.all([
-    import('./live-tv/index.js'),
-    import('./m3u-reader/index.js'),
-    import('./xmltv-reader/index.js'),
-  ]).then(([liveTv, m3u, xmltv]) => ({
-    ...liveTv,
-    ...m3u,
-    ...xmltv,
-  }));
+const {
+  encodeChannelId,
+  M3uAddon,
+  parseM3u,
+  XmltvAddon,
+  parseXmltv,
+  parseXmltvData,
+} = await Promise.all([
+  import('./live-tv/index.js'),
+  import('./m3u-reader/index.js'),
+  import('./xmltv-reader/index.js'),
+]).then(([liveTv, m3u, xmltv]) => ({
+  ...liveTv,
+  ...m3u,
+  ...xmltv,
+}));
 const { applyEpgTimeShift } = await import('./live-tv/epg.js');
 const {
   getChannelMapping,
@@ -54,6 +60,24 @@ describe('live TV sources', () => {
     expect(channel.name).toBe('BBC One');
     expect(stream.group).toBe('News, UK');
     expect(encodeChannelId(channel.id)).toBe(encodeChannelId(stream.channelId));
+  });
+
+  it('parses extra XMLTV display-names as aliases and indexes programs by tvg-id', async () => {
+    const data = await parseXmltvData(`<tv>
+      <channel id="rtp1">
+        <display-name>RTP 1</display-name>
+        <display-name>RTP1</display-name>
+      </channel>
+      <programme channel="RTP1" start="20260628120000 +0000" stop="20260628130000 +0000">
+        <title>Jornal</title>
+      </programme>
+    </tv>`);
+    expect(data.channels[0]).toMatchObject({
+      id: 'rtp1',
+      name: 'RTP 1',
+      aliases: ['RTP1'],
+    });
+    expect(data.programsByChannelId.get('rtp1')?.[0]?.title).toBe('Jornal');
   });
 
   it('returns XMLTV programs only from channel meta', async () => {
@@ -226,6 +250,27 @@ describe('channel mappings', () => {
     expect(getChannelMapping(userData, 'channel-1')?.enabled).toBe(false);
     expect(isChannelAddonEnabled(userData, 'channel-1', 'm3u-1')).toBe(false);
     expect(isChannelAddonEnabled(userData, 'channel-1', 'm3u-2')).toBe(true);
+  });
+
+  it('matches equivalent channels by tvg-id before comparing names', () => {
+    expect(
+      getChannelMatchConfidence(
+        { id: 'xmltv:bbc', name: 'BBC One', tvgId: 'bbc.one' },
+        { id: 'm3u:bbc-hd', name: 'BBC HD', tvgId: 'BBC.ONE' }
+      )
+    ).toBe(1);
+    expect(
+      getChannelMatchConfidence(
+        { id: 'xmltv:bbc', name: 'BBC One', tvgId: 'bbc.one' },
+        { id: 'm3u:cnn', name: 'CNN', tvgId: 'cnn' }
+      )
+    ).toBe(0);
+    expect(
+      getChannelMatchConfidence(
+        { id: 'rtp1', name: 'RTP Internacional' },
+        { id: 'other', name: 'CNN', tvgId: 'rtp1' }
+      )
+    ).toBe(1);
   });
 
   it('automatically matches only high-confidence channel metadata', () => {

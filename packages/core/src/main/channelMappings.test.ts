@@ -5,6 +5,7 @@ import {
   isLiveChannelVisible,
 } from './channelMappings.js';
 import type { UserData } from '../db/index.js';
+import { ChannelMapping } from '../db/channelMapping.js';
 
 const baseUserData = { uuid: 'test' } as UserData;
 
@@ -122,5 +123,62 @@ describe('deduplicateLiveTvItems', () => {
     expect(
       deduplicateLiveTvItems(userData, [{ id: 'vivo:sbt', name: 'SBT' }])
     ).toEqual([]);
+  });
+});
+
+const persistedMappings = [
+  {
+    id: 'aiolivetv:bbc.one',
+    canonicalAddonId: 'xmltv-1',
+    enabled: true,
+    name: 'BBC One',
+    streams: [
+      {
+        addonId: 'm3u-1',
+        channelId: 'aiolivetv:bbc.one',
+        confidence: 1,
+        enabled: true,
+      },
+    ],
+    rejectedStreams: [{ addonId: 'm3u-2', channelId: 'aiolivetv:other' }],
+  },
+  {
+    id: 'aiolivetv:rtp1',
+    canonicalAddonId: 'm3u-1',
+    enabled: false,
+    streams: [
+      {
+        addonId: 'm3u-1',
+        channelId: 'aiolivetv:rtp1',
+        enabled: true,
+      },
+    ],
+  },
+] satisfies UserData['channelMappings'];
+
+describe('channelMappings persistence', () => {
+  it('round-trips mappings through JSON like the stored UserData blob', () => {
+    const parsed = ChannelMapping.array().parse(
+      JSON.parse(JSON.stringify(persistedMappings))
+    );
+    const userData = { ...baseUserData, channelMappings: parsed };
+    expect(parsed).toEqual(persistedMappings);
+    expect(isLiveChannelVisible(userData, 'aiolivetv:rtp1')).toBe(false);
+    expect(isLiveChannelVisible(userData, 'aiolivetv:bbc.one')).toBe(true);
+  });
+
+  it('rejects mappings with invalid stream confidence', () => {
+    expect(() =>
+      ChannelMapping.parse({
+        id: 'aiolivetv:bbc.one',
+        streams: [
+          {
+            addonId: 'm3u-1',
+            channelId: 'aiolivetv:bbc.one',
+            confidence: 1.5,
+          },
+        ],
+      })
+    ).toThrow();
   });
 });

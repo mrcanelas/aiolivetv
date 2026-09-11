@@ -32,6 +32,10 @@ export {
 } from './main/nzbFailover.js';
 export type { NzbFallback } from './main/nzbFailover.js';
 export * from './main/channelMappings.js';
+export {
+  addonProvidesNativeEpg,
+  configurationProvidesNativeEpg,
+} from './main/epgProvider.js';
 export { catalogSupportsSkip, getCatalogExtras } from './main/catalog.js';
 export {
   buildDeclaredStreamLabel,

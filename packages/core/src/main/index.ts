@@ -5,7 +5,7 @@ import {
   StrictManifestResource,
   UserData,
 } from '../db/index.js';
-import { Cache, createLogger, IdParser, constants } from '../utils/index.js';
+import { Cache, createLogger, IdParser } from '../utils/index.js';
 import Proxifier from '../streams/proxifier.js';
 import StreamLimiter from '../streams/limiter.js';
 import {
@@ -24,6 +24,7 @@ import {
   buildResources,
 } from './setup.js';
 import { getCatalog as _getCatalog } from './catalog.js';
+import { configurationProvidesNativeEpg } from './epgProvider.js';
 import {
   getStreams as _getStreams,
   getMeta as _getMeta,
@@ -74,9 +75,7 @@ export class AIOStreams {
 
   private checkInitialised() {
     if (!this.ctx.isInitialised) {
-      throw new Error(
-        'AIOLiveTV is not initialised. Call initialise() first.'
-      );
+      throw new Error('AIOLiveTV is not initialised. Call initialise() first.');
     }
   }
 
@@ -139,22 +138,7 @@ export class AIOStreams {
 
   public hasEpgProvider(): boolean {
     this.checkInitialised();
-    return this.ctx.addons.some((addon) => {
-      const manifest = this.ctx.manifests[addon.instanceId!];
-      const resources = addon.resources;
-      const enabled = (resource: 'catalog' | 'meta') =>
-        !resources?.length || resources.includes(resource);
-      const hasGuideCatalog = manifest?.catalogs?.some(
-        (catalog) =>
-          catalog.type === constants.TV_TYPE &&
-          catalog.extra?.some((extra) => extra.name === 'date')
-      );
-      return (
-        manifest?.behaviorHints?.epgProvider === true &&
-        hasGuideCatalog &&
-        enabled('catalog')
-      );
-    });
+    return configurationProvidesNativeEpg(this.ctx.addons, this.ctx.manifests);
   }
 
   public async shouldStopAutoPlay(type: string, id: string) {
