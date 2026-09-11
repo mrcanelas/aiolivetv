@@ -153,13 +153,16 @@ jobs:
           done
 
       - name: Send Discord Notification
-        if: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
         continue-on-error: true
         env:
           CHANNEL: ${{ needs.setup.outputs.channel }}
           TAGS: ${{ needs.setup.outputs.tags }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Determine role based on channel
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set; skipping notification."
+            exit 0
+          fi
           if [ "$CHANNEL" = "stable" ]; then
             ROLE_ID="<@&1384627130272452638>"
             COLOR=5763719  # Green

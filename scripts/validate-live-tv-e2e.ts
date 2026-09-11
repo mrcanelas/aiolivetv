@@ -9,10 +9,20 @@ process.env.HTTP_ALLOW_PRIVATE_URLS ??= 'true';
 type CoreModule = typeof import('../packages/core/dist/index.js');
 type UserData = import('../packages/core/dist/index.js').UserData;
 
+function xmltvTimestamp(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())} +0000`;
+}
+
+const EPG_START = new Date();
+EPG_START.setUTCHours(12, 0, 0, 0);
+const EPG_STOP = new Date(EPG_START.getTime() + 60 * 60 * 1000);
+const EPG_START_ISO = EPG_START.toISOString();
+
 const XMLTV_FIXTURE = `<tv>
   <channel id="bbc.one"><display-name>BBC One</display-name></channel>
   <channel id="rtp1"><display-name>RTP 1</display-name></channel>
-  <programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000">
+  <programme channel="bbc.one" start="${xmltvTimestamp(EPG_START)}" stop="${xmltvTimestamp(EPG_STOP)}">
     <title>News</title><desc>Latest news</desc>
   </programme>
 </tv>`;
@@ -187,6 +197,7 @@ async function validateWithEpg(
   deps: {
     AIOStreams: (typeof import('../packages/core/dist/index.js'))['AIOStreams'];
     constants: typeof import('../packages/core/dist/index.js').constants;
+    mergedCatalogId: string;
     getChannelMatchConfidence: (typeof import('../packages/core/dist/index.js'))['getChannelMatchConfidence'];
     isHighConfidenceChannelMatch: (typeof import('../packages/core/dist/index.js'))['isHighConfidenceChannelMatch'];
   }
@@ -213,45 +224,25 @@ async function validateWithEpg(
   const aio = await new AIOStreams(userData).initialise();
   assert(aio.hasEpgProvider(), 'expected epgProvider with XMLTV enabled');
 
-  const catalogs = aio
-    .getCatalogs()
-    .filter((catalog) => catalog.type === constants.CHANNEL_TYPE);
-  assert(catalogs.length === 2, `expected 2 channel catalogs, got ${catalogs.length}: ${catalogs.map((c) => c.id).join(', ')}`);
-
-  const xmltvCatalog = catalogs.find((catalog) =>
-    catalog.id.startsWith('xmltv-1')
-  );
-  const m3uCatalog = catalogs.find((catalog) => catalog.id.startsWith('m3u-1'));
-  assert(xmltvCatalog, `missing XMLTV catalog in ${catalogs.map((c) => c.id).join(', ')}`);
-  assert(m3uCatalog, `missing M3U catalog in ${catalogs.map((c) => c.id).join(', ')}`);
-
-  const xmltvChannels = (await aio.getCatalog('channel', xmltvCatalog.id)).data;
-  const m3uChannels = (await aio.getCatalog('channel', m3uCatalog.id)).data;
+  const catalog = liveTvCatalog(aio, constants.TV_TYPE, deps.mergedCatalogId);
+  const channels = (await aio.getCatalog(constants.TV_TYPE, catalog.id)).data;
   assert(
-    xmltvChannels.map((item) => item.name).join(',') === 'BBC One,RTP 1',
-    'unexpected XMLTV catalog'
-  );
-  assert(
-    m3uChannels.map((item) => item.name).join(',') === 'BBC One,RTP-1',
-    'unexpected M3U catalog'
+    channels.map((item) => item.name).sort().join(',') === 'BBC One,RTP 1',
+    `unexpected merged catalog: ${channels.map((item) => item.name).join(', ')}`
   );
 
-  const bbcXmltv = xmltvChannels.find((item) => item.name === 'BBC One');
-  const bbcM3u = m3uChannels.find((item) => item.name === 'BBC One');
-  assert(bbcXmltv, `missing BBC One in XMLTV catalog: ${xmltvChannels.map((c) => c.name).join(', ')}`);
-  assert(bbcM3u, `missing BBC One in M3U catalog: ${m3uChannels.map((c) => c.name).join(', ')}`);
+  const bbcXmltv = channels.find((item) => item.name === 'BBC One');
+  assert(bbcXmltv, `missing BBC One in merged catalog: ${channels.map((c) => c.name).join(', ')}`);
   const bbcId = bbcXmltv.id;
-  const m3uBbcId = bbcM3u.id;
-  assert(bbcId === m3uBbcId, 'XMLTV and M3U must expose the same encoded channel id');
 
-  const epgMeta = (await aio.getMeta('channel', bbcId)).data;
+  const epgMeta = (await aio.getMeta(constants.TV_TYPE, bbcId)).data;
   assert(epgMeta?.videos?.[0]?.title === 'News', 'expected EPG program in meta');
   assert(
-    epgMeta?.videos?.[0]?.startTime === '2026-06-28T12:00:00.000Z',
+    epgMeta?.videos?.[0]?.startTime === EPG_START_ISO,
     'unexpected EPG start time'
   );
 
-  const streams = (await aio.getStreams(bbcId, 'channel')).data?.streams ?? [];
+  const streams = (await aio.getStreams(bbcId, constants.TV_TYPE)).data?.streams ?? [];
   assert(
     streams.some((stream) => stream.url === 'https://example.com/bbc.m3u8'),
     'expected M3U stream for BBC One'
@@ -274,6 +265,7 @@ async function validateWithoutEpg(
   deps: {
     AIOStreams: (typeof import('../packages/core/dist/index.js'))['AIOStreams'];
     constants: typeof import('../packages/core/dist/index.js').constants;
+    mergedCatalogId: string;
   }
 ) {
   const { AIOStreams, constants } = deps;
@@ -290,43 +282,67 @@ async function validateWithoutEpg(
   const aio = await new AIOStreams(userData).initialise();
   assert(!aio.hasEpgProvider(), 'M3U-only config must not expose epgProvider');
 
-  const catalogs = aio
-    .getCatalogs()
-    .filter((catalog) => catalog.type === constants.CHANNEL_TYPE);
-  assert(catalogs.length === 1, 'expected a single M3U channel catalog');
-
-  const channels = (await aio.getCatalog('channel', catalogs[0]!.id)).data;
+  const catalog = liveTvCatalog(aio, constants.TV_TYPE, deps.mergedCatalogId);
+  const channels = (await aio.getCatalog(constants.TV_TYPE, catalog.id)).data;
   assert(channels.length === 2, 'expected two M3U channels');
 
   const bbcId = channels.find((item) => item.name === 'BBC One')!.id;
-  const meta = (await aio.getMeta('channel', bbcId)).data;
+  const meta = (await aio.getMeta(constants.TV_TYPE, bbcId)).data;
   assert(meta?.name === 'BBC One', 'expected M3U channel meta');
   assert(meta?.videos === undefined, 'M3U-only meta must not include EPG videos');
 
-  const streams = (await aio.getStreams(bbcId, 'channel')).data?.streams ?? [];
+  const streams = (await aio.getStreams(bbcId, constants.TV_TYPE)).data?.streams ?? [];
   assert(streams.length >= 1, 'expected stream for M3U channel');
 
   console.log('  [ok] sem EPG: catalog, meta e stream apenas via M3U');
+}
+
+function liveTvCatalog(
+  aio: InstanceType<CoreModule['AIOStreams']>,
+  tvType: string,
+  mergedCatalogId: string
+) {
+  const catalogs = aio
+    .getCatalogs()
+    .filter((catalog) => catalog.type === tvType);
+  const catalog =
+    catalogs.find((item) => item.id === mergedCatalogId) ?? catalogs[0];
+  assert(
+    catalog,
+    `missing live TV catalog, got ${aio
+      .getCatalogs()
+      .map((item) => `${item.type}:${item.id}`)
+      .join(', ')}`
+  );
+  return catalog;
 }
 
 function addonInstanceId(
   aio: InstanceType<CoreModule['AIOStreams']>,
   presetInstanceId: string
 ) {
-  const catalog = aio
-    .getCatalogs()
-    .find((item) => item.id.startsWith(presetInstanceId));
-  assert(catalog, `missing catalog for preset ${presetInstanceId}`);
-  return catalog.id.split('.', 1)[0];
+  const addon = aio
+    .getAddons()
+    .find((item) => item.instanceId?.startsWith(presetInstanceId));
+  assert(
+    addon?.instanceId,
+    `missing addon for preset ${presetInstanceId}: ${aio
+      .getAddons()
+      .map((item) => item.instanceId)
+      .join(', ')}`
+  );
+  return addon.instanceId;
 }
 
 async function validateChannelMappings(
   sourceBase: string,
   deps: {
     AIOStreams: CoreModule['AIOStreams'];
+    constants: typeof import('../packages/core/dist/index.js').constants;
+    mergedCatalogId: string;
   }
 ) {
-  const { AIOStreams } = deps;
+  const { AIOStreams, constants } = deps;
   const preview = await new AIOStreams(
     liveTvUserData([
       {
@@ -347,12 +363,21 @@ async function validateChannelMappings(
   ).initialise();
   const xmltvId = addonInstanceId(preview, 'xmltv-1');
   const m3uId = addonInstanceId(preview, 'm3u-1');
-  const m3uCatalogId = preview
-    .getCatalogs()
-    .find((catalog) => catalog.id.startsWith('m3u-1'))!.id;
-  const m3uChannels = (await preview.getCatalog('channel', m3uCatalogId)).data;
-  const rtpId = m3uChannels.find((item) => item.name === 'RTP-1')!.id;
-  const bbcId = m3uChannels.find((item) => item.name === 'BBC One')!.id;
+  const catalog = liveTvCatalog(
+    preview,
+    constants.TV_TYPE,
+    deps.mergedCatalogId
+  );
+  const m3uChannels = (await preview.getCatalog(constants.TV_TYPE, catalog.id))
+    .data;
+  const rtp = m3uChannels.find(
+    (item) => item.name === 'RTP-1' || item.name === 'RTP 1'
+  );
+  const bbc = m3uChannels.find((item) => item.name === 'BBC One');
+  assert(rtp, `missing RTP in merged catalog: ${m3uChannels.map((item) => item.name).join(', ')}`);
+  assert(bbc, `missing BBC One in merged catalog: ${m3uChannels.map((item) => item.name).join(', ')}`);
+  const rtpId = rtp.id;
+  const bbcId = bbc.id;
 
   const userData = liveTvUserData(
     [
@@ -388,7 +413,7 @@ async function validateChannelMappings(
   );
 
   const aio = await new AIOStreams(userData).initialise();
-  const disabledStreams = (await aio.getStreams(rtpId, 'channel')).data?.streams;
+  const disabledStreams = (await aio.getStreams(rtpId, constants.TV_TYPE)).data?.streams;
   assert(
     (disabledStreams?.length ?? 0) === 0,
     'disabled channel must not return streams'
@@ -396,8 +421,8 @@ async function validateChannelMappings(
 
   const visible = (
     await aio.getCatalog(
-      'channel',
-      aio.getCatalogs().find((catalog) => catalog.id.startsWith('m3u-1'))!.id
+      constants.TV_TYPE,
+      liveTvCatalog(aio, constants.TV_TYPE, deps.mergedCatalogId).id
     )
   ).data;
   assert(
@@ -425,6 +450,7 @@ async function main() {
     const deps = {
       AIOStreams: core.AIOStreams,
       constants: core.constants,
+      mergedCatalogId: core.LIVE_TV_MERGED_CATALOG_ID,
       getChannelMatchConfidence: core.getChannelMatchConfidence,
       isHighConfidenceChannelMatch: core.isHighConfidenceChannelMatch,
     };
