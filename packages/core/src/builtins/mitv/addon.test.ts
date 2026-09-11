@@ -20,7 +20,6 @@ const {
   parseMiTvClock,
   parseMiTvListings,
   parseMiTvSitemap,
-  zonedWallTimeToUtc,
 } = await import('./addon.js');
 const { makeRequest } = await import('../../utils/index.js');
 
@@ -99,24 +98,14 @@ describe('Mi.tv builtin', () => {
     expect(parseMiTvClock('12:15am')).toEqual({ hours: 0, minutes: 15 });
   });
 
-  it('converts Brazil wall time to UTC', () => {
-    expect(
-      zonedWallTimeToUtc('2026-09-11', 20, 30, 'America/Sao_Paulo').toISOString()
-    ).toBe('2026-09-11T23:30:00.000Z');
-  });
-
   it('parses listings, skips ads and rolls past midnight', () => {
-    const programs = parseMiTvListings(
-      LISTINGS_HTML,
-      '2026-09-11',
-      'America/Sao_Paulo'
-    );
+    const programs = parseMiTvListings(LISTINGS_HTML, '2026-09-11');
     expect(programs).toHaveLength(3);
     expect(programs[0]).toMatchObject({
       title: 'Jornal Nacional',
       subtitle: 'Noticiário',
-      startTime: '2026-09-11T23:30:00.000Z',
-      endTime: '2026-09-12T00:25:00.000Z',
+      startTime: '2026-09-11T20:30:00.000Z',
+      endTime: '2026-09-11T21:25:00.000Z',
     });
     expect(programs[1]).toMatchObject({
       title: 'Novela',
@@ -125,7 +114,7 @@ describe('Mi.tv builtin', () => {
       episode: 14,
     });
     expect(programs[2]?.title).toBe('Filme da madrugada');
-    expect(programs[2]?.startTime).toBe('2026-09-12T03:15:00.000Z');
+    expect(programs[2]?.startTime).toBe('2026-09-12T00:15:00.000Z');
   });
 
   it('maps catalog channels from the sitemap', async () => {

@@ -161,36 +161,9 @@ function cleanText(value: string | undefined): string | undefined {
   return text || undefined;
 }
 
-function timeZoneOffsetMs(instant: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(instant);
-  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  const asUtc = Date.UTC(
-    Number(map.year),
-    Number(map.month) - 1,
-    Number(map.day),
-    Number(map.hour),
-    Number(map.minute),
-    Number(map.second)
-  );
-  return asUtc - instant.getTime();
-}
-
-export function zonedWallTimeToUtc(
-  date: string,
-  hours: number,
-  minutes: number,
-  timeZone: string
-): Date {
-  const guess = new Date(
+/** Mi.tv prints clocks in UTC (same as iptv-org), not the country's local zone. */
+export function utcWallTime(date: string, hours: number, minutes: number): Date {
+  return new Date(
     Date.UTC(
       Number(date.slice(0, 4)),
       Number(date.slice(5, 7)) - 1,
@@ -199,7 +172,6 @@ export function zonedWallTimeToUtc(
       minutes
     )
   );
-  return new Date(guess.getTime() - timeZoneOffsetMs(guess, timeZone));
 }
 
 export function parseMiTvClock(value: string): { hours: number; minutes: number } | undefined {
@@ -273,11 +245,7 @@ export function parseMiTvSitemap(html: string, country: string): MiTvChannel[] {
   );
 }
 
-export function parseMiTvListings(
-  html: string,
-  date: string,
-  timeZone: string
-): MiTvProgram[] {
+export function parseMiTvListings(html: string, date: string): MiTvProgram[] {
   const items = [...html.matchAll(/<li\b([^>]*)>([\s\S]*?)<\/li>/gi)];
   const parsed: Array<Omit<MiTvProgram, 'endTime'> & { startMs: number }> = [];
   let calendarDate = date;
@@ -296,21 +264,11 @@ export function parseMiTvListings(
     const clock = parseMiTvClock(timeText);
     if (!clock) continue;
 
-    let start = zonedWallTimeToUtc(
-      calendarDate,
-      clock.hours,
-      clock.minutes,
-      timeZone
-    );
+    let start = utcWallTime(calendarDate, clock.hours, clock.minutes);
     const previous = parsed[parsed.length - 1];
     if (previous && start.getTime() < previous.startMs) {
       calendarDate = addUtcDays(calendarDate, 1);
-      start = zonedWallTimeToUtc(
-        calendarDate,
-        clock.hours,
-        clock.minutes,
-        timeZone
-      );
+      start = utcWallTime(calendarDate, clock.hours, clock.minutes);
     }
 
     const rawSubtitle = cleanText(
@@ -394,8 +352,7 @@ async function loadSchedule(
     `${SITE_ORIGIN}/${config.country}/async/channel/${encodeURIComponent(slug)}/${date}/0`,
     config.timeout
   );
-  const country = miTvCountry(config.country);
-  const programs = parseMiTvListings(html ?? '', date, country.timeZone);
+  const programs = parseMiTvListings(html ?? '', date);
   await scheduleCache.set(cacheKey, programs, SCHEDULE_CACHE_TTL);
   return programs;
 }

@@ -7,7 +7,6 @@ export {
   parseMiTvClock,
   parseMiTvListings,
   parseMiTvSitemap,
-  zonedWallTimeToUtc,
   type MiTvConfig,
   type MiTvCountryCode,
 } from './addon.js';
