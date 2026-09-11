@@ -141,6 +141,8 @@ export class XmltvAddon {
             name: channel.name,
             logo: channel.logo,
             language: channel.language,
+            tvgId: channel.id,
+            aliases: channel.aliases,
           },
           videos
         );

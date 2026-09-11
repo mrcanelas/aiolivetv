@@ -131,6 +131,10 @@ export class AIOStreams {
     return this.ctx.addons;
   }
 
+  public getInitialisationErrors(): AIOStreamsContext['addonInitialisationErrors'] {
+    return this.ctx.addonInitialisationErrors;
+  }
+
   public getManifest(instanceId: string): Manifest | null | undefined {
     this.checkInitialised();
     return this.ctx.manifests[instanceId];

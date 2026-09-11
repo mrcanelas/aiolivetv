@@ -5,6 +5,30 @@ description: Review automatic mappings, suggestions and stream priority before s
 
 The **Channels** page is the only new configuration screen in AIOLiveTV. It reuses the same layout, cards and dialogs as the rest of the UI.
 
+## Sources
+
+The **Sources** card shows the last scan of every live catalog and stream addon:
+
+- status (OK or the current error)
+- how long the fetch took
+- when it was scanned
+- channel, stream and (for XMLTV) programme counts
+
+**Test / Refresh now** fetches the sources again and runs high-confidence matching plus suggestions. Failed addons stay listed so you can fix the URL or credentials on **Addons** without guessing which source broke.
+
+## Needs review
+
+A conflict inbox groups:
+
+- channels with no accepted stream
+- pending mapping suggestions
+- possible duplicate names (`Globo HD` vs `Globo FHD`)
+- channels with no EPG / schedule
+- streams that did not bind to any channel
+- configured streams the source no longer returns
+
+Channel tabs filter **My Channels**. Unmatched and unavailable streams stay in this card until you map them or refresh.
+
 ## What you see
 
 Channels are listed alphabetically. Each row shows:

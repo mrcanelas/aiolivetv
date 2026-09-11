@@ -197,6 +197,24 @@ export function getChannelMatchConfidence(
   return Math.min(score, 0.99);
 }
 
+export function findPossibleDuplicateChannels(
+  channels: Array<{ id: string; name: string; enabled?: boolean }>
+): Array<{ name: string; channelIds: string[] }> {
+  const groups = new Map<string, { name: string; channelIds: string[] }>();
+  for (const channel of channels) {
+    if (channel.enabled === false) continue;
+    const key = compactChannelName(channel.name);
+    if (key.length < 2) continue;
+    const group = groups.get(key);
+    if (group) {
+      group.channelIds.push(channel.id);
+    } else {
+      groups.set(key, { name: channel.name, channelIds: [channel.id] });
+    }
+  }
+  return [...groups.values()].filter((group) => group.channelIds.length > 1);
+}
+
 export const CHANNEL_AUTO_MERGE_CONFIDENCE = 0.9;
 
 export const isHighConfidenceChannelMatch = (confidence: number) =>

@@ -18,18 +18,27 @@ import { LoadingSpinner, Spinner } from '@/components/ui/loading-spinner';
 import { TextInput } from '@/components/ui/text-input';
 import { useUserData } from '@/context/userData';
 import { useDisclosure } from '@/hooks/disclosure';
-import { fetchChannels, type ChannelInfo } from '@/lib/api';
+import { fetchChannels, type ChannelInfo, type ChannelsResponse } from '@/lib/api';
 import { ChannelEditModal } from './_components/channel-edit-modal';
 import { ChannelListItem } from './_components/channel-list-item';
 import { ChannelMappingModal } from './_components/channel-mapping-modal';
+import { NeedsReviewCard } from './_components/needs-review';
+import { SourceDiagnosticsCard } from './_components/source-diagnostics';
 import {
+  type ChannelReviewFilter,
   type ChannelSortMode,
   countSuggestions,
+  asChannelsResponse,
+  filterChannelsByReview,
+  findDuplicateGroups,
   isChannelSuggestion,
   isManualStreamMapping,
   buildManualStreamChannelId,
   sortChannels,
   groupChannelsBySource,
+  channelHasPlayableStream,
+  channelHasSchedule,
+  visibleUnmatchedStreams,
   MANUAL_STREAM_ADDON_ID,
 } from './utils';
 
@@ -50,6 +59,8 @@ export function ChannelsMenu() {
   );
   const [editChannelId, setEditChannelId] = React.useState<string | null>(null);
   const [isMatchingStreams, setIsMatchingStreams] = React.useState(false);
+  const [reviewFilter, setReviewFilter] =
+    React.useState<ChannelReviewFilter>('all');
   const mappingModal = useDisclosure(false);
   const editModal = useDisclosure(false);
   const queryClient = useQueryClient();
@@ -78,9 +89,25 @@ export function ChannelsMenu() {
       setIsMatchingStreams(false);
     }
   }, [queryClient, queryKey]);
-  const channels = query.data ?? [];
+  const channelsResponse = asChannelsResponse(query.data);
+  const channels = channelsResponse.channels;
   const isInitialLoading = query.isPending && channels.length === 0;
   const suggestionCount = countSuggestions(channels);
+  const duplicateGroups = findDuplicateGroups(channels);
+  const duplicateIds = React.useMemo(
+    () => new Set(duplicateGroups.flatMap((group) => group.channelIds)),
+    [duplicateGroups]
+  );
+  const unmatchedStreams = visibleUnmatchedStreams(
+    channelsResponse.unmatchedStreams,
+    channels
+  );
+  const noStreamCount = channels.filter(
+    (channel) => channel.enabled && !channelHasPlayableStream(channel)
+  ).length;
+  const noScheduleCount = channels.filter(
+    (channel) => channel.enabled && !channelHasSchedule(channel)
+  ).length;
 
   const buildVisibleMappings = React.useCallback(
     (
@@ -156,11 +183,15 @@ export function ChannelsMenu() {
   );
 
   const setChannels = (update: (channels: ChannelInfo[]) => ChannelInfo[]) => {
-    const next = update(
-      queryClient.getQueryData<ChannelInfo[]>(queryKey) ?? []
+    const current = asChannelsResponse(
+      queryClient.getQueryData<ChannelsResponse>(queryKey)
     );
-    queryClient.setQueryData(queryKey, next);
-    persistChannels(next);
+    const nextChannels = update(current.channels);
+    queryClient.setQueryData(queryKey, {
+      ...current,
+      channels: nextChannels,
+    });
+    persistChannels(nextChannels);
   };
 
   const acceptSuggestion = (
@@ -446,7 +477,12 @@ export function ChannelsMenu() {
   const removeChannels = (channelIds: Iterable<string>) => {
     const ids = new Set(channelIds);
     const nextChannels = channels.filter((channel) => !ids.has(channel.id));
-    queryClient.setQueryData(queryKey, nextChannels);
+    queryClient.setQueryData(queryKey, {
+      ...asChannelsResponse(
+        queryClient.getQueryData<ChannelsResponse>(queryKey)
+      ),
+      channels: nextChannels,
+    });
     setSelectedIds((current) => {
       const next = new Set(current);
       for (const id of ids) next.delete(id);
@@ -484,8 +520,13 @@ export function ChannelsMenu() {
     }));
   };
 
+  const reviewedChannels = filterChannelsByReview(
+    channels,
+    reviewFilter,
+    duplicateIds
+  );
   const filteredChannels = sortChannels(
-    channels.filter((channel) =>
+    reviewedChannels.filter((channel) =>
       channel.name.toLowerCase().includes(search.trim().toLowerCase())
     ),
     sortMode
@@ -577,6 +618,24 @@ export function ChannelsMenu() {
           <PageControls />
         </div>
       </div>
+
+      <SourceDiagnosticsCard
+        sources={channelsResponse.sources}
+        isRefreshing={isMatchingStreams}
+        disabled={isInitialLoading}
+        onRefresh={() => void refreshStreamMappings()}
+      />
+
+      <NeedsReviewCard
+        filter={reviewFilter}
+        onFilterChange={setReviewFilter}
+        channels={channels}
+        noStreamCount={noStreamCount}
+        duplicateGroups={duplicateGroups}
+        unmatchedStreams={unmatchedStreams}
+        unavailableStreams={channelsResponse.unavailableStreams}
+        noScheduleCount={noScheduleCount}
+      />
 
       <SettingsCard
         title="My Channels"
@@ -697,7 +756,9 @@ export function ChannelsMenu() {
           <p className="py-8 text-center text-[--muted]">
             {channels.length === 0
               ? 'Add a Live TV addon, XMLTV guide, or M3U playlist on the Addons page.'
-              : 'No channels match your search.'}
+              : reviewedChannels.length === 0
+                ? 'No channels in this review list.'
+                : 'No channels match your search.'}
           </p>
         ) : groupedChannels ? (
           <div className="space-y-5">

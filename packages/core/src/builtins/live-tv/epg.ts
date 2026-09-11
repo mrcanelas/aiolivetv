@@ -145,6 +145,8 @@ export function guideChannelMeta(
     logo?: string;
     language?: string;
     country?: string;
+    tvgId?: string;
+    aliases?: string[];
   },
   videos: NonNullable<Meta['videos']>
 ): Meta {
@@ -157,6 +159,8 @@ export function guideChannelMeta(
     posterShape: 'landscape',
     language: channel.language,
     country: channel.country,
+    tvgId: channel.tvgId,
+    aliases: channel.aliases,
     behaviorHints: { hasScheduledVideos: true },
     videos,
   };

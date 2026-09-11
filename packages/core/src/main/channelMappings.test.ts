@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deduplicateLiveTvItems,
   findChannelMappingForId,
+  findPossibleDuplicateChannels,
   isLiveChannelVisible,
 } from './channelMappings.js';
 import type { UserData } from '../db/index.js';
@@ -82,6 +83,24 @@ describe('findChannelMappingForId', () => {
 
   it('returns undefined when the id is not mapped', () => {
     expect(findChannelMappingForId(userData, 'vivo:sbt')).toBeUndefined();
+  });
+});
+
+describe('findPossibleDuplicateChannels', () => {
+  it('groups enabled channels with the same compact name', () => {
+    expect(
+      findPossibleDuplicateChannels([
+        { id: 'xmltv:globo', name: 'Globo HD', enabled: true },
+        { id: 'm3u:globo', name: 'Globo FHD', enabled: true },
+        { id: 'xmltv:sbt', name: 'SBT', enabled: true },
+        { id: 'm3u:sbt-off', name: 'SBT HD', enabled: false },
+      ])
+    ).toEqual([
+      {
+        name: 'Globo HD',
+        channelIds: ['xmltv:globo', 'm3u:globo'],
+      },
+    ]);
   });
 });
 

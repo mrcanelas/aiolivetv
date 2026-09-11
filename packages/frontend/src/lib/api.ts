@@ -271,6 +271,7 @@ export interface ChannelInfo {
   poster?: string | null;
   canonicalAddonId: string;
   enabled: boolean;
+  epgProvider?: boolean;
   rejectedStreams?: Array<{ addonId: string; channelId: string }>;
   availableStreamSources?: ChannelStreamSource[];
   mappings: Array<{
@@ -287,6 +288,52 @@ export interface ChannelInfo {
     url?: string | null;
     declared?: DeclaredStreamInfo | null;
   }>;
+}
+
+export interface ChannelSourceDiagnostic {
+  instanceId: string;
+  name: string;
+  presetType?: string;
+  contributesChannels: boolean;
+  canStream: boolean;
+  epgProvider: boolean;
+  ok: boolean;
+  error?: string;
+  durationMs: number;
+  fetchedAt: string;
+  channelCount: number;
+  streamCount: number;
+  programCount?: number;
+}
+
+export interface UnmatchedStreamInfo {
+  addonId: string;
+  addonName: string;
+  channelId: string;
+  name: string;
+}
+
+export interface UnavailableStreamInfo {
+  channelId: string;
+  channelName: string;
+  addonId: string;
+  addonName: string;
+  streamChannelId: string;
+  name: string;
+  reason: string;
+}
+
+export interface DuplicateChannelGroup {
+  name: string;
+  channelIds: string[];
+}
+
+export interface ChannelsResponse {
+  channels: ChannelInfo[];
+  sources: ChannelSourceDiagnostic[];
+  unmatchedStreams: UnmatchedStreamInfo[];
+  unavailableStreams: UnavailableStreamInfo[];
+  duplicates: DuplicateChannelGroup[];
 }
 
 /**
@@ -462,7 +509,7 @@ export async function fetchChannels(
   userData: UserData,
   options?: { autoMatch?: boolean }
 ) {
-  return api<ChannelInfo[]>('POST /catalogs/channels', {
+  return api<ChannelsResponse>('POST /catalogs/channels', {
     body: { userData, autoMatch: options?.autoMatch ?? false },
   });
 }
