@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.1.0-beta...v0.2.0-beta) (2026-09-12)
+
+
+### Features
+
+* **builtins:** add Mi.tv EPG provider with per-country guides ([ac782dc](https://github.com/mrcanelas/aiolivetv/commit/ac782dc66bfe2a92fea67e3176fdf1adbf649193))
+
+
+### Bug Fixes
+
+* **docs:** prefix public logo URLs with the GitHub Pages base path ([aae8f80](https://github.com/mrcanelas/aiolivetv/commit/aae8f807cc946859a4fc146a33da426d7d59f9dd))
+* **docs:** serve GitHub Pages under /aiolivetv with AIOLiveTV logos ([450739b](https://github.com/mrcanelas/aiolivetv/commit/450739bd557c05d39dcfbaf3e7df77a8314730e0))
+* **mitv:** treat programme clocks as UTC ([dfd4a7c](https://github.com/mrcanelas/aiolivetv/commit/dfd4a7c0021b86bc93635374d2386681a8ac4c9a))
+
 ## 0.1.0-beta (2026-09-10)
 
 First public beta of **AIOLiveTV**. Versioning starts at `0.1.0-beta` and does not continue the AIOStreams 2.x line. Entries from 2.30.3 downward document the AIOStreams history this project was forked from.
