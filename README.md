@@ -12,17 +12,16 @@
 
 <p align="center">
   <a href="https://github.com/mrcanelas/aiolivetv/actions/workflows/deploy-docker.yml"> 
-        <img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/deploy-docker.yml?style=for-the-badge&logo=github" alt="Build Status">
+        <img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/deploy-docker.yml?style=for-the-badge&logo=github&labelColor=000" alt="Build Status">
   </a>
   <a href="https://github.com/mrcanelas/aiolivetv/releases/latest">
-        <img src="https://img.shields.io/github/v/release/mrcanelas/aiolivetv?style=for-the-badge&logo=github" alt="Latest Release">
+        <img src="https://img.shields.io/github/v/release/mrcanelas/aiolivetv?style=for-the-badge&logo=github&labelColor=000" alt="Latest Release">
   </a>
-  <img src="https://img.shields.io/badge/status-public%20beta-yellow?style=for-the-badge" alt="Public beta">
-  <a href="https://github.com/mrcanelas/aiolivetv/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/build.yml?style=for-the-badge&logo=github" alt="Build Status">
+  <a href="https://github.com/mrcanelas/aiolivetv/blob/main/LICENSE">
+    <img alt="GitHub License" src="https://img.shields.io/github/license/mrcanelas/aiolivetv?style=for-the-badge&labelColor=000>"
   </a>
   <a href="https://github.com/mrcanelas/aiolivetv">
-    <img src="https://img.shields.io/github/stars/mrcanelas/aiolivetv?style=for-the-badge&logo=github" alt="GitHub Stars">
+    <img src="https://img.shields.io/github/stars/mrcanelas/aiolivetv?style=for-the-badge&logo=github&labelColor=000" alt="GitHub Stars">
   </a>
 </p>
 
