@@ -18,7 +18,7 @@
         <img src="https://img.shields.io/github/v/release/mrcanelas/aiolivetv?style=for-the-badge&logo=github&labelColor=000" alt="Latest Release">
   </a>
   <a href="https://github.com/mrcanelas/aiolivetv/blob/main/LICENSE">
-    <img alt="GitHub License" src="https://img.shields.io/github/license/mrcanelas/aiolivetv?style=for-the-badge&labelColor=000>"
+    <img alt="GitHub License" src="https://img.shields.io/github/license/mrcanelas/aiolivetv?style=for-the-badge&labelColor=000>">
   </a>
   <a href="https://github.com/mrcanelas/aiolivetv">
     <img src="https://img.shields.io/github/stars/mrcanelas/aiolivetv?style=for-the-badge&logo=github&labelColor=000" alt="GitHub Stars">
