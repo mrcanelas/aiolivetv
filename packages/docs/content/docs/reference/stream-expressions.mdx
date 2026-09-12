@@ -3,7 +3,13 @@ title: Stream Expression Language
 description: Complete technical reference for SEL syntax, operators, constants, and all functions.
 ---
 
-The **Stream Expression Language (SEL)** lets you write custom logic to filter, rank, and select streams. It is used in **Groups**, **Stream Expression Filters**, **Precompute Selectors**, and more.
+The **Stream Expression Language (SEL)** lets you write custom logic to filter, rank, and select streams. In AIOLiveTV it is used mainly in **Groups** to skip backup live addons when the primary sources already returned enough streams.
+
+<Callout type="warn">
+  Operators such as `seadex()`, `cached()`, `isAnime` and torrent indexer names
+  come from the inherited AIOStreams pipeline. They are documented here because
+  the engine still evaluates them; they are not Live TV features.
+</Callout>
 
 ---
 

@@ -39,19 +39,19 @@ The frontend uses rsbuild (not Vite/webpack directly) — `pnpm -F frontend dev`
 
 ### Request flow
 
-1. `packages/server/src/server.ts` boots: initialises DB → templates → Redis (if configured) → AnimeDatabase / SeaDex / Prowlarr preconfigured indexers → registers scheduled `TaskManager` jobs (user pruning, cache eviction) → starts analytics → `app.listen`.
+1. `packages/server/src/server.ts` boots: initialises DB → templates → Redis (if configured) → registers scheduled `TaskManager` jobs (user pruning, cache eviction) → starts analytics → `app.listen`.
 2. `packages/server/src/app.ts` mounts routers:
-   - `/api/v{API_VERSION}/*` — JSON API consumed by the SPA (`user`, `health`, `status`, `format`, `catalogs`, `posters`, `oauth/exchange/gdrive`, `debrid`, `search`, `anime`, `proxy`, `templates`, `sync`, `auth`, `dashboard`). 404 handler is scoped to the API router.
+   - `/api/v{API_VERSION}/*` — JSON API consumed by the SPA (`user`, `health`, `status`, `format`, `catalogs`, `posters`, `proxy`, `templates`, `sync`, `auth`, `dashboard`). 404 handler is scoped to the API router.
    - `/stremio/...` — Stremio protocol endpoints. Public manifest/stream/configure routes are mounted directly; authenticated routes live under `/stremio/:uuid/:encryptedPassword` and go through `userDataMiddleware`, which resolves the `UserData` for the rest of the pipeline.
-   - `/chilllink/:uuid/:encryptedPassword/*`, `/builtins/*` (the last gated by `internalMiddleware`).
+   - `/builtins/live-tv/*` (gated by `internalMiddleware`).
    - Legacy `/:config/stream/...` returns a single "reconfigure" stream pointing at the new configure URL. Legacy `/configure` redirects to `/stremio/configure`.
    - Static: `/assets/*` is content-hashed and served with `immutable` cache headers and bypasses the static rate limiter; `/logo.png`, favicons, manifest icons go through `staticRateLimiter`; SPA fallback serves `index.html`.
 3. Stream requests construct an `AIOStreams` instance (`packages/core/src/main/index.ts`) from the resolved `UserData`. The constructor wires a pipeline of singletons: `Proxifier`, `StreamLimiter`, `StreamFilterer`, `StreamPrecomputer`, `StreamFetcher`, `StreamDeduplicator`, `StreamSorter`. The `setup.ts` helpers (`applyPresets`, `assignPublicIps`, `fetchManifests`, `buildResources`) turn the user's preset selections into concrete `Addon` instances and resolved manifests; `resources.ts` / `catalog.ts` implement the actual `getStreams` / `getCatalog` / `getMeta` / `getSubtitles` / `getAddonCatalog` calls.
 
 ### Presets vs builtins
 
-- **Presets** (`packages/core/src/presets/*.ts`, ~80 files, registered in `presetManager.ts`) describe how to configure and call an external Stremio addon (Torrentio, Comet, MediaFusion, Easynews, etc.). Each preset extends a common `Preset` base in `preset.ts` and exposes configuration metadata consumed by the SPA. When adding a new community addon, add a preset file and register it in `presetManager.ts`.
-- **Builtins** (`packages/core/src/builtins/*`) are addon implementations hosted in-process (gdrive, knaben, prowlarr, torznab/newznab, eztv, torrent-galaxy, seadex, easynews-search, library, …). They are exposed under `/builtins/<name>` via routes in `packages/server/src/routes/builtins`, and the `internalMiddleware` enforces that they are only called by the engine itself.
+- **Presets** (`packages/core/src/presets/*.ts`, registered in `presetManager.ts`) describe how to configure live sources (XMLTV, M3U, Xtream, Vivo, Claro, Mi.tv, custom Stremio addons, and a few community live addons). Each preset extends a common `Preset` base in `preset.ts` and exposes configuration metadata consumed by the SPA. When adding a new live addon, add a preset file and register it in `presetManager.ts`.
+- **Builtins** (`packages/core/src/builtins/*`) are in-process implementations (xmltv-reader, m3u-reader, xtream, vivotv, clarotv, mitv). They are exposed under `/builtins/live-tv/...` via `packages/server/src/routes/builtins/live-tv.ts`, and `internalMiddleware` enforces that they are only called by the engine itself.
 
 ### Configuration
 

@@ -18,7 +18,6 @@ import {
   BiListUl,
   BiServer,
   BiCog,
-  BiNetworkChart,
   BiLogOutCircle,
   BiGridAlt,
   BiGroup,
@@ -30,8 +29,7 @@ import { LayoutHeaderBackground } from '@/components/layout-header-background';
 import { PRODUCT_LOGO_PATH, PRODUCT_NAME } from '@/constants/branding';
 
 // Order mirrors how operators typically navigate the dashboard: dashboards
-// at the top, operational tools in the middle, infrastructure (Proxy) before
-// the dangerous Settings page which lives last.
+// at the top, operational tools in the middle, then Settings last.
 const NAV: { label: string; href: string; icon: React.ElementType }[] = [
   { label: 'Overview', href: '/dashboard', icon: BiGridAlt },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BiBarChartAlt2 },
@@ -40,7 +38,6 @@ const NAV: { label: string; href: string; icon: React.ElementType }[] = [
   { label: 'Users', href: '/dashboard/users', icon: BiGroup },
   { label: 'Tasks', href: '/dashboard/tasks', icon: BiTask },
   { label: 'Cache', href: '/dashboard/cache', icon: BiData },
-  { label: 'Proxy', href: '/dashboard/proxy', icon: BiNetworkChart },
   { label: 'Settings', href: '/dashboard/settings', icon: BiCog },
 ];
 

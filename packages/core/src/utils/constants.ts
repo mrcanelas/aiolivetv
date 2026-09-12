@@ -182,8 +182,9 @@ export type FormatterDetail = {
 export const FORMATTER_DETAILS: Record<FormatterType, FormatterDetail> = {
   [GDRIVE_FORMATTER]: {
     id: GDRIVE_FORMATTER,
-    name: 'Google Drive',
-    description: 'Uses the formatting from the Stremio GDrive addon',
+    name: 'Detailed',
+    description:
+      'Name plus quality, size and languages. The default layout for live streams.',
   },
   [PRISM_FORMATTER]: {
     id: PRISM_FORMATTER,
@@ -194,13 +195,12 @@ export const FORMATTER_DETAILS: Record<FormatterType, FormatterDetail> = {
     id: TAMTARO_FORMATTER,
     name: 'Tamtaro',
     description:
-      "From Tamtaro's setup. Smartly detects status for cached (⚡/⏳), proxied (⛊/⛉), library (☁︎/✎), season packs (❖/◈) and HDR/DV (✦/✧). The last line in sᴍᴀʟʟ ᴄᴀᴘs displays your preferred language options, Usenet's health (☑ ɴᴢʙ), SeaDex (ᴀʟᴛ/ʙᴇsᴛ ʀᴇʟᴇᴀsᴇ), networks, special editions and attributes via ranked stream expressions.",
+      'Dense layout with status glyphs for proxied streams and language codes.',
   },
   [LIGHT_GDRIVE_FORMATTER]: {
     id: LIGHT_GDRIVE_FORMATTER,
-    name: 'Light Google Drive',
-    description:
-      'A lighter version of the GDrive formatter, focused on asthetics',
+    name: 'Compact',
+    description: 'Shorter detailed layout with title and quality tags.',
   },
   [MINIMALISTIC_GDRIVE_FORMATTER]: {
     id: MINIMALISTIC_GDRIVE_FORMATTER,
@@ -209,13 +209,13 @@ export const FORMATTER_DETAILS: Record<FormatterType, FormatterDetail> = {
   },
   [TORRENTIO_FORMATTER]: {
     id: TORRENTIO_FORMATTER,
-    name: 'Torrentio',
-    description: 'Uses the formatting from the Torrentio addon',
+    name: 'Two-line',
+    description: 'Short name line and a compact details line.',
   },
   [TORBOX_FORMATTER]: {
     id: TORBOX_FORMATTER,
-    name: 'Torbox',
-    description: 'Uses the formatting from the TorBox Stremio addon',
+    name: 'Labeled',
+    description: 'Key/value lines for quality, name, size and languages.',
   },
   [CUSTOM_FORMATTER]: {
     id: CUSTOM_FORMATTER,
@@ -462,7 +462,7 @@ const SERVICE_DETAILS: Record<
       {
         id: 'note',
         name: 'Configuration Help',
-        description: `**URL:** Use internal URL for local setups (e.g., http://nzbdav:3000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).\n\nFor detailed setup instructions, see the [Usenet guide](https://github.com/mrcanelas/aiolivetv/blob/main/packages/docs/content/docs/guides/usenet.mdx).`,
+        description: `**URL:** Use internal URL for local setups (e.g., http://nzbdav:3000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).`,
         type: 'alert',
         intent: 'info',
         required: false,
@@ -527,7 +527,7 @@ const SERVICE_DETAILS: Record<
       {
         id: 'note',
         name: 'Configuration Help',
-        description: `**URL:** Use internal URL for local setups (e.g., http://altmount:8000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).\n\nFor detailed setup instructions, see the [Usenet guide](https://github.com/mrcanelas/aiolivetv/blob/main/packages/docs/content/docs/guides/usenet.mdx).`,
+        description: `**URL:** Use internal URL for local setups (e.g., http://altmount:8000), otherwise use a public URL.\n\n**Public URL:** Only needed if URL is local but streams need to be publicly accessible. Leave blank if URL is public or using a proxy.\n\n**Security Note:** WebDAV credentials are exposed in stream URLs unless proxied. To proxy, provide the Auth Token below (built-in proxy only).`,
         type: 'alert',
         intent: 'info',
         required: false,

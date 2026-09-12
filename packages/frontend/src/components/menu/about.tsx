@@ -11,7 +11,6 @@ import {
   HeartIcon,
   CoffeeIcon,
   PencilIcon,
-  PlusIcon,
   BellIcon,
 } from 'lucide-react';
 import { FaGithub, FaChevronRight } from 'react-icons/fa';
@@ -212,7 +211,6 @@ AIOLiveTV combines live channel metadata and stream sources into one configurabl
   const customizeModal = useDisclosure(false);
   const signInModal = useDisclosure(false);
   const templatesModal = useDisclosure(false);
-  const setupChoiceModal = useDisclosure(false);
   const templateUpdateModal = useDisclosure(false);
   const [updateTargets, setUpdateTargets] = React.useState<
     AppliedTemplateUpdate[]
@@ -516,8 +514,8 @@ AIOLiveTV combines live channel metadata and stream sources into one configurabl
                   Get Started
                 </h3>
                 <p className="text-sm text-[--muted]">
-                  New here? Pick a setup mode and jump straight in, or load a
-                  template for an instant pre-configured setup.
+                  New here? Pick a setup mode and jump straight in. Add XMLTV,
+                  M3U or live addons next, then review Channels.
                 </p>
               </div>
 
@@ -542,14 +540,16 @@ AIOLiveTV combines live channel metadata and stream sources into one configurabl
                 >
                   {uuid && password ? 'Continue Setup' : 'Start Setup'}
                 </Button>
-                <Button
-                  intent="primary-outline"
-                  rounded
-                  className="w-full h-12 text-base font-semibold"
-                  onClick={templatesModal.open}
-                >
-                  Use a Template
-                </Button>
+                {!loader.loadingTemplates && loader.templates.length > 0 && (
+                  <Button
+                    intent="primary-outline"
+                    rounded
+                    className="w-full h-12 text-base font-semibold"
+                    onClick={templatesModal.open}
+                  >
+                    Use a Template
+                  </Button>
+                )}
                 {!(uuid && password) && (
                   <p className="text-xs text-gray-500 text-center mt-1">
                     Already have a config?{' '}
@@ -674,30 +674,6 @@ AIOLiveTV combines live channel metadata and stream sources into one configurabl
         deepLinkUrl={deepLinkUrl}
         deepLinkTemplateId={deepLinkTemplateId}
         initialExpandedTemplateId={featuredTemplateToOpen?.metadata.id}
-      />
-      <SetupChoiceModal
-        open={setupChoiceModal.isOpen}
-        onOpenChange={setupChoiceModal.toggle}
-        onNextMenu={() => {
-          setupChoiceModal.close();
-          nextMenu();
-        }}
-        onUseTemplate={() => {
-          setupChoiceModal.close();
-          templatesModal.open();
-        }}
-        nextMenuText={uuid && password ? 'Continue Setup' : 'Start Fresh'}
-        nextMenuDescription={
-          uuid && password
-            ? 'Continue adjusting your setup'
-            : 'Build your configuration from scratch. Perfect if you want complete control over every setting.'
-        }
-        useTemplateText="Use a Template"
-        useTemplateDescription={
-          uuid && password
-            ? 'Apply a template to your existing setup'
-            : 'Start with a pre-configured template. Great for getting up and running quickly with recommended settings.'
-        }
       />
       <Modal
         open={templateUpdateModal.isOpen}
@@ -1331,79 +1307,6 @@ function CustomizeModal({
           </div>
         </div>
       </form>
-    </Modal>
-  );
-}
-
-function SetupChoiceModal({
-  open,
-  onOpenChange,
-  onNextMenu,
-  onUseTemplate,
-  nextMenuText,
-  nextMenuDescription,
-  useTemplateText,
-  useTemplateDescription,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onNextMenu: () => void;
-  onUseTemplate: () => void;
-  nextMenuText: string;
-  nextMenuDescription: string;
-  useTemplateText: string;
-  useTemplateDescription: string;
-}) {
-  return (
-    <Modal
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Get Started"
-      description="Choose how you'd like to set up AIOLiveTV"
-    >
-      <div className="space-y-4">
-        <button
-          onClick={onNextMenu}
-          className="w-full p-6 rounded-lg border-2 border-gray-700 bg-gray-800/50 hover:border-purple-500 hover:bg-purple-500/10 transition-all duration-200 text-left group"
-        >
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
-              <FaPlay className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-white mb-2">
-                {nextMenuText}
-              </h3>
-              <p className="text-sm text-gray-400">
-                {/* Build your configuration from scratch. Perfect if you want
-                complete control over every setting. */}
-                {nextMenuDescription}
-              </p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={onUseTemplate}
-          className="w-full p-6 rounded-lg border-2 border-gray-700 bg-gray-800/50 hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200 text-left group"
-        >
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-              <PlusIcon className="w-5 h-5 text-blue-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-white mb-2">
-                {useTemplateText}
-              </h3>
-              <p className="text-sm text-gray-400">
-                {/* Start with a pre-configured template. Great for getting up and
-                running quickly with recommended settings. */}
-                {useTemplateDescription}
-              </p>
-            </div>
-          </div>
-        </button>
-      </div>
     </Modal>
   );
 }

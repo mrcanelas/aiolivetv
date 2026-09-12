@@ -14,7 +14,6 @@ import {
   BiData,
   BiGroup,
   BiHistory,
-  BiLineChart,
   BiServer,
   BiTask,
   BiTerminal,
@@ -92,12 +91,6 @@ const LINKS: Array<{
     label: 'Cache',
     desc: 'Cache stats & flush',
     icon: BiData,
-  },
-  {
-    to: '/dashboard/proxy',
-    label: 'Proxy',
-    desc: 'Built-in proxy',
-    icon: BiLineChart,
   },
   {
     to: '/dashboard/settings',

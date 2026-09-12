@@ -9,7 +9,6 @@ import {
   LogsPage,
   SystemPage,
   SettingsPage,
-  ProxyPage,
   UsersPage,
   TasksPage,
   CachePage,
@@ -150,7 +149,10 @@ const dashboardSettingsRoute = createRoute({
 const dashboardProxyRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'proxy',
-  component: ProxyPage,
+  beforeLoad: () => {
+    throw redirect({ href: '/dashboard/settings?tab=proxy' } as never);
+  },
+  component: () => null,
 });
 
 const dashboardUsersRoute = createRoute({

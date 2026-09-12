@@ -243,10 +243,6 @@ export function FormatterPreview() {
         setRseMatched={setRseMatched}
         rankedRegexMatched={rankedRegexMatched}
         setRankedRegexMatched={setRankedRegexMatched}
-        seadex={false}
-        setSeadex={() => {}}
-        seadexBest={false}
-        setSeadexBest={() => {}}
       />
     </>
   );

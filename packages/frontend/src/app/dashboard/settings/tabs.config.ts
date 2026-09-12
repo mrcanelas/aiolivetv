@@ -31,6 +31,33 @@ export interface TabDef {
   order: number;
 }
 
+/**
+ * AIOStreams VOD leftovers. Env vars and schema still exist for the inherited
+ * pipeline; they are not shown on the operator Settings page.
+ */
+export const HIDDEN_DASHBOARD_SECTIONS = new Set<string>([
+  'nzbProxy',
+  'services',
+  'builtins',
+  'poster',
+  'metadata',
+]);
+
+export const HIDDEN_DASHBOARD_KEY_PREFIXES = [
+  'rateLimits.animeApi',
+  'rateLimits.easynewsNzb',
+  'resources.precache',
+  'resources.preload',
+] as const;
+
+export function isDashboardSettingsKeyVisible(key: string): boolean {
+  const section = key.split('.')[0];
+  if (HIDDEN_DASHBOARD_SECTIONS.has(section)) return false;
+  return !HIDDEN_DASHBOARD_KEY_PREFIXES.some(
+    (prefix) => key === prefix || key.startsWith(`${prefix}.`)
+  );
+}
+
 export const TAB_MANIFEST: Record<string, Omit<TabDef, 'section'>> = {
   api: { label: 'General', icon: BiCog, group: 'Core', order: 1 },
   branding: { label: 'Branding', icon: BiPalette, group: 'Core', order: 2 },

@@ -2,7 +2,6 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '../../ui/button';
 import { NumberInput } from '../../ui/number-input';
 import { TextInput } from '../../ui/text-input';
-import { Switch } from '../../ui/switch';
 
 export interface AdvancedVariables {
   regexScore: number | undefined;
@@ -12,8 +11,6 @@ export interface AdvancedVariables {
   seMatched: string | undefined;
   rseMatched: string | undefined;
   rankedRegexMatched: string;
-  seadex: boolean;
-  seadexBest: boolean;
 }
 
 interface AdvancedModalProps extends AdvancedVariables {
@@ -26,8 +23,6 @@ interface AdvancedModalProps extends AdvancedVariables {
   setSeMatched: (v: string | undefined) => void;
   setRseMatched: (v: string | undefined) => void;
   setRankedRegexMatched: (v: string) => void;
-  setSeadex: (v: boolean) => void;
-  setSeadexBest: (v: boolean) => void;
 }
 
 export function AdvancedModal({
@@ -47,10 +42,6 @@ export function AdvancedModal({
   setRseMatched,
   rankedRegexMatched,
   setRankedRegexMatched,
-  seadex,
-  setSeadex,
-  seadexBest,
-  setSeadexBest,
 }: AdvancedModalProps) {
   return (
     <Modal
@@ -123,21 +114,6 @@ export function AdvancedModal({
             onValueChange={setRankedRegexMatched}
             placeholder="e.g., '2160p, HDR10+, REMUX'"
           />
-        </div>
-
-        <div className="space-y-3">
-          <h3 className="font-semibold text-sm text-gray-300">
-            SeaDex Variables
-          </h3>
-          <div className="flex gap-4 justify-center">
-            <Switch label="SeaDex" value={seadex} onValueChange={setSeadex} />
-            <Switch
-              label="SeaDex Best"
-              value={seadex ? seadexBest : false}
-              disabled={!seadex}
-              onValueChange={setSeadexBest}
-            />
-          </div>
         </div>
 
         <div className="flex justify-end pt-2">

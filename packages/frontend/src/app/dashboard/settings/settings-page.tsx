@@ -11,7 +11,7 @@ import { PageWrapper } from '@/components/shared/page-wrapper';
 import { Spinner } from '@/components/ui/loading-spinner';
 import { LuffyError } from '@/components/shared/luffy-error';
 import { useSettings, useSaveSettings, type SettingsKey } from './queries';
-import { tabFor, humanise } from './tabs.config';
+import { tabFor, humanise, isDashboardSettingsKeyVisible } from './tabs.config';
 import {
   SettingsCard,
   SettingsNavCard,
@@ -50,6 +50,7 @@ interface TabModel {
 function buildTabs(keys: SettingsKey[]): TabModel[] {
   const bySection = new Map<string, SettingsKey[]>();
   for (const k of keys) {
+    if (!isDashboardSettingsKeyVisible(k.key)) continue;
     const section = k.key.split('.')[0];
     (bySection.get(section) ?? bySection.set(section, []).get(section)!).push(
       k

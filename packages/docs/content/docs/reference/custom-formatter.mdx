@@ -5,6 +5,13 @@ description: Complete reference for formatting stream names and descriptions usi
 
 The **Custom Formatter** gives you full control over how each stream's name and description are displayed in Stremio (and other clients). You can live-preview your format on the configuration page using the **Preview** button.
 
+<Callout type="info">
+  For live TV, `{addon.name}`, `{stream.type}` (`live` / `http`) and
+  `{stream.message}` matter most. Debrid, Usenet and SeaDex fields still exist
+  in the engine and in some built-in formats, but they stay empty for live
+  streams.
+</Callout>
+
 Access a variable using:
 
 ```
@@ -382,12 +389,6 @@ Use formatting tools with `{tools.toolName}`:
   is platform-dependent. Many platforms do not respect newlines in the `name`
   field. Avoid building your name template around `{tools.newLine}`.
 </Callout>
-
----
-
-## Chillio
-
-For **Chillio**, the `name` template maps to the ChillLink `title` field. The `description` template is split line-by-line into `metadata` strings — each line becomes a separate metadata entry.
 
 ---
 

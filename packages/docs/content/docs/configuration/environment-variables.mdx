@@ -24,6 +24,14 @@ AIOLiveTV has two kinds of configuration:
   [`.env.sample`](https://github.com/mrcanelas/aiolivetv/blob/main/.env.sample)
   intentionally only contains bootstrap variables for this reason. Use
   environment overrides for runtime settings only when you need to lock a value
+  (for example in ephemeral hosts like Vercel).
+</Callout>
+
+<Callout type="warn">
+  The generated tables below still list inherited AIOStreams settings (debrid,
+  Usenet, TMDB, anime DB, NZB proxy, torrent scrape). The dashboard Settings
+  page hides those. Leave them at defaults unless you know you need an env
+  override for the leftover pipeline.
 </Callout>
 
 ---

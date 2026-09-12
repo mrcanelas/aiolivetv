@@ -11,14 +11,11 @@ import {
 import { useCommandPalette } from '@/context/command-palette';
 import { useQuickActions } from '@/context/quick-actions';
 import { useMode } from '@/context/mode';
-import { useStatus } from '@/context/status';
-import { useUserData } from '@/context/userData';
 import { FIELD_META, type MenuId } from '../../../../core/src/utils/fieldMeta';
 import { isConfigureMenuVisible } from '@/constants/configure-menus';
 import {
   BiInfoCircle,
   BiExtension,
-  BiFilterAlt,
   BiPen,
   BiCog,
   BiSave,
@@ -30,9 +27,6 @@ const MENU_ITEMS: Array<{
   label: string;
   icon: React.ReactNode;
   proOnly?: boolean;
-  /** When true, the entry is only shown if (a) the instance owner has
-   *  per-user analytics on, and (b) the user is signed in. */
-  requiresStats?: boolean;
 }> = [
   { id: 'about', label: 'About', icon: <BiInfoCircle /> },
   { id: 'addons', label: 'Addons', icon: <BiExtension /> },
@@ -40,31 +34,6 @@ const MENU_ITEMS: Array<{
   { id: 'formatter', label: 'Formatter', icon: <BiPen /> },
   { id: 'miscellaneous', label: 'Miscellaneous', icon: <BiCog /> },
   { id: 'save-install', label: 'Save & Install', icon: <BiSave /> },
-];
-
-const FILTER_TABS: Array<{ id: string; label: string }> = [
-  { id: 'cache', label: 'Cache' },
-  { id: 'resolution', label: 'Resolution' },
-  { id: 'quality', label: 'Quality' },
-  { id: 'encode', label: 'Encode' },
-  { id: 'stream-type', label: 'Stream Type' },
-  { id: 'visual-tag', label: 'Visual Tag' },
-  { id: 'audio-tag', label: 'Audio Tag' },
-  { id: 'audio-channel', label: 'Audio Channel' },
-  { id: 'language', label: 'Language' },
-  { id: 'subtitle', label: 'Subtitle' },
-  { id: 'seeders', label: 'Seeders' },
-  { id: 'age', label: 'Age' },
-  { id: 'matching', label: 'Matching' },
-  { id: 'keyword', label: 'Keyword' },
-  { id: 'release-group', label: 'Release Group' },
-  { id: 'stream-expression', label: 'Stream Expression' },
-  { id: 'regex', label: 'Regex' },
-  { id: 'size', label: 'Size' },
-  { id: 'bitrate', label: 'Bitrate' },
-  { id: 'limit', label: 'Result Limits' },
-  { id: 'deduplicator', label: 'Deduplicator' },
-  { id: 'miscellaneous', label: 'Miscellaneous (Filters)' },
 ];
 
 const MENU_LABELS: Record<MenuId, string> = {
@@ -132,23 +101,15 @@ export function CommandPalette() {
   const { isOpen, close, navigate } = useCommandPalette();
   const { actions: quickActions } = useQuickActions();
   const { mode } = useMode();
-  const { status } = useStatus();
-  const user = useUserData();
-  const statsAvailable =
-    status?.settings.userAnalyticsEnabled === true &&
-    Boolean(user.uuid && user.password);
   const [query, setQuery] = useState('');
   const isEmpty = query.trim().length === 0;
 
   const visibleMenus = useMemo(
     () =>
       MENU_ITEMS.filter(
-        (m) =>
-          isConfigureMenuVisible(m.id) &&
-          (mode === 'pro' || !m.proOnly) &&
-          (!m.requiresStats || statsAvailable)
+        (m) => isConfigureMenuVisible(m.id) && (mode === 'pro' || !m.proOnly)
       ),
-    [mode, statsAvailable]
+    [mode]
   );
 
   const searchResults = useMemo((): SearchResult[] => {
@@ -190,28 +151,6 @@ export function CommandPalette() {
           onSelect: () => {
             setQuery('');
             navigate({ menu: menu.id });
-          },
-        });
-      }
-    }
-
-    for (const tab of FILTER_TABS) {
-      if (!isConfigureMenuVisible('filters')) continue;
-      const score = bestScore(['filter tab', tab.label, tab.id], q);
-      if (score > 0) {
-        results.push({
-          id: `filter-tab-${tab.id}`,
-          label: `Filters → ${tab.label}`,
-          trail: 'Filter Tab',
-          icon: <BiFilterAlt />,
-          score,
-          onSelect: () => {
-            setQuery('');
-            navigate({
-              menu: 'filters',
-              subTab: tab.id,
-              sectionId: `filter-tab-${tab.id}`,
-            });
           },
         });
       }

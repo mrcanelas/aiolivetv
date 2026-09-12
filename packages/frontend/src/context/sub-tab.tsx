@@ -9,21 +9,15 @@ import React, {
 import type { MenuId } from '../../../core/src/utils/fieldMeta';
 
 /**
- * Per-menu URL query parameter used to persist the active sub-tab. Keep this
- * in sync with the menu pages that read/write the URL (search the codebase
- * for `searchParams.get('filter')` etc.).
+ * Per-menu URL query parameter used to persist the active sub-tab.
  */
 const URL_KEY_BY_MENU: Partial<Record<MenuId, string>> = {
-  filters: 'filter',
   miscellaneous: 'misc-tab',
-  services: 'service-tab',
   addons: 'addons-tab',
 };
 
 const DEFAULT_TAB_BY_MENU: Partial<Record<MenuId, string>> = {
-  filters: 'cache',
-  miscellaneous: 'background',
-  services: 'services',
+  miscellaneous: 'playback',
   addons: 'addons',
 };
 

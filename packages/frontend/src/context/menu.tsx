@@ -5,18 +5,8 @@ import React, {
   useEffect,
   useMemo,
 } from 'react';
-import { useMode } from './mode';
-import { MENU_IDS, type MenuId } from '../../../core/src/utils/fieldMeta';
-import {
-  CONFIGURE_VISIBLE_MENUS,
-  isConfigureMenuVisible,
-} from '@/constants/configure-menus';
-import { useStatus } from './status';
-import { useUserData } from './userData';
-
-const VALID_MENUS = MENU_IDS;
-
-const PRO_ONLY_MENUS: MenuId[] = ['sorting'];
+import type { MenuId } from '../../../core/src/utils/fieldMeta';
+import { CONFIGURE_VISIBLE_MENUS } from '@/constants/configure-menus';
 
 export type { MenuId };
 
@@ -39,30 +29,9 @@ const MenuContext = createContext<MenuContextType>({
 });
 
 export function MenuProvider({ children }: { children: React.ReactNode }) {
-  const { mode } = useMode();
-
-  const { status } = useStatus();
-  const user = useUserData();
-  const statsAvailable =
-    status?.settings.userAnalyticsEnabled === true &&
-    Boolean(user.uuid && user.password);
-
-  const menus = useMemo(() => {
-    let availableMenus = VALID_MENUS.filter(isConfigureMenuVisible);
-    if (mode === 'noob') {
-      availableMenus = availableMenus.filter(
-        (menu) => !PRO_ONLY_MENUS.includes(menu)
-      );
-    }
-    if (!statsAvailable) {
-      availableMenus = availableMenus.filter((menu) => menu !== 'stats');
-    }
-    return availableMenus;
-  }, [mode, statsAvailable]);
-
+  const menus = useMemo((): MenuId[] => [...CONFIGURE_VISIBLE_MENUS], []);
   const defaultMenu = CONFIGURE_VISIBLE_MENUS[0];
 
-  // Get initial menu from URL or default to 'about'
   const initialMenu = (() => {
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -83,7 +52,6 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
   }, [menus, selectedMenu, defaultMenu]);
 
   const setSelectedMenu = (menu: MenuId) => {
-    // reset scroll position
     window.scrollTo(0, 0);
     setInternalSelectedMenu(menu);
   };
@@ -103,10 +71,8 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     setSelectedMenu(menus[previousIndex]);
   };
 
-  // Update URL when menu changes
   useEffect(() => {
     const url = new URL(window.location.href);
-    // if menu is not about, add it to the url
     if (selectedMenu !== 'about') {
       url.searchParams.set('menu', selectedMenu);
     } else {

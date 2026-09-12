@@ -63,21 +63,19 @@ const FIELD_GROUP_LABELS: Record<FieldGroup, string> = {
   branding: 'Branding',
 };
 
-const FIELD_GROUPS: FieldGroup[] = [
-  'filters',
-  'sorting',
-  'formatter',
-  'proxy',
-  'metadata',
-  'misc',
-  'branding',
-];
+const VISIBLE_TERNARY_SECTIONS = ['presets'] as const;
+const VISIBLE_BINARY_SECTIONS = ['formatter', 'misc', 'branding'] as const;
+const FIELD_GROUPS: FieldGroup[] = ['formatter', 'misc', 'branding'];
+const VISIBLE_FIELD_GROUP_SET = new Set<string>(FIELD_GROUPS);
 
 // All inheritable field keys, pre-sorted by label within their group.
 // Fields with ignoreForParentConfig are command-palette-only and cannot be
 // individually overridden here.
 const ALL_FIELD_KEYS = Object.entries(FIELD_META)
-  .filter(([, meta]) => !meta.ignoreForParentConfig)
+  .filter(
+    ([, meta]) =>
+      !meta.ignoreForParentConfig && VISIBLE_FIELD_GROUP_SET.has(meta.group)
+  )
   .map(([key]) => key as keyof typeof FIELD_META)
   .sort((a, b) =>
     (FIELD_META[a]?.label ?? a).localeCompare(FIELD_META[b]?.label ?? b)
@@ -173,7 +171,7 @@ function FieldOverridesModal({
   fieldOverrides,
   onChange,
 }: FieldOverridesModalProps) {
-  const [activeGroup, setActiveGroup] = useState<FieldGroup>('filters');
+  const [activeGroup, setActiveGroup] = useState<FieldGroup>('formatter');
   const [search, setSearch] = useState('');
 
   const trimmedSearch = search.trim().toLowerCase();
@@ -537,7 +535,7 @@ export function ParentConfig() {
             description="For each section, choose whether to use the parent's settings, combine them with yours, or use only yours."
           >
             <div className="space-y-4">
-              {(['presets', 'services'] as const).map((section) => (
+              {VISIBLE_TERNARY_SECTIONS.map((section) => (
                 <div key={section} className="space-y-1">
                   <Select
                     label={SECTION_LABELS[section]}
@@ -550,17 +548,7 @@ export function ParentConfig() {
                   />
                 </div>
               ))}
-              {(
-                [
-                  'filters',
-                  'sorting',
-                  'formatter',
-                  'proxy',
-                  'metadata',
-                  'misc',
-                  'branding',
-                ] as const
-              ).map((section) => (
+              {VISIBLE_BINARY_SECTIONS.map((section) => (
                 <div key={section} className="space-y-1">
                   <Select
                     label={SECTION_LABELS[section]}

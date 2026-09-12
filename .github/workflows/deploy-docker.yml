@@ -164,11 +164,9 @@ jobs:
             exit 0
           fi
           if [ "$CHANNEL" = "stable" ]; then
-            ROLE_ID="<@&1384627130272452638>"
             COLOR=5763719  # Green
             TITLE="🎉 Stable Release"
           else
-            ROLE_ID="<@&1384627462155272242>"
             COLOR=15844367  # Orange
             TITLE="🌙 Nightly Build"
           fi
@@ -189,7 +187,6 @@ jobs:
           # Create JSON payload file
           cat << EOF > discord_payload.json
           {
-            "content": "$ROLE_ID",
             "embeds": [
               {
                 "title": "$TITLE - Docker Images Published",
