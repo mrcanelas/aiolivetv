@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { EditorView } from '@codemirror/view';
+import { Code2, Type } from 'lucide-react';
 import * as constants from '../../../../../core/src/utils/constants';
 import { BUILTIN_FORMATTER_DEFINITIONS } from '../../../../../core/src/utils/formatter-definitions';
 import { useUserData } from '@/context/userData';
@@ -15,29 +17,22 @@ import { toast } from 'sonner';
 import { FaFileImport, FaFileExport, FaSave } from 'react-icons/fa';
 import { SnippetsButton } from './snippets-button';
 import { SavedFormattersModal } from './saved-formatters-modal';
-
+import { FormatterEditor } from './editor';
+import { getTemplates } from './templates';
 import { PRODUCT_DOCS_URL } from '@/constants/branding';
 
 const formatterChoices = Object.values(constants.FORMATTER_DETAILS);
 
-// Read the active name/description templates from userData — single source of truth.
-function getTemplates(data: UserData): { name: string; description: string } {
-  const id = data.formatter.id;
-  const defs = data.formatter.definitions;
-  if (id === constants.CUSTOM_FORMATTER) {
-    return {
-      name: defs?.custom?.name ?? '',
-      description: defs?.custom?.description ?? '',
-    };
+const SIMPLE_EDITOR_KEY = 'aiolivetv:formatter-simple-editor';
+
+function loadSimpleEditorPref(): boolean {
+  try {
+    return localStorage.getItem(SIMPLE_EDITOR_KEY) === '1';
+  } catch {
+    return false;
   }
-  const override = defs?.overrides?.[id];
-  if (override)
-    return { name: override.name, description: override.description };
-  const builtin = BUILTIN_FORMATTER_DEFINITIONS[id];
-  return { name: builtin?.name ?? '', description: builtin?.description ?? '' };
 }
 
-// Write name+description back into userData for whatever formatter is currently active.
 function applyTemplates(
   prev: UserData,
   name: string,
@@ -83,10 +78,60 @@ export function FormatterSelection() {
   const importModalDisclosure = useDisclosure(false);
   const savedModalDisclosure = useDisclosure(false);
 
+  const nameViewRef = useRef<EditorView | null>(null);
+  const descViewRef = useRef<EditorView | null>(null);
+  const focusedViewRef = useRef<EditorView | null>(null);
+
+  const [simpleEditor, setSimpleEditor] = useState(loadSimpleEditorPref);
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIMPLE_EDITOR_KEY, simpleEditor ? '1' : '0');
+    } catch {
+      // preference is best-effort
+    }
+  }, [simpleEditor]);
+
+  function renderEditor(
+    value: string,
+    onChange: (v: string) => void,
+    placeholder: string,
+    viewRef: React.MutableRefObject<EditorView | null>
+  ) {
+    if (simpleEditor) {
+      return (
+        <Textarea
+          value={value}
+          onValueChange={onChange}
+          placeholder={placeholder}
+        />
+      );
+    }
+    return (
+      <FormatterEditor
+        value={value}
+        onValueChange={onChange}
+        placeholder={placeholder}
+        onViewReady={(view) => {
+          viewRef.current = view;
+        }}
+        onFocusView={(view) => {
+          focusedViewRef.current = view;
+        }}
+      />
+    );
+  }
+
+  function insertSnippet(value: string): boolean {
+    const view = focusedViewRef.current;
+    if (!view) return false;
+    view.dispatch(view.state.replaceSelection(value));
+    view.focus();
+    return true;
+  }
+
   const currentId = userData.formatter.id;
   const definitions = userData.formatter.definitions;
 
-  // Derived directly from userData — no local mirror state needed.
   const { name: nameTemplate, description: descriptionTemplate } =
     getTemplates(userData);
   const isCustomised =
@@ -100,7 +145,6 @@ export function FormatterSelection() {
   function handleIdChange(newId: string) {
     const typedId = newId as constants.FormatterType;
     setUserData((prev) => {
-      // When switching to custom with no existing definition, seed it from whatever is active now.
       if (
         typedId === constants.CUSTOM_FORMATTER &&
         !prev.formatter.definitions?.custom
@@ -291,51 +335,68 @@ export function FormatterSelection() {
 
         {showTemplates && (
           <div className="space-y-4 mt-4">
-            <div className="text-sm text-gray-400">
-              Type <span className="font-mono">{'{debug.jsonf}'}</span> to see
-              all available variables. See the{' '}
-              <a
-                href={`${PRODUCT_DOCS_URL}/reference/custom-formatter`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[--brand] hover:text-[--brand]/80 hover:underline"
+            <div className="flex items-start gap-2">
+              <div className="text-sm text-gray-400 flex-1">
+                Type <span className="font-mono">{'{debug.jsonf}'}</span> to see
+                all available variables. See the{' '}
+                <a
+                  href={`${PRODUCT_DOCS_URL}/reference/custom-formatter`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[--brand] hover:text-[--brand]/80 hover:underline"
+                >
+                  docs
+                </a>{' '}
+                for a full reference.
+              </div>
+              <Tooltip
+                trigger={
+                  <IconButton
+                    rounded
+                    size="sm"
+                    intent="primary-subtle"
+                    icon={simpleEditor ? <Code2 /> : <Type />}
+                    onClick={() => setSimpleEditor((v) => !v)}
+                  />
+                }
               >
-                docs
-              </a>{' '}
-              for a full reference.
+                {simpleEditor
+                  ? 'Switch to the rich editor'
+                  : 'Switch to a plain textarea'}
+              </Tooltip>
             </div>
 
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Name Template
               </label>
-              <Textarea
-                value={nameTemplate}
-                onValueChange={(v) =>
+              {renderEditor(
+                nameTemplate,
+                (v) =>
                   setUserData((prev) =>
                     applyTemplates(prev, v, getTemplates(prev).description)
-                  )
-                }
-                placeholder="Enter a template for the stream name"
-              />
+                  ),
+                'Enter a template for the stream name',
+                nameViewRef
+              )}
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Description Template
               </label>
-              <Textarea
-                value={descriptionTemplate}
-                onValueChange={(v) =>
+              {renderEditor(
+                descriptionTemplate,
+                (v) =>
                   setUserData((prev) =>
                     applyTemplates(prev, getTemplates(prev).name, v)
-                  )
-                }
-                placeholder="Enter a template for the stream description"
-              />
+                  ),
+                'Enter a template for the stream description',
+                descViewRef
+              )}
             </div>
 
             <div className="flex gap-2 items-center flex-wrap">
-              <SnippetsButton />
+              <SnippetsButton onInsert={simpleEditor ? undefined : insertSnippet} />
               {isCustomised && (
                 <Button intent="white" size="sm" onClick={handleReset}>
                   Reset to built-in

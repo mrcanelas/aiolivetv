@@ -184,28 +184,29 @@ export const FORMATTER_DETAILS: Record<FormatterType, FormatterDetail> = {
     id: GDRIVE_FORMATTER,
     name: 'Detailed',
     description:
-      'Name plus quality, size and languages. The default layout for live streams.',
+      'Channel, resolution, encode, source and languages. The default layout for live streams.',
   },
   [PRISM_FORMATTER]: {
     id: PRISM_FORMATTER,
     name: 'Prism',
-    description: 'An aesthetic formatter with every detail within 5 lines.',
+    description:
+      'An aesthetic formatter with resolution, channel and source within a few lines.',
   },
   [TAMTARO_FORMATTER]: {
     id: TAMTARO_FORMATTER,
     name: 'Tamtaro',
     description:
-      'Dense layout with status glyphs for proxied streams and language codes.',
+      'Dense layout with status glyphs for resolution, channel, encode and language codes.',
   },
   [LIGHT_GDRIVE_FORMATTER]: {
     id: LIGHT_GDRIVE_FORMATTER,
     name: 'Compact',
-    description: 'Shorter detailed layout with title and quality tags.',
+    description: 'Shorter detailed layout with channel, source and quality tags.',
   },
   [MINIMALISTIC_GDRIVE_FORMATTER]: {
     id: MINIMALISTIC_GDRIVE_FORMATTER,
     name: 'Minimalistic',
-    description: 'A minimalistic formatter which shows only the bare minimum',
+    description: 'Resolution, delivery format and channel name only.',
   },
   [TORRENTIO_FORMATTER]: {
     id: TORRENTIO_FORMATTER,
@@ -215,7 +216,7 @@ export const FORMATTER_DETAILS: Record<FormatterType, FormatterDetail> = {
   [TORBOX_FORMATTER]: {
     id: TORBOX_FORMATTER,
     name: 'Labeled',
-    description: 'Key/value lines for quality, name, size and languages.',
+    description: 'Key/value lines for channel, source, format and languages.',
   },
   [CUSTOM_FORMATTER]: {
     id: CUSTOM_FORMATTER,
@@ -1453,26 +1454,22 @@ const LANGUAGES = [
 
 export const SNIPPETS = [
   {
-    name: 'Year + Season + Episode',
-    description:
-      'Outputs a nicely formatted year along with the season and episode number',
+    name: 'Channel name',
+    description: 'Canonical channel name, falling back to the addon name',
     value:
-      '{stream.year::exists["({stream.year}) "||""]}{stream.seasonEpisode::exists["{stream.seasonEpisode::join(\' • \')}"||""]}',
+      '{live.channelName::exists["{live.channelName}"||"{addon.name}"]}',
   },
   {
-    name: 'File Size',
-    description: 'Outputs the file size of the stream',
-    value: '{stream.size::>0["{stream.size::bytes}"||""]}',
+    name: 'Source',
+    description: 'Provider name and type (M3U, Xtream, manual HLS, …)',
+    value:
+      '{live.providerName::exists["Fonte: {live.providerName}"||""]}{live.providerType::exists[" · {live.providerType}"||""]}',
   },
   {
-    name: 'Duration',
-    description: 'Outputs the duration of the stream',
-    value: '{stream.duration::>0["{stream.duration::time}"||""]}',
-  },
-  {
-    name: 'P2P marker',
-    description: 'Displays a [P2P] marker if the stream is a P2P stream',
-    value: '{stream.type::=p2p["[P2P]"||""]}',
+    name: 'Delivery format',
+    description: 'HLS, MPEG-TS, DASH or similar, inferred from the stream URL',
+    value:
+      '{live.deliveryFormatLabel::exists["{live.deliveryFormatLabel}"||""]}',
   },
   {
     name: 'Languages',
@@ -1485,7 +1482,7 @@ export const SNIPPETS = [
     name: 'Optional resolution',
     description:
       'Shows the resolution only when the live stream has one, dropping the separator otherwise',
-    value: '{addon.name}{? · {stream.resolution} ?}',
+    value: '{live.channelName}{? · {stream.resolution} ?}',
   },
 ];
 

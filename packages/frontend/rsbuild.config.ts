@@ -69,6 +69,10 @@ export default defineConfig({
     rspack: {
       resolve: {
         fallback: { fs: false },
+        modules: [
+          path.resolve(import.meta.dirname, 'node_modules'),
+          'node_modules',
+        ],
       },
     },
   },

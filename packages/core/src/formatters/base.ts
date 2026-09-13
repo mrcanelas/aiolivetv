@@ -170,6 +170,43 @@ export interface ParseValue {
     name: string | null;
     cached: boolean | null;
   };
+  live?: {
+    channelId: string | null;
+    channelName: string | null;
+    canonicalName: string | null;
+    tvgId: string | null;
+    logo: string | null;
+    group: string | null;
+    country: string | null;
+    language: string | null;
+    providerName: string | null;
+    providerType: string | null;
+    streamName: string | null;
+    streamUrl: string | null;
+    matchConfidence: number | null;
+    matchStatus: string | null;
+    priority: number | null;
+    epgProvider: boolean;
+    hasSchedule: boolean;
+    protocol: string | null;
+    extension: string | null;
+    deliveryFormat: string | null;
+    deliveryFormatLabel: string | null;
+    adaptive: boolean;
+    isHls: boolean;
+    isMpegTs: boolean;
+    isDash: boolean;
+    programTitle: string | null;
+    programSubtitle: string | null;
+    programStart: string | null;
+    programEnd: string | null;
+    programProgress: number | null;
+    isCurrentProgram: boolean;
+    replayAvailable: boolean;
+    catchupDays: number | null;
+    healthStatus: string | null;
+    responseTimeMs: number | null;
+  };
   addon?: {
     name: string | null;
     presetId: string | null;
@@ -684,6 +721,43 @@ export abstract class BaseFormatter {
         anilistId: this.formatterContext.anilistId ?? null,
         malId: this.formatterContext.malId ?? null,
         hasSeaDex: this.formatterContext.hasSeaDex ?? false,
+      },
+      live: {
+        channelId: stream.live?.channelId || null,
+        channelName: stream.live?.channelName || null,
+        canonicalName: stream.live?.canonicalName || null,
+        tvgId: stream.live?.tvgId || null,
+        logo: stream.live?.logo || null,
+        group: stream.live?.group || null,
+        country: stream.live?.country || null,
+        language: stream.live?.language || null,
+        providerName: stream.live?.providerName || stream.addon?.name || null,
+        providerType: stream.live?.providerType || null,
+        streamName: stream.live?.streamName || stream.filename || null,
+        streamUrl: stream.live?.streamUrl || stream.url || null,
+        matchConfidence: stream.live?.matchConfidence ?? null,
+        matchStatus: stream.live?.matchStatus || null,
+        priority: stream.live?.priority ?? null,
+        epgProvider: stream.live?.epgProvider ?? false,
+        hasSchedule: stream.live?.hasSchedule ?? false,
+        protocol: stream.live?.protocol || null,
+        extension: stream.live?.extension || null,
+        deliveryFormat: stream.live?.deliveryFormat || null,
+        deliveryFormatLabel: stream.live?.deliveryFormatLabel || null,
+        adaptive: stream.live?.adaptive ?? false,
+        isHls: stream.live?.isHls ?? false,
+        isMpegTs: stream.live?.isMpegTs ?? false,
+        isDash: stream.live?.isDash ?? false,
+        programTitle: stream.live?.programTitle || null,
+        programSubtitle: stream.live?.programSubtitle || null,
+        programStart: stream.live?.programStart || null,
+        programEnd: stream.live?.programEnd || null,
+        programProgress: stream.live?.programProgress ?? null,
+        isCurrentProgram: stream.live?.isCurrentProgram ?? false,
+        replayAvailable: stream.live?.replayAvailable ?? false,
+        catchupDays: stream.live?.catchupDays ?? null,
+        healthStatus: stream.live?.healthStatus || null,
+        responseTimeMs: stream.live?.responseTimeMs ?? null,
       },
       addon: {
         name: stream.addon?.name || null,

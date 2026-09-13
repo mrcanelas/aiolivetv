@@ -5,6 +5,10 @@ import { comparatorFunctions } from './comparators.js';
 type ParseValue = {
   stream?: { resolution?: string | null; type?: string | null };
   addon?: { name?: string | null };
+  live?: {
+    channelName?: string | null;
+    deliveryFormatLabel?: string | null;
+  };
 };
 
 function compile(template: string) {
@@ -59,5 +63,16 @@ describe('formatter engine', () => {
     const render = compile("{stream.resolution::default('SD')}");
     expect(render({ stream: { resolution: null } })).toBe('SD');
     expect(render({ stream: { resolution: '4K' } })).toBe('4K');
+  });
+
+  it('renders live channel and delivery format fields', () => {
+    const render = compile(
+      '{live.channelName}{? · {live.deliveryFormatLabel} ?}'
+    );
+    expect(
+      render({
+        live: { channelName: 'AXN', deliveryFormatLabel: 'HLS' },
+      })
+    ).toBe('AXN · HLS ');
   });
 });

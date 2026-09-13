@@ -15,6 +15,7 @@ import { FeatureControl } from '../utils/feature.js';
 import { StreamContext, StreamUtils } from '../streams/index.js';
 import { enrichStreamsWithProbe } from '../streams/stream-probe.js';
 import { applyLiveStreamWebHints } from '../streams/web-readiness.js';
+import { attachLiveMetadataToStreams } from '../streams/live-metadata.js';
 import { populateNzbFallbacks } from './nzbFailover.js';
 import { resolveServiceWrappedStreams } from './serviceWrapper.js';
 import type { ServiceWrapServiceTiming } from './serviceWrapper.js';
@@ -1016,10 +1017,17 @@ export async function getStreams(
   const fetchMs = Date.now() - fetchStart;
 
   let fetchedStreams = isLiveChannel
-    ? orderLiveStreamsByMapping(
-        streams,
-        buildManualParsedStreams(ctx.userData, channelId),
-        channelMapping?.streams
+    ? attachLiveMetadataToStreams(
+        orderLiveStreamsByMapping(
+          streams,
+          buildManualParsedStreams(ctx.userData, channelId),
+          channelMapping?.streams
+        ),
+        {
+          channelId,
+          channelName: channelMapping?.name,
+          mapping: channelMapping,
+        }
       )
     : streams;
 

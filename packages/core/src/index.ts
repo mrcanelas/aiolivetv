@@ -58,3 +58,17 @@ export {
 } from './streams/probed.js';
 export type { ProbedStreamInfo } from './streams/probed.js';
 export { enrichStreamsWithProbe } from './streams/stream-probe.js';
+export {
+  attachLiveMetadata,
+  attachLiveMetadataToStreams,
+} from './streams/live-metadata.js';
+export { inferStreamUrlFormat } from './streams/url-format.js';
+export type {
+  LiveMetadataContext,
+  LiveProviderType,
+  LiveStreamMetadata,
+} from './streams/live-metadata.js';
+export type {
+  StreamDeliveryFormat,
+  StreamUrlFormatInfo,
+} from './streams/url-format.js';

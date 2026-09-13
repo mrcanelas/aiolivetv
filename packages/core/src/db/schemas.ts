@@ -1003,6 +1003,59 @@ export const ParsedFileSchema = z.object({
   hasChapters: z.boolean().optional(),
 });
 
+export const LiveStreamMetadataSchema = z.object({
+  channelId: z.string().optional(),
+  channelName: z.string().optional(),
+  canonicalName: z.string().optional(),
+  tvgId: z.string().optional(),
+  logo: z.string().optional(),
+  group: z.string().optional(),
+  country: z.string().optional(),
+  language: z.string().optional(),
+  providerName: z.string().optional(),
+  providerType: z
+    .enum([
+      'm3u',
+      'xtream',
+      'xmltv',
+      'vivo',
+      'claro',
+      'mitv',
+      'addon',
+      'manual',
+    ])
+    .optional(),
+  streamName: z.string().optional(),
+  streamUrl: z.string().optional(),
+  matchConfidence: z.number().optional(),
+  matchStatus: z
+    .enum(['canonical', 'auto', 'suggested', 'manual', 'fallback'])
+    .optional(),
+  priority: z.number().optional(),
+  epgProvider: z.boolean().optional(),
+  hasSchedule: z.boolean().optional(),
+  protocol: z.string().optional(),
+  extension: z.string().optional(),
+  deliveryFormat: z.string().optional(),
+  deliveryFormatLabel: z.string().optional(),
+  adaptive: z.boolean().optional(),
+  isHls: z.boolean().optional(),
+  isMpegTs: z.boolean().optional(),
+  isDash: z.boolean().optional(),
+  programTitle: z.string().optional(),
+  programSubtitle: z.string().optional(),
+  programStart: z.string().optional(),
+  programEnd: z.string().optional(),
+  programProgress: z.number().optional(),
+  isCurrentProgram: z.boolean().optional(),
+  replayAvailable: z.boolean().optional(),
+  catchupDays: z.number().optional(),
+  healthStatus: z.string().optional(),
+  responseTimeMs: z.number().optional(),
+});
+
+export type LiveStreamMetadata = z.infer<typeof LiveStreamMetadataSchema>;
+
 export const ParsedStreamSchema = z.object({
   id: z.string().min(1),
   proxied: z.boolean().optional(),
@@ -1092,6 +1145,7 @@ export const ParsedStreamSchema = z.object({
   originalName: z.string().optional(),
   originalDescription: z.string().optional(),
   extra: z.record(z.string(), z.any()).optional(),
+  live: LiveStreamMetadataSchema.optional(),
 });
 
 export type ParsedFile = z.infer<typeof ParsedFileSchema>;
