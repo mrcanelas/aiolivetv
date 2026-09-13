@@ -14,6 +14,9 @@ export function formatDeclaredSummary(
   if (parsedFile.audioChannels?.length) {
     parts.push(parsedFile.audioChannels.join('/'));
   }
+  if (parsedFile.visualTags?.length) {
+    parts.push(parsedFile.visualTags.join('/'));
+  }
   if (parsedFile.languages?.length) {
     parts.push(parsedFile.languages.join(', '));
   }

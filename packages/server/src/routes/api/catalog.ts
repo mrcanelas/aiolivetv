@@ -192,6 +192,13 @@ router.post(
             confidence: number;
             enabled: boolean;
             url?: string;
+            headers?: Record<string, string>;
+            resolution?: string;
+            encode?: string;
+            quality?: string;
+            languages?: string[];
+            audioChannels?: string[];
+            visualTags?: string[];
             declared?: DeclaredStreamInfo | null;
           }
         >;
@@ -464,14 +471,28 @@ router.post(
           name?: string;
           confidence?: number;
           enabled?: boolean;
+          headers?: Record<string, string>;
+          resolution?: string;
+          encode?: string;
+          quality?: string;
+          languages?: string[];
+          audioChannels?: string[];
+          visualTags?: string[];
         }
       ) => {
+        const label = source.name ?? 'Manual HLS';
+        const declared =
+          parseDeclaredStreamInfo({
+            name: [label, source.resolution, source.encode]
+              .filter(Boolean)
+              .join(' '),
+          }) ?? null;
         channel.mappings.push({
           id: source.channelId,
           addonId: MANUAL_STREAM_ADDON_ID,
           addonName: 'Manual HLS',
           channelId: source.channelId,
-          name: source.name ?? 'Manual HLS',
+          name: label,
           url: source.url,
           poster: null,
           epgProvider: false,
@@ -479,9 +500,14 @@ router.post(
           contributesChannels: false,
           confidence: source.confidence ?? 0,
           enabled: source.enabled !== false,
-          declared:
-            parseDeclaredStreamInfo({ name: source.name ?? 'Manual HLS' }) ??
-            null,
+          headers: source.headers,
+          resolution: source.resolution,
+          encode: source.encode,
+          quality: source.quality,
+          languages: source.languages,
+          audioChannels: source.audioChannels,
+          visualTags: source.visualTags,
+          declared,
         });
       };
       const markChannelAssigned = (candidate: Candidate) => {
@@ -616,6 +642,13 @@ router.post(
             name: source.name,
             confidence: source.confidence,
             enabled: source.enabled,
+            headers: source.headers,
+            resolution: source.resolution,
+            encode: source.encode,
+            quality: source.quality,
+            languages: source.languages,
+            audioChannels: source.audioChannels,
+            visualTags: source.visualTags,
           });
         }
         for (const { candidate, source } of streamSources) {

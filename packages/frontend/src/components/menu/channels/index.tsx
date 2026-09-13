@@ -22,6 +22,7 @@ import { fetchChannels, type ChannelInfo, type ChannelsResponse } from '@/lib/ap
 import { ChannelEditModal } from './_components/channel-edit-modal';
 import { ChannelListItem } from './_components/channel-list-item';
 import { ChannelMappingModal } from './_components/channel-mapping-modal';
+import { ManualHlsModal } from './_components/manual-hls-modal';
 import { NeedsReviewCard } from './_components/needs-review';
 import { SourceDiagnosticsCard } from './_components/source-diagnostics';
 import {
@@ -34,6 +35,9 @@ import {
   isChannelSuggestion,
   isManualStreamMapping,
   buildManualStreamChannelId,
+  persistableManualStreamFields,
+  declaredFromManualDetails,
+  type ManualHlsDetails,
   sortChannels,
   groupChannelsBySource,
   channelHasPlayableStream,
@@ -63,6 +67,10 @@ export function ChannelsMenu() {
     React.useState<ChannelReviewFilter>('all');
   const mappingModal = useDisclosure(false);
   const editModal = useDisclosure(false);
+  const manualHlsModal = useDisclosure(false);
+  const [editingManualStream, setEditingManualStream] = React.useState<
+    ChannelInfo['mappings'][number] | null
+  >(null);
   const queryClient = useQueryClient();
   const userDataRef = React.useRef(userData);
   userDataRef.current = userData;
@@ -142,7 +150,17 @@ export function ChannelsMenu() {
                 confidence: mapping.confidence,
                 enabled: mapping.enabled,
                 ...(mapping.url
-                  ? { url: mapping.url, name: mapping.name }
+                  ? persistableManualStreamFields({
+                      url: mapping.url,
+                      name: mapping.name,
+                      headers: mapping.headers,
+                      resolution: mapping.resolution,
+                      encode: mapping.encode,
+                      quality: mapping.quality,
+                      languages: mapping.languages,
+                      audioChannels: mapping.audioChannels,
+                      visualTags: mapping.visualTags,
+                    })
                   : {}),
               })),
           };
@@ -408,36 +426,53 @@ export function ChannelsMenu() {
     setLinkStreamTargets((current) => ({ ...current, [channelId]: '' }));
   };
 
-  const addManualStream = (channelId: string, url: string, name: string) => {
-    const streamChannelId = buildManualStreamChannelId(url);
+  const saveManualStream = (
+    channelId: string,
+    details: ManualHlsDetails,
+    previousChannelId?: string
+  ) => {
+    const streamChannelId = buildManualStreamChannelId(details.url);
+    const fields = persistableManualStreamFields(details);
     setChannels((current) =>
       current.map((channel) => {
         if (channel.id !== channelId) return channel;
-        if (
-          channel.mappings.some(
-            (mapping) => isManualStreamMapping(mapping) && mapping.url === url
-          )
-        ) {
-          return channel;
+        const duplicate = channel.mappings.some(
+          (mapping) =>
+            isManualStreamMapping(mapping) &&
+            mapping.url === details.url &&
+            mapping.channelId !== previousChannelId
+        );
+        if (duplicate) return channel;
+        const nextMapping = {
+          id: streamChannelId,
+          addonId: MANUAL_STREAM_ADDON_ID,
+          addonName: 'Manual HLS',
+          channelId: streamChannelId,
+          poster: null as string | null,
+          confidence: 0,
+          enabled: true,
+          epgProvider: false,
+          canStream: true,
+          ...fields,
+          declared: declaredFromManualDetails(details),
+        };
+        if (previousChannelId) {
+          return {
+            ...channel,
+            mappings: channel.mappings.map((mapping) =>
+              mapping.channelId === previousChannelId
+                ? {
+                    ...nextMapping,
+                    poster: mapping.poster ?? null,
+                    enabled: mapping.enabled,
+                  }
+                : mapping
+            ),
+          };
         }
         return {
           ...channel,
-          mappings: [
-            ...channel.mappings,
-            {
-              id: streamChannelId,
-              addonId: MANUAL_STREAM_ADDON_ID,
-              addonName: 'Manual HLS',
-              channelId: streamChannelId,
-              name,
-              url,
-              poster: null,
-              confidence: 0,
-              enabled: true,
-              epgProvider: false,
-              canStream: true,
-            },
-          ],
+          mappings: [...channel.mappings, nextMapping],
         };
       })
     );
@@ -787,6 +822,7 @@ export function ChannelsMenu() {
         onOpenChange={(open) => {
           if (open) mappingModal.open();
           else {
+            if (manualHlsModal.isOpen) return;
             mappingModal.close();
             setMappingChannelId(null);
           }
@@ -829,10 +865,15 @@ export function ChannelsMenu() {
           if (!mappingChannelId) return;
           linkStreamSource(mappingChannelId);
         }}
-        onAddManualStream={(url, name) => {
-          if (!mappingChannelId) return;
-          addManualStream(mappingChannelId, url, name);
+        onAddManualStream={() => {
+          setEditingManualStream(null);
+          manualHlsModal.open();
         }}
+        onEditManualStream={(mapping) => {
+          setEditingManualStream(mapping);
+          manualHlsModal.open();
+        }}
+        preventDismiss={manualHlsModal.isOpen}
         onSetCanonical={(addonId) => {
           if (!mappingChannelId) return;
           setCanonical(mappingChannelId, addonId);
@@ -848,6 +889,23 @@ export function ChannelsMenu() {
                 : candidate
             ),
           }));
+        }}
+      />
+
+      <ManualHlsModal
+        open={manualHlsModal.isOpen}
+        channelName={mappingChannel?.name}
+        initial={editingManualStream}
+        onOpenChange={(open) => {
+          if (open) manualHlsModal.open();
+          else {
+            manualHlsModal.close();
+            setEditingManualStream(null);
+          }
+        }}
+        onSave={(details, previousChannelId) => {
+          if (!mappingChannelId) return;
+          saveManualStream(mappingChannelId, details, previousChannelId);
         }}
       />
 

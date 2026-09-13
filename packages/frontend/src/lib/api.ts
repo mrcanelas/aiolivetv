@@ -286,6 +286,13 @@ export interface ChannelInfo {
     epgProvider: boolean;
     canStream: boolean;
     url?: string | null;
+    headers?: Record<string, string>;
+    resolution?: string;
+    encode?: string;
+    quality?: string;
+    languages?: string[];
+    audioChannels?: string[];
+    visualTags?: string[];
     declared?: DeclaredStreamInfo | null;
   }>;
 }

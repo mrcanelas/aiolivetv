@@ -39,8 +39,67 @@ export type ChannelSortMode = 'alphabetical' | 'source';
 
 export const MANUAL_STREAM_ADDON_ID = 'manual';
 
+export type ManualHlsDetails = {
+  url: string;
+  name: string;
+  headers?: Record<string, string>;
+  resolution?: string;
+  encode?: string;
+  quality?: string;
+  languages?: string[];
+  audioChannels?: string[];
+  visualTags?: string[];
+};
+
 export function buildManualStreamChannelId(url: string) {
   return `manual:${encodeURIComponent(url)}`;
+}
+
+export function persistableManualStreamFields(details: ManualHlsDetails) {
+  return {
+    url: details.url,
+    name: details.name,
+    ...(details.headers && Object.keys(details.headers).length
+      ? { headers: details.headers }
+      : {}),
+    ...(details.resolution ? { resolution: details.resolution } : {}),
+    ...(details.encode ? { encode: details.encode } : {}),
+    ...(details.quality ? { quality: details.quality } : {}),
+    ...(details.languages?.length ? { languages: details.languages } : {}),
+    ...(details.audioChannels?.length
+      ? { audioChannels: details.audioChannels }
+      : {}),
+    ...(details.visualTags?.length ? { visualTags: details.visualTags } : {}),
+  };
+}
+
+export function declaredFromManualDetails(
+  details: ManualHlsDetails
+): ChannelInfo['mappings'][number]['declared'] {
+  const parsedFile = {
+    resolution: details.resolution,
+    quality: details.quality,
+    encode: details.encode,
+    audioChannels: details.audioChannels ?? [],
+    audioTags: [] as string[],
+    visualTags: details.visualTags ?? [],
+    languages: details.languages ?? [],
+  };
+  if (
+    !parsedFile.resolution &&
+    !parsedFile.encode &&
+    !parsedFile.quality &&
+    !parsedFile.languages.length &&
+    !parsedFile.audioChannels.length &&
+    !parsedFile.visualTags.length
+  ) {
+    return null;
+  }
+  return {
+    parsedFile,
+    source: 'name',
+    label: details.name,
+  };
 }
 
 export function isManualStreamMapping(mapping: {

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildManualParsedStreams,
   deduplicateLiveTvItems,
   findChannelMappingForId,
   findPossibleDuplicateChannels,
   isLiveChannelVisible,
+  MANUAL_STREAM_ADDON_ID,
 } from './channelMappings.js';
 import type { UserData } from '../db/index.js';
 import { ChannelMapping } from '../db/channelMapping.js';
@@ -199,5 +201,72 @@ describe('channelMappings persistence', () => {
         ],
       })
     ).toThrow();
+  });
+});
+
+describe('buildManualParsedStreams', () => {
+  it('attaches headers and declared metadata to the Stremio stream', () => {
+    const streams = buildManualParsedStreams(
+      {
+        ...baseUserData,
+        channelMappings: [
+          {
+            id: 'aiolivetv:caras',
+            streams: [
+              {
+                addonId: MANUAL_STREAM_ADDON_ID,
+                channelId: 'manual:https://example.com/live.m3u8',
+                url: 'https://example.com/live.m3u8',
+                name: 'Caras TV FHD',
+                headers: {
+                  Referer: 'https://example.com/',
+                  'User-Agent': 'VLC',
+                },
+                resolution: '1080p',
+                encode: 'HEVC',
+                languages: ['Portuguese (Brazil)'],
+              },
+            ],
+          },
+        ],
+      },
+      'aiolivetv:caras'
+    );
+
+    expect(streams).toHaveLength(1);
+    expect(streams[0].url).toBe('https://example.com/live.m3u8');
+    expect(streams[0].requestHeaders).toEqual({
+      Referer: 'https://example.com/',
+      'User-Agent': 'VLC',
+    });
+    expect(streams[0].notWebReady).toBe(true);
+    expect(streams[0].parsedFile?.resolution).toBe('1080p');
+    expect(streams[0].parsedFile?.encode).toBe('HEVC');
+    expect(streams[0].parsedFile?.languages).toEqual(['Portuguese (Brazil)']);
+  });
+
+  it('detects resolution from the stream label when none is set', () => {
+    const streams = buildManualParsedStreams(
+      {
+        ...baseUserData,
+        channelMappings: [
+          {
+            id: 'aiolivetv:caras',
+            streams: [
+              {
+                addonId: MANUAL_STREAM_ADDON_ID,
+                channelId: 'manual:https://example.com/live.m3u8',
+                url: 'https://example.com/live.m3u8',
+                name: 'Caras TV FHD',
+              },
+            ],
+          },
+        ],
+      },
+      'aiolivetv:caras'
+    );
+
+    expect(streams[0].parsedFile?.resolution).toBe('1080p');
+    expect(streams[0].notWebReady).toBeUndefined();
   });
 });

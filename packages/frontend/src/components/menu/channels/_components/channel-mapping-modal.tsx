@@ -4,6 +4,7 @@ import {
   BiChevronDown,
   BiChevronUp,
   BiLink,
+  BiPencil,
   BiPlus,
   BiUnlink,
   BiX,
@@ -12,12 +13,10 @@ import { Modal } from '../../../ui/modal';
 import { Button } from '../../../ui/button';
 import { Combobox } from '../../../ui/combobox';
 import { Switch } from '../../../ui/switch';
-import { TextInput } from '../../../ui/text-input';
 import type { ChannelInfo } from '@/lib/api';
 import {
   isChannelSuggestion,
   isManualStreamMapping,
-  isValidStreamUrl,
 } from '../utils';
 import { formatDeclaredSummary } from '../declared-summary';
 import { cn } from '@/components/ui/core/styling';
@@ -39,8 +38,10 @@ type ChannelMappingModalProps = {
   onMoveMapping: (index: number, direction: -1 | 1) => void;
   onSplitMapping: (addonId: string, streamChannelId: string) => void;
   onLinkStreamSource: () => void;
-  onAddManualStream: (url: string, name: string) => void;
+  onAddManualStream: () => void;
+  onEditManualStream: (mapping: ChannelInfo['mappings'][number]) => void;
   onSetCanonical: (addonId: string) => void;
+  preventDismiss?: boolean;
   onToggleStream: (
     addonId: string,
     enabled: boolean,
@@ -62,18 +63,11 @@ export function ChannelMappingModal({
   onSplitMapping,
   onLinkStreamSource,
   onAddManualStream,
+  onEditManualStream,
   onSetCanonical,
   onToggleStream,
+  preventDismiss = false,
 }: ChannelMappingModalProps) {
-  const [manualUrl, setManualUrl] = React.useState('');
-  const [manualName, setManualName] = React.useState('');
-
-  React.useEffect(() => {
-    if (!open) {
-      setManualUrl('');
-      setManualName('');
-    }
-  }, [open]);
 
   if (!channel) return null;
 
@@ -87,14 +81,6 @@ export function ChannelMappingModal({
       label: `${source.addonName} · ${source.name}`,
       textValue: `${source.addonName} ${source.name}`,
     })) ?? [];
-
-  const handleAddManualStream = () => {
-    const url = manualUrl.trim();
-    if (!isValidStreamUrl(url)) return;
-    onAddManualStream(url, manualName.trim() || 'Manual HLS');
-    setManualUrl('');
-    setManualName('');
-  };
 
   const mappingStatus = (mapping: ChannelInfo['mappings'][number]) => {
     const suggestion = isChannelSuggestion(mapping.confidence);
@@ -110,6 +96,12 @@ export function ChannelMappingModal({
       title={channel.name}
       description="Review stream mappings and suggestions for this channel."
       contentClass="max-w-2xl w-[calc(100vw-2rem)] min-w-0 max-h-[90vh] overflow-x-hidden overflow-y-auto"
+      onInteractOutside={(event) => {
+        if (preventDismiss) event.preventDefault();
+      }}
+      onEscapeKeyDown={(event) => {
+        if (preventDismiss) event.preventDefault();
+      }}
     >
       <div className="min-w-0 space-y-4">
         {pendingCount > 0 ? (
@@ -170,33 +162,13 @@ export function ChannelMappingModal({
           </p>
         )}
 
-        <div className="min-w-0 space-y-3 rounded border border-[--border] p-3">
-          <p className="text-sm font-medium">Manual HLS link</p>
-          <TextInput
-            label="Stream URL"
-            placeholder="https://example.com/stream.m3u8"
-            value={manualUrl}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setManualUrl(e.target.value)
-            }
-          />
-          <TextInput
-            label="Label"
-            placeholder="Manual HLS"
-            value={manualName}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setManualName(e.target.value)
-            }
-          />
-          <Button
-            size="sm"
-            leftIcon={<BiPlus />}
-            disabled={!isValidStreamUrl(manualUrl)}
-            onClick={handleAddManualStream}
-          >
-            Add HLS link
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          leftIcon={<BiPlus />}
+          onClick={onAddManualStream}
+        >
+          Add HLS stream
+        </Button>
 
         <div className="min-w-0 space-y-2">
           {channel.mappings.length === 0 ? (
@@ -208,7 +180,10 @@ export function ChannelMappingModal({
             const suggestion = isChannelSuggestion(mapping.confidence);
             const manual = isManualStreamMapping(mapping);
             const declaredSummary = formatDeclaredSummary(mapping.declared);
-            const detail = manual ? mapping.url : mapping.name;
+            const headerCount = mapping.headers
+              ? Object.keys(mapping.headers).length
+              : 0;
+            const detail = (manual ? mapping.url : mapping.name) ?? undefined;
             return (
               <div
                 key={`${mapping.addonId}:${mapping.channelId}`}
@@ -223,7 +198,7 @@ export function ChannelMappingModal({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="min-w-0 truncate text-sm font-medium">
-                        {mapping.addonName}
+                        {manual ? mapping.name : mapping.addonName}
                       </p>
                       {mapping.addonId === channel.canonicalAddonId ? (
                         <span className="text-xs text-blue-400">Canonical</span>
@@ -255,6 +230,12 @@ export function ChannelMappingModal({
                     {declaredSummary ? (
                       <p className="mt-0.5 truncate text-xs text-sky-400/90">
                         {declaredSummary}
+                      </p>
+                    ) : null}
+                    {headerCount > 0 ? (
+                      <p className="mt-0.5 text-xs text-[--muted]">
+                        {headerCount} request header
+                        {headerCount === 1 ? '' : 's'}
                       </p>
                     ) : null}
                   </div>
@@ -314,6 +295,15 @@ export function ChannelMappingModal({
                       >
                         <BiChevronDown />
                       </Button>
+                      {manual ? (
+                        <Button
+                          size="sm"
+                          leftIcon={<BiPencil />}
+                          onClick={() => onEditManualStream(mapping)}
+                        >
+                          Edit
+                        </Button>
+                      ) : null}
                       {!manual &&
                       mapping.addonId !== channel.canonicalAddonId ? (
                         <Button

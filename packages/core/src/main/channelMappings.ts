@@ -1,5 +1,7 @@
-import type { ParsedStream, UserData } from '../db/index.js';
+import type { ParsedFile, ParsedStream, UserData } from '../db/index.js';
+import { parseDeclaredStreamInfo } from '../streams/declared.js';
 import { CHANNEL_TYPE, LIVE_STREAM_TYPE, TV_TYPE } from '../utils/constants.js';
+import type { ChannelStreamSource } from '../db/channelMapping.js';
 import {
   compactChannelName,
   containsNormalizedChannelName,
@@ -238,6 +240,53 @@ export function isChannelAddonEnabled(
   );
 }
 
+function compactHeaders(
+  headers: Record<string, string> | undefined
+): Record<string, string> | undefined {
+  if (!headers) return undefined;
+  const compact = Object.fromEntries(
+    Object.entries(headers).filter(
+      ([name, value]) => name.trim() && value.trim()
+    )
+  );
+  return Object.keys(compact).length ? compact : undefined;
+}
+
+function parsedFileForManualSource(
+  source: ChannelStreamSource
+): ParsedFile | undefined {
+  const declared = parseDeclaredStreamInfo({ name: source.name });
+  const languages = source.languages?.length
+    ? source.languages
+    : (declared?.parsedFile.languages ?? []);
+  const audioChannels = source.audioChannels?.length
+    ? source.audioChannels
+    : (declared?.parsedFile.audioChannels ?? []);
+  const visualTags = source.visualTags?.length
+    ? source.visualTags
+    : (declared?.parsedFile.visualTags ?? []);
+  const parsedFile: ParsedFile = {
+    audioChannels,
+    visualTags,
+    audioTags: declared?.parsedFile.audioTags ?? [],
+    languages,
+    resolution: source.resolution ?? declared?.parsedFile.resolution,
+    encode: source.encode ?? declared?.parsedFile.encode,
+    quality: source.quality ?? declared?.parsedFile.quality,
+  };
+  if (
+    !parsedFile.resolution &&
+    !parsedFile.encode &&
+    !parsedFile.quality &&
+    !parsedFile.languages.length &&
+    !parsedFile.audioChannels.length &&
+    !parsedFile.visualTags.length
+  ) {
+    return undefined;
+  }
+  return parsedFile;
+}
+
 export function buildManualParsedStreams(
   userData: UserData,
   channelId: string
@@ -251,20 +300,29 @@ export function buildManualParsedStreams(
         source.addonId === MANUAL_STREAM_ADDON_ID &&
         source.enabled !== false
     )
-    .map((source, index) => ({
-      id: `manual-${channelId}-${source.channelId ?? index}`,
-      type: LIVE_STREAM_TYPE,
-      url: source.url!,
-      message: source.name ?? 'Manual HLS',
-      addon: {
-        instanceId: MANUAL_STREAM_ADDON_ID,
-        name: 'Manual HLS',
-        manifestUrl: 'https://aiolivetv.local/manual',
-        enabled: true,
-        timeout: 10_000,
-        preset: { id: '', type: 'manual', options: {} },
-      },
-    }));
+    .map((source, index) => {
+      const requestHeaders = compactHeaders(source.headers);
+      const name = source.name ?? 'Manual HLS';
+      return {
+        id: `manual-${channelId}-${source.channelId ?? index}`,
+        type: LIVE_STREAM_TYPE,
+        url: source.url!,
+        filename: name,
+        originalName: name,
+        message: name,
+        parsedFile: parsedFileForManualSource(source),
+        requestHeaders,
+        notWebReady: requestHeaders ? true : undefined,
+        addon: {
+          instanceId: MANUAL_STREAM_ADDON_ID,
+          name: 'Manual HLS',
+          manifestUrl: 'https://aiolivetv.local/manual',
+          enabled: true,
+          timeout: 10_000,
+          preset: { id: '', type: 'manual', options: {} },
+        },
+      };
+    });
 }
 
 export function orderLiveStreamsByMapping(
