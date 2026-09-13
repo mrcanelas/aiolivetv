@@ -16,7 +16,14 @@
         "compose.yaml",
         "release-please-config.json"
       ],
-      "pull-request-title-pattern": "chore: release ${version}"
+      "pull-request-title-pattern": "chore: release ${version}",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "resources/metadata.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }

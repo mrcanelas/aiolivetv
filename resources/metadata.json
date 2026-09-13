@@ -1,9 +1,9 @@
 {
-  "version": "0.1.0-beta",
+  "version": "0.2.0-beta",
   "description": "A unified Live TV hub for Stremio. Aggregate channels from multiple addons, EPG providers and M3U playlists into a single guide.",
-  "tag": "v0.1.0-beta",
+  "tag": "v0.2.0-beta",
   "channel": "stable",
-  "commitHash": "65c6359b",
-  "buildTime": "2026-09-11T01:21:58.711Z",
-  "commitTime": "2026-09-11T01:16:02.000Z"
+  "commitHash": "a7041f99",
+  "buildTime": "2026-09-13T14:55:33.505Z",
+  "commitTime": "2026-09-13T14:25:21.000Z"
 }

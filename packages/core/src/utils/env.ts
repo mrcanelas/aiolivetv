@@ -187,7 +187,14 @@ export const Env = cleanEnv(process.env, {
     desc: 'Version of the addon',
   }),
   TAG: readonly({
-    default: metadata?.tag || 'unknown',
+    default:
+      metadata?.channel === 'nightly' || metadata?.channel === 'dev'
+        ? metadata?.tag || 'unknown'
+        : metadata?.version
+          ? metadata.version.startsWith('v')
+            ? metadata.version
+            : `v${metadata.version}`
+          : metadata?.tag || 'unknown',
     desc: 'Tag of the addon',
   }),
   CHANNEL: readonly({

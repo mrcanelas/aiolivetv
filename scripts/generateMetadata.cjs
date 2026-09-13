@@ -31,10 +31,8 @@ if (isDev && refArg) {
   tag = version.startsWith('v') ? version : `v${version}`;
 }
 
-// Get the current Git commit hash
 let commitHash;
 if (commitArg) {
-  // Use at most 8 chars to match short hash length from git
   commitHash = commitArg.substring(0, 8);
 } else {
   try {
@@ -43,9 +41,12 @@ if (commitArg) {
     commitHash = 'unknown';
   }
 }
-const commitTime = execSync('git log -1 --format=%cd --date=iso')
-  .toString()
-  .trim();
+let commitTime;
+try {
+  commitTime = execSync('git log -1 --format=%cd --date=iso').toString().trim();
+} catch {
+  commitTime = new Date().toISOString();
+}
 
 // Create the version info object
 const versionInfo = {
