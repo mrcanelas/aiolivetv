@@ -87,6 +87,11 @@ of each request.
 
 ## Deploy
 
+Production deploys run on a **published GitHub Release**, not on every commit.
+`vercel.json` sets `git.deploymentEnabled` to `false` so the Git integration
+does not build on push or pull request. The **Deploy Vercel** workflow
+checks out the release tag and runs `vercel deploy --prod`.
+
 <Steps>
   <Step>
     Create a Vercel project from this repository. Set Framework Preset to
@@ -97,7 +102,15 @@ of each request.
     Attach PostgreSQL and Redis, then set the environment variables above.
   </Step>
   <Step>
-    Create a Preview Deployment and open `/api/v1/health`.
+    In the GitHub repo, add secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and
+    `VERCEL_PROJECT_ID`. The org and project IDs are in `.vercel/project.json`
+    after `vercel link`. Create the token in the [Vercel account tokens](https://vercel.com/account/tokens)
+    page.
+  </Step>
+  <Step>
+    Publish a GitHub Release (or let release-please merge), then open
+    `/api/v1/health` on the production URL. To redeploy an existing tag, run
+    **Deploy Vercel** with workflow dispatch.
   </Step>
   <Step>
     Create a test configuration in the dashboard, install the manifest in
