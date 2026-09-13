@@ -119,7 +119,13 @@ describe('Claro TV+ builtin', () => {
       season: 1,
       episode: 2,
       thumbnail: 'https://cdn.example/frame-420_236.jpg',
-      ratings: [{ value: '12', system: 'ClassInd' }],
+      ratings: [
+        {
+          value: '12',
+          system: 'ClassInd',
+          icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/12.svg',
+        },
+      ],
     });
   });
 });

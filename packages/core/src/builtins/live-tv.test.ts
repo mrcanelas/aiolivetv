@@ -25,7 +25,7 @@ const {
   ...m3u,
   ...xmltv,
 }));
-const { applyEpgTimeShift } = await import('./live-tv/epg.js');
+const { applyEpgTimeShift, toContentRatings } = await import('./live-tv/epg.js');
 const {
   getChannelMapping,
   getChannelMatchConfidence,
@@ -47,6 +47,42 @@ describe('live TV sources', () => {
       startTime: '2026-06-28T12:30:00.000Z',
       endTime: '2026-06-28T13:30:00.000Z',
     });
+  });
+
+  it('fills missing content rating icons from age-rating-kit', () => {
+    expect(
+      toContentRatings([{ value: '12', system: 'ClassInd' }])
+    ).toEqual([
+      {
+        value: '12',
+        system: 'ClassInd',
+        icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/12.svg',
+      },
+    ]);
+    expect(
+      toContentRatings([{ value: 'PG-13', system: 'MPAA' }])
+    ).toEqual([
+      {
+        value: 'PG-13',
+        system: 'MPAA',
+        icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/mpa/pg-13.svg',
+      },
+    ]);
+    expect(
+      toContentRatings([
+        {
+          value: 'L',
+          system: 'ClassInd',
+          icon: 'https://cdn.example/cover-l.png',
+        },
+      ])
+    ).toEqual([
+      {
+        value: 'L',
+        system: 'ClassInd',
+        icon: 'https://cdn.example/cover-l.png',
+      },
+    ]);
   });
 
   it('uses the same channel ID for XMLTV and M3U identifiers', async () => {

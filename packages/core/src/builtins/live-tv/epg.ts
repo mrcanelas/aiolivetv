@@ -1,5 +1,6 @@
 import type { ContentRating, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
+import { getContentRatingIconUrl } from './content-rating-icon.js';
 import { programRuntime } from './shared.js';
 
 export const LIVE_TV_CATALOG_PAGE_SIZE = 50;
@@ -40,7 +41,8 @@ export function toContentRatings(
       const value = rating.value?.trim();
       if (!value) return undefined;
       const system = rating.system?.trim();
-      const icon = rating.icon?.trim();
+      const icon =
+        rating.icon?.trim() || getContentRatingIconUrl(system, value);
       return {
         value,
         ...(system ? { system } : {}),

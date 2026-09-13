@@ -41,6 +41,9 @@ importers:
       '@viren070/parse-torrent-title':
         specifier: ^0.7.6
         version: 0.7.6
+      age-rating-kit:
+        specifier: github:mrcanelas/age-rating-kit
+        version: https://codeload.github.com/mrcanelas/age-rating-kit/tar.gz/bf97fcb3fdeb6c5eaa1b05bcd0be69bfe8f6839b(react@19.2.6)
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
@@ -2960,6 +2963,15 @@ packages:
     resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  age-rating-kit@https://codeload.github.com/mrcanelas/age-rating-kit/tar.gz/bf97fcb3fdeb6c5eaa1b05bcd0be69bfe8f6839b:
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/mrcanelas/age-rating-kit/tar.gz/bf97fcb3fdeb6c5eaa1b05bcd0be69bfe8f6839b}
+    version: 0.1.0
+    peerDependencies:
+      react: '>=18'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
@@ -9055,6 +9067,10 @@ snapshots:
       acorn: 8.16.0
 
   acorn@8.16.0: {}
+
+  age-rating-kit@https://codeload.github.com/mrcanelas/age-rating-kit/tar.gz/bf97fcb3fdeb6c5eaa1b05bcd0be69bfe8f6839b(react@19.2.6):
+    optionalDependencies:
+      react: 19.2.6
 
   ajv@6.15.0:
     dependencies:

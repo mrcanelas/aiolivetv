@@ -232,6 +232,11 @@ export const Env = cleanEnv(process.env, {
     default: `http://localhost:${defaultListenPort}`,
     desc: 'Internal URL of the addon, used for internal communication between built-in addons and the server',
   }),
+  AIOLIVETV_AGE_RATING_ICONS_BASE_URL: url({
+    default:
+      'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest',
+    desc: 'Base URL for age-rating SVG icons used when an EPG source does not provide ContentRating.icon.',
+  }),
   INTERNAL_SECRET: readonly({
     default: randomBytes(32).toString('hex'),
     desc: 'Internal secret for the addon, used for internal communication between built-in addons and the server',
