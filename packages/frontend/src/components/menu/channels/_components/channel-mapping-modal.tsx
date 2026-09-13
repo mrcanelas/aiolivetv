@@ -20,6 +20,7 @@ import {
   isValidStreamUrl,
 } from '../utils';
 import { formatDeclaredSummary } from '../declared-summary';
+import { cn } from '@/components/ui/core/styling';
 
 function streamSourceKey(addonId: string, channelId: string) {
   return `${addonId}:${channelId}`;
@@ -95,21 +96,29 @@ export function ChannelMappingModal({
     setManualName('');
   };
 
+  const mappingStatus = (mapping: ChannelInfo['mappings'][number]) => {
+    const suggestion = isChannelSuggestion(mapping.confidence);
+    if (mapping.confidence === 0) return 'manual';
+    if (suggestion) return `${Math.round(mapping.confidence * 100)}% match`;
+    return 'accepted';
+  };
+
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
       title={channel.name}
       description="Review stream mappings and suggestions for this channel."
+      contentClass="max-w-2xl w-[calc(100vw-2rem)] min-w-0 max-h-[90vh] overflow-x-hidden overflow-y-auto"
     >
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         {pendingCount > 0 ? (
-          <div className="flex items-center justify-between gap-3 rounded border border-amber-500/40 bg-amber-500/5 p-3">
-            <p className="text-sm text-amber-300">
+          <div className="flex flex-col gap-2 rounded border border-amber-500/40 bg-amber-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="min-w-0 text-sm text-amber-300">
               {pendingCount} suggestion{pendingCount === 1 ? '' : 's'} pending
               review
             </p>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <Button
                 size="sm"
                 intent="alert-subtle"
@@ -130,7 +139,7 @@ export function ChannelMappingModal({
         ) : null}
 
         {streamSourceOptions.length > 0 ? (
-          <div className="flex items-end gap-2">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">
               <Combobox
                 label="Link stream source"
@@ -146,6 +155,7 @@ export function ChannelMappingModal({
             </div>
             <Button
               size="md"
+              className="shrink-0"
               leftIcon={<BiLink />}
               disabled={!linkStreamTarget}
               onClick={onLinkStreamSource}
@@ -160,7 +170,7 @@ export function ChannelMappingModal({
           </p>
         )}
 
-        <div className="space-y-3 rounded border border-[--border] p-3">
+        <div className="min-w-0 space-y-3 rounded border border-[--border] p-3">
           <p className="text-sm font-medium">Manual HLS link</p>
           <TextInput
             label="Stream URL"
@@ -188,7 +198,7 @@ export function ChannelMappingModal({
           </Button>
         </div>
 
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           {channel.mappings.length === 0 ? (
             <p className="rounded border border-[--border] p-3 text-sm text-[--muted]">
               No stream sources linked yet.
@@ -198,53 +208,73 @@ export function ChannelMappingModal({
             const suggestion = isChannelSuggestion(mapping.confidence);
             const manual = isManualStreamMapping(mapping);
             const declaredSummary = formatDeclaredSummary(mapping.declared);
+            const detail = manual ? mapping.url : mapping.name;
             return (
               <div
                 key={`${mapping.addonId}:${mapping.channelId}`}
-                className={`flex items-center gap-3 rounded border p-3 ${
+                className={cn(
+                  'min-w-0 space-y-3 rounded border p-3',
                   suggestion
                     ? 'border-amber-500/40 bg-amber-500/5'
                     : 'border-[--border]'
-                }`}
+                )}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm">
-                    {mapping.addonName}
-                    {mapping.addonId === channel.canonicalAddonId ? (
-                      <span className="ml-2 text-xs text-blue-400">
-                        Canonical
-                      </span>
-                    ) : null}
-                    {manual ? (
-                      <span className="ml-2 text-xs text-purple-400">
-                        Manual HLS
-                      </span>
-                    ) : null}
-                    {mapping.epgProvider ? (
-                      <span className="ml-2 text-xs text-emerald-400">EPG</span>
-                    ) : null}
-                    {suggestion ? (
-                      <span className="ml-2 text-xs text-amber-400">
-                        Suggested
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="truncate text-xs text-[--muted]">
-                    {manual ? mapping.url : mapping.name} ·{' '}
-                    {mapping.confidence === 0
-                      ? 'manual'
-                      : suggestion
-                        ? `${Math.round(mapping.confidence * 100)}% match`
-                        : 'accepted'}
-                    {mapping.canStream ? ' · streams' : ''}
-                  </p>
-                  {declaredSummary ? (
-                    <p className="truncate text-xs text-sky-400/90">
-                      {declaredSummary}
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="min-w-0 truncate text-sm font-medium">
+                        {mapping.addonName}
+                      </p>
+                      {mapping.addonId === channel.canonicalAddonId ? (
+                        <span className="text-xs text-blue-400">Canonical</span>
+                      ) : null}
+                      {manual ? (
+                        <span className="text-xs text-purple-400">
+                          Manual HLS
+                        </span>
+                      ) : null}
+                      {mapping.epgProvider ? (
+                        <span className="text-xs text-emerald-400">EPG</span>
+                      ) : null}
+                      {suggestion ? (
+                        <span className="text-xs text-amber-400">
+                          Suggested
+                        </span>
+                      ) : null}
+                    </div>
+                    <p
+                      className="mt-1 break-all text-xs text-[--muted]"
+                      title={detail}
+                    >
+                      {detail}
                     </p>
+                    <p className="mt-0.5 text-xs text-[--muted]">
+                      {mappingStatus(mapping)}
+                      {mapping.canStream ? ' · streams' : ''}
+                    </p>
+                    {declaredSummary ? (
+                      <p className="mt-0.5 truncate text-xs text-sky-400/90">
+                        {declaredSummary}
+                      </p>
+                    ) : null}
+                  </div>
+                  {mapping.canStream && !suggestion ? (
+                    <Switch
+                      className="shrink-0"
+                      aria-label={`Enable ${mapping.addonName} for ${channel.name}`}
+                      value={mapping.enabled}
+                      disabled={!channel.enabled}
+                      onValueChange={(enabled) =>
+                        onToggleStream(
+                          mapping.addonId,
+                          enabled,
+                          mapping.channelId
+                        )
+                      }
+                    />
                   ) : null}
                 </div>
-                <div className="flex flex-wrap justify-end gap-1">
+                <div className="flex flex-wrap gap-1">
                   {suggestion ? (
                     <>
                       <Button
@@ -310,20 +340,6 @@ export function ChannelMappingModal({
                     </>
                   )}
                 </div>
-                {mapping.canStream && !suggestion ? (
-                  <Switch
-                    aria-label={`Enable ${mapping.addonName} for ${channel.name}`}
-                    value={mapping.enabled}
-                    disabled={!channel.enabled}
-                    onValueChange={(enabled) =>
-                      onToggleStream(
-                        mapping.addonId,
-                        enabled,
-                        mapping.channelId
-                      )
-                    }
-                  />
-                ) : null}
               </div>
             );
           })}
