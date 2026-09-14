@@ -28,6 +28,9 @@ export default defineConfig({
   },
   html: {
     template: './index.html',
+    // Rsbuild auto-picks public/favicon.ico first and injects it after the
+    // template tags, which would override the PNG/SVG icons in index.html.
+    favicon: './public/favicon.png',
   },
   resolve: {
     alias: {

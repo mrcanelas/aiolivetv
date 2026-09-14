@@ -170,6 +170,16 @@ app.get('/logo.png', staticRateLimiter, (req, res, next) => {
   }
   next();
 });
+app.get('/favicon.ico', staticRateLimiter, (req, res, next) => {
+  const filePath = path.resolve(frontendRoot, 'favicon.png');
+  if (filePath.startsWith(frontendRoot) && fs.existsSync(filePath)) {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.type('image/png');
+    res.sendFile(filePath);
+    return;
+  }
+  next();
+});
 app.get(
   [
     '/favicon.png',
