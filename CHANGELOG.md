@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.2-beta...v0.3.3-beta) (2026-09-14)
+
+
+### Bug Fixes
+
+* **frontend:** stop Rsbuild injecting the leftover favicon.ico ([ce64742](https://github.com/mrcanelas/aiolivetv/commit/ce64742b542151be58c31757ddde22f1ac19b9f4))
+
 ## [0.3.2-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.1-beta...v0.3.2-beta) (2026-09-14)
 
 
