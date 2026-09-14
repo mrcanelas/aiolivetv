@@ -98,6 +98,7 @@ const FormatterTemplateShape = z.object({
 
 const Formatter = z.object({
   id: z.enum(constants.FORMATTERS),
+  selectedSaved: z.string().optional(),
   definitions: z
     .object({
       custom: FormatterTemplateShape.optional(),
