@@ -12,7 +12,12 @@ import {
   LiveTvSourceConfigSchema,
   LIVE_TV_CATALOG_PAGE_SIZE,
 } from '../live-tv/shared.js';
-import { bareChannelPreview } from '../live-tv/epg.js';
+import {
+  bareChannelPreview,
+  channelGenreCatalogExtra,
+  channelGenres,
+  matchesCatalogGenre,
+} from '../live-tv/epg.js';
 import { parseM3u, type M3uEntry } from './parser.js';
 
 const SOURCE_CACHE_TTL = 300;
@@ -46,7 +51,13 @@ export class M3uAddon {
     this.config = LiveTvSourceConfigSchema.parse(config);
   }
 
-  getManifest(): Manifest {
+  async getManifest(): Promise<Manifest> {
+    let groups: Array<string | undefined> = [];
+    try {
+      groups = (await loadM3u(this.config)).map((entry) => entry.group);
+    } catch {
+      groups = [];
+    }
     return {
       id: 'org.aiolivetv.m3u',
       name: 'M3U',
@@ -67,19 +78,20 @@ export class M3uAddon {
           id: 'aiolivetv-channels',
           type: TV_TYPE,
           name: 'Channels',
-          extra: [{ name: 'skip' }],
+          extra: [{ name: 'skip' }, channelGenreCatalogExtra(groups)],
         },
       ],
     };
   }
 
-  async getCatalog(skip = 0): Promise<MetaPreview[]> {
+  async getCatalog(skip = 0, genre?: string): Promise<MetaPreview[]> {
     const entries = await loadM3u(this.config);
     return [
       ...new Map(
         entries.map((entry) => [entry.channelId.toLowerCase(), entry])
       ).values(),
     ]
+      .filter((entry) => matchesCatalogGenre(entry.group, genre))
       .map((entry) =>
         bareChannelPreview({
           id: encodeChannelId(entry.channelId),
@@ -88,6 +100,7 @@ export class M3uAddon {
           tvgId: entry.channelId,
           country: entry.country,
           language: entry.language,
+          genres: channelGenres(entry.group),
         })
       )
       .sort((a, b) =>

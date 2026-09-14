@@ -49,7 +49,7 @@ function xtreamConfig(encodedConfig: string): XtreamConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
-router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
+router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
   try {
     const addon =
       req.params.source === 'xmltv'
@@ -66,7 +66,7 @@ router.get('/:source/:encodedConfig/manifest.json', (req, res, next) => {
                 ? new MiTvAddon(miTvConfig(req.params.encodedConfig))
                 : undefined;
     if (!addon) throw new Error(`Unsupported source: ${req.params.source}`);
-    res.json(addon.getManifest());
+    res.json(await Promise.resolve(addon.getManifest()));
   } catch (error) {
     next(error);
   }
@@ -110,10 +110,10 @@ router.get(
   '/m3u/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip } = parseCatalogExtras(req.params.extras);
+      const extras = parseCatalogExtras(req.params.extras);
       const metas = await new M3uAddon(
         config(req.params.encodedConfig)
-      ).getCatalog(skip);
+      ).getCatalog(extras.skip, extras.genre);
       res.json({
         metas,
         cacheMaxAge: 300,
@@ -177,10 +177,10 @@ router.get(
   '/xtream/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date, genre } = parseCatalogExtras(req.params.extras);
       const response = await new XtreamAddon(
         xtreamConfig(req.params.encodedConfig)
-      ).getCatalogResponse(skip, date);
+      ).getCatalogResponse(skip, date, genre);
       res.json(response);
     } catch (error) {
       next(error);
@@ -245,10 +245,10 @@ router.get(
   '/claro-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date, genre } = parseCatalogExtras(req.params.extras);
       const response = await new ClaroTvAddon(
         claroConfig(req.params.encodedConfig)
-      ).getCatalogResponse(skip, date);
+      ).getCatalogResponse(skip, date, genre);
       res.json(response);
     } catch (error) {
       next(error);

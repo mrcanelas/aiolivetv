@@ -21,6 +21,7 @@ import {
   MANUAL_STREAM_ADDON_ID,
   isManualStreamSource,
   isLiveChannelType,
+  normalizeChannelGroup,
   parseDeclaredStreamInfo,
   type DeclaredStreamInfo,
 } from '@aiolivetv/core';
@@ -185,6 +186,8 @@ router.post(
         canonicalAddonId: string;
         enabled: boolean;
         epgProvider: boolean;
+        group?: string;
+        sourceGroup?: string;
         rejectedStreams: Array<{ addonId: string; channelId: string }>;
         mappings: Array<
           Candidate & {
@@ -763,8 +766,18 @@ router.post(
         .filter((channel) => !hiddenChannelIds.has(channel.id))
         .map((channel) => {
           const canonical = resolveCanonical(channel);
+          const configured = configuredMappings.find(
+            (mapping) => mapping.id === channel.id
+          );
+          const sourceGroup = normalizeChannelGroup(
+            canonical.categories?.[0] ??
+              channel.mappings.find((mapping) => mapping.categories?.[0])
+                ?.categories?.[0]
+          );
           return {
             ...channel,
+            sourceGroup,
+            group: normalizeChannelGroup(configured?.group) ?? sourceGroup,
             epgProvider:
               canonical.epgProvider ||
               channel.mappings.some((mapping) => mapping.epgProvider),

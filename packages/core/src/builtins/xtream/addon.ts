@@ -4,14 +4,18 @@ import type { StandardXtreamFullEPGListing } from '@iptv/xtream-api/standardized
 import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache } from '../../utils/index.js';
+import { normalizeChannelGroup } from '../../utils/channelName.js';
 import { resolveNotWebReady } from '../../streams/web-readiness.js';
 import {
   applyEpgTimeShift,
   bareChannelPreview,
   buildEpgCatalogResponse,
+  channelGenreCatalogExtra,
+  channelGenres,
   EPG_GUIDE_CATALOG_EXTRAS,
   guideChannelMeta,
   LIVE_TV_CATALOG_PAGE_SIZE,
+  matchesCatalogGenre,
   programToVideo,
   resolveGuideDate,
   shiftedProgramOverlapsUtcDay,
@@ -38,9 +42,16 @@ const channelsCache = Cache.getInstance<string, StandardXtreamChannel[]>(
 const epgCache = Cache.getInstance<string, StandardXtreamFullEPGListing[]>(
   'xtream-epg'
 );
+const categoriesCache = Cache.getInstance<string, Array<{ id: string; name: string }>>(
+  'xtream-categories'
+);
 
 function channelsCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
   return `${config.url}:${config.username}:${config.categoryId ?? 'all'}`;
+}
+
+function categoriesCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
+  return `${config.url}:${config.username}`;
 }
 
 async function loadChannels(
@@ -53,6 +64,44 @@ async function loadChannels(
   const channels = await loadXtreamChannels(client, config.categoryId);
   await channelsCache.set(cacheKey, channels, CHANNELS_CACHE_TTL);
   return channels;
+}
+
+async function loadCategoryNames(
+  config: z.infer<typeof XtreamConfigSchema>
+): Promise<Map<string, string>> {
+  const cacheKey = categoriesCacheKey(config);
+  const cached = await categoriesCache.get(cacheKey);
+  if (cached) return new Map(cached.map((category) => [category.id, category.name]));
+
+  try {
+    const client = createXtreamClient(config);
+    const raw = await client.getChannelCategories();
+    const categories = (Array.isArray(raw) ? raw : []).flatMap((item) => {
+      if (!item || typeof item !== 'object') return [];
+      const id =
+        'id' in item && item.id !== undefined && item.id !== null
+          ? String(item.id)
+          : '';
+      const name =
+        'name' in item && typeof item.name === 'string' ? item.name.trim() : '';
+      return id && name ? [{ id, name }] : [];
+    });
+    await categoriesCache.set(cacheKey, categories, CHANNELS_CACHE_TTL);
+    return new Map(categories.map((category) => [category.id, category.name]));
+  } catch {
+    return new Map();
+  }
+}
+
+function channelGroup(
+  channel: StandardXtreamChannel,
+  categoryNames: Map<string, string>
+): string | undefined {
+  for (const categoryId of channel.categoryIds ?? []) {
+    const name = categoryNames.get(String(categoryId));
+    if (name) return normalizeChannelGroup(name);
+  }
+  return undefined;
 }
 
 function findChannel(
@@ -157,7 +206,17 @@ export class XtreamAddon {
     this.config = XtreamConfigSchema.parse(config);
   }
 
-  getManifest(): Manifest {
+  async getManifest(): Promise<Manifest> {
+    let groups: Array<string | undefined> = [];
+    try {
+      const [channels, categoryNames] = await Promise.all([
+        loadChannels(this.config),
+        loadCategoryNames(this.config),
+      ]);
+      groups = channels.map((channel) => channelGroup(channel, categoryNames));
+    } catch {
+      groups = [];
+    }
     return {
       id: 'org.aiolivetv.xtream',
       name: 'Xtream Codes',
@@ -178,15 +237,25 @@ export class XtreamAddon {
           id: 'xtream-channels',
           type: TV_TYPE,
           name: 'Channels',
-          extra: [...EPG_GUIDE_CATALOG_EXTRAS],
+          extra: [
+            ...EPG_GUIDE_CATALOG_EXTRAS,
+            channelGenreCatalogExtra(groups),
+          ],
         },
       ],
       behaviorHints: { epgProvider: true },
     };
   }
 
-  async getCatalog(skip = 0): Promise<MetaPreview[]> {
-    return sortedChannels(await loadChannels(this.config))
+  async getCatalog(skip = 0, genre?: string): Promise<MetaPreview[]> {
+    const [channels, categoryNames] = await Promise.all([
+      loadChannels(this.config),
+      loadCategoryNames(this.config),
+    ]);
+    return sortedChannels(channels)
+      .filter((channel) =>
+        matchesCatalogGenre(channelGroup(channel, categoryNames), genre)
+      )
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
       .map((channel) =>
         bareChannelPreview({
@@ -194,18 +263,28 @@ export class XtreamAddon {
           name: channel.name,
           poster: channel.logo || undefined,
           tvgId: channelTvgId(channel),
+          genres: channelGenres(channelGroup(channel, categoryNames)),
         })
       );
   }
 
-  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+  async getCatalogGuide(
+    skip = 0,
+    date?: string,
+    genre?: string
+  ): Promise<Meta[]> {
     const guideDate = resolveGuideDate(date);
-    const channels = sortedChannels(await loadChannels(this.config)).slice(
-      skip,
-      skip + LIVE_TV_CATALOG_PAGE_SIZE
-    );
+    const [channels, categoryNames] = await Promise.all([
+      loadChannels(this.config),
+      loadCategoryNames(this.config),
+    ]);
+    const page = sortedChannels(channels)
+      .filter((channel) =>
+        matchesCatalogGenre(channelGroup(channel, categoryNames), genre)
+      )
+      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE);
     return Promise.all(
-      channels.map(async (channel) => {
+      page.map(async (channel) => {
         const encodedId = encodeChannelId(channel.id);
         const videos = await videosForGuideDay(
           this.config,
@@ -218,6 +297,7 @@ export class XtreamAddon {
             id: encodedId,
             name: channel.name,
             logo: channel.logo || undefined,
+            genres: channelGenres(channelGroup(channel, categoryNames)),
           },
           videos
         );
@@ -227,11 +307,13 @@ export class XtreamAddon {
 
   async getCatalogResponse(
     skip = 0,
-    date?: string
+    date?: string,
+    genre?: string
   ): Promise<CatalogHandlerResponse> {
     return buildEpgCatalogResponse(
-      (pageSkip) => this.getCatalog(pageSkip),
-      (pageSkip, guideDate) => this.getCatalogGuide(pageSkip, guideDate),
+      (pageSkip) => this.getCatalog(pageSkip, genre),
+      (pageSkip, guideDate) =>
+        this.getCatalogGuide(pageSkip, guideDate, genre),
       skip,
       date
     );
@@ -239,7 +321,11 @@ export class XtreamAddon {
 
   async getMeta(id: string): Promise<Meta> {
     const streamId = decodeChannelId(id);
-    const channel = findChannel(await loadChannels(this.config), streamId);
+    const [channels, categoryNames] = await Promise.all([
+      loadChannels(this.config),
+      loadCategoryNames(this.config),
+    ]);
+    const channel = findChannel(channels, streamId);
     if (!channel) throw new Error(`Channel not found: ${streamId}`);
     const encodedId = encodeChannelId(channel.id);
     const guideDate = resolveGuideDate();
@@ -256,6 +342,7 @@ export class XtreamAddon {
       poster: channel.logo || undefined,
       posterShape: 'square',
       tvgId: channelTvgId(channel),
+      genres: channelGenres(channelGroup(channel, categoryNames)),
       behaviorHints: { hasScheduledVideos: videos.length > 0 },
       videos: videos.length ? videos : undefined,
     };

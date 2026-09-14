@@ -18,12 +18,14 @@ const { ClaroTvAddon } = await import('./addon.js');
 const { makeRequest } = await import('../../utils/index.js');
 
 describe('Claro TV+ builtin', () => {
-  it('exposes catalog and EPG metadata', () => {
+  it('exposes catalog and EPG metadata', async () => {
     const addon = new ClaroTvAddon({ timeout: 1000 });
-    expect(addon.getManifest().behaviorHints?.epgProvider).toBe(true);
-    expect(addon.getManifest().catalogs[0].extra).toEqual([
+    const manifest = await addon.getManifest();
+    expect(manifest.behaviorHints?.epgProvider).toBe(true);
+    expect(manifest.catalogs[0].extra).toEqual([
       { name: 'skip' },
       { name: 'date' },
+      { name: 'genre', isRequired: false },
     ]);
   });
 
@@ -37,6 +39,7 @@ describe('Claro TV+ builtin', () => {
               id: 316,
               name: 'Globo HD',
               logo: 'https://cdn.example/globo.png',
+              type: 'VARIEDADES',
             },
           ],
         },
@@ -54,7 +57,36 @@ describe('Claro TV+ builtin', () => {
       country: 'BR',
       language: 'pt',
       poster: 'https://cdn.example/globo.png',
+      genres: ['Variedades'],
     });
+  });
+
+  it('uses tvChannels type when the channel type is missing', async () => {
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: {
+          liveChannels: [
+            {
+              id: 400,
+              name: 'Sportv HD',
+              logo: 'https://cdn.example/sportv.png',
+              tvChannels: [{ type: 'ESPORTES' }],
+            },
+          ],
+        },
+      }),
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+
+    const addon = new ClaroTvAddon({ timeout: 1000 });
+    const catalog = await addon.getCatalog();
+
+    expect(catalog[0]).toMatchObject({
+      name: 'Sportv',
+      genres: ['Esportes'],
+    });
+    expect(await addon.getCatalog(0, 'VARIEDADES')).toEqual([]);
+    expect(await addon.getCatalog(0, 'ESPORTES')).toHaveLength(1);
   });
 
   it('returns channel programs from schedules', async () => {

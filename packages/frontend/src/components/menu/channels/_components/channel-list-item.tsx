@@ -131,6 +131,11 @@ export function ChannelListItem({
         <p className="line-clamp-1 block min-w-0 flex-1 truncate text-base">
           {channel.name}
         </p>
+        {channel.group ? (
+          <span className="hidden max-w-[8rem] truncate rounded-full bg-[--subtle] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[--muted] sm:inline">
+            {channel.group}
+          </span>
+        ) : null}
 
         <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
           <MappingBadge
@@ -150,7 +155,7 @@ export function ChannelListItem({
             icon={<BiEdit />}
             intent="primary-subtle"
             onClick={onEdit}
-            title="Edit name or logo"
+            title="Edit name, logo or group"
           />
           <IconButton
             className="h-8 w-8 rounded-full md:h-10 md:w-10"

@@ -51,6 +51,7 @@ import type { AddonDispositionMap } from '../streams/fetcher.js';
 import {
   getCanonicalChannelId,
   getChannelMapping,
+  getEffectiveChannelGroup,
   isChannelAddonEnabled,
   isLiveChannelVisible,
   isLiveChannelType,
@@ -776,13 +777,17 @@ async function loadCanonicalChannelCandidate(
   channelId: string,
   channelMapping?: ReturnType<typeof getChannelMapping>
 ): Promise<ChannelMatchCandidate> {
-  const mapped: ChannelMatchCandidate | undefined = channelMapping?.name
-    ? {
-        id: channelId,
-        name: decodeHtmlEntities(channelMapping.name),
-        logo: channelMapping.poster ?? undefined,
-      }
-    : undefined;
+  const mapped: ChannelMatchCandidate | undefined =
+    channelMapping?.name || channelMapping?.poster || channelMapping?.group
+      ? {
+          id: channelId,
+          name: decodeHtmlEntities(channelMapping.name ?? channelId),
+          logo: channelMapping.poster ?? undefined,
+          categories: channelMapping.group
+            ? [channelMapping.group]
+            : undefined,
+        }
+      : undefined;
 
   for (const candidate of collectLiveChannelMetaCandidates(
     ctx,
@@ -797,6 +802,11 @@ async function loadCanonicalChannelCandidate(
         metaType,
         channelId
       );
+      const group = getEffectiveChannelGroup(
+        ctx.userData,
+        channelId,
+        Array.isArray(meta.genres) ? meta.genres[0] : mapped?.categories?.[0]
+      );
       return {
         id: channelId,
         name: mapped?.name ?? decodeHtmlEntities(meta.name ?? channelId),
@@ -806,7 +816,7 @@ async function loadCanonicalChannelCandidate(
           : undefined,
         country: typeof meta.country === 'string' ? meta.country : undefined,
         language: typeof meta.language === 'string' ? meta.language : undefined,
-        categories: Array.isArray(meta.genres) ? meta.genres : undefined,
+        categories: group ? [group] : undefined,
         logo: mapped?.logo ?? meta.poster ?? undefined,
         hasSchedule: Boolean(
           meta.behaviorHints?.hasScheduledVideos ||
@@ -1038,7 +1048,11 @@ export async function getStreams(
           tvgId: canonical?.tvgId,
           country: canonical?.country,
           language: canonical?.language,
-          group: canonical?.categories?.[0],
+          group: getEffectiveChannelGroup(
+            ctx.userData,
+            channelId,
+            canonical?.categories?.[0]
+          ),
           logo: canonical?.logo ?? channelMapping?.poster,
           mapping: channelMapping,
           epgProvider: configurationProvidesNativeEpg(
@@ -1334,6 +1348,12 @@ export async function getMeta(
             ? { ...video, id: `${channelId}:epg:${video.startTime}` }
             : video
         );
+        const group = getEffectiveChannelGroup(
+          ctx.userData,
+          channelId,
+          Array.isArray(meta.genres) ? meta.genres[0] : undefined
+        );
+        if (group) meta.genres = [group];
       }
       logger.debug(
         { addon: candidate.addon.name, instanceId: candidate.instanceId },

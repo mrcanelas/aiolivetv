@@ -1,4 +1,5 @@
 import { decodeHtmlEntities } from '../../utils/text.js';
+import { normalizeChannelGroup } from '../../utils/channelName.js';
 
 export interface M3uEntry {
   channelId: string;
@@ -52,7 +53,7 @@ export function parseM3u(playlist: string): M3uEntry[] {
           name,
           url: line,
           logo: metadata['tvg-logo'],
-          group: metadata['group-title'],
+          group: normalizeChannelGroup(metadata['group-title']),
           country: metadata['tvg-country'],
           language: metadata['tvg-language'],
         });

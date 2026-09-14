@@ -30,6 +30,7 @@ export * from '../anime-database/index.js';
 export * from './regex.js';
 export * from './general.js';
 export * from './text.js';
+export * from './channelName.js';
 export * from './seadex.js';
 export * from './nzb-proxy.js';
 export * from './time.js';

@@ -272,6 +272,8 @@ export interface ChannelInfo {
   canonicalAddonId: string;
   enabled: boolean;
   epgProvider?: boolean;
+  group?: string;
+  sourceGroup?: string;
   rejectedStreams?: Array<{ addonId: string; channelId: string }>;
   availableStreamSources?: ChannelStreamSource[];
   mappings: Array<{

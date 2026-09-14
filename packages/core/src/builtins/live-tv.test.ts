@@ -25,7 +25,8 @@ const {
   ...m3u,
   ...xmltv,
 }));
-const { applyEpgTimeShift, toContentRatings } = await import('./live-tv/epg.js');
+const { applyEpgTimeShift, parseCatalogExtras, toContentRatings } = await import('./live-tv/epg.js');
+const { normalizeChannelGroup } = await import('../utils/channelName.js');
 const {
   getChannelMapping,
   getChannelMatchConfidence,
@@ -36,6 +37,28 @@ const {
 const { makeRequest } = await import('../utils/index.js');
 
 describe('live TV sources', () => {
+  it('parses catalog extras including optional genre', () => {
+    expect(parseCatalogExtras('skip=50/genre=VARIEDADES')).toMatchObject({
+      skip: 50,
+      genre: 'VARIEDADES',
+    });
+    expect(parseCatalogExtras('skip=0&date=2026-06-28&genre=News')).toMatchObject(
+      {
+        skip: 0,
+        date: '2026-06-28',
+        genre: 'News',
+      }
+    );
+  });
+
+  it('cleans channel group labels', () => {
+    expect(normalizeChannelGroup('VARIEDADES')).toBe('Variedades');
+    expect(normalizeChannelGroup('ESPORTES FHD')).toBe('Esportes');
+    expect(normalizeChannelGroup('CANAIS | FILMES HD')).toBe('Filmes');
+    expect(normalizeChannelGroup('CANAIS HD')).toBeUndefined();
+    expect(normalizeChannelGroup('News, UK')).toBe('News Uk');
+  });
+
   it('shifts EPG program times by configured minutes', () => {
     expect(
       applyEpgTimeShift(
@@ -110,7 +133,7 @@ describe('live TV sources', () => {
     );
 
     expect(channel.name).toBe('BBC One');
-    expect(stream.group).toBe('News, UK');
+    expect(stream.group).toBe('News Uk');
     expect(encodeChannelId(channel.id)).toBe(encodeChannelId(stream.channelId));
   });
 
@@ -204,21 +227,30 @@ describe('live TV sources', () => {
     vi.mocked(makeRequest).mockResolvedValue({
       ok: true,
       text: async () =>
-        '#EXTM3U\n#EXTINF:-1 tvg-name="BBC One",BBC One\nhttps://example.com/live.m3u8',
+        '#EXTM3U\n#EXTINF:-1 tvg-name="BBC One" group-title="News",BBC One\nhttps://example.com/live.m3u8',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     const addon = new M3uAddon({
       sourceUrl: 'https://example.com/list.m3u',
       timeout: 1000,
     });
-    expect(addon.getManifest().behaviorHints?.epgProvider).toBeUndefined();
-    expect(addon.getManifest()).toMatchObject({
+    const manifest = await addon.getManifest();
+    expect(manifest.behaviorHints?.epgProvider).toBeUndefined();
+    expect(manifest).toMatchObject({
       resources: [{ name: 'catalog' }, { name: 'meta' }, { name: 'stream' }],
     });
+    expect(manifest.catalogs[0].extra).toEqual(
+      expect.arrayContaining([
+        { name: 'skip' },
+        expect.objectContaining({ name: 'genre', isRequired: false }),
+      ])
+    );
     const [channel] = await addon.getCatalog();
     const meta = await addon.getMeta(channel.id);
 
     expect(channel.name).toBe('BBC One');
+    expect(channel.genres).toEqual(['News']);
     expect(meta.name).toBe('BBC One');
+    expect(meta.genres).toEqual(['News']);
     expect(meta.videos).toBeUndefined();
   });
 

@@ -6,6 +6,7 @@ import {
   compactChannelName,
   containsNormalizedChannelName,
   getChannelNameSimilarity,
+  normalizeChannelGroup,
   normalizeChannelName,
 } from '../utils/channelName.js';
 import { decodeHtmlEntities } from '../utils/text.js';
@@ -92,6 +93,31 @@ export function isLiveChannelVisible(userData: UserData, channelId: string) {
   if (mapping.hidden) return false;
   if (mapping.enabled === false) return false;
   return true;
+}
+
+export function getEffectiveChannelGroup(
+  userData: UserData,
+  channelId: string,
+  sourceGroup?: string
+): string | undefined {
+  const override = normalizeChannelGroup(
+    getChannelMapping(userData, channelId)?.group
+  );
+  return override || normalizeChannelGroup(sourceGroup);
+}
+
+export function applyLiveChannelGroupOverlay<
+  T extends { id: string; genres?: string[] | null },
+>(userData: UserData, items: T[]): T[] {
+  return items.map((item) => {
+    const group = getEffectiveChannelGroup(
+      userData,
+      item.id,
+      Array.isArray(item.genres) ? item.genres[0] : undefined
+    );
+    if (!group) return item;
+    return { ...item, genres: [group] };
+  });
 }
 
 function normaliseId(value?: string) {

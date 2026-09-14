@@ -3,12 +3,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 const mockGetChannels = vi.fn();
 const mockGetFullEpg = vi.fn();
 const mockGenerateStreamUrl = vi.fn();
+const mockGetChannelCategories = vi.fn();
 
 vi.mock('@iptv/xtream-api', () => ({
   Xtream: vi.fn().mockImplementation(() => ({
     getChannels: mockGetChannels,
     getFullEPG: mockGetFullEpg,
     generateStreamUrl: mockGenerateStreamUrl,
+    getChannelCategories: mockGetChannelCategories,
   })),
 }));
 
@@ -49,7 +51,12 @@ describe('XtreamAddon', () => {
         logo: 'https://example.com/news.png',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         url: 'https://example.com/live/news.m3u8',
+        categoryIds: ['10'],
       },
+    ]);
+    mockGetChannelCategories.mockResolvedValue([
+      { id: '10', name: 'News' },
+      { id: '20', name: 'Sports' },
     ]);
     mockGetFullEpg.mockResolvedValue([
       {
@@ -68,18 +75,22 @@ describe('XtreamAddon', () => {
     mockGenerateStreamUrl.mockReturnValue('https://example.com/live/generated.m3u8');
   });
 
-  it('exposes tv catalog, meta, stream and epgProvider manifest', () => {
+  it('exposes tv catalog, meta, stream and epgProvider manifest', async () => {
     const addon = new XtreamAddon({
       url: 'http://example.com:8080',
       username: 'user',
       password: 'pass',
       timeout: 5000,
     });
-    const manifest = addon.getManifest();
+    const manifest = await addon.getManifest();
     expect(manifest.behaviorHints?.epgProvider).toBe(true);
     expect(manifest.catalogs[0]).toMatchObject({
       type: 'tv',
-      extra: [{ name: 'skip' }, { name: 'date' }],
+      extra: [
+        { name: 'skip' },
+        { name: 'date' },
+        { name: 'genre', isRequired: false, options: ['News'] },
+      ],
     });
     expect(manifest.resources).toEqual(
       expect.arrayContaining([
@@ -104,6 +115,7 @@ describe('XtreamAddon', () => {
       name: 'News 24',
       poster: 'https://example.com/news.png',
       tvgId: 'news24',
+      genres: ['News'],
     });
   });
 

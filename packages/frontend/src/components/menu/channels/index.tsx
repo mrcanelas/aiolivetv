@@ -16,6 +16,7 @@ import { SettingsCard } from '@/components/shared/settings-card';
 import { IconButton } from '@/components/ui/button';
 import { LoadingSpinner, Spinner } from '@/components/ui/loading-spinner';
 import { TextInput } from '@/components/ui/text-input';
+import { Select } from '@/components/ui/select';
 import { useUserData } from '@/context/userData';
 import { useDisclosure } from '@/hooks/disclosure';
 import { fetchChannels, type ChannelInfo, type ChannelsResponse } from '@/lib/api';
@@ -44,11 +45,13 @@ import {
   channelHasSchedule,
   visibleUnmatchedStreams,
   MANUAL_STREAM_ADDON_ID,
+  normalizeChannelGroup,
 } from './utils';
 
 export function ChannelsMenu() {
   const { userData, setUserData } = useUserData();
   const [search, setSearch] = React.useState('');
+  const [groupFilter, setGroupFilter] = React.useState('');
   const [sortMode, setSortMode] =
     React.useState<ChannelSortMode>('alphabetical');
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
@@ -128,7 +131,11 @@ export function ChannelsMenu() {
             (mapping) => mapping.id === channel.id
           );
           const customized =
-            customizedIds.has(channel.id) || existing?.name || existing?.poster;
+            customizedIds.has(channel.id) ||
+            existing?.name ||
+            existing?.poster ||
+            existing?.group ||
+            (channel.group && channel.group !== channel.sourceGroup);
           return {
             id: channel.id,
             canonicalAddonId: channel.canonicalAddonId,
@@ -137,6 +144,9 @@ export function ChannelsMenu() {
               ? {
                   name: channel.name,
                   poster: channel.poster ?? undefined,
+                  ...(channel.group && channel.group !== channel.sourceGroup
+                    ? { group: channel.group }
+                    : {}),
                 }
               : {}),
             rejectedStreams: channel.rejectedStreams?.length
@@ -546,12 +556,18 @@ export function ChannelsMenu() {
     removeChannels([channelId]);
   };
 
-  const saveChannelEdit = (channelId: string, name: string, poster: string) => {
+  const saveChannelEdit = (
+    channelId: string,
+    name: string,
+    poster: string,
+    group: string
+  ) => {
     setCustomizedIds((current) => new Set(current).add(channelId));
     updateChannel(channelId, (channel) => ({
       ...channel,
       name,
       poster: poster || null,
+      group: normalizeChannelGroup(group) || channel.sourceGroup,
     }));
   };
 
@@ -560,10 +576,26 @@ export function ChannelsMenu() {
     reviewFilter,
     duplicateIds
   );
+  const knownGroups = React.useMemo(() => {
+    const groups = new Set<string>();
+    for (const channel of channels) {
+      if (channel.group) groups.add(channel.group);
+    }
+    return [...groups].sort((left, right) =>
+      left.localeCompare(right, undefined, { sensitivity: 'base' })
+    );
+  }, [channels]);
   const filteredChannels = sortChannels(
-    reviewedChannels.filter((channel) =>
-      channel.name.toLowerCase().includes(search.trim().toLowerCase())
-    ),
+    reviewedChannels.filter((channel) => {
+      if (
+        search.trim() &&
+        !channel.name.toLowerCase().includes(search.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      if (groupFilter && channel.group !== groupFilter) return false;
+      return true;
+    }),
     sortMode
   );
   const groupedChannels =
@@ -734,6 +766,25 @@ export function ChannelsMenu() {
                   aria-label="Search channels"
                 />
               </div>
+              {knownGroups.length > 0 ? (
+                <div className="w-full sm:w-56">
+                  <Select
+                    options={[
+                      { value: 'all', label: 'All groups' },
+                      ...knownGroups.map((group) => ({
+                        value: group,
+                        label: group,
+                      })),
+                    ]}
+                    value={groupFilter || 'all'}
+                    onValueChange={(value) =>
+                      setGroupFilter(value === 'all' ? '' : value)
+                    }
+                    placeholder="Filter by group"
+                    aria-label="Filter by group"
+                  />
+                </div>
+              ) : null}
               {hasSelection ? (
                 <div className="flex animate-in fade-in items-center gap-1.5 duration-150">
                   <span className="whitespace-nowrap text-xs font-semibold text-[--brand]">
@@ -911,6 +962,7 @@ export function ChannelsMenu() {
 
       <ChannelEditModal
         channel={editChannel}
+        groups={knownGroups}
         open={editModal.isOpen}
         onOpenChange={(open) => {
           if (open) editModal.open();

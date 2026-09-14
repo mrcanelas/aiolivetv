@@ -1,5 +1,6 @@
 import type { ContentRating, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
+import { normalizeChannelGroup } from '../../utils/channelName.js';
 import { getContentRatingIconUrl } from './content-rating-icon.js';
 import { programRuntime } from './shared.js';
 
@@ -8,6 +9,7 @@ export const LIVE_TV_CATALOG_PAGE_SIZE = 50;
 export interface CatalogExtras {
   skip: number;
   date?: string;
+  genre?: string;
 }
 
 export interface CatalogHandlerResponse {
@@ -68,11 +70,65 @@ export function toContentRatings(
 }
 
 export function parseCatalogExtras(extras?: string): CatalogExtras {
-  const params = new URLSearchParams(extras?.replace(/^\//, '') ?? '');
+  const params = new URLSearchParams(
+    extras?.replace(/^\//, '').replace(/\//g, '&') ?? ''
+  );
   return {
     skip: Math.max(0, Number.parseInt(params.get('skip') ?? '0', 10) || 0),
     date: params.get('date') ?? undefined,
+    genre: params.get('genre') ?? undefined,
   };
+}
+
+export function channelGenres(group?: string): string[] | undefined {
+  const normalized = normalizeChannelGroup(group);
+  return normalized ? [normalized] : undefined;
+}
+
+export function uniqueChannelGroups(
+  groups: Array<string | undefined>
+): string[] {
+  return [
+    ...new Set(
+      groups
+        .map((group) => normalizeChannelGroup(group))
+        .filter((group): group is string => Boolean(group))
+    ),
+  ].sort((left, right) => left.localeCompare(right, 'pt-BR'));
+}
+
+export function matchesCatalogGenre(
+  group: string | undefined,
+  genre?: string
+): boolean {
+  if (!genre) return true;
+  return normalizeChannelGroup(group) === normalizeChannelGroup(genre);
+}
+
+export function itemMatchesCatalogGenre(
+  item: { genres?: string[] | null },
+  genre?: string
+): boolean {
+  if (!genre || genre === 'None') return true;
+  const wanted = normalizeChannelGroup(genre);
+  return (
+    Boolean(wanted) &&
+    Array.isArray(item.genres) &&
+    item.genres.some((value) => normalizeChannelGroup(value) === wanted)
+  );
+}
+
+export function channelGenreCatalogExtra(
+  groups: Array<string | undefined> = []
+): {
+  name: 'genre';
+  isRequired: false;
+  options?: string[];
+} {
+  const options = uniqueChannelGroups(groups);
+  return options.length
+    ? { name: 'genre', isRequired: false, options }
+    : { name: 'genre', isRequired: false };
 }
 
 export function resolveGuideDate(date?: string): string {
@@ -160,6 +216,7 @@ export function guideChannelMeta(
     country?: string;
     tvgId?: string;
     aliases?: string[];
+    genres?: string[];
   },
   videos: NonNullable<Meta['videos']>
 ): Meta {
@@ -174,6 +231,7 @@ export function guideChannelMeta(
     country: channel.country,
     tvgId: channel.tvgId,
     aliases: channel.aliases,
+    genres: channel.genres,
     behaviorHints: { hasScheduledVideos: true },
     videos,
   };
@@ -188,6 +246,7 @@ export function bareChannelPreview(channel: {
   aliases?: string[];
   language?: string;
   country?: string;
+  genres?: string[];
 }): MetaPreview {
   return {
     id: channel.id,
@@ -199,6 +258,7 @@ export function bareChannelPreview(channel: {
     aliases: channel.aliases,
     language: channel.language,
     country: channel.country,
+    genres: channel.genres,
   };
 }
 

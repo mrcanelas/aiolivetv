@@ -58,6 +58,31 @@ export function compactChannelName(name: string): string {
   return normalizeChannelName(name).replace(/\s+/g, '');
 }
 
+const CHANNEL_GROUP_NOISE = /\b(?:fhd|hd|canais)\b/gi;
+
+function titleCaseGroupWords(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      const lower = word.toLocaleLowerCase('pt-BR');
+      return lower.charAt(0).toLocaleUpperCase('pt-BR') + lower.slice(1);
+    })
+    .join(' ');
+}
+
+/** Display label for IPTV/EPG channel groups: drop HD/FHD/CANAIS and title-case words. */
+export function normalizeChannelGroup(group?: string): string | undefined {
+  if (!group) return undefined;
+  const cleaned = decodeHtmlEntities(group)
+    .replace(CHANNEL_GROUP_NOISE, ' ')
+    .replace(/[,/|_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return undefined;
+  return titleCaseGroupWords(cleaned) || undefined;
+}
+
 function tokenizeChannelName(name: string) {
   return name.split(/\s+/).filter(Boolean);
 }

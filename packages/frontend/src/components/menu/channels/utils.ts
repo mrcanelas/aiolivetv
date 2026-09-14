@@ -8,6 +8,23 @@ export function isChannelSuggestion(confidence: number) {
   return confidence > 0 && confidence < 0.9;
 }
 
+export function normalizeChannelGroup(group?: string): string | undefined {
+  if (!group) return undefined;
+  const cleaned = group
+    .replace(/\b(?:fhd|hd|canais)\b/gi, ' ')
+    .replace(/[,/|_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return undefined;
+  return cleaned
+    .split(/\s+/)
+    .map((word) => {
+      const lower = word.toLocaleLowerCase('pt-BR');
+      return lower.charAt(0).toLocaleUpperCase('pt-BR') + lower.slice(1);
+    })
+    .join(' ');
+}
+
 export function countSuggestions(channels: ChannelInfo[]) {
   return channels.reduce(
     (total, channel) =>

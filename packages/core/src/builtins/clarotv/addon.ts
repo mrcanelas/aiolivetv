@@ -2,13 +2,17 @@ import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
+import { normalizeChannelGroup } from '../../utils/channelName.js';
 import {
   applyEpgTimeShift,
   bareChannelPreview,
   buildEpgCatalogResponse,
+  channelGenreCatalogExtra,
+  channelGenres,
   EPG_CACHE_HEADERS,
   EPG_GUIDE_CATALOG_EXTRAS,
   guideChannelMeta,
+  matchesCatalogGenre,
   shiftedProgramOverlapsUtcDay,
   programToVideo,
   resolveGuideDate,
@@ -46,6 +50,7 @@ interface ClaroChannel {
   name: string;
   logo?: string;
   tvgId: string;
+  group?: string;
 }
 
 interface ClaroRating {
@@ -73,9 +78,21 @@ interface ClaroLiveChannelsResponse {
       id?: string | number;
       name?: string;
       logo?: string;
+      type?: string;
+      tvChannels?: Array<{ type?: string }>;
       schedules?: ClaroScheduleItem[];
     }>;
   };
+}
+
+function parseChannelGroup(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const group = normalizeChannelGroup(value);
+      if (group) return group;
+    }
+  }
+  return undefined;
 }
 
 function normalizeChannelTitle(title: string): string {
@@ -170,6 +187,7 @@ async function loadChannels(config: ClaroTvConfig): Promise<ClaroChannel[]> {
             name,
             logo,
             tvgId: name,
+            group: parseChannelGroup(item.type, item.tvChannels?.[0]?.type),
           };
         })
         .filter((channel): channel is ClaroChannel => Boolean(channel))
@@ -261,7 +279,13 @@ export class ClaroTvAddon {
     this.config = ClaroTvConfigSchema.parse(config);
   }
 
-  getManifest(): Manifest {
+  async getManifest(): Promise<Manifest> {
+    let groups: Array<string | undefined> = [];
+    try {
+      groups = (await loadChannels(this.config)).map((channel) => channel.group);
+    } catch {
+      groups = [];
+    }
     return {
       id: 'org.aiolivetv.claro-tv',
       name: 'Claro TV+',
@@ -285,15 +309,19 @@ export class ClaroTvAddon {
           id: 'claro-tv-channels',
           type: TV_TYPE,
           name: 'Canais Claro TV+',
-          extra: [...EPG_GUIDE_CATALOG_EXTRAS],
+          extra: [
+            ...EPG_GUIDE_CATALOG_EXTRAS,
+            channelGenreCatalogExtra(groups),
+          ],
         },
       ],
       behaviorHints: { epgProvider: true },
     };
   }
 
-  async getCatalog(skip = 0): Promise<MetaPreview[]> {
+  async getCatalog(skip = 0, genre?: string): Promise<MetaPreview[]> {
     return (await loadChannels(this.config))
+      .filter((channel) => matchesCatalogGenre(channel.group, genre))
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
       .map((channel) =>
         bareChannelPreview({
@@ -303,16 +331,20 @@ export class ClaroTvAddon {
           tvgId: channel.tvgId,
           country: 'BR',
           language: 'pt',
+          genres: channelGenres(channel.group),
         })
       );
   }
 
-  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+  async getCatalogGuide(
+    skip = 0,
+    date?: string,
+    genre?: string
+  ): Promise<Meta[]> {
     const guideDate = resolveGuideDate(date);
-    const channels = (await loadChannels(this.config)).slice(
-      skip,
-      skip + LIVE_TV_CATALOG_PAGE_SIZE
-    );
+    const channels = (await loadChannels(this.config))
+      .filter((channel) => matchesCatalogGenre(channel.group, genre))
+      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE);
     const schedulesByChannel = await loadSchedulesForUtcDay(
       this.config,
       channels.map((channel) => channel.id),
@@ -331,6 +363,7 @@ export class ClaroTvAddon {
           logo: channel.logo,
           country: 'BR',
           language: 'pt',
+          genres: channelGenres(channel.group),
         },
         videos
       );
@@ -339,11 +372,13 @@ export class ClaroTvAddon {
 
   async getCatalogResponse(
     skip = 0,
-    date?: string
+    date?: string,
+    genre?: string
   ): Promise<CatalogHandlerResponse> {
     return buildEpgCatalogResponse(
-      (pageSkip) => this.getCatalog(pageSkip),
-      (pageSkip, guideDate) => this.getCatalogGuide(pageSkip, guideDate),
+      (pageSkip) => this.getCatalog(pageSkip, genre),
+      (pageSkip, guideDate) =>
+        this.getCatalogGuide(pageSkip, guideDate, genre),
       skip,
       date
     );
@@ -393,6 +428,7 @@ export class ClaroTvAddon {
       logo: channel.logo,
       country: 'BR',
       language: 'pt',
+      genres: channelGenres(channel.group),
       behaviorHints: { hasScheduledVideos: true },
       videos,
     };

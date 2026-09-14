@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyLiveChannelGroupOverlay,
   buildManualParsedStreams,
   deduplicateLiveTvItems,
   findChannelMappingForId,
   findPossibleDuplicateChannels,
+  getEffectiveChannelGroup,
   isLiveChannelVisible,
   MANUAL_STREAM_ADDON_ID,
 } from './channelMappings.js';
@@ -11,6 +13,29 @@ import type { UserData } from '../db/index.js';
 import { ChannelMapping } from '../db/channelMapping.js';
 
 const baseUserData = { uuid: 'test' } as UserData;
+
+describe('channel group overlay', () => {
+  it('prefers the mapping override over the source group', () => {
+    const userData = {
+      ...baseUserData,
+      channelMappings: [{ id: 'aiolivetv:globo', group: 'ESPORTES' }],
+    } as UserData;
+    expect(
+      getEffectiveChannelGroup(userData, 'aiolivetv:globo', 'VARIEDADES')
+    ).toBe('Esportes');
+    expect(
+      applyLiveChannelGroupOverlay(userData, [
+        { id: 'aiolivetv:globo', genres: ['VARIEDADES'] },
+      ])
+    ).toEqual([{ id: 'aiolivetv:globo', genres: ['Esportes'] }]);
+  });
+
+  it('keeps the source group when there is no override', () => {
+    expect(
+      getEffectiveChannelGroup(baseUserData, 'aiolivetv:globo', 'VARIEDADES')
+    ).toBe('Variedades');
+  });
+});
 
 describe('isLiveChannelVisible', () => {
   it('returns true when no mapping exists', () => {

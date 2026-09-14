@@ -22,6 +22,7 @@ export const ChannelMapping = z.object({
   enabled: z.boolean().optional(),
   name: z.string().min(1).optional(),
   poster: z.string().optional(),
+  group: z.string().min(1).optional(),
   hidden: z.boolean().optional(),
   streams: z.array(ChannelStreamSource).optional(),
   rejectedStreams: z

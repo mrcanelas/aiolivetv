@@ -22,10 +22,12 @@ import type {
   AIOStreamsResponse,
 } from './types.js';
 import {
+  applyLiveChannelGroupOverlay,
   deduplicateLiveTvItems,
   isLiveChannelType,
   isLiveChannelVisible,
 } from './channelMappings.js';
+import { normalizeChannelGroup } from '../utils/channelName.js';
 import {
   shuffleCache,
   mergedCatalogCache,
@@ -180,6 +182,33 @@ export function catalogSupportsSkip(
   extras: Manifest['catalogs'][number]['extra'] | undefined
 ): boolean {
   return extras?.some((extra) => extra.name === 'skip') ?? false;
+}
+
+function itemMatchesCatalogGenre(
+  item: { genres?: string[] | null },
+  genre?: string
+): boolean {
+  if (!genre || genre === 'None') return true;
+  const wanted = normalizeChannelGroup(genre);
+  return (
+    Boolean(wanted) &&
+    Array.isArray(item.genres) &&
+    item.genres.some((value) => normalizeChannelGroup(value) === wanted)
+  );
+}
+
+function applyLiveTvCatalogOverlay<
+  T extends { id: string; genres?: string[] | null },
+>(
+  ctx: Pick<AIOStreamsContext, 'userData'>,
+  type: string,
+  items: T[],
+  genre?: string
+): T[] {
+  if (!isLiveChannelType(type)) return items;
+  return applyLiveChannelGroupOverlay(ctx.userData, items).filter((item) =>
+    itemMatchesCatalogGenre(item, genre)
+  );
 }
 
 /**
@@ -507,7 +536,11 @@ export async function getMergedCatalog(
         };
       }
 
-      if (requestedGenre && requestedGenre !== 'None') {
+      if (
+        requestedGenre &&
+        requestedGenre !== 'None' &&
+        type !== constants.TV_TYPE
+      ) {
         const genreExtra = catalogExtras?.find((e) => e.name === 'genre');
         if (!genreExtra) {
           logger.debug(
@@ -564,6 +597,9 @@ export async function getMergedCatalog(
       }
 
       const sourceExtras = new ExtrasParser(extras);
+      if (type === constants.TV_TYPE) {
+        sourceExtras.genre = undefined;
+      }
       if (supportsSkip) {
         sourceExtras.skip = sourceSkip > 0 ? sourceSkip : undefined;
       } else {
@@ -701,6 +737,12 @@ export async function getMergedCatalog(
       mergedCatalog.mergeMethod
     ) as Meta[];
     allDetailed = deduplicateLiveTvItems(ctx.userData, allDetailed);
+    allDetailed = applyLiveTvCatalogOverlay(
+      ctx,
+      type,
+      allDetailed,
+      requestedGenre
+    );
     const nextSkip = requestedSkip + allDetailed.length;
     if (allDetailed.length > 0) {
       await mergedCatalogCache.set(
@@ -733,6 +775,7 @@ export async function getMergedCatalog(
   );
   if (type === constants.TV_TYPE) {
     allItems = deduplicateLiveTvItems(ctx.userData, allItems);
+    allItems = applyLiveTvCatalogOverlay(ctx, type, allItems, requestedGenre);
   }
 
   const shuffleCacheKey = `${baseCacheKey}-skip=${requestedSkip}-shuffle`;
@@ -813,8 +856,13 @@ export async function getCatalog(
     return {
       success: true,
       data: [],
-      metasDetailed: (result.metasDetailed ?? []).filter((meta) =>
-        isLiveChannelVisible(ctx.userData, meta.id)
+      metasDetailed: applyLiveTvCatalogOverlay(
+        ctx,
+        type,
+        (result.metasDetailed ?? []).filter((meta) =>
+          isLiveChannelVisible(ctx.userData, meta.id)
+        ),
+        parsedExtras.genre
       ),
       errors: [],
     };
@@ -853,7 +901,12 @@ export async function getCatalog(
   return {
     success: true,
     data: isLiveChannelType(type)
-      ? catalog.filter((item) => isLiveChannelVisible(ctx.userData, item.id))
+      ? applyLiveTvCatalogOverlay(
+          ctx,
+          type,
+          catalog.filter((item) => isLiveChannelVisible(ctx.userData, item.id)),
+          parsedExtras.genre
+        )
       : catalog,
     errors: [],
   };
