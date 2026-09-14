@@ -255,6 +255,7 @@ export function getProxyAgent(proxyUrl: string): Dispatcher | undefined {
     } else {
       proxyAgent = new ProxyAgent(proxyUrl);
     }
+    proxyAgents.set(proxyUrl, proxyAgent);
   }
 
   return proxyAgent;
