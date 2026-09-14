@@ -1,5 +1,6 @@
 import type { PreviewInput } from '../state';
 import { inferredDeliveryLabel } from '../state';
+import { sanitiseStreamUrl } from '../../../../../../../core/src/streams/url-format';
 import {
   AdvancedFields,
   FieldGrid,
@@ -30,6 +31,7 @@ export function StreamTab({
   patch: (partial: Partial<PreviewInput>) => void;
 }) {
   const delivery = inferredDeliveryLabel(input);
+  const urlSafe = sanitiseStreamUrl(input.streamUrl);
   return (
     <div className="space-y-4">
       <FieldGrid>
@@ -40,14 +42,21 @@ export function StreamTab({
           onChange={(streamUrl) => patch({ streamUrl })}
           placeholder="https://example.com/live.m3u8"
           always
+          help="Preview input only. Prefer live.streamUrlSafe or live.streamHost in templates — live.streamUrl can leak tokens."
+        />
+        <TextField
+          field="live.streamUrlSafe"
+          label="Safe URL"
+          value={urlSafe.streamUrlSafe ?? ''}
+          onChange={() => undefined}
+          disabled
+          help="Host and redacted path for templates. Does not include credentials or query tokens."
         />
         <SelectField
           field="stream.type"
           label="Type"
           value={input.type}
-          onChange={(type) =>
-            patch({ type: type as PreviewInput['type'] })
-          }
+          onChange={(type) => patch({ type: type as PreviewInput['type'] })}
           options={STREAM_TYPES.map((type) => ({
             label: type === 'live' ? 'Live' : 'HTTP',
             value: type,
@@ -80,7 +89,8 @@ export function StreamTab({
 
       <FieldNote>
         Format flags such as HLS / MPEG-TS / DASH follow the URL. They are not
-        confirmed with ffprobe in the preview.
+        confirmed with ffprobe in the preview. Do not put live.streamUrl in a
+        template — use live.streamUrlSafe or live.streamHost.
       </FieldNote>
 
       <AdvancedFields fields={ADVANCED}>

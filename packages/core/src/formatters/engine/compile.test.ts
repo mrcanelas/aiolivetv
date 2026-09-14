@@ -8,6 +8,7 @@ type ParseValue = {
   live?: {
     channelName?: string | null;
     deliveryFormatLabel?: string | null;
+    deliveryFormatKnown?: boolean;
   };
 };
 
@@ -74,5 +75,27 @@ describe('formatter engine', () => {
         live: { channelName: 'AXN', deliveryFormatLabel: 'HLS' },
       })
     ).toBe('AXN · HLS ');
+  });
+
+  it('hides Unknown delivery labels when deliveryFormatKnown is false', () => {
+    const render = compile(
+      '{live.deliveryFormatKnown::istrue["{live.deliveryFormatLabel}"||""]}'
+    );
+    expect(
+      render({
+        live: {
+          deliveryFormatLabel: 'HLS',
+          deliveryFormatKnown: true,
+        },
+      })
+    ).toBe('HLS');
+    expect(
+      render({
+        live: {
+          deliveryFormatLabel: 'Unknown',
+          deliveryFormatKnown: false,
+        },
+      })
+    ).toBe('');
   });
 });

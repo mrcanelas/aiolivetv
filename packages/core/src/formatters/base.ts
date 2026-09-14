@@ -183,6 +183,9 @@ export interface ParseValue {
     providerType: string | null;
     streamName: string | null;
     streamUrl: string | null;
+    streamHost: string | null;
+    streamPathType: string | null;
+    streamUrlSafe: string | null;
     matchConfidence: number | null;
     matchStatus: string | null;
     priority: number | null;
@@ -192,6 +195,7 @@ export interface ParseValue {
     extension: string | null;
     deliveryFormat: string | null;
     deliveryFormatLabel: string | null;
+    deliveryFormatKnown: boolean;
     adaptive: boolean;
     isHls: boolean;
     isMpegTs: boolean;
@@ -735,6 +739,9 @@ export abstract class BaseFormatter {
         providerType: stream.live?.providerType || null,
         streamName: stream.live?.streamName || stream.filename || null,
         streamUrl: stream.live?.streamUrl || stream.url || null,
+        streamHost: stream.live?.streamHost || null,
+        streamPathType: stream.live?.streamPathType || null,
+        streamUrlSafe: stream.live?.streamUrlSafe || null,
         matchConfidence: stream.live?.matchConfidence ?? null,
         matchStatus: stream.live?.matchStatus || null,
         priority: stream.live?.priority ?? null,
@@ -744,6 +751,7 @@ export abstract class BaseFormatter {
         extension: stream.live?.extension || null,
         deliveryFormat: stream.live?.deliveryFormat || null,
         deliveryFormatLabel: stream.live?.deliveryFormatLabel || null,
+        deliveryFormatKnown: stream.live?.deliveryFormatKnown ?? false,
         adaptive: stream.live?.adaptive ?? false,
         isHls: stream.live?.isHls ?? false,
         isMpegTs: stream.live?.isMpegTs ?? false,

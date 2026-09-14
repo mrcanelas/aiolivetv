@@ -3,7 +3,10 @@ import {
   formatDeclaredStreamSummary,
   parseDeclaredStreamInfo,
 } from '../../../../../../core/src/streams/declared';
-import { inferStreamUrlFormat } from '../../../../../../core/src/streams/url-format';
+import {
+  inferStreamUrlFormat,
+  sanitiseStreamUrl,
+} from '../../../../../../core/src/streams/url-format';
 import type {
   LiveMatchStatus,
   LiveProviderType,
@@ -76,6 +79,11 @@ const PRESET_FROM_PROVIDER: Record<LiveProviderType, string> = {
   vivo: 'vivo-tv',
   claro: 'claro-tv',
   mitv: 'mi-tv',
+  hdhomerun: 'hdhomerun',
+  tvheadend: 'tvheadend',
+  jellyfin: 'jellyfin',
+  plex: 'plex',
+  nextpvr: 'nextpvr',
   addon: 'custom',
   manual: 'manual',
 };
@@ -241,14 +249,18 @@ export function buildPreviewStream(input: PreviewInput): ParsedStream {
     group: input.group,
   });
   const urlInfo = inferStreamUrlFormat(input.streamUrl);
+  const urlSafe = sanitiseStreamUrl(input.streamUrl);
+  const deliveryFormatKnown = urlInfo.format !== 'unknown';
   const languages =
     splitList(input.languages) ?? declared?.parsedFile.languages;
   const visualTags =
     splitList(input.visualTags) ?? declared?.parsedFile.visualTags;
-  const audioTags = splitList(input.audioTags) ?? declared?.parsedFile.audioTags;
+  const audioTags =
+    splitList(input.audioTags) ?? declared?.parsedFile.audioTags;
   const audioChannels =
     splitList(input.audioChannels) ?? declared?.parsedFile.audioChannels;
-  const subtitles = splitList(input.subtitles) ?? declared?.parsedFile.subtitles;
+  const subtitles =
+    splitList(input.subtitles) ?? declared?.parsedFile.subtitles;
 
   const live: LiveStreamMetadata = {
     channelId: input.channelId || undefined,
@@ -263,6 +275,7 @@ export function buildPreviewStream(input: PreviewInput): ParsedStream {
     providerType: input.providerType,
     streamName: input.streamName || undefined,
     streamUrl: input.streamUrl || undefined,
+    ...urlSafe,
     matchConfidence: input.matchConfidence,
     matchStatus: input.matchStatus,
     priority: input.priority,
@@ -271,8 +284,8 @@ export function buildPreviewStream(input: PreviewInput): ParsedStream {
     protocol: urlInfo.protocol,
     extension: urlInfo.extension,
     deliveryFormat: urlInfo.format,
-    deliveryFormatLabel:
-      urlInfo.format === 'unknown' ? undefined : urlInfo.label,
+    deliveryFormatLabel: urlInfo.label,
+    deliveryFormatKnown,
     adaptive: urlInfo.isAdaptive,
     isHls: urlInfo.format === 'hls',
     isMpegTs: urlInfo.format === 'mpegts',
@@ -307,7 +320,7 @@ export function buildPreviewStream(input: PreviewInput): ParsedStream {
       extension: declared?.parsedFile.extension ?? urlInfo.extension,
       container:
         declared?.parsedFile.container ??
-        (urlInfo.format === 'unknown' ? undefined : urlInfo.label),
+        (deliveryFormatKnown ? urlInfo.label : undefined),
     },
     live,
     addon: {
@@ -360,8 +373,12 @@ const TAB_FIELDS: Record<string, readonly string[]> = {
   stream: [
     'live.streamName',
     'live.streamUrl',
+    'live.streamUrlSafe',
+    'live.streamHost',
+    'live.streamPathType',
     'live.deliveryFormat',
     'live.deliveryFormatLabel',
+    'live.deliveryFormatKnown',
     'live.protocol',
     'live.extension',
     'live.adaptive',

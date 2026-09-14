@@ -46,9 +46,7 @@ function result(
   };
 }
 
-export function inferStreamUrlFormat(
-  url?: string | null
-): StreamUrlFormatInfo {
+export function inferStreamUrlFormat(url?: string | null): StreamUrlFormatInfo {
   if (!url) {
     return result(undefined, undefined, 'unknown', false);
   }
@@ -108,11 +106,52 @@ export function inferStreamUrlFormat(
     return result(protocol, extension, 'webm', false);
   }
 
+  return result(protocol, extension, 'unknown', false);
+}
+
+const KNOWN_PATH_TYPES = new Set([
+  'live',
+  'movie',
+  'series',
+  'timeshift',
+  'epg',
+]);
+
+export interface SanitisedStreamUrl {
+  streamHost?: string;
+  streamPathType?: string;
+  streamUrlSafe?: string;
+}
+
+/**
+ * Host + a redacted path so formatters can show where a stream comes from
+ * without leaking Xtream user/pass, tokens or query strings.
+ */
+export function sanitiseStreamUrl(url?: string | null): SanitisedStreamUrl {
+  if (!url) return {};
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return {};
+  }
+
+  const host = parsed.host;
+  const segments = parsed.pathname.split('/').filter(Boolean);
+  const first = segments[0]?.toLowerCase();
+  const streamPathType =
+    first && KNOWN_PATH_TYPES.has(first) ? first : undefined;
+
+  let safePath = '';
+  if (segments.length === 1) {
+    safePath = `/${segments[0]}`;
+  } else if (segments.length > 1) {
+    safePath = `/${segments[0]}/.../${decodeURIComponent(segments[segments.length - 1])}`;
+  }
+
   return {
-    protocol,
-    extension,
-    format: 'unknown',
-    label: extension ? extension.toUpperCase() : FORMAT_LABELS.unknown,
-    isAdaptive: false,
+    streamHost: host || undefined,
+    streamPathType,
+    streamUrlSafe: host ? `${host}${safePath}` : undefined,
   };
 }

@@ -61,8 +61,12 @@ export { enrichStreamsWithProbe } from './streams/stream-probe.js';
 export {
   attachLiveMetadata,
   attachLiveMetadataToStreams,
+  liveUrlFields,
 } from './streams/live-metadata.js';
-export { inferStreamUrlFormat } from './streams/url-format.js';
+export {
+  inferStreamUrlFormat,
+  sanitiseStreamUrl,
+} from './streams/url-format.js';
 export type {
   LiveMetadataContext,
   LiveProviderType,
@@ -71,4 +75,5 @@ export type {
 export type {
   StreamDeliveryFormat,
   StreamUrlFormatInfo,
+  SanitisedStreamUrl,
 } from './streams/url-format.js';

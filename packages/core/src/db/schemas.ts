@@ -1022,12 +1022,20 @@ export const LiveStreamMetadataSchema = z.object({
       'vivo',
       'claro',
       'mitv',
+      'hdhomerun',
+      'tvheadend',
+      'jellyfin',
+      'plex',
+      'nextpvr',
       'addon',
       'manual',
     ])
     .optional(),
   streamName: z.string().optional(),
   streamUrl: z.string().optional(),
+  streamHost: z.string().optional(),
+  streamPathType: z.string().optional(),
+  streamUrlSafe: z.string().optional(),
   matchConfidence: z.number().optional(),
   matchStatus: z
     .enum(['canonical', 'auto', 'suggested', 'manual', 'fallback'])
@@ -1039,6 +1047,7 @@ export const LiveStreamMetadataSchema = z.object({
   extension: z.string().optional(),
   deliveryFormat: z.string().optional(),
   deliveryFormatLabel: z.string().optional(),
+  deliveryFormatKnown: z.boolean().optional(),
   adaptive: z.boolean().optional(),
   isHls: z.boolean().optional(),
   isMpegTs: z.boolean().optional(),

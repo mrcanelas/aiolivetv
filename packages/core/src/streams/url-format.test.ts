@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { inferStreamUrlFormat } from './url-format.js';
+import { inferStreamUrlFormat, sanitiseStreamUrl } from './url-format.js';
 
 describe('inferStreamUrlFormat', () => {
-  it('detects HLS from a playlist path', () => {
+  it('detects HLS from .m3u8', () => {
     expect(
       inferStreamUrlFormat('https://example.com/live/axn/index.m3u8')
     ).toMatchObject({
@@ -14,7 +14,7 @@ describe('inferStreamUrlFormat', () => {
     });
   });
 
-  it('detects MPEG-TS from a .ts path', () => {
+  it('detects MPEG-TS from .ts', () => {
     expect(
       inferStreamUrlFormat('http://provider.com/live/user/pass/301.ts')
     ).toMatchObject({
@@ -24,7 +24,7 @@ describe('inferStreamUrlFormat', () => {
     });
   });
 
-  it('detects DASH from a .mpd path', () => {
+  it('detects DASH from .mpd', () => {
     expect(
       inferStreamUrlFormat('https://cdn.example.com/manifest.mpd')
     ).toMatchObject({
@@ -34,7 +34,7 @@ describe('inferStreamUrlFormat', () => {
     });
   });
 
-  it('detects RTMP from the protocol', () => {
+  it('detects RTMP protocol', () => {
     expect(inferStreamUrlFormat('rtmp://server/live/channel')).toMatchObject({
       protocol: 'rtmp',
       format: 'rtmp',
@@ -42,7 +42,7 @@ describe('inferStreamUrlFormat', () => {
     });
   });
 
-  it('returns unknown when the URL has no format hint', () => {
+  it('returns unknown for extensionless URLs', () => {
     expect(
       inferStreamUrlFormat('https://provider.com/live/12345')
     ).toMatchObject({
@@ -56,5 +56,34 @@ describe('inferStreamUrlFormat', () => {
   it('returns unknown for missing or invalid URLs', () => {
     expect(inferStreamUrlFormat(undefined).format).toBe('unknown');
     expect(inferStreamUrlFormat('not a url').format).toBe('unknown');
+  });
+});
+
+describe('sanitiseStreamUrl', () => {
+  it('redacts Xtream user and password from the path', () => {
+    expect(
+      sanitiseStreamUrl('http://provider.example.com/live/user/pass/301.ts')
+    ).toEqual({
+      streamHost: 'provider.example.com',
+      streamPathType: 'live',
+      streamUrlSafe: 'provider.example.com/live/.../301.ts',
+    });
+  });
+
+  it('drops query tokens', () => {
+    expect(
+      sanitiseStreamUrl(
+        'https://cdn.example.com/live/axn/index.m3u8?token=secret'
+      )
+    ).toEqual({
+      streamHost: 'cdn.example.com',
+      streamPathType: 'live',
+      streamUrlSafe: 'cdn.example.com/live/.../index.m3u8',
+    });
+  });
+
+  it('returns empty for invalid URLs', () => {
+    expect(sanitiseStreamUrl('not a url')).toEqual({});
+    expect(sanitiseStreamUrl(undefined)).toEqual({});
   });
 });

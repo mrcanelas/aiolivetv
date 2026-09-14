@@ -201,7 +201,8 @@ export const FORMATTER_DETAILS: Record<FormatterType, FormatterDetail> = {
   [LIGHT_GDRIVE_FORMATTER]: {
     id: LIGHT_GDRIVE_FORMATTER,
     name: 'Compact',
-    description: 'Shorter detailed layout with channel, source and quality tags.',
+    description:
+      'Shorter detailed layout with channel, source and quality tags.',
   },
   [MINIMALISTIC_GDRIVE_FORMATTER]: {
     id: MINIMALISTIC_GDRIVE_FORMATTER,
@@ -1456,8 +1457,7 @@ export const SNIPPETS = [
   {
     name: 'Channel name',
     description: 'Canonical channel name, falling back to the addon name',
-    value:
-      '{live.channelName::exists["{live.channelName}"||"{addon.name}"]}',
+    value: '{live.channelName::exists["{live.channelName}"||"{addon.name}"]}',
   },
   {
     name: 'Source',
@@ -1467,9 +1467,16 @@ export const SNIPPETS = [
   },
   {
     name: 'Delivery format',
-    description: 'HLS, MPEG-TS, DASH or similar, inferred from the stream URL',
+    description:
+      'HLS, MPEG-TS, DASH or similar. Uses live.deliveryFormatKnown so Unknown stays hidden unless you want it.',
     value:
-      '{live.deliveryFormatLabel::exists["{live.deliveryFormatLabel}"||""]}',
+      '{live.deliveryFormatKnown::istrue["{live.deliveryFormatLabel}"||""]}',
+  },
+  {
+    name: 'Safe stream URL',
+    description:
+      'Host and redacted path (no Xtream user/pass or query tokens). Prefer this over live.streamUrl.',
+    value: '{live.streamUrlSafe::exists["{live.streamUrlSafe}"||""]}',
   },
   {
     name: 'Languages',

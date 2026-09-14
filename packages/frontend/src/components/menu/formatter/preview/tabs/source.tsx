@@ -16,6 +16,11 @@ const PROVIDER_TYPES: PreviewInput['providerType'][] = [
   'vivo',
   'claro',
   'mitv',
+  'hdhomerun',
+  'tvheadend',
+  'jellyfin',
+  'plex',
+  'nextpvr',
   'addon',
   'manual',
 ];
@@ -51,7 +56,9 @@ export function SourceTab({
           label="Provider type"
           value={input.providerType}
           onChange={(providerType) =>
-            patch({ providerType: providerType as PreviewInput['providerType'] })
+            patch({
+              providerType: providerType as PreviewInput['providerType'],
+            })
           }
           options={PROVIDER_TYPES.map((type) => ({
             label: type,

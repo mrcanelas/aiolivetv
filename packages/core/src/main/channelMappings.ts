@@ -19,6 +19,7 @@ export interface ChannelMatchCandidate {
   language?: string;
   categories?: string[];
   logo?: string;
+  hasSchedule?: boolean;
 }
 
 export function getCanonicalChannelId(id: string) {

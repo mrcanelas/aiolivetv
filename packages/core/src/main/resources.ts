@@ -62,6 +62,7 @@ import {
   type ChannelMatchCandidate,
 } from './channelMappings.js';
 import { decodeHtmlEntities } from '../utils/text.js';
+import { configurationProvidesNativeEpg } from './epgProvider.js';
 
 const logger = createLogger('core');
 
@@ -775,13 +776,13 @@ async function loadCanonicalChannelCandidate(
   channelId: string,
   channelMapping?: ReturnType<typeof getChannelMapping>
 ): Promise<ChannelMatchCandidate> {
-  if (channelMapping?.name) {
-    return {
-      id: channelId,
-      name: decodeHtmlEntities(channelMapping.name),
-      logo: channelMapping.poster ?? undefined,
-    };
-  }
+  const mapped: ChannelMatchCandidate | undefined = channelMapping?.name
+    ? {
+        id: channelId,
+        name: decodeHtmlEntities(channelMapping.name),
+        logo: channelMapping.poster ?? undefined,
+      }
+    : undefined;
 
   for (const candidate of collectLiveChannelMetaCandidates(
     ctx,
@@ -798,7 +799,7 @@ async function loadCanonicalChannelCandidate(
       );
       return {
         id: channelId,
-        name: decodeHtmlEntities(meta.name ?? channelId),
+        name: mapped?.name ?? decodeHtmlEntities(meta.name ?? channelId),
         tvgId: typeof meta.tvgId === 'string' ? meta.tvgId : undefined,
         aliases: Array.isArray(meta.aliases)
           ? meta.aliases.map((alias) => decodeHtmlEntities(alias))
@@ -806,14 +807,18 @@ async function loadCanonicalChannelCandidate(
         country: typeof meta.country === 'string' ? meta.country : undefined,
         language: typeof meta.language === 'string' ? meta.language : undefined,
         categories: Array.isArray(meta.genres) ? meta.genres : undefined,
-        logo: meta.poster ?? undefined,
+        logo: mapped?.logo ?? meta.poster ?? undefined,
+        hasSchedule: Boolean(
+          meta.behaviorHints?.hasScheduledVideos ||
+          (Array.isArray(meta.videos) && meta.videos.length > 0)
+        ),
       };
     } catch {
       continue;
     }
   }
 
-  return { id: channelId, name: channelId };
+  return mapped ?? { id: channelId, name: channelId };
 }
 
 async function resolveStreamChannelIdForAddon(
@@ -880,8 +885,15 @@ async function resolveLiveStreamFetchPlan(
   addons: Addon[];
   channelIds: Map<string, string>;
   streamTypes: Map<string, string>;
+  canonical: ChannelMatchCandidate;
 }> {
   const channelMapping = getChannelMapping(ctx.userData, channelId);
+  const canonical = await loadCanonicalChannelCandidate(
+    ctx,
+    type,
+    channelId,
+    channelMapping
+  );
   const explicitSources =
     channelMapping?.streams?.filter(
       (source) => !isManualStreamSource(source) && source.enabled !== false
@@ -916,12 +928,6 @@ async function resolveLiveStreamFetchPlan(
   }
 
   if (addons.length === 0) {
-    const canonical = await loadCanonicalChannelCandidate(
-      ctx,
-      type,
-      channelId,
-      channelMapping
-    );
     for (const addon of getAllLiveStreamAddons(ctx, type)) {
       addAddon(
         addon,
@@ -945,6 +951,7 @@ async function resolveLiveStreamFetchPlan(
     addons,
     channelIds,
     streamTypes: buildAddonStreamTypes(ctx, addons, type),
+    canonical,
   };
 }
 
@@ -1016,6 +1023,7 @@ export async function getStreams(
   );
   const fetchMs = Date.now() - fetchStart;
 
+  const canonical = liveStreamPlan?.canonical;
   let fetchedStreams = isLiveChannel
     ? attachLiveMetadataToStreams(
         orderLiveStreamsByMapping(
@@ -1025,8 +1033,19 @@ export async function getStreams(
         ),
         {
           channelId,
-          channelName: channelMapping?.name,
+          channelName: channelMapping?.name ?? canonical?.name,
+          canonicalName: canonical?.name,
+          tvgId: canonical?.tvgId,
+          country: canonical?.country,
+          language: canonical?.language,
+          group: canonical?.categories?.[0],
+          logo: canonical?.logo ?? channelMapping?.poster,
           mapping: channelMapping,
+          epgProvider: configurationProvidesNativeEpg(
+            ctx.addons,
+            ctx.manifests
+          ),
+          hasSchedule: canonical?.hasSchedule,
         }
       )
     : streams;

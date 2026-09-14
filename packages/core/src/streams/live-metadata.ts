@@ -4,7 +4,7 @@ import type {
   ChannelStreamSource,
 } from '../db/channelMapping.js';
 import { MANUAL_STREAM_ADDON_ID } from '../main/channelMappings.js';
-import { inferStreamUrlFormat } from './url-format.js';
+import { inferStreamUrlFormat, sanitiseStreamUrl } from './url-format.js';
 
 export type LiveProviderType =
   | 'm3u'
@@ -13,6 +13,11 @@ export type LiveProviderType =
   | 'vivo'
   | 'claro'
   | 'mitv'
+  | 'hdhomerun'
+  | 'tvheadend'
+  | 'jellyfin'
+  | 'plex'
+  | 'nextpvr'
   | 'addon'
   | 'manual';
 
@@ -38,6 +43,9 @@ export interface LiveStreamMetadata {
 
   streamName?: string;
   streamUrl?: string;
+  streamHost?: string;
+  streamPathType?: string;
+  streamUrlSafe?: string;
   matchConfidence?: number;
   matchStatus?: LiveMatchStatus;
   priority?: number;
@@ -49,6 +57,7 @@ export interface LiveStreamMetadata {
   extension?: string;
   deliveryFormat?: string;
   deliveryFormatLabel?: string;
+  deliveryFormatKnown?: boolean;
   adaptive?: boolean;
   isHls?: boolean;
   isMpegTs?: boolean;
@@ -88,6 +97,11 @@ const PRESET_PROVIDER_TYPE: Record<string, LiveProviderType> = {
   'vivo-tv': 'vivo',
   'claro-tv': 'claro',
   'mi-tv': 'mitv',
+  hdhomerun: 'hdhomerun',
+  tvheadend: 'tvheadend',
+  jellyfin: 'jellyfin',
+  plex: 'plex',
+  nextpvr: 'nextpvr',
   manual: 'manual',
 };
 
@@ -139,16 +153,50 @@ function resolveMatchStatus(
   return 'fallback';
 }
 
+export function liveUrlFields(
+  url?: string | null
+): Pick<
+  LiveStreamMetadata,
+  | 'streamUrl'
+  | 'streamHost'
+  | 'streamPathType'
+  | 'streamUrlSafe'
+  | 'protocol'
+  | 'extension'
+  | 'deliveryFormat'
+  | 'deliveryFormatLabel'
+  | 'deliveryFormatKnown'
+  | 'adaptive'
+  | 'isHls'
+  | 'isMpegTs'
+  | 'isDash'
+> {
+  const format = inferStreamUrlFormat(url);
+  const known = format.format !== 'unknown';
+  return {
+    streamUrl: url || undefined,
+    ...sanitiseStreamUrl(url),
+    protocol: format.protocol,
+    extension: format.extension,
+    deliveryFormat: format.format,
+    deliveryFormatLabel: format.label,
+    deliveryFormatKnown: known,
+    adaptive: format.isAdaptive,
+    isHls: format.format === 'hls',
+    isMpegTs: format.format === 'mpegts',
+    isDash: format.format === 'dash',
+  };
+}
+
 export function attachLiveMetadata(
   stream: ParsedStream,
   ctx: LiveMetadataContext = {}
 ): ParsedStream {
-  const format = inferStreamUrlFormat(stream.url);
   const mapped = findMappedSource(stream, ctx.mapping);
   const source = mapped?.source;
   const providerType = providerTypeFromPreset(stream.addon.preset?.type);
-  const channelName =
-    ctx.channelName ?? ctx.mapping?.name ?? ctx.canonicalName;
+  const channelName = ctx.channelName ?? ctx.mapping?.name ?? ctx.canonicalName;
+  const urlFields = liveUrlFields(stream.url);
   const live: LiveStreamMetadata = {
     channelId: ctx.channelId ?? ctx.mapping?.id,
     channelName,
@@ -161,41 +209,34 @@ export function attachLiveMetadata(
     providerName: stream.addon.name,
     providerType,
     streamName: source?.name ?? stream.filename ?? stream.message,
-    streamUrl: stream.url,
     matchConfidence: source?.confidence,
     matchStatus: resolveMatchStatus(stream, source, ctx.mapping),
     priority: mapped?.index,
     epgProvider: ctx.epgProvider,
     hasSchedule: ctx.hasSchedule,
-    protocol: format.protocol,
-    extension: format.extension,
-    deliveryFormat: format.format,
-    deliveryFormatLabel:
-      format.format === 'unknown' ? undefined : format.label,
-    adaptive: format.isAdaptive,
-    isHls: format.format === 'hls',
-    isMpegTs: format.format === 'mpegts',
-    isDash: format.format === 'dash',
+    ...urlFields,
   };
 
   const parsedFile = stream.parsedFile
     ? {
         ...stream.parsedFile,
-        extension: stream.parsedFile.extension ?? format.extension,
+        extension: stream.parsedFile.extension ?? urlFields.extension,
         container:
           stream.parsedFile.container ??
-          (format.format === 'unknown' ? undefined : format.label),
+          (urlFields.deliveryFormatKnown
+            ? urlFields.deliveryFormatLabel
+            : undefined),
       }
-    : format.format === 'unknown'
-      ? stream.parsedFile
-      : {
+    : urlFields.deliveryFormatKnown
+      ? {
           audioChannels: [],
           visualTags: [],
           audioTags: [],
           languages: [],
-          extension: format.extension,
-          container: format.label,
-        };
+          extension: urlFields.extension,
+          container: urlFields.deliveryFormatLabel,
+        }
+      : stream.parsedFile;
 
   return {
     ...stream,

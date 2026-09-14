@@ -29,14 +29,16 @@ export type {
   DeclaredStreamInput,
   DeclaredStreamSource,
 } from './declared.js';
-export { inferStreamUrlFormat } from './url-format.js';
+export { inferStreamUrlFormat, sanitiseStreamUrl } from './url-format.js';
 export type {
   StreamDeliveryFormat,
   StreamUrlFormatInfo,
+  SanitisedStreamUrl,
 } from './url-format.js';
 export {
   attachLiveMetadata,
   attachLiveMetadataToStreams,
+  liveUrlFields,
   providerTypeFromPreset,
 } from './live-metadata.js';
 export type {
