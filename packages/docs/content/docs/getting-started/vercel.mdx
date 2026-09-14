@@ -105,7 +105,8 @@ checks out the release tag and runs `vercel deploy --prod`.
     In the GitHub repo, add secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and
     `VERCEL_PROJECT_ID`. The org and project IDs are in `.vercel/project.json`
     after `vercel link`. Create the token in the [Vercel account tokens](https://vercel.com/account/tokens)
-    page.
+    page. A **project-scoped** token is enough: the workflow deploys with
+    `vercel deploy --prod` and does not run `vercel pull`.
   </Step>
   <Step>
     Publish a GitHub Release (or let release-please merge), then open

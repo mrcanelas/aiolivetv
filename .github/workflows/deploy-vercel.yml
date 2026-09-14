@@ -15,6 +15,7 @@ on:
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
   deploy:
@@ -25,13 +26,23 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name || inputs.ref }}
 
+      - name: Check Vercel secrets
+        run: |
+          missing=()
+          [[ -n "$VERCEL_TOKEN" ]] || missing+=(VERCEL_TOKEN)
+          [[ -n "$VERCEL_ORG_ID" ]] || missing+=(VERCEL_ORG_ID)
+          [[ -n "$VERCEL_PROJECT_ID" ]] || missing+=(VERCEL_PROJECT_ID)
+          if (( ${#missing[@]} )); then
+            echo "Missing GitHub secrets: ${missing[*]}"
+            exit 1
+          fi
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Pull Vercel project
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
       # Container projects (Dockerfile.vercel) must be built on Vercel. Do not
-      # use `vercel build --prebuilt`; that path is for the Build Output API.
+      # use `vercel pull` + `vercel build --prebuilt`; that path is for the
+      # Build Output API. `vercel pull` also fails with project-scoped tokens
+      # (misleading ".vercel directory" error) even when deploy would succeed.
       - name: Deploy production
-        run: vercel deploy --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --yes --prod --scope "$VERCEL_ORG_ID"
