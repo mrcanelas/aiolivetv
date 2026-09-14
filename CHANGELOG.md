@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.3-beta...v0.4.0-beta) (2026-09-14)
+
+
+### Features
+
+* **channels:** add IPTV groups with optional Stremio genre extra ([b4b96fb](https://github.com/mrcanelas/aiolivetv/commit/b4b96fb13c9991bffdd868214a275aabbd840974))
+* **formatter:** enrich live.* from canonical channels and mask stream URLs ([1e10051](https://github.com/mrcanelas/aiolivetv/commit/1e10051e27a38a9998da3659cb964f9923805164))
+
+
+### Bug Fixes
+
+* **epg:** coerce Claro ClassInd ratings including code 1 as L ([4ad2e03](https://github.com/mrcanelas/aiolivetv/commit/4ad2e03abb1e41f4a5fbc7542df8712ed867b3cb))
+* **vivotv:** add logo property to channel previews ([8aa6091](https://github.com/mrcanelas/aiolivetv/commit/8aa609126da0b7e48b008e561262c018a5a89283))
+
 ## [0.3.3-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.2-beta...v0.3.3-beta) (2026-09-14)
 
 
