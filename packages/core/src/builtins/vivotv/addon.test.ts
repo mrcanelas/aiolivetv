@@ -162,9 +162,81 @@ describe('Vivo TV builtin', () => {
         {
           value: 'L',
           system: 'ClassInd',
-          icon: 'https://cdn.example/cover-l.png',
+          icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/l.svg',
         },
       ],
     });
+  });
+
+  it('falls back to the Vivo rating image when age-rating-kit has no icon', async () => {
+    const channelResponse = {
+      ok: true,
+      json: async () => ({
+        Content: {
+          List: [
+            {
+              Pid: 'LCH001',
+              Title: 'Globo HD',
+              Images: { Icon: [{ Url: 'https://cdn.example/icon.png' }] },
+            },
+          ],
+        },
+      }),
+    };
+    const emptyListResponse = {
+      ok: true,
+      json: async () => ({ Content: { List: [] } }),
+    };
+    const ratingsResponse = {
+      ok: true,
+      json: async () => ({
+        Content: {
+          List: [
+            {
+              Pid: 'AGE1',
+              Title: 'CustomRating',
+              Images: {
+                Cover: [{ Url: 'https://cdn.example/cover-custom.png' }],
+              },
+            },
+          ],
+        },
+      }),
+    };
+    const scheduleResponse = {
+      ok: true,
+      json: async () => ({
+        Content: [
+          {
+            Title: 'Jornal Nacional',
+            Start: 1_718_000_000,
+            End: 1_718_003_600,
+            AgeRatingPid: 'AGE1',
+          },
+        ],
+      }),
+    };
+
+    vi.mocked(makeRequest).mockImplementation(async (url: string) => {
+      if (url.includes('contentTypes=LCH')) return channelResponse as never;
+      if (url.includes('contentTypes=AGE')) return ratingsResponse as never;
+      if (url.includes('/schedules?')) return scheduleResponse as never;
+      return emptyListResponse as never;
+    });
+
+    const addon = new VivoTvAddon({ timeout: 1000 });
+    const catalog = await addon.getCatalog();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1_718_000_000 * 1000));
+    const meta = await addon.getMeta(catalog[0]!.id);
+    vi.useRealTimers();
+
+    expect(meta.videos?.[0]?.ratings).toEqual([
+      {
+        value: 'CustomRating',
+        system: 'ClassInd',
+        icon: 'https://cdn.example/cover-custom.png',
+      },
+    ]);
   });
 });

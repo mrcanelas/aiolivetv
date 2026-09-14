@@ -21,6 +21,7 @@ import {
   encodeChannelId,
   LIVE_TV_CATALOG_PAGE_SIZE,
 } from '../live-tv/shared.js';
+import { getContentRatingIconUrl } from '../live-tv/content-rating-icon.js';
 
 const API_BASE =
   'https://contentapi-br.cdn.telefonica.com/25/default/pt-BR';
@@ -285,11 +286,13 @@ function resolveRating(
   if (!pid) return undefined;
   const rating = reference.ratings.get(pid);
   if (!rating?.value) return undefined;
+  const icon =
+    getContentRatingIconUrl(VIVO_RATING_SYSTEM, rating.value) || rating.icon;
   return [
     {
       value: rating.value,
       system: VIVO_RATING_SYSTEM,
-      ...(rating.icon ? { icon: rating.icon } : {}),
+      ...(icon ? { icon } : {}),
     },
   ];
 }
