@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.2.0-beta...v0.3.0-beta) (2026-09-14)
+
+
+### Features
+
+* **branding:** update product tagline and description for clarity ([a2e3e26](https://github.com/mrcanelas/aiolivetv/commit/a2e3e2622a5df6ce4a296d3b9345f15075753e2d))
+* **channels:** add a manual HLS modal with headers and formatter metadata ([203a429](https://github.com/mrcanelas/aiolivetv/commit/203a42987d9c8a9ca3330bddd6ab085e8da6c6d6))
+* **epg:** fill missing content rating icons from age-rating-kit ([fd54a7c](https://github.com/mrcanelas/aiolivetv/commit/fd54a7c87690bb6a4b1af155317db0041c9e9a32))
+* **epg:** use age-rating-kit icons for Vivo TV ClassInd ratings ([d1fe2fe](https://github.com/mrcanelas/aiolivetv/commit/d1fe2fe54da33b93c844bd7eeb4cc134e10b7a1b))
+* **formatter:** adapt live TV templates with live.* and a colored editor ([b1ed4ad](https://github.com/mrcanelas/aiolivetv/commit/b1ed4ad9fe031ca8a6f62266e649df53251cd284))
+* **formatter:** add a preset preview browser for Live TV layouts ([1ba511a](https://github.com/mrcanelas/aiolivetv/commit/1ba511a3738acad56a11d1464e632c745fcd16a6))
+
+
+### Bug Fixes
+
+* **frontend:** keep channel stream actions inside the mapping modal ([572a016](https://github.com/mrcanelas/aiolivetv/commit/572a0167d475b81ed91a76613e763fe295ae20d9))
+* keep the UI version in sync with package.json ([c10b605](https://github.com/mrcanelas/aiolivetv/commit/c10b60508036cd80501228bf3f356af5d5745fbd))
+
 ## [0.2.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.1.0-beta...v0.2.0-beta) (2026-09-12)
 
 
