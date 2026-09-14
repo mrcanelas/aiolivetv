@@ -1,6 +1,6 @@
 export const PRODUCT_NAME = 'AIOLiveTV';
 export const PRODUCT_TAGLINE =
-  'Agregador unificado de Live TV para Stremio.';
+  'A unified Live TV hub for Stremio. Aggregate channels from multiple addons, EPG providers and M3U playlists into a single guide.';
 export const PRODUCT_LOGO_PATH = '/logo.png';
 export const PRODUCT_GITHUB_OWNER = 'mrcanelas';
 export const PRODUCT_GITHUB_REPO = 'aiolivetv';
