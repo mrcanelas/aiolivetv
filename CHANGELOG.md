@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.0-beta...v0.3.1-beta) (2026-09-14)
+
+
+### Bug Fixes
+
+* **ci:** skip vercel pull so container deploys work with project tokens ([689cffb](https://github.com/mrcanelas/aiolivetv/commit/689cffbeb672e6581f8f4e766b313ea24275c2f2))
+
 ## [0.3.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.2.0-beta...v0.3.0-beta) (2026-09-14)
 
 
