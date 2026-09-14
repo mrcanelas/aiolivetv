@@ -37,12 +37,24 @@ jobs:
             exit 1
           fi
 
+      # The CLI always preflights GET /v2/user. Project- and team-scoped tokens
+      # return 404 "User not found" here even when they can deploy the project.
+      - name: Check Vercel token scope
+        run: |
+          code=$(curl -sS -o /tmp/vercel-user.json -w "%{http_code}" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            https://api.vercel.com/v2/user)
+          if [[ "$code" != "200" ]]; then
+            echo "::error::VERCEL_TOKEN cannot call GET /v2/user (HTTP $code). Recreate it at https://vercel.com/account/tokens with Full Account scope. Project-scoped and team-scoped tokens fail this CLI check."
+            cat /tmp/vercel-user.json
+            exit 1
+          fi
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
       # Container projects (Dockerfile.vercel) must be built on Vercel. Do not
       # use `vercel pull` + `vercel build --prebuilt`; that path is for the
-      # Build Output API. `vercel pull` also fails with project-scoped tokens
-      # (misleading ".vercel directory" error) even when deploy would succeed.
+      # Build Output API. VERCEL_ORG_ID + VERCEL_PROJECT_ID link the project.
       - name: Deploy production
-        run: vercel deploy --yes --prod --scope "$VERCEL_ORG_ID"
+        run: vercel deploy --yes --prod
