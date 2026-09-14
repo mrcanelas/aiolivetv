@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.1-beta...v0.3.2-beta) (2026-09-14)
+
+
+### Bug Fixes
+
+* **ci:** require a Full Account Vercel token for CLI deploys ([e667ade](https://github.com/mrcanelas/aiolivetv/commit/e667ade9b33cc597a79bf1a5f74d0d658ab5be3b))
+
 ## [0.3.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.0-beta...v0.3.1-beta) (2026-09-14)
 
 
