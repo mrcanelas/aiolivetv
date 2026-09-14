@@ -23,8 +23,7 @@ import {
 } from '../live-tv/shared.js';
 import { getContentRatingIconUrl } from '../live-tv/content-rating-icon.js';
 
-const API_BASE =
-  'https://contentapi-br.cdn.telefonica.com/25/default/pt-BR';
+const API_BASE = 'https://contentapi-br.cdn.telefonica.com/25/default/pt-BR';
 const SOURCE_CACHE_TTL = 300;
 const REFERENCE_CACHE_TTL = 86_400;
 const EPISODE_PATTERN = /T(\d+)\s+EP(\d+)/;
@@ -401,6 +400,7 @@ export class VivoTvAddon {
         bareChannelPreview({
           id: encodeChannelId(channel.pid),
           name: channel.name,
+          logo: channel.logo,
           poster: channel.logo,
           tvgId: channel.tvgId,
           country: 'BR',
@@ -492,6 +492,7 @@ export class VivoTvAddon {
       id: encodedId,
       type: TV_TYPE,
       name: channel.name,
+      logo: channel.logo,
       poster: channel.logo,
       posterShape: 'square',
       country: 'BR',

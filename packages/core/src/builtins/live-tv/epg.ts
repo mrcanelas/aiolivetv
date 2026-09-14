@@ -56,10 +56,7 @@ export function toContentRatings(
 export function parseCatalogExtras(extras?: string): CatalogExtras {
   const params = new URLSearchParams(extras?.replace(/^\//, '') ?? '');
   return {
-    skip: Math.max(
-      0,
-      Number.parseInt(params.get('skip') ?? '0', 10) || 0
-    ),
+    skip: Math.max(0, Number.parseInt(params.get('skip') ?? '0', 10) || 0),
     date: params.get('date') ?? undefined,
   };
 }
@@ -119,9 +116,9 @@ export function programOverlapsUtcDay(
   return program.endTime > start && program.startTime < end;
 }
 
-export function programToVideo(input: EpgProgramVideoInput): NonNullable<
-  Meta['videos']
->[number] {
+export function programToVideo(
+  input: EpgProgramVideoInput
+): NonNullable<Meta['videos']>[number] {
   return {
     id: `${input.channelEncodedId}:epg:${input.startTime}`,
     title: input.title,
@@ -171,6 +168,7 @@ export function guideChannelMeta(
 export function bareChannelPreview(channel: {
   id: string;
   name: string;
+  logo?: string;
   poster?: string;
   tvgId?: string;
   aliases?: string[];
