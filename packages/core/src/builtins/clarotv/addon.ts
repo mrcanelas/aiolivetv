@@ -23,11 +23,14 @@ import {
   LIVE_TV_CATALOG_PAGE_SIZE,
 } from '../live-tv/shared.js';
 
-const API_BASE = 'https://www.clarotvmais.com.br/avsclient/1.2/epg/livechannels';
+const API_BASE =
+  'https://www.clarotvmais.com.br/avsclient/1.2/epg/livechannels';
 const SOURCE_CACHE_TTL = 300;
 const DEFAULT_LOCATION = 'SAO PAULO,SAO PAULO';
 
-const sourceCache = Cache.getInstance<string, ClaroChannel[]>('clarotv-channels');
+const sourceCache = Cache.getInstance<string, ClaroChannel[]>(
+  'clarotv-channels'
+);
 
 export const ClaroTvConfigSchema = z.object({
   timeout: z.number().int().positive(),
@@ -45,6 +48,12 @@ interface ClaroChannel {
   tvgId: string;
 }
 
+interface ClaroRating {
+  code?: string | number;
+}
+
+type ClaroRatingValue = string | number | ClaroRating;
+
 interface ClaroScheduleItem {
   title: string;
   description?: string;
@@ -53,9 +62,9 @@ interface ClaroScheduleItem {
   image?: string;
   startTime: number;
   endTime: number;
-  rating?: string;
-  parentalRating?: string;
-  ageRating?: string;
+  rating?: ClaroRatingValue;
+  parentalRating?: ClaroRatingValue;
+  ageRating?: ClaroRatingValue;
 }
 
 interface ClaroLiveChannelsResponse {
@@ -75,6 +84,24 @@ function normalizeChannelTitle(title: string): string {
 
 function programThumbnailUrl(url: string): string {
   return url.replace('{{image-size-placeholder}}', '420_236');
+}
+
+/** Claro sends ClassInd L as numeric code 1; other ages are the age itself. */
+const CLARO_CLASSIND: Record<string, string> = {
+  '1': 'L',
+};
+
+function claroRatingValue(rating?: ClaroRatingValue): unknown {
+  if (rating && typeof rating === 'object') return rating.code;
+  return rating;
+}
+
+function normalizeClaroClassInd(rating?: ClaroRatingValue): string | undefined {
+  const raw = claroRatingValue(rating);
+  if (raw == null) return undefined;
+  const key = String(raw).trim();
+  if (!key) return undefined;
+  return CLARO_CLASSIND[key] ?? key;
 }
 
 function buildEpgUrl(
@@ -217,7 +244,10 @@ function scheduleToVideo(
     endTime,
     ratings: toContentRatings([
       {
-        value: item.rating ?? item.parentalRating ?? item.ageRating,
+        value:
+          normalizeClaroClassInd(item.rating) ??
+          normalizeClaroClassInd(item.parentalRating) ??
+          normalizeClaroClassInd(item.ageRating),
         system: 'ClassInd',
       },
     ]),
@@ -360,6 +390,7 @@ export class ClaroTvAddon {
       name: channel.name,
       poster: channel.logo,
       posterShape: 'square',
+      logo: channel.logo,
       country: 'BR',
       language: 'pt',
       behaviorHints: { hasScheduledVideos: true },

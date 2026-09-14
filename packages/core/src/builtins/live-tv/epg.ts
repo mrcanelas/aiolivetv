@@ -33,16 +33,30 @@ export interface EpgProgramVideoInput {
   ratings?: ContentRating[];
 }
 
+function asTrimmedString(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || undefined;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (value && typeof value === 'object' && 'code' in value) {
+    return asTrimmedString((value as { code?: unknown }).code);
+  }
+  return undefined;
+}
+
 export function toContentRatings(
-  ratings?: Array<{ value?: string; system?: string; icon?: string }>
+  ratings?: Array<{ value?: unknown; system?: unknown; icon?: unknown }>
 ): ContentRating[] | undefined {
   const normalized = (ratings ?? [])
     .map((rating) => {
-      const value = rating.value?.trim();
+      const value = asTrimmedString(rating.value);
       if (!value) return undefined;
-      const system = rating.system?.trim();
+      const system = asTrimmedString(rating.system);
       const icon =
-        rating.icon?.trim() || getContentRatingIconUrl(system, value);
+        asTrimmedString(rating.icon) || getContentRatingIconUrl(system, value);
       return {
         value,
         ...(system ? { system } : {}),

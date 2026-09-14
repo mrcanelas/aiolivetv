@@ -83,6 +83,22 @@ describe('live TV sources', () => {
         icon: 'https://cdn.example/cover-l.png',
       },
     ]);
+    expect(toContentRatings([{ value: 12, system: 'ClassInd' }])).toEqual([
+      {
+        value: '12',
+        system: 'ClassInd',
+        icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/12.svg',
+      },
+    ]);
+    expect(
+      toContentRatings([{ value: { code: 12 }, system: 'ClassInd' }])
+    ).toEqual([
+      {
+        value: '12',
+        system: 'ClassInd',
+        icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/12.svg',
+      },
+    ]);
   });
 
   it('uses the same channel ID for XMLTV and M3U identifiers', async () => {

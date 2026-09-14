@@ -89,7 +89,13 @@ describe('Claro TV+ builtin', () => {
                     'https://cdn.example/frame-{{image-size-placeholder}}.jpg',
                   startTime: 1_718_000_000,
                   endTime: 1_718_003_600,
-                  parentalRating: '12',
+                  rating: { code: 12 },
+                },
+                {
+                  title: 'Desenho animado',
+                  startTime: 1_718_003_600,
+                  endTime: 1_718_007_200,
+                  rating: { code: 1 },
                 },
               ],
             },
@@ -124,6 +130,16 @@ describe('Claro TV+ builtin', () => {
           value: '12',
           system: 'ClassInd',
           icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/12.svg',
+        },
+      ],
+    });
+    expect(meta.videos?.[1]).toMatchObject({
+      title: 'Desenho animado',
+      ratings: [
+        {
+          value: 'L',
+          system: 'ClassInd',
+          icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/l.svg',
         },
       ],
     });
