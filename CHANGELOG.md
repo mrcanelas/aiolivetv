@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.4.0-beta...v0.4.1-beta) (2026-09-15)
+
+
+### Bug Fixes
+
+* **channels:** drop unmatched streams from Needs review ([93c0ce2](https://github.com/mrcanelas/aiolivetv/commit/93c0ce2a0502fe6a09f5c834c9961b2bb53eadbf))
+* **channels:** keep encoded ids when linking stream sources ([02a2773](https://github.com/mrcanelas/aiolivetv/commit/02a27736feabc1b418a957e888bd7e3623be5b47))
+* **http:** reuse ProxyAgent across outbound requests ([35bb305](https://github.com/mrcanelas/aiolivetv/commit/35bb305ac4eae80a68cffa69b1a575197c0b5bc3))
+
 ## [0.4.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.3.3-beta...v0.4.0-beta) (2026-09-14)
 
 
