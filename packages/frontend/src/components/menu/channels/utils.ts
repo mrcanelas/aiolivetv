@@ -1,7 +1,6 @@
 import type {
   ChannelInfo,
   ChannelsResponse,
-  UnmatchedStreamInfo,
 } from '@/lib/api';
 
 export function isChannelSuggestion(confidence: number) {
@@ -231,7 +230,6 @@ export type ChannelReviewFilter =
   | 'suggestions'
   | 'duplicates'
   | 'no-schedule'
-  | 'unmatched'
   | 'unavailable';
 
 export function compactChannelLabel(name: string) {
@@ -281,28 +279,11 @@ export function filterChannelsByReview(
       return channels.filter(
         (channel) => channel.enabled && !channelHasSchedule(channel)
       );
-    case 'unmatched':
     case 'unavailable':
       return channels;
     default:
       return channels;
   }
-}
-
-export function visibleUnmatchedStreams(
-  unmatched: UnmatchedStreamInfo[],
-  channels: ChannelInfo[]
-) {
-  const bound = new Set(
-    channels.flatMap((channel) =>
-      channel.mappings.map(
-        (mapping) => `${mapping.addonId}\0${mapping.channelId}`
-      )
-    )
-  );
-  return unmatched.filter(
-    (item) => !bound.has(`${item.addonId}\0${item.channelId}`)
-  );
 }
 
 export function formatDurationMs(ms: number) {

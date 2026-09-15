@@ -3,7 +3,6 @@ import { StaticTabs } from '@/components/ui/tabs';
 import type {
   ChannelInfo,
   DuplicateChannelGroup,
-  UnmatchedStreamInfo,
   UnavailableStreamInfo,
 } from '@/lib/api';
 import { type ChannelReviewFilter, countSuggestions } from '../utils';
@@ -14,7 +13,6 @@ type NeedsReviewCardProps = {
   channels: ChannelInfo[];
   noStreamCount: number;
   duplicateGroups: DuplicateChannelGroup[];
-  unmatchedStreams: UnmatchedStreamInfo[];
   unavailableStreams: UnavailableStreamInfo[];
   noScheduleCount: number;
 };
@@ -32,7 +30,6 @@ export function NeedsReviewCard({
   channels,
   noStreamCount,
   duplicateGroups,
-  unmatchedStreams,
   unavailableStreams,
   noScheduleCount,
 }: NeedsReviewCardProps) {
@@ -45,12 +42,8 @@ export function NeedsReviewCard({
     noStreamCount +
     suggestionCount +
     duplicateCount +
-    unmatchedStreams.length +
     unavailableStreams.length +
     noScheduleCount;
-  const showUnmatched =
-    (filter === 'all' || filter === 'unmatched') &&
-    unmatchedStreams.length > 0;
   const showUnavailable =
     (filter === 'all' || filter === 'unavailable') &&
     unavailableStreams.length > 0;
@@ -68,7 +61,7 @@ export function NeedsReviewCard({
   return (
     <SettingsCard
       title="Needs review"
-      description="Conflicts from the latest scan. Channel lists filter My Channels; unmatched and unavailable streams stay here until you map or refresh them."
+      description="Channel issues from the latest scan. Tabs filter My Channels below."
     >
       <StaticTabs
         className="mb-4 h-10 w-fit max-w-full rounded-full border"
@@ -79,29 +72,11 @@ export function NeedsReviewCard({
           tab('Suggestions', 'suggestions', suggestionCount),
           tab('Duplicates', 'duplicates', duplicateCount),
           tab('No schedule', 'no-schedule', noScheduleCount),
-          tab('Unmatched', 'unmatched', unmatchedStreams.length),
-          tab('Unavailable', 'unavailable', unavailableStreams.length),
+          ...(unavailableStreams.length > 0
+            ? [tab('Unavailable', 'unavailable', unavailableStreams.length)]
+            : []),
         ]}
       />
-
-      {showUnmatched ? (
-        <div className="mb-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[--muted]">
-            Streams without a channel ({unmatchedStreams.length})
-          </p>
-          <ul className="space-y-1.5">
-            {unmatchedStreams.map((item) => (
-              <li
-                key={`${item.addonId}\0${item.channelId}`}
-                className="rounded-[--radius-md] border border-[--border] px-3 py-2 text-sm"
-              >
-                <p className="truncate font-medium">{item.name}</p>
-                <p className="text-xs text-[--muted]">{item.addonName}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       {showUnavailable ? (
         <div className="mb-4 space-y-2">

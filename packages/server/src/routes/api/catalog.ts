@@ -228,12 +228,6 @@ router.post(
         streamCount: number;
         programCount?: number;
       };
-      type UnmatchedStream = {
-        addonId: string;
-        addonName: string;
-        channelId: string;
-        name: string;
-      };
       type UnavailableStream = {
         channelId: string;
         channelName: string;
@@ -787,22 +781,6 @@ router.post(
         .sort((a, b) =>
           a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
         );
-      const unmatchedStreams: UnmatchedStream[] = streamCandidates
-        .filter(
-          (candidate) =>
-            !hiddenChannelIds.has(candidate.id) &&
-            !assigned.has(candidateKey(candidate.addonId, candidate.id))
-        )
-        .map((candidate) => ({
-          addonId: candidate.addonId,
-          addonName: candidate.addonName,
-          channelId: candidate.id,
-          name: candidate.name,
-        }))
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-        );
-
       res.status(200).json(
         createResponse({
           success: true,
@@ -811,7 +789,7 @@ router.post(
             sources: [...sources.values()].sort((a, b) =>
               a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
             ),
-            unmatchedStreams,
+            unmatchedStreams: [],
             unavailableStreams,
             duplicates: findPossibleDuplicateChannels(visibleChannels),
           },

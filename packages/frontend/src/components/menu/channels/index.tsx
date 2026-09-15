@@ -43,7 +43,6 @@ import {
   groupChannelsBySource,
   channelHasPlayableStream,
   channelHasSchedule,
-  visibleUnmatchedStreams,
   MANUAL_STREAM_ADDON_ID,
   normalizeChannelGroup,
   parseStreamSourceKey,
@@ -109,10 +108,6 @@ export function ChannelsMenu() {
   const duplicateIds = React.useMemo(
     () => new Set(duplicateGroups.flatMap((group) => group.channelIds)),
     [duplicateGroups]
-  );
-  const unmatchedStreams = visibleUnmatchedStreams(
-    channelsResponse.unmatchedStreams,
-    channels
   );
   const noStreamCount = channels.filter(
     (channel) => channel.enabled && !channelHasPlayableStream(channel)
@@ -701,7 +696,6 @@ export function ChannelsMenu() {
         channels={channels}
         noStreamCount={noStreamCount}
         duplicateGroups={duplicateGroups}
-        unmatchedStreams={unmatchedStreams}
         unavailableStreams={channelsResponse.unavailableStreams}
         noScheduleCount={noScheduleCount}
       />

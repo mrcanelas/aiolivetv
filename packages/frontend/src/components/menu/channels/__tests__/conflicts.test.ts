@@ -9,7 +9,6 @@ import {
   findDuplicateGroups,
   parseStreamSourceKey,
   streamSourceKey,
-  visibleUnmatchedStreams,
 } from '../utils';
 
 function channel(
@@ -139,35 +138,6 @@ describe('filterChannelsByReview', () => {
         (item) => item.id
       )
     ).toEqual(['streamed']);
-  });
-});
-
-describe('visibleUnmatchedStreams', () => {
-  it('hides streams that were mapped locally after the scan', () => {
-    expect(
-      visibleUnmatchedStreams(
-        [{ addonId: 'm3u', addonName: 'M3U', channelId: 'm3u:cnn', name: 'CNN' }],
-        [
-          channel({
-            id: 'cnn',
-            name: 'CNN',
-            mappings: [
-              {
-                id: 'm3u:cnn',
-                addonId: 'm3u',
-                addonName: 'M3U',
-                channelId: 'm3u:cnn',
-                name: 'CNN',
-                confidence: 1,
-                enabled: true,
-                epgProvider: false,
-                canStream: true,
-              },
-            ],
-          }),
-        ]
-      )
-    ).toEqual([]);
   });
 });
 
