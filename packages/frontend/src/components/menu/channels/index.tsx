@@ -46,6 +46,7 @@ import {
   visibleUnmatchedStreams,
   MANUAL_STREAM_ADDON_ID,
   normalizeChannelGroup,
+  parseStreamSourceKey,
 } from './utils';
 
 export function ChannelsMenu() {
@@ -399,8 +400,9 @@ export function ChannelsMenu() {
   const linkStreamSource = (channelId: string) => {
     const sourceKey = linkStreamTargets[channelId];
     if (!sourceKey) return;
-    const [addonId, streamChannelId] = sourceKey.split(':', 2);
-    if (!addonId || !streamChannelId) return;
+    const parsed = parseStreamSourceKey(sourceKey);
+    if (!parsed) return;
+    const { addonId, streamChannelId } = parsed;
     setChannels((current) =>
       current.map((channel) => {
         if (channel.id !== channelId) return channel;

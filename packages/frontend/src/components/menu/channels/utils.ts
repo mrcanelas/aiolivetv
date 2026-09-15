@@ -56,6 +56,21 @@ export type ChannelSortMode = 'alphabetical' | 'source';
 
 export const MANUAL_STREAM_ADDON_ID = 'manual';
 
+const STREAM_SOURCE_KEY_SEP = '\0';
+
+export function streamSourceKey(addonId: string, channelId: string) {
+  return `${addonId}${STREAM_SOURCE_KEY_SEP}${channelId}`;
+}
+
+export function parseStreamSourceKey(key: string) {
+  const sep = key.indexOf(STREAM_SOURCE_KEY_SEP);
+  if (sep <= 0 || sep === key.length - 1) return undefined;
+  return {
+    addonId: key.slice(0, sep),
+    streamChannelId: key.slice(sep + 1),
+  };
+}
+
 export type ManualHlsDetails = {
   url: string;
   name: string;

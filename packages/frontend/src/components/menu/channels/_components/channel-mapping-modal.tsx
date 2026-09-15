@@ -17,13 +17,10 @@ import type { ChannelInfo } from '@/lib/api';
 import {
   isChannelSuggestion,
   isManualStreamMapping,
+  streamSourceKey,
 } from '../utils';
 import { formatDeclaredSummary } from '../declared-summary';
 import { cn } from '@/components/ui/core/styling';
-
-function streamSourceKey(addonId: string, channelId: string) {
-  return `${addonId}:${channelId}`;
-}
 
 type ChannelMappingModalProps = {
   channel: ChannelInfo | null;
@@ -68,7 +65,6 @@ export function ChannelMappingModal({
   onToggleStream,
   preventDismiss = false,
 }: ChannelMappingModalProps) {
-
   if (!channel) return null;
 
   const pendingCount = channel.mappings.filter((mapping) =>

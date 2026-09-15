@@ -7,6 +7,8 @@ import {
   compactChannelLabel,
   filterChannelsByReview,
   findDuplicateGroups,
+  parseStreamSourceKey,
+  streamSourceKey,
   visibleUnmatchedStreams,
 } from '../utils';
 
@@ -174,5 +176,19 @@ describe('asChannelsResponse', () => {
     expect(asChannelsResponse([channel({ id: 'a', name: 'A' })]).channels).toHaveLength(
       1
     );
+  });
+});
+
+describe('stream source search', () => {
+  it('keeps encoded channel ids when parsing the selected key', () => {
+    const key = streamSourceKey('frost-view', 'aiolivetv:abc123');
+    expect('frost-view:aiolivetv:abc123'.split(':', 2)).toEqual([
+      'frost-view',
+      'aiolivetv',
+    ]);
+    expect(parseStreamSourceKey(key)).toEqual({
+      addonId: 'frost-view',
+      streamChannelId: 'aiolivetv:abc123',
+    });
   });
 });
