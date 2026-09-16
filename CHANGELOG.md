@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.4.1-beta...v0.4.2-beta) (2026-09-16)
+
+
+### Bug Fixes
+
+* **cache:** CDN-cache catalog and meta without freezing streams ([74e4306](https://github.com/mrcanelas/aiolivetv/commit/74e43061de60b5c54047a180384554686a3d8f49))
+* **catalog:** apply channel name, logo and sort order from mappings ([44a4b36](https://github.com/mrcanelas/aiolivetv/commit/44a4b36a7df1c11837de03c1186237153cc1985c))
+
 ## [0.4.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.4.0-beta...v0.4.1-beta) (2026-09-15)
 
 
