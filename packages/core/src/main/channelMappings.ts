@@ -107,17 +107,40 @@ export function getEffectiveChannelGroup(
 }
 
 export function applyLiveChannelGroupOverlay<
-  T extends { id: string; genres?: string[] | null },
+  T extends {
+    id: string;
+    name?: string | null;
+    poster?: string | null;
+    logo?: string | null;
+    genres?: string[] | null;
+  },
 >(userData: UserData, items: T[]): T[] {
   return items.map((item) => {
+    const mapping = getChannelMapping(userData, item.id);
     const group = getEffectiveChannelGroup(
       userData,
       item.id,
       Array.isArray(item.genres) ? item.genres[0] : undefined
     );
-    if (!group) return item;
-    return { ...item, genres: [group] };
+    const name = mapping?.name?.trim();
+    const poster = mapping?.poster?.trim();
+    return {
+      ...item,
+      ...(name ? { name } : {}),
+      ...(poster ? { poster, logo: poster } : {}),
+      ...(group ? { genres: [group] } : {}),
+    };
   });
+}
+
+export function sortLiveCatalogItems<
+  T extends { id: string; name?: string | null },
+>(items: T[]): T[] {
+  return [...items].sort((left, right) =>
+    (left.name ?? left.id).localeCompare(right.name ?? right.id, undefined, {
+      sensitivity: 'base',
+    })
+  );
 }
 
 function normaliseId(value?: string) {

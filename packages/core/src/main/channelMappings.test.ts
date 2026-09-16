@@ -8,6 +8,7 @@ import {
   getEffectiveChannelGroup,
   isLiveChannelVisible,
   MANUAL_STREAM_ADDON_ID,
+  sortLiveCatalogItems,
 } from './channelMappings.js';
 import type { UserData } from '../db/index.js';
 import { ChannelMapping } from '../db/channelMapping.js';
@@ -28,6 +29,46 @@ describe('channel group overlay', () => {
         { id: 'aiolivetv:globo', genres: ['VARIEDADES'] },
       ])
     ).toEqual([{ id: 'aiolivetv:globo', genres: ['Esportes'] }]);
+  });
+
+  it('applies mapping name and poster to catalog items', () => {
+    const userData = {
+      ...baseUserData,
+      channelMappings: [
+        {
+          id: 'aiolivetv:globo',
+          name: '01 Globo',
+          poster: 'https://example.com/globo.png',
+        },
+      ],
+    } as UserData;
+    expect(
+      applyLiveChannelGroupOverlay(userData, [
+        {
+          id: 'aiolivetv:globo',
+          name: 'Globo',
+          poster: 'https://cdn.example/old.png',
+          genres: ['Variedades'],
+        },
+      ])
+    ).toEqual([
+      {
+        id: 'aiolivetv:globo',
+        name: '01 Globo',
+        poster: 'https://example.com/globo.png',
+        logo: 'https://example.com/globo.png',
+        genres: ['Variedades'],
+      },
+    ]);
+  });
+
+  it('sorts catalog items by the overlaid name', () => {
+    expect(
+      sortLiveCatalogItems([
+        { id: 'b', name: 'SBT' },
+        { id: 'a', name: '01 Globo' },
+      ]).map((item) => item.id)
+    ).toEqual(['a', 'b']);
   });
 
   it('keeps the source group when there is no override', () => {

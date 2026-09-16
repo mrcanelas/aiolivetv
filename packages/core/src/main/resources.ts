@@ -1364,6 +1364,13 @@ export async function getMeta(
       } else {
         meta.links = convertDiscoverDeepLinks(ctx, meta.links);
       }
+      if (isLiveChannel) {
+        if (channelMapping?.name?.trim()) meta.name = channelMapping.name.trim();
+        if (channelMapping?.poster?.trim()) {
+          meta.poster = channelMapping.poster.trim();
+          meta.logo = channelMapping.poster.trim();
+        }
+      }
       if (meta.videos) {
         meta.videos = await Promise.all(
           meta.videos.map(async (video) => {

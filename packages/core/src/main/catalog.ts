@@ -26,6 +26,7 @@ import {
   deduplicateLiveTvItems,
   isLiveChannelType,
   isLiveChannelVisible,
+  sortLiveCatalogItems,
 } from './channelMappings.js';
 import { normalizeChannelGroup } from '../utils/channelName.js';
 import {
@@ -198,17 +199,25 @@ function itemMatchesCatalogGenre(
 }
 
 function applyLiveTvCatalogOverlay<
-  T extends { id: string; genres?: string[] | null },
+  T extends {
+    id: string;
+    name?: string | null;
+    poster?: string | null;
+    logo?: string | null;
+    genres?: string[] | null;
+  },
 >(
   ctx: Pick<AIOStreamsContext, 'userData'>,
   type: string,
   items: T[],
-  genre?: string
+  genre?: string,
+  sortByName = true
 ): T[] {
   if (!isLiveChannelType(type)) return items;
-  return applyLiveChannelGroupOverlay(ctx.userData, items).filter((item) =>
-    itemMatchesCatalogGenre(item, genre)
+  const overlaid = applyLiveChannelGroupOverlay(ctx.userData, items).filter(
+    (item) => itemMatchesCatalogGenre(item, genre)
   );
+  return sortByName ? sortLiveCatalogItems(overlaid) : overlaid;
 }
 
 /**
@@ -776,7 +785,6 @@ export async function getMergedCatalog(
   );
   if (type === constants.TV_TYPE) {
     allItems = deduplicateLiveTvItems(ctx.userData, allItems);
-    allItems = applyLiveTvCatalogOverlay(ctx, type, allItems, requestedGenre);
   }
 
   const shuffleCacheKey = `${baseCacheKey}-skip=${requestedSkip}-shuffle`;
@@ -789,6 +797,20 @@ export async function getMergedCatalog(
     parsedExtras,
     shuffleCacheKey
   );
+
+  if (type === constants.TV_TYPE) {
+    const modification = ctx.userData.catalogModifications?.find(
+      (mod) =>
+        mod.id === id && (mod.type === type || mod.overrideType === type)
+    );
+    allItems = applyLiveTvCatalogOverlay(
+      ctx,
+      type,
+      allItems,
+      requestedGenre,
+      !modification?.shuffle && !modification?.reverse
+    );
+  }
 
   const nextSkip = requestedSkip + allItems.length;
 
@@ -900,6 +922,11 @@ export async function getCatalog(
     shuffleCacheKey
   );
 
+  const modification = ctx.userData.catalogModifications?.find(
+    (mod) =>
+      mod.id === id && (mod.type === type || mod.overrideType === type)
+  );
+
   return {
     success: true,
     data: isLiveChannelType(type)
@@ -907,7 +934,8 @@ export async function getCatalog(
           ctx,
           type,
           catalog.filter((item) => isLiveChannelVisible(ctx.userData, item.id)),
-          parsedExtras.genre
+          parsedExtras.genre,
+          !modification?.shuffle && !modification?.reverse
         )
       : catalog,
     errors: [],
