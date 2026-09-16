@@ -7,6 +7,10 @@ import {
 } from '@aiolivetv/core';
 import { stremioCatalogRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
+import {
+  catalogExtrasAreCdnCacheable,
+  setStremioCatalogCacheHeaders,
+} from '../../utils/stremioCacheHeaders.js';
 
 const logger = createLogger('server');
 const router: Router = Router();
@@ -25,6 +29,7 @@ router.get(
   async (req: Request<CatalogParams>, res: Response<CatalogResponse>, next) => {
     const transformer = new StremioTransformer(req.userData);
     if (!req.userData) {
+      setStremioCatalogCacheHeaders(res, { cacheable: false });
       res.status(200).json(
         transformer.transformCatalog({
           success: false,
@@ -42,6 +47,14 @@ router.get(
         await new AIOStreams(req.userData).initialise()
       ).getCatalog(type, id, extras);
       const catalog = transformer.transformCatalog(result);
+      const itemCount =
+        (catalog.metas?.length ?? 0) + (catalog.metasDetailed?.length ?? 0);
+      setStremioCatalogCacheHeaders(res, {
+        cacheable:
+          result.success &&
+          itemCount > 0 &&
+          catalogExtrasAreCdnCacheable(extras),
+      });
       res.status(200).json(
         result.success
           ? {
@@ -61,6 +74,7 @@ router.get(
       ];
       if (transformer.showError('catalog', errors)) {
         logger.error(`Unexpected error during catalog retrieval: ${errorMsg}`);
+        setStremioCatalogCacheHeaders(res, { cacheable: false });
         res.status(200).json(
           transformer.transformCatalog({
             success: false,

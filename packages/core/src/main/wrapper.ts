@@ -40,6 +40,7 @@ import {
   appConfig,
   getTimeTakenSincePoint,
   RequestOptions,
+  isEphemeralRuntime,
 } from '../utils/index.js';
 import { Preset, PresetManager } from '../presets/index.js';
 import {
@@ -553,7 +554,10 @@ export class Wrapper {
       bypassCache,
     } = options;
 
-    let doBackground = appConfig.resources.background.enabled && cacher;
+    let doBackground =
+      appConfig.resources.background.enabled &&
+      !!cacher &&
+      !isEphemeralRuntime();
 
     let cached = null;
 
@@ -642,7 +646,10 @@ export class Wrapper {
     const { type, id, extras } = params;
     const url = this.buildResourceUrl(resource, type, id, extras);
     const effectiveCacheKey = cacheKey || url;
-    let doBackground = appConfig.resources.background.enabled && cacher;
+    let doBackground =
+      appConfig.resources.background.enabled &&
+      !!cacher &&
+      !isEphemeralRuntime();
 
     logger.debug(
       {
@@ -683,8 +690,19 @@ export class Wrapper {
         cacher,
         cacheKey: effectiveCacheKey,
         cacheTtl,
-        shouldCache: (data: T) =>
-          resource !== 'stream' || (Array.isArray(data) && data.length > 0),
+        shouldCache: (data: T) => {
+          if (resource === 'stream') {
+            return Array.isArray(data) && data.length > 0;
+          }
+          if (resource === 'catalog' && data && typeof data === 'object') {
+            const catalog = data as CatalogResponse;
+            return (
+              (catalog.metas?.length ?? 0) > 0 ||
+              (catalog.metasDetailed?.length ?? 0) > 0
+            );
+          }
+          return true;
+        },
       });
       const count = this.resultCountOf(data);
       track({

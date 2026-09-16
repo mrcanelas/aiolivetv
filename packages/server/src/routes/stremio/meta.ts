@@ -11,6 +11,7 @@ import {
 import { stremioMetaRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
 import { createResponse } from '../../utils/responses.js';
+import { setStremioMetaCacheHeaders } from '../../utils/stremioCacheHeaders.js';
 
 const logger = createLogger('server');
 const router: Router = Router();
@@ -31,6 +32,7 @@ router.get(
     next: NextFunction
   ) => {
     if (!req.userData) {
+      setStremioMetaCacheHeaders(res, { cacheable: false });
       res.status(200).json({
         meta: StremioTransformer.createErrorMeta({
           errorDescription: 'Please configure the addon first',
@@ -48,6 +50,7 @@ router.get(
       });
 
       if (isErrorMetaId(id)) {
+        setStremioMetaCacheHeaders(res, { cacheable: false });
         res.status(200).json({
           meta: StremioTransformer.createErrorMeta(
             JSON.parse(decodeURIComponent(errorMetaPayload(id)))
@@ -70,6 +73,7 @@ router.get(
         }
       );
       if (!transformed) {
+        setStremioMetaCacheHeaders(res, { cacheable: false });
         res.status(404).json(
           createResponse({
             success: false,
@@ -80,6 +84,9 @@ router.get(
           })
         );
       } else {
+        setStremioMetaCacheHeaders(res, {
+          cacheable: Boolean(transformed.meta),
+        });
         res.status(200).json({
           ...transformed,
           cacheMaxAge: 900,

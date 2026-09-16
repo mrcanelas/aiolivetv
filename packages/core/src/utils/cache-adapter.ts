@@ -186,6 +186,10 @@ export class RedisCacheBackend<K, V> implements CacheBackend<K, V> {
 
   async get(key: K, updateTTL: boolean = false): Promise<V | undefined> {
     const redisKey = this.getKey(key);
+    const pending = RedisCacheBackend.writeBuffer.get(redisKey);
+    if (pending) {
+      return JSON.parse(pending.value) as V;
+    }
 
     return withTimeout(
       async () => {

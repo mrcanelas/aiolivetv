@@ -10,6 +10,7 @@ import {
 } from '@aiolivetv/core';
 import { stremioStreamRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
+import { setStremioStreamCacheHeaders } from '../../utils/stremioCacheHeaders.js';
 
 const router: Router = Router();
 
@@ -17,6 +18,10 @@ const logger = createLogger('server');
 
 router.use(stremioStreamRateLimiter);
 router.use(trackResource('stream'));
+router.use((_req, res, next) => {
+  setStremioStreamCacheHeaders(res);
+  next();
+});
 
 interface StreamParams {
   type: string;

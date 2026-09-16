@@ -748,7 +748,8 @@ export async function getMergedCatalog(
       await mergedCatalogCache.set(
         `${baseCacheKey}-skip=${nextSkip}`,
         { sourceSkips: nextSourceSkips },
-        3600
+        3600,
+        true
       );
     }
     return {
@@ -796,7 +797,8 @@ export async function getMergedCatalog(
     await mergedCatalogCache.set(
       nextSkipCacheKey,
       { sourceSkips: nextSourceSkips },
-      3600
+      3600,
+      true
     );
   }
 
