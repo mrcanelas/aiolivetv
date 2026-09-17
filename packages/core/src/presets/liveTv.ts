@@ -310,7 +310,7 @@ export class TvpPreset extends Preset {
     return {
       ID: 'tvp',
       NAME: 'TVP',
-      LOGO: '',
+      LOGO: '/assets/tvp_logo.png',
       URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/tvp`],
       TIMEOUT: appConfig.presets.defaultTimeout,
       USER_AGENT: appConfig.http.defaultUserAgent,
