@@ -1,48 +1,46 @@
 import {
   Addon,
   Option,
-  ParsedStream,
   ParsedFile,
+  ParsedStream,
   Stream,
   UserData,
 } from '../db/index.js';
 import { Preset, baseOptions } from './preset.js';
 import { constants, LIVE_STREAM_TYPE } from '../utils/index.js';
 import { config as appConfig } from '../config/index.js';
-import { FileParser, StreamParser } from '../parser/index.js';
+import { StreamParser } from '../parser/index.js';
+import { parseDeclaredStreamInfo } from '../streams/declared.js';
 
 class USATvStreamParser extends StreamParser {
   protected override getParsedFile(
     stream: Stream,
-    parsedStream: ParsedStream
+    _parsedStream: ParsedStream
   ): ParsedFile | undefined {
-    const parsed = stream.name ? FileParser.parse(stream.name) : undefined;
-    if (!parsed) {
-      return undefined;
-    }
-    return {
-      ...parsed,
-      title: undefined,
-    };
+    return parseDeclaredStreamInfo({
+      name: stream.name,
+      description: stream.description,
+    })?.parsedFile;
   }
+
   protected override getFilename(
-    stream: Stream,
-    currentParsedStream: ParsedStream
+    _stream: Stream,
+    _currentParsedStream: ParsedStream
   ): string | undefined {
     return undefined;
   }
 
   protected override getMessage(
     stream: Stream,
-    currentParsedStream: ParsedStream
+    _currentParsedStream: ParsedStream
   ): string | undefined {
     return `${stream.name} - ${stream.description}`;
   }
 
   protected getStreamType(
-    stream: Stream,
-    service: ParsedStream['service'],
-    currentParsedStream: ParsedStream
+    _stream: Stream,
+    _service: ParsedStream['service'],
+    _currentParsedStream: ParsedStream
   ): ParsedStream['type'] {
     return constants.LIVE_STREAM_TYPE;
   }
@@ -61,18 +59,33 @@ export class USATVPreset extends Preset {
     ];
 
     const options: Option[] = [
+      {
+        id: 'resources',
+        name: 'Resources',
+        description:
+          'Choose what to use from this addon. Select only Stream to match streams to channels from other providers without listing its channels.',
+        type: 'multi-select',
+        required: false,
+        showInSimpleMode: true,
+        default: supportedResources,
+        options: supportedResources.map((resource) => ({
+          label: constants.RESOURCE_LABELS[resource],
+          value: resource,
+        })),
+      },
       ...baseOptions(
         'USA TV',
         supportedResources,
         appConfig.presets.usaTv.defaultTimeout ??
-          appConfig.presets.defaultTimeout
-      ),
+          appConfig.presets.defaultTimeout,
+        appConfig.presets.usaTv.url
+      ).filter((option) => option.id !== 'resources'),
     ];
 
     return {
       ID: 'usa-tv',
       NAME: 'USA TV',
-      LOGO: `${appConfig.presets.usaTv.url[0] ?? ''}/public/logo.png`,
+      LOGO: 'https://raw.githubusercontent.com/yowmamasita/usa-tv-next/main/public/logo.png',
       URL: appConfig.presets.usaTv.url,
       TIMEOUT:
         appConfig.presets.usaTv.defaultTimeout ??
@@ -82,15 +95,11 @@ export class USATVPreset extends Preset {
         appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Provides access to channels across various categories for USA',
+        "USA TV Next provides access to 169 channels across various categories including local channels, news, sports, entertainment, premium, lifestyle, kids' shows, documentaries, music, and Latino programming.",
       OPTIONS: options,
       SUPPORTED_STREAM_TYPES: [LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: supportedResources,
-      DISABLED: {
-        removed: true,
-        disabled: true,
-        reason: 'USA TV addon is deprecated.',
-      },
+      CATEGORY: constants.PresetCategory.STREAMS,
     };
   }
 
@@ -102,16 +111,14 @@ export class USATVPreset extends Preset {
   }
 
   private static generateAddon(
-    userData: UserData,
+    _userData: UserData,
     options: Record<string, any>
   ): Addon {
-    const baseUrl = options.url
-      ? new URL(options.url).origin
-      : this.DEFAULT_URL;
+    const source = (options.url?.trim() || this.DEFAULT_URL).replace(/\/$/, '');
+    const url = source.endsWith('/manifest.json')
+      ? source
+      : `${source}/manifest.json`;
 
-    const url = options.url?.endsWith('/manifest.json')
-      ? options.url
-      : `${baseUrl}/manifest.json`;
     return {
       name: options.name || this.METADATA.NAME,
       manifestUrl: url,
