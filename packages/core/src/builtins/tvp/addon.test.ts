@@ -54,13 +54,13 @@ describe('TVP builtin', () => {
     vi.mocked(makeRequest).mockReset();
   });
 
-  it('exposes catalog, EPG and stream metadata', () => {
+  it('exposes catalog and EPG metadata', () => {
     const addon = new TvpAddon({ timeout: 1000 });
     const manifest = addon.getManifest();
     expect(manifest.behaviorHints?.epgProvider).toBe(true);
     expect(manifest.resources.map((resource) =>
       typeof resource === 'string' ? resource : resource.name
-    )).toEqual(['catalog', 'meta', 'stream']);
+    )).toEqual(['catalog', 'meta']);
     expect(manifest.catalogs[0].extra).toEqual([
       { name: 'skip' },
       { name: 'date' },
@@ -228,60 +228,5 @@ describe('TVP builtin', () => {
           String(url).includes('products/lives/programmes')
         )
     ).toHaveLength(2);
-  });
-
-  it('returns direct HLS streams and skips DRM playlists', async () => {
-    vi.mocked(makeRequest).mockImplementation(async (url: string) => {
-      const href = String(url);
-      if (href.includes('products/lives?')) {
-        return jsonResponse({ items: [CHANNEL] });
-      }
-      if (href.includes('videos/playlist')) {
-        return jsonResponse({
-          drm: { widevine: true },
-          sources: {
-            HLS: [{ src: 'https://cdn.example/live.m3u8' }],
-          },
-        });
-      }
-      return { ok: false, json: async () => ({}) } as never;
-    });
-
-    const addon = new TvpAddon({ timeout: 1000 });
-    const catalog = await addon.getCatalog();
-    expect(await addon.getStreams(catalog[0]!.id)).toEqual([]);
-
-    cacheStores.clear();
-    vi.mocked(makeRequest).mockImplementation(async (url: string) => {
-      const href = String(url);
-      if (href.includes('products/lives?')) {
-        return jsonResponse({ items: [CHANNEL] });
-      }
-      if (href.includes('videos/playlist')) {
-        return jsonResponse({
-          sources: {
-            HLS: [{ src: 'https://cdn.example/live.m3u8' }],
-            DASH: [{ src: 'https://cdn.example/live.mpd' }],
-          },
-        });
-      }
-      return { ok: false, json: async () => ({}) } as never;
-    });
-
-    const streams = await addon.getStreams((await addon.getCatalog())[0]!.id);
-    expect(streams.map((stream) => stream.url)).toEqual([
-      'https://cdn.example/live.m3u8',
-      'https://cdn.example/live.mpd',
-    ]);
-    expect(streams[0]?.name).toBe('TVP · HLS');
-    expect(streams[0]?.behaviorHints).toEqual({
-      notWebReady: true,
-      proxyHeaders: {
-        request: {
-          Origin: 'https://vod.tvp.pl',
-          Referer: 'https://vod.tvp.pl/',
-        },
-      },
-    });
   });
 });

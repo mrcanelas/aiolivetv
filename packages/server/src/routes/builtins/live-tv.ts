@@ -284,20 +284,6 @@ router.get(
 );
 
 router.get(
-  '/tvp/:encodedConfig/stream/:type/:id.json',
-  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
-    try {
-      const streams = await new TvpAddon(
-        tvpConfig(req.params.encodedConfig)
-      ).getStreams(req.params.id);
-      res.json({ streams });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-router.get(
   '/claro-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {

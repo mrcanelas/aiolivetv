@@ -237,19 +237,26 @@ export class VivoTvPreset extends Preset {
 }
 
 function generateTvpAddon(options: Record<string, any>): Addon {
+  const timeout = Math.max(
+    options.timeout || appConfig.presets.defaultTimeout,
+    15_000
+  );
   const config = {
-    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    timeout,
     timeShiftMinutes: options.timeShiftMinutes ?? 0,
   };
   return {
     name: options.name || 'TVP',
     manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/tvp/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
     enabled: true,
-    resources: options.resources || [
+    resources: (options.resources || [
       constants.CATALOG_RESOURCE,
       constants.META_RESOURCE,
-      constants.STREAM_RESOURCE,
-    ],
+    ]).filter(
+      (resource: string) =>
+        resource === constants.CATALOG_RESOURCE ||
+        resource === constants.META_RESOURCE
+    ),
     timeout: config.timeout,
     resultPassthrough: true,
     preset: { id: '', type: 'tvp', options },
@@ -257,15 +264,12 @@ function generateTvpAddon(options: Record<string, any>): Addon {
   };
 }
 
-function tvpTvOptions(
-  resources: ('catalog' | 'meta' | 'stream')[]
-): Option[] {
+function tvpTvOptions(resources: ('catalog' | 'meta')[]): Option[] {
   return [
     {
       id: 'resources',
       name: 'Resources',
-      description:
-        'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
+      description: 'Choose catalog and/or metadata from this source.',
       type: 'multi-select',
       required: false,
       showInSimpleMode: true,
@@ -301,16 +305,8 @@ function tvpTvOptions(
 }
 
 export class TvpPreset extends Preset {
-  static override getParser(): typeof StreamParser {
-    return LiveTvStreamParser;
-  }
-
   static override get METADATA() {
-    const resources = [
-      constants.CATALOG_RESOURCE,
-      constants.META_RESOURCE,
-      constants.STREAM_RESOURCE,
-    ];
+    const resources = [constants.CATALOG_RESOURCE, constants.META_RESOURCE];
     return {
       ID: 'tvp',
       NAME: 'TVP',
@@ -319,13 +315,12 @@ export class TvpPreset extends Preset {
       TIMEOUT: appConfig.presets.defaultTimeout,
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
-      DESCRIPTION:
-        'Canais ao vivo, EPG e streams HLS da TVP (Polónia). Sem VOD.',
+      DESCRIPTION: 'Canais ao vivo e programação EPG da TVP (Polónia). Sem VOD.',
       OPTIONS: tvpTvOptions(resources),
-      SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
+      SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,
       BUILTIN: true,
-      CATEGORY: constants.PresetCategory.STREAMS,
+      CATEGORY: constants.PresetCategory.META_CATALOGS,
     };
   }
 

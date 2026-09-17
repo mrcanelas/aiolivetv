@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
+import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
 import {
@@ -48,8 +48,6 @@ interface TvpProduct {
   id?: unknown;
   title?: unknown;
   type?: unknown;
-  payable?: unknown;
-  loginRequired?: unknown;
   images?: Record<string, TvpImage[]>;
   logoImages?: Record<string, TvpImage[]>;
   artworks?: Record<string, TvpImage[]>;
@@ -60,7 +58,6 @@ interface TvpChannel {
   name: string;
   logo?: string;
   tvgId: string;
-  blocked?: boolean;
 }
 
 interface TvpProgramme {
@@ -74,20 +71,6 @@ interface TvpProgramme {
   categories?: string[];
   airedYear?: string;
   ratings?: Array<{ value: string; system: string }>;
-}
-
-interface TvpPlaylistSource {
-  src?: unknown;
-  drm?: unknown;
-}
-
-interface TvpPlaylist {
-  drm?: unknown;
-  sources?: {
-    HLS?: TvpPlaylistSource[];
-    DASH?: TvpPlaylistSource[];
-    MP4?: TvpPlaylistSource[];
-  };
 }
 
 function numericId(value: unknown): string | undefined {
@@ -125,13 +108,6 @@ function picture(
   return httpUrl(source);
 }
 
-function hasDrm(value: unknown): boolean {
-  if (!value) return false;
-  if (Array.isArray(value)) return value.some(hasDrm);
-  if (typeof value === 'object') return Object.keys(value).length > 0;
-  return true;
-}
-
 function tvpUtcMinute(ms: number): string {
   return `${new Date(ms).toISOString().slice(0, 16)}+0000`;
 }
@@ -156,11 +132,20 @@ function apiUrl(path: string, params: Record<string, string | string[]> = {}) {
   return url.href;
 }
 
+const TVP_API_HEADERS = {
+  Accept: 'application/json',
+  Origin: 'https://vod.tvp.pl',
+  Referer: 'https://vod.tvp.pl/',
+} as const;
+
 async function fetchJson<T>(
   url: string,
   timeout: number
 ): Promise<T | undefined> {
-  const response = await makeRequest(url, { timeout });
+  const response = await makeRequest(url, {
+    timeout,
+    headers: TVP_API_HEADERS,
+  });
   if (!response.ok) return undefined;
   try {
     return (await response.json()) as T;
@@ -183,7 +168,6 @@ function mapChannel(item: TvpProduct): TvpChannel | undefined {
     name,
     logo,
     tvgId: name,
-    blocked: item.payable === true || item.loginRequired === true,
   };
 }
 
@@ -405,34 +389,6 @@ function programmeToVideo(
   });
 }
 
-const TVP_PLAYBACK_HEADERS = {
-  Origin: 'https://vod.tvp.pl',
-  Referer: 'https://vod.tvp.pl/',
-} as const;
-
-function playlistStreams(playlist: TvpPlaylist | undefined): Stream[] {
-  if (!playlist || hasDrm(playlist.drm)) return [];
-  const streams: Stream[] = [];
-  const seen = new Set<string>();
-  for (const format of ['HLS', 'MP4', 'DASH'] as const) {
-    for (const source of playlist.sources?.[format] ?? []) {
-      const url = httpUrl(source.src);
-      if (!url || seen.has(url) || hasDrm(source.drm)) continue;
-      seen.add(url);
-      streams.push({
-        url,
-        name: `TVP · ${format}`,
-        description: 'Na żywo',
-        behaviorHints: {
-          notWebReady: true,
-          proxyHeaders: { request: { ...TVP_PLAYBACK_HEADERS } },
-        },
-      });
-    }
-  }
-  return streams;
-}
-
 export class TvpAddon {
   private readonly config: TvpTvConfig;
 
@@ -454,7 +410,6 @@ export class TvpAddon {
           idPrefixes: [CHANNEL_ID_PREFIX],
         },
         { name: 'meta', types: [TV_TYPE], idPrefixes: [CHANNEL_ID_PREFIX] },
-        { name: 'stream', types: [TV_TYPE], idPrefixes: [CHANNEL_ID_PREFIX] },
       ],
       catalogs: [
         {
@@ -571,20 +526,5 @@ export class TvpAddon {
       behaviorHints: { hasScheduledVideos: true },
       videos,
     };
-  }
-
-  async getStreams(id: string): Promise<Stream[]> {
-    const channelId = decodeChannelId(id);
-    const channel = (await loadChannels(this.config)).find(
-      (item) => item.id === channelId
-    );
-    if (!channel) throw new Error(`Channel not found: ${channelId}`);
-    if (channel.blocked) return [];
-
-    const playlist = await fetchJson<TvpPlaylist>(
-      apiUrl(`products/${channel.id}/videos/playlist`, { videoType: 'LIVE' }),
-      this.config.timeout
-    );
-    return playlistStreams(playlist);
   }
 }
