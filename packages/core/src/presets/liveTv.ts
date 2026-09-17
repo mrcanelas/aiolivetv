@@ -6,6 +6,7 @@ import type {
   UserData,
 } from '../db/index.js';
 import { MI_TV_COUNTRIES } from '../builtins/mitv/index.js';
+import { MOVISTAR_COUNTRIES } from '../builtins/movistartv/index.js';
 import StreamParser from '../parser/streams.js';
 import { appConfig, constants, toUrlSafeBase64 } from '../utils/index.js';
 import { Preset } from './preset.js';
@@ -233,6 +234,123 @@ export class VivoTvPreset extends Preset {
     options: Record<string, any>
   ): Promise<Addon[]> {
     return [generateVivoAddon(options)];
+  }
+}
+
+function movistarCountryLabel(code: string | undefined): string {
+  return (
+    MOVISTAR_COUNTRIES.find((country) => country.code === code)?.name ?? 'Chile'
+  );
+}
+
+function generateMovistarAddon(options: Record<string, any>): Addon {
+  const country = options.country || 'cl';
+  const config = {
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    country,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
+  };
+  const customName =
+    typeof options.name === 'string' ? options.name.trim() : '';
+  const name =
+    customName && customName !== 'Movistar'
+      ? customName
+      : `Movistar (${movistarCountryLabel(country)})`;
+  return {
+    name,
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/movistar-tv/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    enabled: true,
+    resources: options.resources || [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+    ],
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: 'movistar-tv', options },
+    headers: { 'User-Agent': appConfig.http.defaultUserAgent },
+  };
+}
+
+function movistarTvOptions(resources: ('catalog' | 'meta')[]): Option[] {
+  return [
+    {
+      id: 'resources',
+      name: 'Resources',
+      description: 'Choose catalog and/or metadata from this source.',
+      type: 'multi-select',
+      required: false,
+      showInSimpleMode: true,
+      default: resources,
+      options: resources.map((resource) => ({
+        label: constants.RESOURCE_LABELS[resource],
+        value: resource,
+      })),
+    },
+    {
+      id: 'name',
+      name: 'Name',
+      description: 'What to call this addon',
+      type: 'string',
+      required: true,
+      default: 'Movistar',
+    },
+    {
+      id: 'country',
+      name: 'Country',
+      description:
+        'Movistar publishes a separate guide per Latin American country. Add one instance per country.',
+      type: 'select',
+      required: true,
+      showInSimpleMode: true,
+      default: 'cl',
+      options: MOVISTAR_COUNTRIES.map((country) => ({
+        label: country.name,
+        value: country.code,
+      })),
+    },
+    {
+      id: 'timeout',
+      name: 'Timeout (ms)',
+      description: 'Timeout for API requests',
+      type: 'number',
+      required: true,
+      default: appConfig.presets.defaultTimeout,
+      constraints: {
+        min: appConfig.userLimits.timeouts.minTimeout,
+        max: appConfig.userLimits.timeouts.maxTimeout,
+        forceInUi: false,
+      },
+    },
+    epgTimeShiftOption(),
+  ];
+}
+
+export class MovistarTvPreset extends Preset {
+  static override get METADATA() {
+    const resources = [constants.CATALOG_RESOURCE, constants.META_RESOURCE];
+    return {
+      ID: 'movistar-tv',
+      NAME: 'Movistar',
+      LOGO: '/assets/movistar_logo.png',
+      URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/movistar-tv`],
+      TIMEOUT: appConfig.presets.defaultTimeout,
+      USER_AGENT: appConfig.http.defaultUserAgent,
+      SUPPORTED_SERVICES: [],
+      DESCRIPTION:
+        'Canais e programação EPG da Movistar via API Telefónica (Chile, Peru, Colômbia e Argentina).',
+      OPTIONS: movistarTvOptions(resources),
+      SUPPORTED_STREAM_TYPES: [],
+      SUPPORTED_RESOURCES: resources,
+      BUILTIN: true,
+      CATEGORY: constants.PresetCategory.META_CATALOGS,
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    return [generateMovistarAddon(options)];
   }
 }
 

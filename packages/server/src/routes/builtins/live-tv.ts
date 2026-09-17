@@ -9,6 +9,7 @@ import {
   M3uAddon,
   XmltvAddon,
   VivoTvAddon,
+  MovistarTvAddon,
   TvpAddon,
   ClaroTvAddon,
   MiTvAddon,
@@ -16,6 +17,7 @@ import {
   parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
+  type MovistarTvConfig,
   type TvpTvConfig,
   type ClaroTvConfig,
   type MiTvConfig,
@@ -36,6 +38,10 @@ function config(encodedConfig: string): LiveTvSourceConfig {
 }
 
 function vivoConfig(encodedConfig: string): VivoTvConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
+function movistarConfig(encodedConfig: string): MovistarTvConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
@@ -66,6 +72,8 @@ router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
             ? new XtreamAddon(xtreamConfig(req.params.encodedConfig))
           : req.params.source === 'vivo-tv'
             ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
+          : req.params.source === 'movistar-tv'
+            ? new MovistarTvAddon(movistarConfig(req.params.encodedConfig))
             : req.params.source === 'tvp'
               ? new TvpAddon(tvpConfig(req.params.encodedConfig))
             : req.params.source === 'claro-tv'
@@ -236,6 +244,40 @@ router.get(
     try {
       const meta = await new VivoTvAddon(
         vivoConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/movistar-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const response = await new MovistarTvAddon(
+        movistarConfig(req.params.encodedConfig)
+      ).getCatalogResponse(skip, date);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/movistar-tv/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new MovistarTvAddon(
+        movistarConfig(req.params.encodedConfig)
       ).getMeta(req.params.id);
       res.json({
         meta,

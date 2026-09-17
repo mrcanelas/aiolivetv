@@ -95,6 +95,7 @@ const PRESET_PROVIDER_TYPE: Record<string, LiveProviderType> = {
   xtream: 'xtream',
   xmltv: 'xmltv',
   'vivo-tv': 'vivo',
+  'movistar-tv': 'addon',
   'claro-tv': 'claro',
   'mi-tv': 'mitv',
   hdhomerun: 'hdhomerun',
