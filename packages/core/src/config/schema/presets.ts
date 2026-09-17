@@ -127,6 +127,13 @@ export const presetsSchema = {
     timeoutEnv: 'DEFAULT_FROSTVIEW_TIMEOUT',
     userAgentEnv: 'DEFAULT_FROSTVIEW_USER_AGENT',
   }),
+  fenixTv: basicPreset({
+    label: 'Fenix TV',
+    default: ['https://fenixtv.fenixhub.online'],
+    envBase: 'FENIX_TV_URL',
+    timeoutEnv: 'DEFAULT_FENIX_TV_TIMEOUT',
+    userAgentEnv: 'DEFAULT_FENIX_TV_USER_AGENT',
+  }),
   minhaTv: basicPreset({
     label: 'Minha TV',
     default: ['https://da5f663b4690-minhatv.baby-beamup.club'],

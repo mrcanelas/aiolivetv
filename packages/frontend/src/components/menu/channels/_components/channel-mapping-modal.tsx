@@ -154,7 +154,7 @@ export function ChannelMappingModal({
         ) : (
           <p className="text-xs text-[--muted]">
             No unlinked stream channels available. Add a stream addon such as
-            FrostView TV or M3U, or add a manual HLS link below.
+            FrostView, Fenix TV or M3U, or add a manual HLS link below.
           </p>
         )}
 

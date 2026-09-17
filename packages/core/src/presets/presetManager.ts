@@ -2,6 +2,7 @@
 import { CustomPreset } from './custom.js';
 import { DebridioTvPreset } from './debridioTv.js';
 import { FrostViewPreset } from './frostView.js';
+import { FenixTvPreset } from './fenixTv.js';
 import { MinhaTvPreset } from './minhaTv.js';
 import { ArgentinaTVPreset } from './argentinaTv.js';
 import { USATVPreset } from './usaTv.js';
@@ -24,6 +25,7 @@ const PRESETS = {
   'mi-tv': MiTvPreset,
   custom: CustomPreset,
   'frost-view': FrostViewPreset,
+  'fenix-tv': FenixTvPreset,
   'minha-tv': MinhaTvPreset,
   'usa-tv': USATVPreset,
   'argentina-tv': ArgentinaTVPreset,
