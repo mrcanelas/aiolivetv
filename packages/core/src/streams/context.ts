@@ -185,6 +185,10 @@ export class StreamContext {
 
     this._metadataPromise = (async () => {
       try {
+        if (!this.parsedId || isLiveChannelType(this.type)) {
+          return undefined;
+        }
+
         const service = new MetadataService({
           tmdbAccessToken: this.userData.tmdbAccessToken,
           tmdbApiKey: this.userData.tmdbApiKey,

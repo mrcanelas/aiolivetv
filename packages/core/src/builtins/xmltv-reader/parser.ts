@@ -33,7 +33,7 @@ export interface XmltvData {
   programsByChannelId: Map<string, XmltvProgram[]>;
 }
 
-function buildProgramsByChannelId(
+export function buildProgramsByChannelId(
   programs: XmltvProgram[]
 ): Map<string, XmltvProgram[]> {
   const byChannelId = new Map<string, XmltvProgram[]>();

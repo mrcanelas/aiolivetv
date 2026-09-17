@@ -23,7 +23,7 @@ import {
   LiveTvSourceConfig,
   LiveTvSourceConfigSchema,
 } from '../live-tv/shared.js';
-import { parseXmltvData, type XmltvData } from './parser.js';
+import { parseXmltvData, buildProgramsByChannelId, type XmltvData } from './parser.js';
 
 const SOURCE_CACHE_TTL = 300;
 const sourceCache = Cache.getInstance<string, XmltvData>('xmltv-reader-sources');
@@ -31,10 +31,20 @@ const sourceCache = Cache.getInstance<string, XmltvData>('xmltv-reader-sources')
 async function loadXmltv(config: LiveTvSourceConfig): Promise<XmltvData> {
   const cacheKey = config.sourceUrl;
   const cached = await sourceCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) return hydrateXmltvData(cached);
   const data = await parseXmltvData(await fetchSourceText(config));
   await sourceCache.set(cacheKey, data, SOURCE_CACHE_TTL);
   return data;
+}
+
+function hydrateXmltvData(data: XmltvData): XmltvData {
+  if (data.programsByChannelId instanceof Map) {
+    return data;
+  }
+  return {
+    ...data,
+    programsByChannelId: buildProgramsByChannelId(data.programs ?? []),
+  };
 }
 
 function programsForChannel(data: XmltvData, channelId: string) {

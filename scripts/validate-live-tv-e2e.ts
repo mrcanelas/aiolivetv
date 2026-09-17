@@ -115,7 +115,7 @@ function createBuiltinHandler(core: CoreModule) {
         const addon =
           source === 'xmltv' ? new XmltvAddon(config) : new M3uAddon(config);
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(addon.getManifest()));
+        res.end(JSON.stringify(await Promise.resolve(addon.getManifest())));
         return;
       }
 
