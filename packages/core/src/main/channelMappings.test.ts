@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyLiveChannelGroupOverlay,
+  bindsOwnCatalogStreams,
   buildManualParsedStreams,
   deduplicateLiveTvItems,
   findChannelMappingForId,
@@ -16,6 +17,18 @@ import { ChannelMapping } from '../db/channelMapping.js';
 const baseUserData = { uuid: 'test' } as UserData;
 
 describe('channel group overlay', () => {
+  it('treats catalog+stream sources as already bound', () => {
+    expect(
+      bindsOwnCatalogStreams({ contributesChannels: true, canStream: true })
+    ).toBe(true);
+    expect(
+      bindsOwnCatalogStreams({ contributesChannels: true, canStream: false })
+    ).toBe(false);
+    expect(
+      bindsOwnCatalogStreams({ contributesChannels: false, canStream: true })
+    ).toBe(false);
+  });
+
   it('prefers the mapping override over the source group', () => {
     const userData = {
       ...baseUserData,

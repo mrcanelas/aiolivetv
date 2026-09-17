@@ -40,6 +40,14 @@ export function isLiveChannelType(type: string) {
   return type === CHANNEL_TYPE || type === TV_TYPE;
 }
 
+/** Catalog+stream builtins already key streams by the same channel id. */
+export function bindsOwnCatalogStreams(source: {
+  contributesChannels?: boolean;
+  canStream?: boolean;
+}): boolean {
+  return Boolean(source.contributesChannels && source.canStream);
+}
+
 export function getChannelMapping(userData: UserData, channelId: string) {
   channelId = getCanonicalChannelId(channelId);
   return userData.channelMappings?.find((channel) => channel.id === channelId);

@@ -5,6 +5,7 @@ import {
   Env,
   ExtrasParser,
   makeUrlLogSafe,
+  addonProvidesResource,
 } from '../utils/index.js';
 import { canRunFfprobe } from '../utils/runtime.js';
 import { config as appConfig } from '../config/index.js';
@@ -844,6 +845,10 @@ async function resolveStreamChannelIdForAddon(
     streamResource?.idPrefixes?.length &&
     streamResource.idPrefixes.some((prefix) => channelId.startsWith(prefix))
   ) {
+    return channelId;
+  }
+
+  if (addonProvidesResource(addon, constants.CATALOG_RESOURCE)) {
     return channelId;
   }
 

@@ -14,6 +14,7 @@ import {
   mergeConfigs,
   getChannelMatchConfidence,
   isHighConfidenceChannelMatch,
+  bindsOwnCatalogStreams,
   findPossibleDuplicateChannels,
   catalogSupportsSkip,
   addonProvidesResource,
@@ -666,12 +667,13 @@ router.post(
 
       // ponytail: O(n²) is adequate for configuration-time channel lists;
       // index normalized fields only if real guides make this measurably slow.
-      // Pass 1: channels defined by catalog/meta sources that do not provide streams.
+      // Pass 1: catalog-defined channels. Catalog+stream builtins already
+      // bind playback to the same channel id — skip name/tvg proximity.
       for (const candidate of candidates.values()) {
         if (hiddenChannelIds.has(candidate.id)) continue;
-        if (!candidate.contributesChannels || candidate.canStream) continue;
+        if (!candidate.contributesChannels) continue;
         if (assigned.has(candidateKey(candidate.addonId, candidate.id))) continue;
-        channels.push({
+        const channel: Channel = {
           id: candidate.id,
           name: candidate.name,
           poster: candidate.poster,
@@ -681,11 +683,19 @@ router.post(
           rejectedStreams: [],
           mappings: [],
           availableStreamSources: [],
-        });
-        markChannelAssigned(candidate);
+        };
+        if (
+          bindsOwnCatalogStreams(candidate) &&
+          !isRejected(candidate.id, candidate)
+        ) {
+          addStreamSource(channel, candidate, 1);
+        } else {
+          markChannelAssigned(candidate);
+        }
+        channels.push(channel);
       }
 
-      // Pass 2: attach stream sources to existing channels or create stream-native channels.
+      // Pass 2: stream-only sources. Match those onto existing channels.
       if (autoMatch) {
         const autoMatchStreams =
           streamCandidates.length * channels.length <= MAX_AUTO_MATCH_PAIRS;
@@ -693,6 +703,7 @@ router.post(
           (a, b) => Number(b.epgProvider) - Number(a.epgProvider)
         )) {
           if (hiddenChannelIds.has(candidate.id)) continue;
+          if (bindsOwnCatalogStreams(candidate)) continue;
           if (assigned.has(candidateKey(candidate.addonId, candidate.id))) continue;
           let best: { channel: Channel; confidence: number } | undefined;
           let suggestion: { channel: Channel; confidence: number } | undefined;
