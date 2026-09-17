@@ -1,10 +1,27 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const cacheStores = new Map<string, Map<string, unknown>>();
+
+function jsonClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function cacheStore(name: string) {
+  let store = cacheStores.get(name);
+  if (!store) {
+    store = new Map();
+    cacheStores.set(name, store);
+  }
+  return store;
+}
 
 vi.mock('../../utils/index.js', () => ({
   Cache: {
-    getInstance: () => ({
-      get: vi.fn(),
-      set: vi.fn(),
+    getInstance: (name: string) => ({
+      get: async (key: string) => cacheStore(name).get(key),
+      set: async (key: string, value: unknown) => {
+        cacheStore(name).set(key, jsonClone(value));
+      },
     }),
   },
   decodeHtmlEntities: (value: string) => value,
@@ -18,6 +35,11 @@ const { VivoTvAddon } = await import('./addon.js');
 const { makeRequest } = await import('../../utils/index.js');
 
 describe('Vivo TV builtin', () => {
+  beforeEach(() => {
+    cacheStores.clear();
+    vi.mocked(makeRequest).mockReset();
+  });
+
   it('exposes catalog and EPG metadata', () => {
     const addon = new VivoTvAddon({ timeout: 1000 });
     expect(addon.getManifest().behaviorHints?.epgProvider).toBe(true);
@@ -238,5 +260,62 @@ describe('Vivo TV builtin', () => {
         icon: 'https://cdn.example/cover-custom.png',
       },
     ]);
+  });
+
+  it('resolves genres after a JSON cache round-trip', async () => {
+    const channelResponse = {
+      ok: true,
+      json: async () => ({
+        Content: {
+          List: [
+            {
+              Pid: 'LCH001',
+              Title: 'Globo HD',
+              Images: { Icon: [{ Url: 'https://cdn.example/icon.png' }] },
+            },
+          ],
+        },
+      }),
+    };
+    const genresResponse = {
+      ok: true,
+      json: async () => ({
+        Content: { List: [{ Pid: 'GEN1', Title: 'Notícias' }] },
+      }),
+    };
+    const emptyListResponse = {
+      ok: true,
+      json: async () => ({ Content: { List: [] } }),
+    };
+    const scheduleResponse = {
+      ok: true,
+      json: async () => ({
+        Content: [
+          {
+            Title: 'Jornal Nacional',
+            Start: 1_718_000_000,
+            End: 1_718_003_600,
+            GenrePids: ['GEN1'],
+          },
+        ],
+      }),
+    };
+
+    vi.mocked(makeRequest).mockImplementation(async (url: string) => {
+      if (url.includes('contentTypes=LCH')) return channelResponse as never;
+      if (url.includes('contentTypes=GEN')) return genresResponse as never;
+      if (url.includes('/schedules?')) return scheduleResponse as never;
+      return emptyListResponse as never;
+    });
+
+    const addon = new VivoTvAddon({ timeout: 1000 });
+    const catalog = await addon.getCatalog();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1_718_000_000 * 1000));
+    await addon.getMeta(catalog[0]!.id);
+    const meta = await addon.getMeta(catalog[0]!.id);
+    vi.useRealTimers();
+
+    expect(meta.videos?.[0]?.genres).toEqual(['Notícias']);
   });
 });

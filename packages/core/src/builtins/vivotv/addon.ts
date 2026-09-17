@@ -87,9 +87,9 @@ interface VivoScheduleItem {
 }
 
 interface VivoReferenceData {
-  genres: Map<string, string>;
-  ratings: Map<string, { value?: string; icon?: string }>;
-  persons: Map<string, string>;
+  genres: Record<string, string>;
+  ratings: Record<string, { value?: string; icon?: string }>;
+  persons: Record<string, string>;
 }
 
 const VIVO_RATING_SYSTEM = 'ClassInd';
@@ -218,9 +218,10 @@ async function fetchPersons(timeout: number): Promise<VivoPerson[]> {
 async function loadReferenceData(
   config: VivoTvConfig
 ): Promise<VivoReferenceData> {
-  const cacheKey = 'reference';
+  // v2 stores plain objects so Redis/SQL JSON round-trips keep the lookups.
+  const cacheKey = 'reference:v2';
   const cached = await referenceCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) return hydrateReferenceData(cached);
 
   const [genresBody, ratingsBody, persons] = await Promise.all([
     fetchJson<{ Content?: { List?: VivoGenre[] } }>(
@@ -234,10 +235,10 @@ async function loadReferenceData(
     fetchPersons(config.timeout),
   ]);
 
-  const genres = new Map(
+  const genres = Object.fromEntries(
     (genresBody?.Content?.List ?? []).map((genre) => [genre.Pid, genre.Title])
   );
-  const ratings = new Map(
+  const ratings = Object.fromEntries(
     (ratingsBody?.Content?.List ?? []).map((rating) => [
       rating.Pid,
       {
@@ -249,7 +250,7 @@ async function loadReferenceData(
       },
     ])
   );
-  const personsMap = new Map(
+  const personsMap = Object.fromEntries(
     persons.map((person) => [person.Pid, person.Title])
   );
 
@@ -258,13 +259,40 @@ async function loadReferenceData(
   return reference;
 }
 
+function hydrateReferenceData(cached: VivoReferenceData): VivoReferenceData {
+  return {
+    genres: toStringRecord(cached.genres),
+    ratings: toRatingRecord(cached.ratings),
+    persons: toStringRecord(cached.persons),
+  };
+}
+
+function toStringRecord(
+  value: VivoReferenceData['genres'] | Map<string, string> | undefined
+): Record<string, string> {
+  if (!value) return {};
+  if (value instanceof Map) return Object.fromEntries(value);
+  return value;
+}
+
+function toRatingRecord(
+  value:
+    | VivoReferenceData['ratings']
+    | Map<string, { value?: string; icon?: string }>
+    | undefined
+): Record<string, { value?: string; icon?: string }> {
+  if (!value) return {};
+  if (value instanceof Map) return Object.fromEntries(value);
+  return value;
+}
+
 function resolvePersons(
   pids: string[] | undefined,
   reference: VivoReferenceData
 ): string[] {
   if (!pids?.length) return [];
   return pids
-    .map((pid) => reference.persons.get(pid))
+    .map((pid) => reference.persons[pid])
     .filter((name): name is string => Boolean(name));
 }
 
@@ -274,7 +302,7 @@ function resolveGenres(
 ): string[] {
   if (!pids?.length) return [];
   return pids
-    .map((pid) => reference.genres.get(pid))
+    .map((pid) => reference.genres[pid])
     .filter((name): name is string => Boolean(name));
 }
 
@@ -283,7 +311,7 @@ function resolveRating(
   reference: VivoReferenceData
 ): Array<{ value: string; system: string; icon?: string }> | undefined {
   if (!pid) return undefined;
-  const rating = reference.ratings.get(pid);
+  const rating = reference.ratings[pid];
   if (!rating?.value) return undefined;
   const icon =
     getContentRatingIconUrl(VIVO_RATING_SYSTEM, rating.value) || rating.icon;
