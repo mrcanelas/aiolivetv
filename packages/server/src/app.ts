@@ -189,7 +189,6 @@ app.get(
     '/apple-icon.png',
     '/mini-nightly-white.png',
     '/mini-stable-white.png',
-    '/icon0.svg',
     '/icon1.png',
     '/logo_alt.png',
   ],
