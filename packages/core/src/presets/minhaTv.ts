@@ -99,6 +99,11 @@ export class MinhaTvPreset extends Preset {
       SUPPORTED_STREAM_TYPES: [LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: supportedResources,
       CATEGORY: constants.PresetCategory.STREAMS,
+      DISABLED: {
+        removed: true,
+        disabled: true,
+        reason: 'Minha TV addon is no longer available.',
+      },
     };
   }
 

@@ -38,7 +38,6 @@ export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
   'custom',
   'frost-view',
   'fenix-tv',
-  'minha-tv',
   'usa-tv',
   'argentina-tv',
   'debridio-tv',
