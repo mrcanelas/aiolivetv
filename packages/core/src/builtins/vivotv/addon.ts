@@ -395,7 +395,8 @@ export class VivoTvAddon {
       id: 'org.aiolivetv.vivo-tv',
       name: 'Vivo TV',
       version: '1.0.0',
-      description: 'Canais e programação da Vivo Play (Telefónica Brasil).',
+      description:
+        'Live channels and EPG from Vivo Play (Telefónica Brazil).',
       types: [TV_TYPE],
       resources: [
         {
@@ -413,7 +414,7 @@ export class VivoTvAddon {
         {
           id: 'vivo-tv-channels',
           type: TV_TYPE,
-          name: 'Canais Vivo TV',
+          name: 'Vivo TV Channels',
           extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],

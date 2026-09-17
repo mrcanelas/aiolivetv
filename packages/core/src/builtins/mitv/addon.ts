@@ -41,7 +41,7 @@ export const MI_TV_COUNTRIES = [
   },
   {
     code: 'br',
-    name: 'Brasil',
+    name: 'Brazil',
     timeZone: 'America/Sao_Paulo',
     language: 'pt',
   },
@@ -53,7 +53,7 @@ export const MI_TV_COUNTRIES = [
   },
   {
     code: 'co',
-    name: 'Colômbia',
+    name: 'Colombia',
     timeZone: 'America/Bogota',
     language: 'es',
   },
@@ -77,13 +77,13 @@ export const MI_TV_COUNTRIES = [
   },
   {
     code: 'mx',
-    name: 'México',
+    name: 'Mexico',
     timeZone: 'America/Mexico_City',
     language: 'es',
   },
   {
     code: 'py',
-    name: 'Paraguai',
+    name: 'Paraguay',
     timeZone: 'America/Asuncion',
     language: 'es',
   },
@@ -403,7 +403,7 @@ export class MiTvAddon {
       id: 'org.aiolivetv.mi-tv',
       name: `Mi.tv (${country.name})`,
       version: '1.0.0',
-      description: `Canais e programação EPG da Mi.tv para ${country.name}.`,
+      description: `Live channels and EPG from Mi.tv for ${country.name}.`,
       types: [TV_TYPE],
       resources: [
         {
@@ -421,7 +421,7 @@ export class MiTvAddon {
         {
           id: 'mi-tv-channels',
           type: TV_TYPE,
-          name: `Canais Mi.tv (${country.name})`,
+          name: `Mi.tv Channels (${country.name})`,
           extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],

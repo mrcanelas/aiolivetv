@@ -401,7 +401,7 @@ export class TvpAddon {
       id: 'org.aiolivetv.tvp',
       name: 'TVP',
       version: '1.0.0',
-      description: 'Canais ao vivo e programação EPG da TVP (Polónia).',
+      description: 'Live channels and EPG from TVP (Poland).',
       types: [TV_TYPE],
       resources: [
         {
@@ -415,7 +415,7 @@ export class TvpAddon {
         {
           id: 'tvp-channels',
           type: TV_TYPE,
-          name: 'Canais TVP',
+          name: 'TVP Channels',
           extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],

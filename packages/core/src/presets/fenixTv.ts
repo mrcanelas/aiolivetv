@@ -95,7 +95,7 @@ export class FenixTvPreset extends Preset {
         appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Canais brasileiros ao vivo com eventos, Pontas, Aluado, Almofadinhas e Rabicho.',
+        'Addon de Canais de Tv Brasileiros ao vivo com suporte a Eventos Ao Vivo, Pontas, Aluado, Almofadinhas e Rabicho',
       OPTIONS: options,
       SUPPORTED_STREAM_TYPES: [LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: supportedResources,

@@ -45,7 +45,7 @@ export const MOVISTAR_COUNTRIES = [
   },
   {
     code: 'co',
-    name: 'Colômbia',
+    name: 'Colombia',
     tenant: '33',
     locale: 'es-CO',
     timeZone: 'America/Bogota',
@@ -514,7 +514,7 @@ export class MovistarTvAddon {
       id: 'org.aiolivetv.movistar-tv',
       name: `Movistar (${country.name})`,
       version: '1.0.0',
-      description: `Canais ao vivo e programação EPG da Movistar para ${country.name}.`,
+      description: `Live channels and EPG from Movistar for ${country.name}.`,
       types: [TV_TYPE],
       resources: [
         {
@@ -532,7 +532,7 @@ export class MovistarTvAddon {
         {
           id: 'movistar-tv-channels',
           type: TV_TYPE,
-          name: `Canais Movistar (${country.name})`,
+          name: `Movistar Channels (${country.name})`,
           extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],

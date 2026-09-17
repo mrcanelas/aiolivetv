@@ -82,7 +82,7 @@ export class ArgentinaTVPreset extends Preset {
         appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Provides access to channels across various categories for Argentina',
+        'Argentina TV provee acceso a canales de interes general y noticias.',
       OPTIONS: options,
       SUPPORTED_STREAM_TYPES: [LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: supportedResources,

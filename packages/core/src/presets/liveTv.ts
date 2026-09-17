@@ -220,7 +220,7 @@ export class VivoTvPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Canais e programação EPG da Vivo Play via API Telefónica Brasil.',
+        'Live channels and EPG from Vivo Play via the Telefónica Brazil API.',
       OPTIONS: vivoTvOptions(resources),
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,
@@ -337,7 +337,7 @@ export class MovistarTvPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Canais e programação EPG da Movistar via API Telefónica (Chile, Peru, Colômbia e Argentina).',
+        'Live channels and EPG from Movistar via the Telefónica API (Chile, Peru, Colombia and Argentina).',
       OPTIONS: movistarTvOptions(resources),
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,
@@ -433,7 +433,8 @@ export class TvpPreset extends Preset {
       TIMEOUT: appConfig.presets.defaultTimeout,
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
-      DESCRIPTION: 'Canais ao vivo e programação EPG da TVP (Polónia). Sem VOD.',
+      DESCRIPTION:
+        'Live channels and EPG from TVP (Poland). Catalog and metadata only.',
       OPTIONS: tvpTvOptions(resources),
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,
@@ -533,7 +534,7 @@ export class ClaroTvPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Canais e programação EPG da Claro TV+ via API clarotvmais.com.br.',
+        'Live channels and EPG from Claro TV+ via clarotvmais.com.br.',
       OPTIONS: claroTvOptions(resources),
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,
@@ -552,7 +553,7 @@ export class ClaroTvPreset extends Preset {
 
 function miTvCountryLabel(code: string | undefined): string {
   return (
-    MI_TV_COUNTRIES.find((country) => country.code === code)?.name ?? 'Brasil'
+    MI_TV_COUNTRIES.find((country) => country.code === code)?.name ?? 'Brazil'
   );
 }
 
@@ -651,7 +652,7 @@ export class MiTvPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Canais e programação EPG da Mi.tv (Argentina, Brasil, Chile, Colômbia, México e outros países da América Latina).',
+        'Live channels and EPG from Mi.tv (Argentina, Brazil, Chile, Colombia, Mexico and other Latin American countries).',
       OPTIONS: miTvOptions(resources),
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: resources,

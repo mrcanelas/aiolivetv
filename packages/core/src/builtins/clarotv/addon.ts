@@ -290,7 +290,7 @@ export class ClaroTvAddon {
       id: 'org.aiolivetv.claro-tv',
       name: 'Claro TV+',
       version: '1.0.0',
-      description: 'Canais e programação EPG da Claro TV+ (Claro tv+).',
+      description: 'Live channels and EPG from Claro TV+.',
       types: [TV_TYPE],
       resources: [
         {
@@ -308,7 +308,7 @@ export class ClaroTvAddon {
         {
           id: 'claro-tv-channels',
           type: TV_TYPE,
-          name: 'Canais Claro TV+',
+          name: 'Claro TV+ Channels',
           extra: [
             ...EPG_GUIDE_CATALOG_EXTRAS,
             channelGenreCatalogExtra(groups),
