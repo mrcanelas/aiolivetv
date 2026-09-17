@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.4.2-beta...v0.5.0-beta) (2026-09-17)
+
+
+### Features
+
+* **presets:** add Fenix TV as a live addon ([bad1ba6](https://github.com/mrcanelas/aiolivetv/commit/bad1ba6410eadc2441c31670203fc2137f0a92e9))
+
+
+### Bug Fixes
+
+* **live-tv:** await async M3U manifest in E2E and hydrate XMLTV cache ([b89d1fc](https://github.com/mrcanelas/aiolivetv/commit/b89d1fc15a3e67950ff6cc9e03241efe4834181d))
+* **vivotv:** persist EPG lookups as JSON-safe records ([ed2c102](https://github.com/mrcanelas/aiolivetv/commit/ed2c102917aa1d963ccd3f7cd837c4421055d742))
+
 ## [0.4.2-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.4.1-beta...v0.4.2-beta) (2026-09-16)
 
 
