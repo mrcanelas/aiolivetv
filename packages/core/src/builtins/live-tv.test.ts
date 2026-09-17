@@ -122,6 +122,41 @@ describe('live TV sources', () => {
         icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/12.svg',
       },
     ]);
+    expect(toContentRatings([{ value: '0', system: 'TVP' }])).toEqual([
+      {
+        value: '0',
+        system: 'TVP',
+        icon: 'https://s.tvp.pl/files/portale-v4/tvp-pl/default/assets/images/elements/smile_green.svg',
+      },
+    ]);
+    expect(toContentRatings([{ value: 'JM', system: 'TVP' }])).toEqual([
+      {
+        value: 'JM',
+        system: 'TVP',
+        icon: 'https://s.tvp.pl/files/portale-v4/tvp-pl/default/assets/images/elements/jm.svg',
+      },
+    ]);
+    expect(toContentRatings([{ value: 'N', system: 'TVP' }])).toEqual([
+      {
+        value: 'N',
+        system: 'TVP',
+        icon: 'https://s.tvp.pl/files/portale-v4/tvp-pl/default/assets/images/elements/N.svg',
+      },
+    ]);
+    expect(toContentRatings([{ value: 'AD', system: 'TVP' }])).toEqual([
+      {
+        value: 'AD',
+        system: 'TVP',
+        icon: 'https://s.tvp.pl/files/portale-v4/tvp-pl/default/assets/images/elements/AD.svg',
+      },
+    ]);
+    expect(toContentRatings([{ value: '18', system: 'TVP' }])).toEqual([
+      {
+        value: '18',
+        system: 'TVP',
+        icon: 'https://s.tvp.pl/files/portale-v4/tvp-pl/default/assets/images/elements/adult.svg',
+      },
+    ]);
   });
 
   it('uses the same channel ID for XMLTV and M3U identifiers', async () => {

@@ -236,6 +236,107 @@ export class VivoTvPreset extends Preset {
   }
 }
 
+function generateTvpAddon(options: Record<string, any>): Addon {
+  const config = {
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
+  };
+  return {
+    name: options.name || 'TVP',
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/tvp/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    enabled: true,
+    resources: options.resources || [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ],
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: 'tvp', options },
+    headers: { 'User-Agent': appConfig.http.defaultUserAgent },
+  };
+}
+
+function tvpTvOptions(
+  resources: ('catalog' | 'meta' | 'stream')[]
+): Option[] {
+  return [
+    {
+      id: 'resources',
+      name: 'Resources',
+      description:
+        'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
+      type: 'multi-select',
+      required: false,
+      showInSimpleMode: true,
+      default: resources,
+      options: resources.map((resource) => ({
+        label: constants.RESOURCE_LABELS[resource],
+        value: resource,
+      })),
+    },
+    {
+      id: 'name',
+      name: 'Name',
+      description: 'What to call this addon',
+      type: 'string',
+      required: true,
+      default: 'TVP',
+    },
+    {
+      id: 'timeout',
+      name: 'Timeout (ms)',
+      description: 'Timeout for API requests',
+      type: 'number',
+      required: true,
+      default: appConfig.presets.defaultTimeout,
+      constraints: {
+        min: appConfig.userLimits.timeouts.minTimeout,
+        max: appConfig.userLimits.timeouts.maxTimeout,
+        forceInUi: false,
+      },
+    },
+    epgTimeShiftOption(),
+  ];
+}
+
+export class TvpPreset extends Preset {
+  static override getParser(): typeof StreamParser {
+    return LiveTvStreamParser;
+  }
+
+  static override get METADATA() {
+    const resources = [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ];
+    return {
+      ID: 'tvp',
+      NAME: 'TVP',
+      LOGO: '',
+      URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/tvp`],
+      TIMEOUT: appConfig.presets.defaultTimeout,
+      USER_AGENT: appConfig.http.defaultUserAgent,
+      SUPPORTED_SERVICES: [],
+      DESCRIPTION:
+        'Canais ao vivo, EPG e streams HLS da TVP (Polónia). Sem VOD.',
+      OPTIONS: tvpTvOptions(resources),
+      SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
+      SUPPORTED_RESOURCES: resources,
+      BUILTIN: true,
+      CATEGORY: constants.PresetCategory.STREAMS,
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    return [generateTvpAddon(options)];
+  }
+}
+
 function generateClaroTvAddon(options: Record<string, any>): Addon {
   const config = {
     timeout: options.timeout || appConfig.presets.defaultTimeout,

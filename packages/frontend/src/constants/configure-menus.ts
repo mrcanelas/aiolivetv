@@ -31,6 +31,7 @@ export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
   'xmltv',
   'xtream',
   'vivo-tv',
+  'tvp',
   'claro-tv',
   'mi-tv',
   'custom',

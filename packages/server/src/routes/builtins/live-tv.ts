@@ -9,12 +9,14 @@ import {
   M3uAddon,
   XmltvAddon,
   VivoTvAddon,
+  TvpAddon,
   ClaroTvAddon,
   MiTvAddon,
   XtreamAddon,
   parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
+  type TvpTvConfig,
   type ClaroTvConfig,
   type MiTvConfig,
   type XtreamConfig,
@@ -34,6 +36,10 @@ function config(encodedConfig: string): LiveTvSourceConfig {
 }
 
 function vivoConfig(encodedConfig: string): VivoTvConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
+function tvpConfig(encodedConfig: string): TvpTvConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
@@ -60,6 +66,8 @@ router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
             ? new XtreamAddon(xtreamConfig(req.params.encodedConfig))
           : req.params.source === 'vivo-tv'
             ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
+            : req.params.source === 'tvp'
+              ? new TvpAddon(tvpConfig(req.params.encodedConfig))
             : req.params.source === 'claro-tv'
               ? new ClaroTvAddon(claroConfig(req.params.encodedConfig))
               : req.params.source === 'mi-tv'
@@ -235,6 +243,54 @@ router.get(
         staleRevalidate: 3600,
         staleError: 604800,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/tvp/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const response = await new TvpAddon(
+        tvpConfig(req.params.encodedConfig)
+      ).getCatalogResponse(skip, date);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/tvp/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new TvpAddon(
+        tvpConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/tvp/:encodedConfig/stream/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const streams = await new TvpAddon(
+        tvpConfig(req.params.encodedConfig)
+      ).getStreams(req.params.id);
+      res.json({ streams });
     } catch (error) {
       next(error);
     }

@@ -12,6 +12,7 @@ import {
   ClaroTvPreset,
   MiTvPreset,
   VivoTvPreset,
+  TvpPreset,
   XmltvPreset,
   XtreamPreset,
 } from './liveTv.js';
@@ -21,6 +22,7 @@ const PRESETS = {
   xmltv: XmltvPreset,
   xtream: XtreamPreset,
   'vivo-tv': VivoTvPreset,
+  tvp: TvpPreset,
   'claro-tv': ClaroTvPreset,
   'mi-tv': MiTvPreset,
   custom: CustomPreset,
