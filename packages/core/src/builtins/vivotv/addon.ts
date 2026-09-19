@@ -9,6 +9,7 @@ import {
   EPG_CACHE_HEADERS,
   EPG_GUIDE_CATALOG_EXTRAS,
   guideChannelMeta,
+  mapWithEpgConcurrency,
   shiftedProgramOverlapsUtcDay,
   programToVideo,
   resolveGuideDate,
@@ -137,9 +138,9 @@ async function fetchJson<T>(
   url: string,
   timeout: number
 ): Promise<T | undefined> {
-  const response = await makeRequest(url, { timeout });
-  if (!response.ok) return undefined;
   try {
+    const response = await makeRequest(url, { timeout });
+    if (!response.ok) return undefined;
     return (await response.json()) as T;
   } catch {
     return undefined;
@@ -445,15 +446,15 @@ export class VivoTvAddon {
       skip + LIVE_TV_CATALOG_PAGE_SIZE
     );
     const reference = await loadReferenceData(this.config);
-    const schedulesByChannel = await Promise.all(
-      channels.map((channel) =>
-        loadSchedulesForUtcDay(this.config, channel.pid, guideDate)
-      )
+    const schedulesByChannel = await mapWithEpgConcurrency(
+      channels,
+      (channel) => loadSchedulesForUtcDay(this.config, channel.pid, guideDate),
+      []
     );
 
     return channels.map((channel, index) => {
       const encodedId = encodeChannelId(channel.pid);
-      const videos = schedulesByChannel[index]!.map((item) =>
+      const videos = (schedulesByChannel[index] ?? []).map((item) =>
         scheduleToVideo(
           encodedId,
           item,

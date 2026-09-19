@@ -1,4 +1,3 @@
-import pLimit from 'p-limit';
 import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
@@ -9,6 +8,7 @@ import {
   buildEpgCatalogResponse,
   EPG_GUIDE_CATALOG_EXTRAS,
   guideChannelMeta,
+  mapWithEpgConcurrency,
   programToVideo,
   resolveGuideDate,
   type CatalogHandlerResponse,
@@ -23,7 +23,6 @@ import {
 const SITE_ORIGIN = 'https://mi.tv';
 const SOURCE_CACHE_TTL = 300;
 const SCHEDULE_CACHE_TTL = 300;
-const FETCH_CONCURRENCY = 6;
 const REQUEST_HEADERS = {
   accept:
     'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -314,12 +313,12 @@ async function fetchHtml(
   url: string,
   timeout: number
 ): Promise<string | undefined> {
-  const response = await makeRequest(url, {
-    timeout,
-    headers: REQUEST_HEADERS,
-  });
-  if (!response.ok) return undefined;
   try {
+    const response = await makeRequest(url, {
+      timeout,
+      headers: REQUEST_HEADERS,
+    });
+    if (!response.ok) return undefined;
     return await response.text();
   } catch {
     return undefined;
@@ -454,11 +453,10 @@ export class MiTvAddon {
       skip,
       skip + LIVE_TV_CATALOG_PAGE_SIZE
     );
-    const limit = pLimit(FETCH_CONCURRENCY);
-    const schedules = await Promise.all(
-      channels.map((channel) =>
-        limit(() => loadSchedule(this.config, channel.slug, guideDate))
-      )
+    const schedules = await mapWithEpgConcurrency(
+      channels,
+      (channel) => loadSchedule(this.config, channel.slug, guideDate),
+      []
     );
 
     return channels.map((channel, index) => {

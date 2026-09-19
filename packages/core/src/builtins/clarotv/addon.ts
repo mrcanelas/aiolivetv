@@ -141,9 +141,9 @@ async function fetchJson<T>(
   url: string,
   timeout: number
 ): Promise<T | undefined> {
-  const response = await makeRequest(url, { timeout });
-  if (!response.ok) return undefined;
   try {
+    const response = await makeRequest(url, { timeout });
+    if (!response.ok) return undefined;
     return (await response.json()) as T;
   } catch {
     return undefined;

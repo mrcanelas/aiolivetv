@@ -1,3 +1,4 @@
+import pLimit from 'p-limit';
 import type { ContentRating, Meta, MetaPreview } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
 import { normalizeChannelGroup } from '../../utils/channelName.js';
@@ -5,6 +6,26 @@ import { getContentRatingIconUrl } from './content-rating-icon.js';
 import { programRuntime } from './shared.js';
 
 export const LIVE_TV_CATALOG_PAGE_SIZE = 50;
+export const EPG_FETCH_CONCURRENCY = 4;
+
+export async function mapWithEpgConcurrency<T, R>(
+  items: readonly T[],
+  mapper: (item: T) => Promise<R>,
+  fallback: R
+): Promise<R[]> {
+  const limit = pLimit(EPG_FETCH_CONCURRENCY);
+  return Promise.all(
+    items.map((item) =>
+      limit(async () => {
+        try {
+          return await mapper(item);
+        } catch {
+          return fallback;
+        }
+      })
+    )
+  );
+}
 
 export interface CatalogExtras {
   skip: number;

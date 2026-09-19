@@ -190,6 +190,43 @@ describe('Vivo TV builtin', () => {
     });
   });
 
+  it('keeps catalog channels when a schedule request times out', async () => {
+    vi.mocked(makeRequest).mockImplementation(async (url: string) => {
+      if (url.includes('contentTypes=LCH')) {
+        return {
+          ok: true,
+          json: async () => ({
+            Content: {
+              List: [
+                {
+                  Pid: 'LCH001',
+                  Title: 'Globo HD',
+                  Images: { Icon: [{ Url: 'https://cdn.example/icon.png' }] },
+                },
+              ],
+            },
+          }),
+        } as never;
+      }
+      if (url.includes('/schedules?')) {
+        throw Object.assign(new Error('The operation was aborted due to timeout'), {
+          name: 'TimeoutError',
+        });
+      }
+      return {
+        ok: true,
+        json: async () => ({ Content: { List: [] } }),
+      } as never;
+    });
+
+    const addon = new VivoTvAddon({ timeout: 1000 });
+    const guide = await addon.getCatalogGuide(0, '2026-09-19');
+
+    expect(guide).toHaveLength(1);
+    expect(guide[0]).toMatchObject({ name: 'Globo' });
+    expect(guide[0]?.videos ?? []).toEqual([]);
+  });
+
   it('falls back to the Vivo rating image when age-rating-kit has no icon', async () => {
     const channelResponse = {
       ok: true,
