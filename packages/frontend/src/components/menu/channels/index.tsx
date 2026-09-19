@@ -25,6 +25,7 @@ import { ChannelListItem } from './_components/channel-list-item';
 import { ChannelMappingModal } from './_components/channel-mapping-modal';
 import { ManualHlsModal } from './_components/manual-hls-modal';
 import { NeedsReviewCard } from './_components/needs-review';
+import { RemovedChannelsCard } from './_components/removed-channels';
 import { SourceDiagnosticsCard } from './_components/source-diagnostics';
 import {
   type ChannelReviewFilter,
@@ -33,6 +34,7 @@ import {
   asChannelsResponse,
   filterChannelsByReview,
   findDuplicateGroups,
+  getRemovedChannels,
   isChannelSuggestion,
   isManualStreamMapping,
   buildManualStreamChannelId,
@@ -59,7 +61,12 @@ export function ChannelsMenu() {
     Record<string, string>
   >({});
   const [customizedIds, setCustomizedIds] = React.useState<Set<string>>(
-    new Set()
+    () =>
+      new Set(
+        (userData.channelMappings ?? [])
+          .filter((mapping) => mapping.name || mapping.poster || mapping.group)
+          .map((mapping) => mapping.id)
+      )
   );
   const [mappingChannelId, setMappingChannelId] = React.useState<string | null>(
     null
@@ -119,24 +126,61 @@ export function ChannelsMenu() {
   const buildVisibleMappings = React.useCallback(
     (
       nextChannels: ChannelInfo[],
-      currentMappings: typeof userData.channelMappings
-    ) =>
-      nextChannels
-        .map((channel) => {
-          const existing = currentMappings?.find(
-            (mapping) => mapping.id === channel.id
-          );
-          const customized =
-            customizedIds.has(channel.id) ||
+      currentMappings: typeof userData.channelMappings,
+      extraCustomizedIds?: Iterable<string>
+    ) => {
+      const customized = new Set(customizedIds);
+      for (const id of extraCustomizedIds ?? []) customized.add(id);
+
+      return nextChannels.flatMap((channel) => {
+        const existing = currentMappings?.find(
+          (mapping) => mapping.id === channel.id
+        );
+        const isCustomized = Boolean(
+          customized.has(channel.id) ||
             existing?.name ||
             existing?.poster ||
             existing?.group ||
-            (channel.group && channel.group !== channel.sourceGroup);
-          return {
+            (channel.group && channel.group !== channel.sourceGroup)
+        );
+        const streams = channel.mappings
+          .filter((mapping) => !isChannelSuggestion(mapping.confidence))
+          .map((mapping) => ({
+            addonId: mapping.addonId,
+            channelId: mapping.channelId,
+            confidence: mapping.confidence,
+            enabled: mapping.enabled,
+            ...(mapping.url
+              ? persistableManualStreamFields({
+                  url: mapping.url,
+                  name: mapping.name,
+                  headers: mapping.headers,
+                  resolution: mapping.resolution,
+                  encode: mapping.encode,
+                  quality: mapping.quality,
+                  languages: mapping.languages,
+                  audioChannels: mapping.audioChannels,
+                  visualTags: mapping.visualTags,
+                })
+              : {}),
+          }));
+        const rejectedStreams = channel.rejectedStreams?.length
+          ? channel.rejectedStreams
+          : undefined;
+        if (
+          channel.enabled &&
+          streams.length === 0 &&
+          !rejectedStreams?.length &&
+          !isCustomized
+        ) {
+          return [];
+        }
+        return [
+          {
             id: channel.id,
             canonicalAddonId: channel.canonicalAddonId,
             enabled: channel.enabled,
-            ...(customized
+            ...(isCustomized
               ? {
                   name: channel.name,
                   poster: channel.poster ?? undefined,
@@ -145,48 +189,22 @@ export function ChannelsMenu() {
                     : {}),
                 }
               : {}),
-            rejectedStreams: channel.rejectedStreams?.length
-              ? channel.rejectedStreams
-              : undefined,
-            streams: channel.mappings
-              .filter((mapping) => !isChannelSuggestion(mapping.confidence))
-              .map((mapping) => ({
-                addonId: mapping.addonId,
-                channelId: mapping.channelId,
-                confidence: mapping.confidence,
-                enabled: mapping.enabled,
-                ...(mapping.url
-                  ? persistableManualStreamFields({
-                      url: mapping.url,
-                      name: mapping.name,
-                      headers: mapping.headers,
-                      resolution: mapping.resolution,
-                      encode: mapping.encode,
-                      quality: mapping.quality,
-                      languages: mapping.languages,
-                      audioChannels: mapping.audioChannels,
-                      visualTags: mapping.visualTags,
-                    })
-                  : {}),
-              })),
-          };
-        })
-        .filter(
-          (channel) =>
-            !channel.enabled ||
-            channel.streams.length > 0 ||
-            (channel.rejectedStreams?.length ?? 0) > 0 ||
-            customizedIds.has(channel.id)
-        ),
+            rejectedStreams,
+            streams,
+          },
+        ];
+      });
+    },
     [customizedIds]
   );
 
   const persistChannels = React.useCallback(
-    (nextChannels: ChannelInfo[]) => {
+    (nextChannels: ChannelInfo[], extraCustomizedIds?: Iterable<string>) => {
       setUserData((current) => {
         const visibleMappings = buildVisibleMappings(
           nextChannels,
-          current.channelMappings
+          current.channelMappings,
+          extraCustomizedIds
         );
         const hidden = (current.channelMappings ?? []).filter(
           (mapping) =>
@@ -206,7 +224,10 @@ export function ChannelsMenu() {
     [buildVisibleMappings, setUserData]
   );
 
-  const setChannels = (update: (channels: ChannelInfo[]) => ChannelInfo[]) => {
+  const setChannels = (
+    update: (channels: ChannelInfo[]) => ChannelInfo[],
+    extraCustomizedIds?: Iterable<string>
+  ) => {
     const current = asChannelsResponse(
       queryClient.getQueryData<ChannelsResponse>(queryKey)
     );
@@ -215,7 +236,7 @@ export function ChannelsMenu() {
       ...current,
       channels: nextChannels,
     });
-    persistChannels(nextChannels);
+    persistChannels(nextChannels, extraCustomizedIds);
   };
 
   const acceptSuggestion = (
@@ -507,23 +528,44 @@ export function ChannelsMenu() {
 
   const updateChannel = (
     channelId: string,
-    update: (channel: ChannelInfo) => ChannelInfo
+    update: (channel: ChannelInfo) => ChannelInfo,
+    extraCustomizedIds?: Iterable<string>
   ) => {
-    setChannels((current) =>
-      current.map((channel) =>
-        channel.id === channelId ? update(channel) : channel
-      )
+    setChannels(
+      (current) =>
+        current.map((channel) =>
+          channel.id === channelId ? update(channel) : channel
+        ),
+      extraCustomizedIds
     );
   };
 
   const removeChannels = (channelIds: Iterable<string>) => {
     const ids = new Set(channelIds);
     const nextChannels = channels.filter((channel) => !ids.has(channel.id));
+    const currentResponse = asChannelsResponse(
+      queryClient.getQueryData<ChannelsResponse>(queryKey)
+    );
     queryClient.setQueryData(queryKey, {
-      ...asChannelsResponse(
-        queryClient.getQueryData<ChannelsResponse>(queryKey)
-      ),
+      ...currentResponse,
       channels: nextChannels,
+      removedChannels: [
+        ...currentResponse.removedChannels.filter(
+          (channel) => !ids.has(channel.id)
+        ),
+        ...[...ids].flatMap((id) => {
+          const channel = channels.find((item) => item.id === id);
+          return channel
+            ? [
+                {
+                  id,
+                  name: channel.name,
+                  poster: channel.poster ?? undefined,
+                },
+              ]
+            : [];
+        }),
+      ],
     });
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -539,14 +581,40 @@ export function ChannelsMenu() {
         ...(current.channelMappings ?? []).filter(
           (mapping) => mapping.hidden && !ids.has(mapping.id)
         ),
-        ...[...ids].map((id) => ({
-          id,
-          hidden: true as const,
-          enabled: false,
-        })),
+        ...[...ids].map((id) => {
+          const previous = current.channelMappings?.find(
+            (mapping) => mapping.id === id
+          );
+          const channel = channels.find((item) => item.id === id);
+          return {
+            ...previous,
+            id,
+            hidden: true as const,
+            enabled: false,
+            name: channel?.name ?? previous?.name,
+            poster: channel?.poster ?? previous?.poster ?? undefined,
+            canonicalAddonId:
+              channel?.canonicalAddonId ?? previous?.canonicalAddonId,
+          };
+        }),
       ];
       return { ...current, channelMappings: [...visibleMappings, ...hidden] };
     });
+  };
+
+  const restoreChannels = (channelIds: Iterable<string>) => {
+    const ids = new Set(channelIds);
+    const nextUserData = {
+      ...userData,
+      channelMappings: (userData.channelMappings ?? []).map((mapping) =>
+        ids.has(mapping.id)
+          ? { ...mapping, hidden: false, enabled: true }
+          : mapping
+      ),
+    };
+    userDataRef.current = nextUserData;
+    setUserData(nextUserData);
+    void queryClient.invalidateQueries({ queryKey });
   };
 
   const removeChannel = (channelId: string) => {
@@ -560,12 +628,16 @@ export function ChannelsMenu() {
     group: string
   ) => {
     setCustomizedIds((current) => new Set(current).add(channelId));
-    updateChannel(channelId, (channel) => ({
-      ...channel,
-      name,
-      poster: poster || null,
-      group: normalizeChannelGroup(group) || channel.sourceGroup,
-    }));
+    updateChannel(
+      channelId,
+      (channel) => ({
+        ...channel,
+        name,
+        poster: poster || null,
+        group: normalizeChannelGroup(group) || channel.sourceGroup,
+      }),
+      [channelId]
+    );
   };
 
   const reviewedChannels = filterChannelsByReview(
@@ -862,6 +934,14 @@ export function ChannelsMenu() {
           <ul className="space-y-2">{filteredChannels.map(renderChannel)}</ul>
         )}
       </SettingsCard>
+
+      <RemovedChannelsCard
+        channels={getRemovedChannels(
+          userData.channelMappings,
+          channelsResponse.removedChannels
+        )}
+        onRestore={restoreChannels}
+      />
 
       <ChannelMappingModal
         channel={mappingChannel}

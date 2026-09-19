@@ -337,12 +337,19 @@ export interface DuplicateChannelGroup {
   channelIds: string[];
 }
 
+export interface RemovedChannelInfo {
+  id: string;
+  name: string;
+  poster?: string | null;
+}
+
 export interface ChannelsResponse {
   channels: ChannelInfo[];
   sources: ChannelSourceDiagnostic[];
   unmatchedStreams: UnmatchedStreamInfo[];
   unavailableStreams: UnavailableStreamInfo[];
   duplicates: DuplicateChannelGroup[];
+  removedChannels: RemovedChannelInfo[];
 }
 
 /**

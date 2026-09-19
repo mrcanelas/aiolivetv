@@ -67,7 +67,7 @@ export function ChannelListItem({
 
   const confirmDelete = useConfirmationDialog({
     title: 'Remove Channel',
-    description: `Remove "${channel.name}" from your channel list? You can restore it by refreshing after clearing hidden mappings.`,
+    description: `Remove "${channel.name}" from your channel list? You can restore it later from Removed channels.`,
     actionText: 'Remove',
     actionIntent: 'alert',
     onConfirm: onRemove,

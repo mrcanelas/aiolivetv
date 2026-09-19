@@ -667,8 +667,9 @@ router.post(
 
       // ponytail: O(n²) is adequate for configuration-time channel lists;
       // index normalized fields only if real guides make this measurably slow.
-      // Pass 1: catalog-defined channels. Catalog+stream builtins already
-      // bind playback to the same channel id — skip name/tvg proximity.
+      // Pass 1: catalog-defined channels stay separate so the user can hide
+      // duplicates per provider. Catalog+stream builtins already bind playback
+      // to the same channel id — skip name/tvg proximity.
       for (const candidate of candidates.values()) {
         if (hiddenChannelIds.has(candidate.id)) continue;
         if (!candidate.contributesChannels) continue;
@@ -767,6 +768,29 @@ router.post(
         }
       }
 
+      const catalogById = new Map<string, Candidate>();
+      for (const candidate of candidates.values()) {
+        if (!catalogById.has(candidate.id)) {
+          catalogById.set(candidate.id, candidate);
+        }
+      }
+      const removedChannels = configuredMappings
+        .filter((mapping) => mapping.hidden)
+        .map((mapping) => {
+          const candidate = catalogById.get(mapping.id);
+          return {
+            id: mapping.id,
+            name:
+              mapping.name?.trim() ||
+              candidate?.name?.trim() ||
+              mapping.id,
+            poster: mapping.poster || candidate?.poster || undefined,
+          };
+        })
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        );
+
       const visibleChannels = channels
         .filter((channel) => !hiddenChannelIds.has(channel.id))
         .map((channel) => {
@@ -803,6 +827,7 @@ router.post(
             unmatchedStreams: [],
             unavailableStreams,
             duplicates: findPossibleDuplicateChannels(visibleChannels),
+            removedChannels,
           },
         })
       );

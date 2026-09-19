@@ -1,6 +1,7 @@
 import type {
   ChannelInfo,
   ChannelsResponse,
+  RemovedChannelInfo,
 } from '@/lib/api';
 
 export function isChannelSuggestion(confidence: number) {
@@ -182,6 +183,35 @@ export function groupChannelsBySource(channels: ChannelInfo[]) {
   );
 }
 
+export function getRemovedChannels(
+  mappings:
+    | Array<{
+        id: string;
+        hidden?: boolean;
+        name?: string;
+        poster?: string;
+      }>
+    | undefined,
+  catalogRemoved: RemovedChannelInfo[] = []
+) {
+  const fromCatalog = new Map(
+    catalogRemoved.map((channel) => [channel.id, channel])
+  );
+  return (mappings ?? [])
+    .filter((mapping) => mapping.hidden)
+    .map((mapping) => {
+      const snapshot = fromCatalog.get(mapping.id);
+      return {
+        id: mapping.id,
+        name: mapping.name?.trim() || snapshot?.name?.trim() || mapping.id,
+        poster: mapping.poster || snapshot?.poster || undefined,
+      };
+    })
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+}
+
 export function emptyChannelsResponse(): ChannelsResponse {
   return {
     channels: [],
@@ -189,6 +219,7 @@ export function emptyChannelsResponse(): ChannelsResponse {
     unmatchedStreams: [],
     unavailableStreams: [],
     duplicates: [],
+    removedChannels: [],
   };
 }
 
@@ -205,6 +236,7 @@ export function asChannelsResponse(
     unmatchedStreams: data.unmatchedStreams ?? [],
     unavailableStreams: data.unavailableStreams ?? [],
     duplicates: data.duplicates ?? [],
+    removedChannels: data.removedChannels ?? [],
   };
 }
 
@@ -237,7 +269,7 @@ export function compactChannelLabel(name: string) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/\b(hd|fhd|uhd|4k|sd|tv|channel|canal|live)\b/g, '')
+    .replace(/\b(hd|fhd|uhd|4k|sd|tv|channel|canal|rede|live)\b/g, '')
     .replace(/[^a-z0-9]+/g, '');
 }
 

@@ -7,6 +7,7 @@ import {
   compactChannelLabel,
   filterChannelsByReview,
   findDuplicateGroups,
+  getRemovedChannels,
   parseStreamSourceKey,
   streamSourceKey,
 } from '../utils';
@@ -27,6 +28,10 @@ describe('compactChannelLabel', () => {
     expect(compactChannelLabel('Globo HD')).toBe(
       compactChannelLabel('Globo FHD')
     );
+  });
+
+  it('strips Rede so Rede Globo matches Globo', () => {
+    expect(compactChannelLabel('Rede Globo')).toBe(compactChannelLabel('Globo'));
   });
 });
 
@@ -160,5 +165,45 @@ describe('stream source search', () => {
       addonId: 'frost-view',
       streamChannelId: 'aiolivetv:abc123',
     });
+  });
+});
+
+describe('getRemovedChannels', () => {
+  it('lists hidden mappings by saved name', () => {
+    expect(
+      getRemovedChannels([
+        { id: 'keep', name: 'Globo' },
+        { id: 'gone', name: 'SBT', hidden: true, poster: 'https://cdn/sbt.png' },
+        { id: 'noid', hidden: true },
+      ])
+    ).toEqual([
+      { id: 'noid', name: 'noid', poster: undefined },
+      {
+        id: 'gone',
+        name: 'SBT',
+        poster: 'https://cdn/sbt.png',
+      },
+    ]);
+  });
+
+  it('fills name and poster from the catalog when the mapping only has an id', () => {
+    expect(
+      getRemovedChannels(
+        [{ id: 'aiolivetv:bGNoMjA1MA', hidden: true }],
+        [
+          {
+            id: 'aiolivetv:bGNoMjA1MA',
+            name: 'Band',
+            poster: 'https://cdn/band.png',
+          },
+        ]
+      )
+    ).toEqual([
+      {
+        id: 'aiolivetv:bGNoMjA1MA',
+        name: 'Band',
+        poster: 'https://cdn/band.png',
+      },
+    ]);
   });
 });
