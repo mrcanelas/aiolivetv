@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.5.0-beta...v0.6.0-beta) (2026-09-19)
+
+
+### Features
+
+* **movistar:** add LATAM Movistar builtin with EPG ([2529206](https://github.com/mrcanelas/aiolivetv/commit/25292062f15aa799b94ee05fe0960d82d7b8d0c6))
+* **tvp:** add live TVP builtin with EPG, ratings and direct streams ([963deff](https://github.com/mrcanelas/aiolivetv/commit/963deffcce4dec1ae405347507736a63551c3de8))
+* **tvp:** show TVP logo on the Addons marketplace card ([07bf34a](https://github.com/mrcanelas/aiolivetv/commit/07bf34a37c030db3855760108870388e21d0f848))
+* **usa-tv:** restore USA TV via usa-tv-next ([1dce263](https://github.com/mrcanelas/aiolivetv/commit/1dce263f9a471f3bd41c8d39f3754b2bf29fdb70))
+
+
+### Bug Fixes
+
+* **catalog:** bind catalog+stream builtins without proximity matching ([f0de96c](https://github.com/mrcanelas/aiolivetv/commit/f0de96c2a6d860fe515347d5bed993d435582f6e))
+* **frontend:** drop leftover AIOStreams SVG so the tab uses favicon.png ([1d8622b](https://github.com/mrcanelas/aiolivetv/commit/1d8622b4740e20a09c7a4174bf4ac7dc727f6a38))
+* **presets:** remove Minha TV from the marketplace ([22ffe7f](https://github.com/mrcanelas/aiolivetv/commit/22ffe7f65dc827d4265b590ba85345529b22513d))
+* **presets:** use English descriptions for builtins ([3341f02](https://github.com/mrcanelas/aiolivetv/commit/3341f029baf3ed73b7af79794993423c2422873f))
+* **tvp:** keep catalog and EPG only, drop geo-blocked streams ([f1fc45a](https://github.com/mrcanelas/aiolivetv/commit/f1fc45afaf126c3d437372a3836a29ccb0bb4608))
+
 ## [0.5.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.4.2-beta...v0.5.0-beta) (2026-09-17)
 
 
