@@ -402,11 +402,27 @@ describe('channel mappings', () => {
     expect(
       isHighConfidenceChannelMatch(
         getChannelMatchConfidence(
-          { id: 'one', name: 'News', aliases: ['World News'] },
-          { id: 'two', name: 'World News' }
+          { id: 'vivo:globo', name: 'Globo', country: 'BR' },
+          { id: 'mitv:globo', name: 'Rede Globo', country: 'BR' }
         )
       )
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      isHighConfidenceChannelMatch(
+        getChannelMatchConfidence(
+          { id: 'vivo:globosat', name: 'Globosat', country: 'BR' },
+          { id: 'mitv:globosat', name: '+ Globosat', country: 'BR' }
+        )
+      )
+    ).toBe(true);
+    expect(
+      isHighConfidenceChannelMatch(
+        getChannelMatchConfidence(
+          { id: 'vivo:globo', name: 'Globo', country: 'BR' },
+          { id: 'mitv:globo-hd', name: 'Globo HD', country: 'BR' }
+        )
+      )
+    ).toBe(true);
   });
 
   it('treats partial matches below 90% as suggestions', () => {

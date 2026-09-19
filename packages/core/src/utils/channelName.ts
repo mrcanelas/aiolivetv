@@ -27,6 +27,7 @@ export function normalizeChannelName(name: string): string {
     /\bao\s+vivo\b/g,
     /\bchannel\b/g,
     /\bcanal\b/g,
+    /\brede\b/g,
     /\bleg(?:endado)?\b/g,
     /\bdub(?:bado|lado)?\b/g,
     /\borig(?:inal)?\b/g,
