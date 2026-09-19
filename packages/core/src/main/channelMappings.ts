@@ -80,15 +80,6 @@ export function deduplicateLiveTvItems<
       continue;
     }
 
-    const duplicate = kept.some((existing) =>
-      isHighConfidenceChannelMatch(
-        getChannelMatchConfidence(
-          { id: existing.id, name: existing.name ?? existing.id },
-          { id: item.id, name: item.name ?? item.id }
-        )
-      )
-    );
-    if (duplicate) continue;
     kept.push(item);
   }
 

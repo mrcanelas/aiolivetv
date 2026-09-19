@@ -205,13 +205,14 @@ describe('deduplicateLiveTvItems', () => {
     ).toEqual(['vivo:globo']);
   });
 
-  it('drops high-confidence name duplicates without a mapping', () => {
+  it('keeps the same name from every provider until the user hides one', () => {
     expect(
       deduplicateLiveTvItems(baseUserData, [
         { id: 'vivo:sbt', name: 'SBT' },
         { id: 'claro:sbt', name: 'SBT' },
+        { id: 'mitv:sbt', name: 'SBT' },
       ]).map((item) => item.id)
-    ).toEqual(['vivo:sbt']);
+    ).toEqual(['vivo:sbt', 'claro:sbt', 'mitv:sbt']);
   });
 
   it('hides disabled mapped channels', () => {
