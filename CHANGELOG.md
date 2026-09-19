@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.6.0-beta...v0.6.1-beta) (2026-09-19)
+
+
+### Bug Fixes
+
+* **catalog:** keep one listing per provider until the user hides a channel ([6c515b3](https://github.com/mrcanelas/aiolivetv/commit/6c515b3e4225afee7a8c2053ed42336bf58088a8))
+* **catalog:** page every live source so the merged catalog matches Channels ([5b8a60d](https://github.com/mrcanelas/aiolivetv/commit/5b8a60d94fe6255af0b41c822f10a5e7fbb591bd))
+* **channels:** pass restored user data through the setUserData updater ([ae23d8c](https://github.com/mrcanelas/aiolivetv/commit/ae23d8c1f945dd9057ee5fb7c9a948d981e97c62))
+* **channels:** persist name edits and restore hidden channels ([471defd](https://github.com/mrcanelas/aiolivetv/commit/471defda39c3dd6d804724ca6f0e84684e7b7837))
+* **channels:** show a provider chip beside the channel name ([7b3b1b7](https://github.com/mrcanelas/aiolivetv/commit/7b3b1b7010fbeb2b3493ad03d0c8de8282c8a35b))
+* **e2e:** expect one catalog listing per live TV provider ([ccb5bd2](https://github.com/mrcanelas/aiolivetv/commit/ccb5bd2f71e55b3c8d90baa2e47384e5ebd043a3))
+* **live-tv:** bound EPG fetches so a timeout does not empty the guide ([8bbdcf5](https://github.com/mrcanelas/aiolivetv/commit/8bbdcf5a95227ed5123e270036a28ac50c92d87b))
+* **matching:** treat Rede as noise so Rede Globo matches Globo ([e271c6a](https://github.com/mrcanelas/aiolivetv/commit/e271c6a418148750b7f5b443ae6675d4602c645c))
+
 ## [0.6.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.5.0-beta...v0.6.0-beta) (2026-09-19)
 
 
