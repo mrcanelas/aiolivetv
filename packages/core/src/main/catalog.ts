@@ -44,6 +44,8 @@ export {
 } from './liveTvMergedCatalog.js';
 
 const logger = createLogger('core');
+const MAX_LIVE_TV_SOURCE_PAGES = 50;
+const MAX_LIVE_TV_SOURCE_ITEMS = 10_000;
 
 export function convertDiscoverDeepLinks(
   ctx: Pick<AIOStreamsContext, 'addons' | 'manifestUrl'>,
@@ -158,6 +160,66 @@ export async function fetchRawCatalogItems(
       },
     };
   }
+}
+
+async function fetchAllLiveCatalogPages(
+  ctx: AIOStreamsContext,
+  addonInstanceId: string,
+  catalogId: string,
+  type: string,
+  extras: ExtrasParser
+): Promise<{
+  success: boolean;
+  items: MetaPreview[];
+  metasDetailed?: Meta[];
+  error?: { title: string; description: string };
+}> {
+  const items: MetaPreview[] = [];
+  const metasDetailed: Meta[] = [];
+  let skip = 0;
+  let page = 0;
+  let firstError: { title: string; description: string } | undefined;
+
+  while (
+    page < MAX_LIVE_TV_SOURCE_PAGES &&
+    items.length + metasDetailed.length < MAX_LIVE_TV_SOURCE_ITEMS
+  ) {
+    page += 1;
+    const pageExtras = new ExtrasParser(extras.toString());
+    pageExtras.skip = skip > 0 ? skip : undefined;
+    const result = await fetchRawCatalogItems(
+      ctx,
+      addonInstanceId,
+      catalogId,
+      type,
+      pageExtras
+    );
+    if (!result.success) {
+      firstError = result.error;
+      if (page === 1) return result;
+      break;
+    }
+    const batch = result.metasDetailed?.length
+      ? result.metasDetailed
+      : result.items;
+    if (batch.length === 0) break;
+    if (result.metasDetailed?.length) {
+      metasDetailed.push(...result.metasDetailed);
+    } else {
+      items.push(...result.items);
+    }
+    skip += batch.length;
+  }
+
+  if (page === 1 && firstError && items.length + metasDetailed.length === 0) {
+    return { success: false, items: [], error: firstError };
+  }
+
+  return {
+    success: true,
+    items,
+    metasDetailed: metasDetailed.length ? metasDetailed : undefined,
+  };
 }
 
 /**
@@ -468,6 +530,7 @@ export async function getMergedCatalog(
   const requestedSkip = parsedExtras.skip || 0;
   const isSearchRequest = !!parsedExtras.search;
   const requestedGenre = parsedExtras.genre;
+  const isLiveMerged = type === constants.TV_TYPE;
 
   const extrasForCacheKey = new ExtrasParser(extras);
   extrasForCacheKey.skip = undefined;
@@ -485,7 +548,7 @@ export async function getMergedCatalog(
 
   let skipState: MergedCatalogSkipState | undefined;
 
-  if (requestedSkip === 0) {
+  if (isLiveMerged || requestedSkip === 0) {
     skipState = { sourceSkips: {} };
     for (const encodedCatalogId of mergedCatalog.catalogIds) {
       skipState.sourceSkips[encodedCatalogId] = 0;
@@ -648,13 +711,22 @@ export async function getMergedCatalog(
         'fetching merged catalog source'
       );
 
-      const result = await fetchRawCatalogItems(
-        ctx,
-        addonInstanceId,
-        actualCatalogId,
-        catalogType,
-        sourceExtras
-      );
+      const result =
+        type === constants.TV_TYPE && supportsSkip
+          ? await fetchAllLiveCatalogPages(
+              ctx,
+              addonInstanceId,
+              actualCatalogId,
+              catalogType,
+              sourceExtras
+            )
+          : await fetchRawCatalogItems(
+              ctx,
+              addonInstanceId,
+              actualCatalogId,
+              catalogType,
+              sourceExtras
+            );
 
       if (!result.success) {
         logger.warn(
@@ -733,8 +805,10 @@ export async function getMergedCatalog(
     if (skipped) continue;
     nextSourceSkips[encodedCatalogId] =
       (skipState.sourceSkips[encodedCatalogId] || 0) + fetched;
-    if (isGuide && metasDetailed) {
-      detailedBySource.push(metasDetailed);
+    if (isGuide) {
+      detailedBySource.push(
+        metasDetailed?.length ? metasDetailed : (items as Meta[])
+      );
     } else {
       itemsBySource.push(items);
     }
@@ -752,6 +826,9 @@ export async function getMergedCatalog(
       allDetailed,
       requestedGenre
     );
+    if (isLiveMerged) {
+      allDetailed = allDetailed.slice(requestedSkip);
+    }
     const nextSkip = requestedSkip + allDetailed.length;
     if (allDetailed.length > 0) {
       await mergedCatalogCache.set(
@@ -810,6 +887,9 @@ export async function getMergedCatalog(
       requestedGenre,
       !modification?.shuffle && !modification?.reverse
     );
+    if (isLiveMerged) {
+      allItems = allItems.slice(requestedSkip);
+    }
   }
 
   const nextSkip = requestedSkip + allItems.length;
