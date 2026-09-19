@@ -614,7 +614,7 @@ export function ChannelsMenu() {
       ),
     };
     userDataRef.current = nextUserData;
-    setUserData(nextUserData);
+    setUserData(() => nextUserData);
     void queryClient.invalidateQueries({ queryKey });
   };
 
