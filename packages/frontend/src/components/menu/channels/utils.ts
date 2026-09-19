@@ -46,6 +46,7 @@ export function getMappingStats(channel: ChannelInfo) {
 }
 
 export function getChannelSourceLabel(channel: ChannelInfo) {
+  if (channel.sourceName?.trim()) return channel.sourceName.trim();
   const canonical = channel.mappings.find(
     (mapping) => mapping.addonId === channel.canonicalAddonId
   );
@@ -205,6 +206,7 @@ export function getRemovedChannels(
         id: mapping.id,
         name: mapping.name?.trim() || snapshot?.name?.trim() || mapping.id,
         poster: mapping.poster || snapshot?.poster || undefined,
+        sourceName: snapshot?.sourceName,
       };
     })
     .sort((a, b) =>

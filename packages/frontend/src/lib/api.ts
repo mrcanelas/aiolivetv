@@ -270,6 +270,7 @@ export interface ChannelInfo {
   name: string;
   poster?: string | null;
   canonicalAddonId: string;
+  sourceName?: string;
   enabled: boolean;
   epgProvider?: boolean;
   group?: string;
@@ -341,6 +342,7 @@ export interface RemovedChannelInfo {
   id: string;
   name: string;
   poster?: string | null;
+  sourceName?: string;
 }
 
 export interface ChannelsResponse {

@@ -3,7 +3,7 @@ import { LuLink } from 'react-icons/lu';
 import { IconButton } from '../../../ui/button';
 import { Switch } from '../../../ui/switch';
 import type { ChannelInfo } from '@/lib/api';
-import { getMappingStats } from '../utils';
+import { getChannelSourceLabel, getMappingStats } from '../utils';
 import {
   ConfirmationDialog,
   useConfirmationDialog,
@@ -54,6 +54,19 @@ function MappingBadge({
   );
 }
 
+export function ProviderChip({ label }: { label?: string }) {
+  const name = label?.trim();
+  if (!name || name === 'Other') return null;
+  return (
+    <span
+      title={name}
+      className="max-w-[5.5rem] flex-shrink-0 truncate rounded-full border border-blue-500/30 bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-300 sm:max-w-[9rem]"
+    >
+      {name}
+    </span>
+  );
+}
+
 export function ChannelListItem({
   channel,
   isSelected,
@@ -64,6 +77,7 @@ export function ChannelListItem({
   onRemove,
 }: ChannelListItemProps) {
   const { accepted, pending, total } = getMappingStats(channel);
+  const sourceLabel = getChannelSourceLabel(channel);
 
   const confirmDelete = useConfirmationDialog({
     title: 'Remove Channel',
@@ -128,11 +142,12 @@ export function ChannelListItem({
           )}
         </div>
 
-        <p className="line-clamp-1 block min-w-0 flex-1 truncate text-base">
-          {channel.name}
-        </p>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <p className="min-w-0 truncate text-base">{channel.name}</p>
+          <ProviderChip label={sourceLabel} />
+        </div>
         {channel.group ? (
-          <span className="hidden max-w-[8rem] truncate rounded-full bg-[--subtle] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[--muted] sm:inline">
+          <span className="hidden max-w-[8rem] flex-shrink-0 truncate rounded-full bg-[--subtle] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[--muted] sm:inline">
             {channel.group}
           </span>
         ) : null}

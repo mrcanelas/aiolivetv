@@ -561,6 +561,7 @@ export function ChannelsMenu() {
                   id,
                   name: channel.name,
                   poster: channel.poster ?? undefined,
+                  sourceName: channel.sourceName,
                 },
               ]
             : [];

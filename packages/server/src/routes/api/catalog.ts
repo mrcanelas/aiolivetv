@@ -785,6 +785,7 @@ router.post(
               candidate?.name?.trim() ||
               mapping.id,
             poster: mapping.poster || candidate?.poster || undefined,
+            sourceName: candidate?.addonName,
           };
         })
         .sort((a, b) =>
@@ -805,6 +806,10 @@ router.post(
           );
           return {
             ...channel,
+            sourceName:
+              canonical.addonName ||
+              sources.get(channel.canonicalAddonId)?.name ||
+              undefined,
             sourceGroup,
             group: normalizeChannelGroup(configured?.group) ?? sourceGroup,
             epgProvider:

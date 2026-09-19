@@ -7,6 +7,7 @@ import {
   compactChannelLabel,
   filterChannelsByReview,
   findDuplicateGroups,
+  getChannelSourceLabel,
   getRemovedChannels,
   parseStreamSourceKey,
   streamSourceKey,
@@ -32,6 +33,16 @@ describe('compactChannelLabel', () => {
 
   it('strips Rede so Rede Globo matches Globo', () => {
     expect(compactChannelLabel('Rede Globo')).toBe(compactChannelLabel('Globo'));
+  });
+});
+
+describe('getChannelSourceLabel', () => {
+  it('uses the catalog source name when there are no stream mappings', () => {
+    expect(
+      getChannelSourceLabel(
+        channel({ id: 'sbt', name: 'SBT', sourceName: 'Vivo TV' })
+      )
+    ).toBe('Vivo TV');
   });
 });
 
@@ -177,11 +188,12 @@ describe('getRemovedChannels', () => {
         { id: 'noid', hidden: true },
       ])
     ).toEqual([
-      { id: 'noid', name: 'noid', poster: undefined },
+      { id: 'noid', name: 'noid', poster: undefined, sourceName: undefined },
       {
         id: 'gone',
         name: 'SBT',
         poster: 'https://cdn/sbt.png',
+        sourceName: undefined,
       },
     ]);
   });
@@ -195,6 +207,7 @@ describe('getRemovedChannels', () => {
             id: 'aiolivetv:bGNoMjA1MA',
             name: 'Band',
             poster: 'https://cdn/band.png',
+            sourceName: 'Claro TV',
           },
         ]
       )
@@ -203,6 +216,7 @@ describe('getRemovedChannels', () => {
         id: 'aiolivetv:bGNoMjA1MA',
         name: 'Band',
         poster: 'https://cdn/band.png',
+        sourceName: 'Claro TV',
       },
     ]);
   });

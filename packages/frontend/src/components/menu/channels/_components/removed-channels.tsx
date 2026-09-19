@@ -2,6 +2,7 @@ import { BiUndo } from 'react-icons/bi';
 import { SettingsCard } from '@/components/shared/settings-card';
 import { Button, IconButton } from '@/components/ui/button';
 import { getRemovedChannels } from '../utils';
+import { ProviderChip } from './channel-list-item';
 
 type RemovedChannel = ReturnType<typeof getRemovedChannels>[number];
 
@@ -52,7 +53,10 @@ export function RemovedChannelsCard({
                 </div>
               )}
             </div>
-            <p className="min-w-0 flex-1 truncate text-base">{channel.name}</p>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <p className="min-w-0 truncate text-base">{channel.name}</p>
+              <ProviderChip label={channel.sourceName} />
+            </div>
             <IconButton
               className="h-8 w-8 rounded-full md:h-10 md:w-10"
               icon={<BiUndo />}
