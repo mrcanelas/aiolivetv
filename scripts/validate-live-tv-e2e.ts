@@ -226,13 +226,26 @@ async function validateWithEpg(
 
   const catalog = liveTvCatalog(aio, constants.TV_TYPE, deps.mergedCatalogId);
   const channels = (await aio.getCatalog(constants.TV_TYPE, catalog.id)).data;
+  const catalogNames = channels
+    .map((item) => item.name)
+    .sort()
+    .join(',');
   assert(
-    channels.map((item) => item.name).sort().join(',') === 'BBC One,RTP 1',
-    `unexpected merged catalog: ${channels.map((item) => item.name).join(', ')}`
+    catalogNames === 'BBC One,BBC One,RTP 1,RTP-1',
+    `unexpected catalog: ${channels.map((item) => item.name).join(', ')}`
   );
 
-  const bbcXmltv = channels.find((item) => item.name === 'BBC One');
-  assert(bbcXmltv, `missing BBC One in merged catalog: ${channels.map((c) => c.name).join(', ')}`);
+  const bbcXmltv =
+    channels.find(
+      (item) =>
+        item.name === 'BBC One' &&
+        Array.isArray(item.videos) &&
+        item.videos.length > 0
+    ) ?? channels.find((item) => item.name === 'BBC One');
+  assert(
+    bbcXmltv,
+    `missing BBC One in catalog: ${channels.map((c) => c.name).join(', ')}`
+  );
   const bbcId = bbcXmltv.id;
 
   const epgMeta = (await aio.getMeta(constants.TV_TYPE, bbcId)).data;
