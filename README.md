@@ -75,6 +75,19 @@ docker compose up -d
 
 Open `http://localhost:3000/stremio/configure`.
 
+#### Large providers (manifest timeouts)
+
+Sources with very large channel lists (e.g. an Xtream provider with thousands of channels) can take longer than the default 10s to build their manifest, which shows up as `Request for manifest for Xtream Codes timed out after 10000ms`. Raise both limits in `.env`:
+
+```env
+# Timeout (ms) for manifest fetches when saving a config / loading the Channels page (default 10000)
+MANIFEST_INCREASED_TIMEOUT=120000
+# Cap (ms) on the underlying manifest request; falls back to MAX_TIMEOUT (default 50000) when unset
+BACKGROUND_RESOURCE_REQUEST_TIMEOUT=120000
+```
+
+Raising only `MANIFEST_INCREASED_TIMEOUT` past 50s has no effect, because the underlying request is still cut off by `BACKGROUND_RESOURCE_REQUEST_TIMEOUT` / `MAX_TIMEOUT`. Env files are read when the container is created, so recreate it after editing (`docker compose up -d --force-recreate`). Alternatively, limit an Xtream source with **Category IDs** (comma-separated) or **Category Name Regex** (e.g. `^(?:CH|DE|AT|TR)\|`) so fewer channels are imported.
+
 ### Vercel
 
 Use external PostgreSQL and Redis. In the project, set Framework Preset to **Container** and keep Root Directory at the repository root. Guide: [Deploy on Vercel](https://mrcanelas.github.io/aiolivetv/getting-started/vercel).
