@@ -128,6 +128,10 @@ const statusInfo = async (): Promise<StatusResponse> => {
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Beamup/CDN apply a long default max-age when Cache-Control is omitted;
+    // the configure UI reads version/tag from this endpoint.
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('CDN-Cache-Control', 'no-cache');
     const info = await statusInfo();
     res.status(200).json(
       createResponse({

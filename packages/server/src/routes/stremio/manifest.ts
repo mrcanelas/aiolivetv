@@ -10,6 +10,7 @@ import { Manifest } from '@aiolivetv/core';
 import { createLogger } from '@aiolivetv/core';
 import { corsMiddleware } from '../../middlewares/cors.js';
 import { stremioManifestRateLimiter } from '../../middlewares/ratelimit.js';
+import { setStremioManifestCacheHeaders } from '../../utils/stremioCacheHeaders.js';
 
 const logger = createLogger('server');
 const router: Router = Router();
@@ -87,6 +88,7 @@ router.get(
   async (req: Request, res: Response<Manifest>, next: NextFunction) => {
     logger.info({ uuid: req.userData?.uuid }, 'received request for manifest');
     try {
+      setStremioManifestCacheHeaders(res);
       res.status(200).json(await manifest(req.userData));
     } catch (error) {
       logger.error(`Failed to generate manifest: ${error}`);

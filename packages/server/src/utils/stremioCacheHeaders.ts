@@ -18,6 +18,18 @@ export function setStremioStreamCacheHeaders(res: Response) {
   applyCdnCache(res, NO_STORE);
 }
 
+/**
+ * Manifests carry the addon version and configurationRequired hint. Beamup's
+ * edge applies a 4h default when we omit Cache-Control, which leaves clients
+ * on a stale version after deploy. Keep this short and revalidatable.
+ */
+export function setStremioManifestCacheHeaders(res: Response) {
+  applyCdnCache(
+    res,
+    'public, max-age=60, s-maxage=60, stale-while-revalidate=300, must-revalidate'
+  );
+}
+
 export function setStremioCatalogCacheHeaders(
   res: Response,
   options: { cacheable: boolean; maxAge?: number; staleRevalidate?: number }
