@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.6.2-beta...v0.7.0-beta) (2026-10-02)
+
+
+### Features
+
+* add DIRECTV as a US live TV guide ([3ea79e8](https://github.com/mrcanelas/aiolivetv/commit/3ea79e80cca3689992db932bc4e93fb280ebd8f3))
+* **xtream:** support multiple category IDs and category name regex ([43dfd86](https://github.com/mrcanelas/aiolivetv/commit/43dfd8665f7ddd3fecd994574b420218da613bfd))
+
+
+### Bug Fixes
+
+* **channels:** stop the Channels scan hanging on slow or broken sources ([c64a13b](https://github.com/mrcanelas/aiolivetv/commit/c64a13b7a87d2a09a60176056539c2e7b2e8e38b))
+* expose root Stremio manifest for Beamup ([7debd6f](https://github.com/mrcanelas/aiolivetv/commit/7debd6ff12f5795d3069e700994020fb840f774f))
+* keep Beamup alive long enough to serve a Stremio manifest ([6087979](https://github.com/mrcanelas/aiolivetv/commit/60879794b4659747855d4f95959169074060d3bb))
+* start the Beamup container with the server instead of /start ([2d9c03f](https://github.com/mrcanelas/aiolivetv/commit/2d9c03fbf60c23c190ef88b82729dc198fb79ff5))
+* **vivotv:** serve logos and programme thumbs as WEBP ([eb77276](https://github.com/mrcanelas/aiolivetv/commit/eb772760bf5db9db5bb7235a3a09d9b0ac1f9451))
+
 ## [0.6.2-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.6.1-beta...v0.6.2-beta) (2026-09-21)
 
 
