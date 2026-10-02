@@ -100,11 +100,11 @@ function normalizeChannelTitle(title: string): string {
 }
 
 function channelLogoUrl(iconUrl: string): string {
-  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(iconUrl)}`;
+  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(iconUrl)}&height=60&resize=RATIO&format=WEBP`;
 }
 
 function programThumbnailUrl(url: string): string {
-  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(url)}&width=455&height=256&resize=CROP&format=JPEG`;
+  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(url)}&width=455&height=256&resize=CROP&format=WEBP`;
 }
 
 function parseProgramTitle(title: string): {
@@ -396,8 +396,7 @@ export class VivoTvAddon {
       id: 'org.aiolivetv.vivo-tv',
       name: 'Vivo TV',
       version: '1.0.0',
-      description:
-        'Live channels and EPG from Vivo Play (Telefónica Brazil).',
+      description: 'Live channels and EPG from Vivo Play (Telefónica Brazil).',
       types: [TV_TYPE],
       resources: [
         {
