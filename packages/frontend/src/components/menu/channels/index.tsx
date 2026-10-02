@@ -129,6 +129,34 @@ export function ChannelsMenu() {
   const sourcesWithSkippedCatalogs = channelsResponse.sources.filter(
     (source) => (source.skippedCatalogs?.length ?? 0) > 0
   );
+  const unavailableBySource = React.useMemo(() => {
+    const bySource = new Map<
+      string,
+      { addonId: string; addonName: string; count: number }
+    >();
+    for (const item of channelsResponse.unavailableStreams) {
+      const current = bySource.get(item.addonId);
+      if (current) {
+        current.count += 1;
+      } else {
+        bySource.set(item.addonId, {
+          addonId: item.addonId,
+          addonName: item.addonName,
+          count: 1,
+        });
+      }
+    }
+    return [...bySource.values()].sort((a, b) => b.count - a.count);
+  }, [channelsResponse.unavailableStreams]);
+  const failedSourceIds = React.useMemo(
+    () => new Set(sourceProblems.map((source) => source.instanceId)),
+    [sourceProblems]
+  );
+  // Streams missing from a source that already reported an error are covered
+  // by the source warning; only surface the rest as a compact per-source note.
+  const missingStreamsBySource = unavailableBySource.filter(
+    (source) => !failedSourceIds.has(source.addonId)
+  );
   const suggestionCount = countSuggestions(channels);
   const duplicateGroups = findDuplicateGroups(channels);
   const duplicateIds = React.useMemo(
@@ -872,7 +900,6 @@ export function ChannelsMenu() {
                   channels={channels}
                   noStreamCount={noStreamCount}
                   duplicateGroups={duplicateGroups}
-                  unavailableStreams={channelsResponse.unavailableStreams}
                   noScheduleCount={noScheduleCount}
                 />
               </div>
@@ -968,7 +995,8 @@ export function ChannelsMenu() {
             {!isInitialLoading &&
             (channelsResponse.scan?.truncated ||
               sourceProblems.length > 0 ||
-              sourcesWithSkippedCatalogs.length > 0) ? (
+              sourcesWithSkippedCatalogs.length > 0 ||
+              unavailableBySource.length > 0) ? (
               <div className="space-y-1 rounded-md border border-amber-500/40 px-3 py-2 text-xs">
                 {channelsResponse.scan?.truncated ? (
                   <p className="text-amber-400">
@@ -977,14 +1005,29 @@ export function ChannelsMenu() {
                     s.
                   </p>
                 ) : null}
-                {sourceProblems.map((source) => (
-                  <p key={source.instanceId} className="text-amber-400">
-                    <span className="font-semibold">{source.name}</span> (
-                    {Math.round(source.durationMs / 1000)}s,{' '}
-                    {source.channelCount + source.streamCount > 0
-                      ? `${Math.max(source.channelCount, source.streamCount)} found`
-                      : 'nothing found'}
-                    ): {source.error ?? 'stopped early'}
+                {sourceProblems.map((source) => {
+                  const missing =
+                    unavailableBySource.find(
+                      (item) => item.addonId === source.instanceId
+                    )?.count ?? 0;
+                  return (
+                    <p key={source.instanceId} className="text-amber-400">
+                      <span className="font-semibold">{source.name}</span>
+                      {missing > 0
+                        ? ` — ${missing} mapped stream${missing === 1 ? '' : 's'} unavailable`
+                        : ''}
+                      {source.error || source.truncated
+                        ? `: ${source.error ?? 'stopped early'}`
+                        : ''}
+                    </p>
+                  );
+                })}
+                {missingStreamsBySource.map((source) => (
+                  <p key={source.addonId} className="text-amber-400/90">
+                    <span className="font-semibold">{source.addonName}</span>
+                    : {source.count} mapped stream
+                    {source.count === 1 ? '' : 's'} were not returned in this
+                    scan
                   </p>
                 ))}
                 {sourcesWithSkippedCatalogs.map((source) => (

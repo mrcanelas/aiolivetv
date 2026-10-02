@@ -1,9 +1,5 @@
 import { StaticTabs } from '@/components/ui/tabs';
-import type {
-  ChannelInfo,
-  DuplicateChannelGroup,
-  UnavailableStreamInfo,
-} from '@/lib/api';
+import type { ChannelInfo, DuplicateChannelGroup } from '@/lib/api';
 import { type ChannelReviewFilter, countSuggestions } from '../utils';
 
 type NeedsReviewCardProps = {
@@ -12,7 +8,6 @@ type NeedsReviewCardProps = {
   channels: ChannelInfo[];
   noStreamCount: number;
   duplicateGroups: DuplicateChannelGroup[];
-  unavailableStreams: UnavailableStreamInfo[];
   noScheduleCount: number;
 };
 
@@ -29,7 +24,6 @@ export function NeedsReviewCard({
   channels,
   noStreamCount,
   duplicateGroups,
-  unavailableStreams,
   noScheduleCount,
 }: NeedsReviewCardProps) {
   const suggestionCount = countSuggestions(channels);
@@ -38,14 +32,7 @@ export function NeedsReviewCard({
     0
   );
   const total =
-    noStreamCount +
-    suggestionCount +
-    duplicateCount +
-    unavailableStreams.length +
-    noScheduleCount;
-  const showUnavailable =
-    (filter === 'all' || filter === 'unavailable') &&
-    unavailableStreams.length > 0;
+    noStreamCount + suggestionCount + duplicateCount + noScheduleCount;
 
   const tab = (
     name: string,
@@ -68,33 +55,8 @@ export function NeedsReviewCard({
           tab('Suggestions', 'suggestions', suggestionCount),
           tab('Duplicates', 'duplicates', duplicateCount),
           tab('No schedule', 'no-schedule', noScheduleCount),
-          ...(unavailableStreams.length > 0
-            ? [tab('Unavailable', 'unavailable', unavailableStreams.length)]
-            : []),
         ]}
       />
-
-      {showUnavailable ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[--muted]">
-            Unavailable streams ({unavailableStreams.length})
-          </p>
-          <ul className="space-y-1.5">
-            {unavailableStreams.map((item) => (
-              <li
-                key={`${item.channelId}\0${item.addonId}\0${item.streamChannelId}`}
-                className="rounded-[--radius-md] border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm"
-              >
-                <p className="truncate font-medium">{item.name}</p>
-                <p className="text-xs text-[--muted]">
-                  {item.channelName} · {item.addonName}
-                </p>
-                <p className="mt-0.5 text-xs text-red-400">{item.reason}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       {total === 0 ? (
         <p className="text-xs text-[--muted]">

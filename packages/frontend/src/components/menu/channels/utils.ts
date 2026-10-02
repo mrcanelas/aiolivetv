@@ -264,8 +264,7 @@ export type ChannelReviewFilter =
   | 'no-stream'
   | 'suggestions'
   | 'duplicates'
-  | 'no-schedule'
-  | 'unavailable';
+  | 'no-schedule';
 
 export function compactChannelLabel(name: string) {
   return name
@@ -314,8 +313,6 @@ export function filterChannelsByReview(
       return channels.filter(
         (channel) => channel.enabled && !channelHasSchedule(channel)
       );
-    case 'unavailable':
-      return channels;
     default:
       return channels;
   }
