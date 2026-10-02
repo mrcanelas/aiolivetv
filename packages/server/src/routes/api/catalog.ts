@@ -38,12 +38,12 @@ const MAX_CATALOG_PAGES = 50;
 const MAX_AUTO_MATCH_PAIRS = 5_000_000;
 
 /**
- * Wall-clock budget for one Channels scan (`CHANNEL_SCAN_BUDGET_MS`). On
- * Vercel the whole request is killed at the Function max duration, so the
- * scan stops early and returns what it has. `0` disables the limit.
+ * Wall-clock budget for one Channels scan (`resources.timeouts.channelScan` /
+ * `CHANNEL_SCAN_BUDGET_MS`). On hosts with a hard request limit the scan
+ * stops early and returns what it has. `0` disables the limit.
  */
 function channelScanBudgetMs(): number {
-  const budget = appConfig.bootstrap.channelScanBudgetMs;
+  const budget = appConfig.resources.timeouts.channelScan;
   return Number.isFinite(budget) && budget > 0 ? budget : 0;
 }
 

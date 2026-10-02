@@ -129,7 +129,8 @@ checks out the release tag and runs `vercel deploy --prod`.
 </Callout>
 
 <Callout type="info">
-  The Channels page scan stops after `CHANNEL_SCAN_BUDGET_MS` (default
+  The Channels page scan stops after the Channel scan budget (Dashboard →
+  Settings → Resources → Timeouts, or `CHANNEL_SCAN_BUDGET_MS`; default
   `240000` on Vercel) and returns the channels found so far, with each
   unfinished or failing source listed on the page. If you raise the Function
   max duration, raise this to about 60 seconds below the new limit. Set `0`

@@ -282,10 +282,6 @@ export const Env = cleanEnv(process.env, {
     default: 30,
     desc: 'How often (seconds) each instance polls the DB settings version and reloads runtime config if another instance changed it. Set 0 to disable (single-instance deployments).',
   }),
-  CHANNEL_SCAN_BUDGET_MS: num({
-    default: isEphemeralRuntime() ? 240_000 : 0,
-    desc: 'Wall-clock budget (ms) for one Channels page scan. When reached, the scan stops and returns the channels found so far, listing each unfinished source. Defaults to 240000 on Vercel (keep it about 60s below the Function max duration). Set 0 to remove the limit.',
-  }),
   LOG_LEVEL: str({
     default: 'info',
     desc: 'Log level for the addon',

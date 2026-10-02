@@ -534,8 +534,9 @@ export async function fetchCatalogs(userData: UserData) {
 }
 
 /**
- * The server stops a channel scan after its own time budget (240s on Vercel,
- * configurable with CHANNEL_SCAN_BUDGET_MS) and returns partial results, and
+ * The server stops a channel scan after its own time budget (Dashboard →
+ * Settings → Resources, or CHANNEL_SCAN_BUDGET_MS; 240s default on Vercel)
+ * and returns partial results, and
  * the hosting platform ends requests at its own limit. This is only a
  * backstop so the page can never wait forever if a connection hangs; it sits
  * above Vercel's largest standard limit (800s) so it never cuts off a scan
