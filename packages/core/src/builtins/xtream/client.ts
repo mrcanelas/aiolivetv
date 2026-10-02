@@ -19,7 +19,27 @@ export function createXtreamClient(config: XtreamConfig): Xtream<typeof standard
   });
 }
 
-export async function loadXtreamChannels(
+const CATEGORY_FETCH_CONCURRENCY = 5;
+
+export function parseCategoryIds(value?: string): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+export function compileCategoryNameRegex(pattern?: string): RegExp | undefined {
+  if (!pattern?.trim()) return undefined;
+  try {
+    return new RegExp(pattern.trim(), 'i');
+  } catch (err) {
+    throw new Error(
+      `Invalid category name regex "${pattern}": ${(err as Error).message}`
+    );
+  }
+}
+
+async function loadCategoryChannels(
   client: Xtream<typeof standardizedSerializer.serializers>,
   categoryId?: string
 ): Promise<StandardXtreamChannel[]> {
@@ -37,6 +57,27 @@ export async function loadXtreamChannels(
     page += 1;
   }
   return channels;
+}
+
+// Xtream's get_live_streams accepts a single category_id, so fetch per category and merge.
+export async function loadXtreamChannels(
+  client: Xtream<typeof standardizedSerializer.serializers>,
+  categoryIds?: string[]
+): Promise<StandardXtreamChannel[]> {
+  if (!categoryIds) return loadCategoryChannels(client);
+
+  const byId = new Map<string, StandardXtreamChannel>();
+  for (let i = 0; i < categoryIds.length; i += CATEGORY_FETCH_CONCURRENCY) {
+    const batches = await Promise.all(
+      categoryIds
+        .slice(i, i + CATEGORY_FETCH_CONCURRENCY)
+        .map((id) => loadCategoryChannels(client, id))
+    );
+    for (const channel of batches.flat()) {
+      if (!byId.has(channel.id)) byId.set(channel.id, channel);
+    }
+  }
+  return [...byId.values()];
 }
 
 export function streamExtension(

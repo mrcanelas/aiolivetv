@@ -27,8 +27,10 @@ import {
   encodeChannelId,
 } from '../live-tv/shared.js';
 import {
+  compileCategoryNameRegex,
   createXtreamClient,
   loadXtreamChannels,
+  parseCategoryIds,
   streamExtension,
 } from './client.js';
 import { XtreamConfigSchema } from './config.js';
@@ -47,11 +49,25 @@ const categoriesCache = Cache.getInstance<string, Array<{ id: string; name: stri
 );
 
 function channelsCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
-  return `${config.url}:${config.username}:${config.categoryId ?? 'all'}`;
+  return `${config.url}:${config.username}:${config.categoryId ?? 'all'}:${config.categoryNameRegex ?? ''}`;
 }
 
 function categoriesCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
   return `${config.url}:${config.username}`;
+}
+
+async function resolveCategoryIds(
+  config: z.infer<typeof XtreamConfigSchema>
+): Promise<string[] | undefined> {
+  const ids = parseCategoryIds(config.categoryId);
+  const nameRegex = compileCategoryNameRegex(config.categoryNameRegex);
+  if (!ids.length && !nameRegex) return undefined;
+  if (nameRegex) {
+    for (const category of await fetchCategories(config)) {
+      if (nameRegex.test(category.name)) ids.push(category.id);
+    }
+  }
+  return [...new Set(ids)];
 }
 
 async function loadChannels(
@@ -61,32 +77,42 @@ async function loadChannels(
   const cached = await channelsCache.get(cacheKey);
   if (cached) return cached;
   const client = createXtreamClient(config);
-  const channels = await loadXtreamChannels(client, config.categoryId);
+  const channels = await loadXtreamChannels(
+    client,
+    await resolveCategoryIds(config)
+  );
   await channelsCache.set(cacheKey, channels, CHANNELS_CACHE_TTL);
   return channels;
+}
+
+async function fetchCategories(
+  config: z.infer<typeof XtreamConfigSchema>
+): Promise<Array<{ id: string; name: string }>> {
+  const cacheKey = categoriesCacheKey(config);
+  const cached = await categoriesCache.get(cacheKey);
+  if (cached) return cached;
+
+  const client = createXtreamClient(config);
+  const raw = await client.getChannelCategories();
+  const categories = (Array.isArray(raw) ? raw : []).flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const id =
+      'id' in item && item.id !== undefined && item.id !== null
+        ? String(item.id)
+        : '';
+    const name =
+      'name' in item && typeof item.name === 'string' ? item.name.trim() : '';
+    return id && name ? [{ id, name }] : [];
+  });
+  await categoriesCache.set(cacheKey, categories, CHANNELS_CACHE_TTL);
+  return categories;
 }
 
 async function loadCategoryNames(
   config: z.infer<typeof XtreamConfigSchema>
 ): Promise<Map<string, string>> {
-  const cacheKey = categoriesCacheKey(config);
-  const cached = await categoriesCache.get(cacheKey);
-  if (cached) return new Map(cached.map((category) => [category.id, category.name]));
-
   try {
-    const client = createXtreamClient(config);
-    const raw = await client.getChannelCategories();
-    const categories = (Array.isArray(raw) ? raw : []).flatMap((item) => {
-      if (!item || typeof item !== 'object') return [];
-      const id =
-        'id' in item && item.id !== undefined && item.id !== null
-          ? String(item.id)
-          : '';
-      const name =
-        'name' in item && typeof item.name === 'string' ? item.name.trim() : '';
-      return id && name ? [{ id, name }] : [];
-    });
-    await categoriesCache.set(cacheKey, categories, CHANNELS_CACHE_TTL);
+    const categories = await fetchCategories(config);
     return new Map(categories.map((category) => [category.id, category.name]));
   } catch {
     return new Map();

@@ -7,6 +7,7 @@ export const XtreamConfigSchema = z.object({
   timeout: z.number().int().positive(),
   preferredFormat: z.enum(['m3u8', 'ts', 'rtmp']).default('m3u8'),
   categoryId: z.string().optional(),
+  categoryNameRegex: z.string().optional(),
   timeShiftMinutes: z.number().int().default(0),
 });
 

@@ -139,6 +139,53 @@ describe('XtreamAddon', () => {
     expect(mockGetFullEpg).toHaveBeenCalledWith({ channelId: '101' });
   });
 
+  it('fetches each comma-separated category id and dedupes channels', async () => {
+    const addon = new XtreamAddon({
+      url: 'http://example.com:8080',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+      categoryId: ' 1339, 513 ,,1339',
+    });
+    const channels = await addon.getCatalog();
+    const requested = mockGetChannels.mock.calls.map(([args]) => args.categoryId);
+    expect(requested).toEqual(['1339', '513']);
+    expect(channels).toHaveLength(1);
+  });
+
+  it('adds categories whose name matches the regex, case-insensitively', async () => {
+    mockGetChannelCategories.mockResolvedValue([
+      { id: '1', name: 'CH| Swiss' },
+      { id: '2', name: 'de| German' },
+      { id: '3', name: 'FR| French' },
+      { id: '4', name: 'Chile' },
+    ]);
+    const addon = new XtreamAddon({
+      url: 'http://example.com:8080',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+      categoryId: '99',
+      categoryNameRegex: '^(?:CH|DE|AT|TR)\\|.+$',
+    });
+    await addon.getCatalog();
+    const requested = mockGetChannels.mock.calls.map(([args]) => args.categoryId);
+    expect(requested.sort()).toEqual(['1', '2', '99']);
+  });
+
+  it('imports nothing when the regex matches no category', async () => {
+    const addon = new XtreamAddon({
+      url: 'http://example.com:8080',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+      categoryNameRegex: '^NOPE\\|',
+    });
+    const channels = await addon.getCatalog();
+    expect(mockGetChannels).not.toHaveBeenCalled();
+    expect(channels).toEqual([]);
+  });
+
   it('returns live streams for a channel', async () => {
     const addon = new XtreamAddon({
       url: 'http://example.com:8080',

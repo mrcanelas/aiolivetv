@@ -7,6 +7,7 @@ import type {
 } from '../db/index.js';
 import { MI_TV_COUNTRIES } from '../builtins/mitv/index.js';
 import { MOVISTAR_COUNTRIES } from '../builtins/movistartv/index.js';
+import { compileCategoryNameRegex } from '../builtins/xtream/client.js';
 import StreamParser from '../parser/streams.js';
 import { appConfig, constants, toUrlSafeBase64 } from '../utils/index.js';
 import { Preset } from './preset.js';
@@ -810,6 +811,7 @@ export class M3uPreset extends Preset {
 }
 
 function generateXtreamAddon(options: Record<string, any>): Addon {
+  compileCategoryNameRegex(options.categoryNameRegex);
   const config = {
     url: options.url,
     username: options.username,
@@ -817,6 +819,7 @@ function generateXtreamAddon(options: Record<string, any>): Addon {
     timeout: options.timeout || appConfig.presets.defaultTimeout,
     preferredFormat: options.preferredFormat || 'm3u8',
     categoryId: options.categoryId || undefined,
+    categoryNameRegex: options.categoryNameRegex || undefined,
     timeShiftMinutes: options.timeShiftMinutes ?? 0,
   };
   return {
@@ -897,9 +900,17 @@ function xtreamOptions(
     },
     {
       id: 'categoryId',
-      name: 'Category ID',
+      name: 'Category IDs',
       description:
-        'Optional live category ID to limit imported channels. Leave empty to import all categories.',
+        'Optional comma-separated live category IDs to limit imported channels (e.g. 1339,513). Combined with Category Name Regex. Leave both empty to import all categories.',
+      type: 'string',
+      required: false,
+    },
+    {
+      id: 'categoryNameRegex',
+      name: 'Category Name Regex',
+      description:
+        'Optional case-insensitive regular expression; live categories whose name matches are imported (e.g. ^(?:CH|DE|AT|TR)\\|). Combined with Category IDs.',
       type: 'string',
       required: false,
     },
