@@ -19,6 +19,7 @@ export const bootstrap = {
   allowPrivateUrls: Env.HTTP_ALLOW_PRIVATE_URLS,
   ephemeralRuntime: isEphemeralRuntime(),
   settingsRefreshInterval: Env.SETTINGS_REFRESH_INTERVAL,
+  channelScanBudgetMs: Env.CHANNEL_SCAN_BUDGET_MS,
   secretKey: Env.SECRET_KEY,
   auth: Env.AIOLIVETV_AUTH,
   authAdmins: Env.AIOLIVETV_AUTH_ADMINS,

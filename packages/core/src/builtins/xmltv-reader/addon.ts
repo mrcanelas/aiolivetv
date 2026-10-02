@@ -31,7 +31,10 @@ const SOURCE_CACHE_MAX_ENTRIES = 8;
  * Parsed guides are kept in this process only. A whole country guide is far
  * too large to round-trip through Redis on every catalog page (it can exceed
  * the store's value limit or the Redis timeout, which turns every page into a
- * full re-download and re-parse). The parsed data is treated as read-only.
+ * full re-download and re-parse). The shared `Cache` is not used even with
+ * `store: 'memory'` because its memory backend `structuredClone`s on every
+ * get/set, which would deep-copy the whole guide per catalog page. The parsed
+ * data is treated as read-only instead.
  */
 const parsedSources = new Map<string, { data: XmltvData; expiresAt: number }>();
 const inflightSources = new Map<string, Promise<XmltvData>>();

@@ -26,7 +26,7 @@ import {
   normalizeChannelGroup,
   parseDeclaredStreamInfo,
   type DeclaredStreamInfo,
-  isEphemeralRuntime,
+  config as appConfig,
 } from '@aiolivetv/core';
 
 const router: Router = Router();
@@ -38,19 +38,13 @@ const MAX_CATALOG_PAGES = 50;
 const MAX_AUTO_MATCH_PAIRS = 5_000_000;
 
 /**
- * Wall-clock budget for one Channels scan. On Vercel the whole request is
- * killed at the Function max duration (300s by default), so the scan stops
- * early and returns what it has. Override with CHANNEL_SCAN_BUDGET_MS
- * (0 disables the limit).
+ * Wall-clock budget for one Channels scan (`CHANNEL_SCAN_BUDGET_MS`). On
+ * Vercel the whole request is killed at the Function max duration, so the
+ * scan stops early and returns what it has. `0` disables the limit.
  */
-const DEFAULT_EPHEMERAL_SCAN_BUDGET_MS = 240_000;
 function channelScanBudgetMs(): number {
-  const raw = process.env.CHANNEL_SCAN_BUDGET_MS;
-  if (raw !== undefined && raw.trim() !== '') {
-    const parsed = Number(raw);
-    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-  }
-  return isEphemeralRuntime() ? DEFAULT_EPHEMERAL_SCAN_BUDGET_MS : 0;
+  const budget = appConfig.bootstrap.channelScanBudgetMs;
+  return Number.isFinite(budget) && budget > 0 ? budget : 0;
 }
 
 type CatalogPageItem = {
