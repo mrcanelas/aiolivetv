@@ -86,7 +86,7 @@ MANIFEST_INCREASED_TIMEOUT=120000
 BACKGROUND_RESOURCE_REQUEST_TIMEOUT=120000
 ```
 
-Raising only `MANIFEST_INCREASED_TIMEOUT` past 50s has no effect, because the underlying request is still cut off by `BACKGROUND_RESOURCE_REQUEST_TIMEOUT` / `MAX_TIMEOUT`. Env files are read when the container is created, so recreate it after editing (`docker compose up -d --force-recreate`). Alternatively, limit an Xtream source with **Category IDs** (comma-separated) or **Category Name Regex** (e.g. `^(?:CH|DE|AT|TR)\|`) so fewer channels are imported.
+Raising only `MANIFEST_INCREASED_TIMEOUT` past 50s has no effect, because the underlying request is still cut off by `BACKGROUND_RESOURCE_REQUEST_TIMEOUT` / `MAX_TIMEOUT`. Env files are read when the container is created, so recreate it after editing (`docker compose up -d --force-recreate`). Alternatively, limit an Xtream source with **Category IDs** (comma-separated) or **Category Name Regex** (e.g. `^(?:CH|DE|AT|TR)\|`) so fewer channels are imported. Full reference: [Environment Variables](https://mrcanelas.github.io/aiolivetv/configuration/environment-variables).
 
 ### Vercel
 

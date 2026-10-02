@@ -186,6 +186,19 @@ describe('XtreamAddon', () => {
     expect(channels).toEqual([]);
   });
 
+  it('rejects an invalid category name regex when constructing the addon', () => {
+    expect(
+      () =>
+        new XtreamAddon({
+          url: 'http://example.com:8080',
+          username: 'user',
+          password: 'pass',
+          timeout: 5000,
+          categoryNameRegex: '(unclosed',
+        })
+    ).toThrow(/Invalid category name regex/);
+  });
+
   it('returns live streams for a channel', async () => {
     const addon = new XtreamAddon({
       url: 'http://example.com:8080',

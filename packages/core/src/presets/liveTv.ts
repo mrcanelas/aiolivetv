@@ -7,7 +7,7 @@ import type {
 } from '../db/index.js';
 import { MI_TV_COUNTRIES } from '../builtins/mitv/index.js';
 import { MOVISTAR_COUNTRIES } from '../builtins/movistartv/index.js';
-import { compileCategoryNameRegex } from '../builtins/xtream/client.js';
+import { XtreamConfigSchema } from '../builtins/xtream/config.js';
 import StreamParser from '../parser/streams.js';
 import { appConfig, constants, toUrlSafeBase64 } from '../utils/index.js';
 import { Preset } from './preset.js';
@@ -811,8 +811,7 @@ export class M3uPreset extends Preset {
 }
 
 function generateXtreamAddon(options: Record<string, any>): Addon {
-  compileCategoryNameRegex(options.categoryNameRegex);
-  const config = {
+  const config = XtreamConfigSchema.parse({
     url: options.url,
     username: options.username,
     password: options.password,
@@ -821,7 +820,7 @@ function generateXtreamAddon(options: Record<string, any>): Addon {
     categoryId: options.categoryId || undefined,
     categoryNameRegex: options.categoryNameRegex || undefined,
     timeShiftMinutes: options.timeShiftMinutes ?? 0,
-  };
+  });
   return {
     name: options.name || 'Xtream Codes',
     manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/xtream/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,

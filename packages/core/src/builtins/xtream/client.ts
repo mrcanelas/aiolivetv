@@ -3,6 +3,8 @@ import { standardizedSerializer } from '@iptv/xtream-api/standardized';
 import type { StandardXtreamChannel } from '@iptv/xtream-api/standardized';
 import type { XtreamConfig } from './config.js';
 
+export { compileCategoryNameRegex, parseCategoryIds } from './config.js';
+
 export function normalizeXtreamUrl(url: string): string {
   const trimmed = url.trim().replace(/\/+$/, '');
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
@@ -20,24 +22,6 @@ export function createXtreamClient(config: XtreamConfig): Xtream<typeof standard
 }
 
 const CATEGORY_FETCH_CONCURRENCY = 5;
-
-export function parseCategoryIds(value?: string): string[] {
-  return (value ?? '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-}
-
-export function compileCategoryNameRegex(pattern?: string): RegExp | undefined {
-  if (!pattern?.trim()) return undefined;
-  try {
-    return new RegExp(pattern.trim(), 'i');
-  } catch (err) {
-    throw new Error(
-      `Invalid category name regex "${pattern}": ${(err as Error).message}`
-    );
-  }
-}
 
 async function loadCategoryChannels(
   client: Xtream<typeof standardizedSerializer.serializers>,

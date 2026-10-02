@@ -49,7 +49,12 @@ const categoriesCache = Cache.getInstance<string, Array<{ id: string; name: stri
 );
 
 function channelsCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
-  return `${config.url}:${config.username}:${config.categoryId ?? 'all'}:${config.categoryNameRegex ?? ''}`;
+  const categoryIds = parseCategoryIds(config.categoryId);
+  const categoryKey = categoryIds.length
+    ? [...categoryIds].sort().join(',')
+    : 'all';
+  const regexKey = config.categoryNameRegex?.trim() ?? '';
+  return `${config.url}:${config.username}:${categoryKey}:${regexKey}`;
 }
 
 function categoriesCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
@@ -63,7 +68,17 @@ async function resolveCategoryIds(
   const nameRegex = compileCategoryNameRegex(config.categoryNameRegex);
   if (!ids.length && !nameRegex) return undefined;
   if (nameRegex) {
-    for (const category of await fetchCategories(config)) {
+    let categories: Array<{ id: string; name: string }>;
+    try {
+      categories = await fetchCategories(config);
+    } catch (err) {
+      throw new Error(
+        `Failed to list Xtream live categories while resolving category name regex: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+    for (const category of categories) {
       if (nameRegex.test(category.name)) ids.push(category.id);
     }
   }
