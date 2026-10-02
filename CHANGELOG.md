@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.7.0-beta...v0.8.0-beta) (2026-10-02)
+
+
+### Features
+
+* **settings:** expose channel scan budget in the dashboard ([e83a9fb](https://github.com/mrcanelas/aiolivetv/commit/e83a9fbeeedba77429b1ea0255cf9b77064e8307))
+
+
+### Bug Fixes
+
+* **channels:** replace unavailable stream list with source warnings ([8f55555](https://github.com/mrcanelas/aiolivetv/commit/8f55555a154b7a1d8197af317f7e23ae68d861d8))
+* **server:** stop Beamup CDN caching stale manifests and status ([a79ad5d](https://github.com/mrcanelas/aiolivetv/commit/a79ad5dee673df143308fd0e2619ef546300eec6))
+
 ## [0.7.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.6.2-beta...v0.7.0-beta) (2026-10-02)
 
 
