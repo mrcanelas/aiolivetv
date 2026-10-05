@@ -29,18 +29,21 @@ jobs:
         env:
           INPUT_REF: ${{ inputs.ref }}
         run: |
-          # This release workflow only accepts stable version tags.
-          if [[ ! "${INPUT_REF}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "Invalid stable version: ${INPUT_REF}; expected vMAJOR.MINOR.PATCH"
+          # Accept stable releases and Docker-compatible prerelease versions.
+          if [[ ! "${INPUT_REF}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)?$ || ${#INPUT_REF} -gt 128 ]]; then
+            echo "Invalid version: ${INPUT_REF}; expected vMAJOR.MINOR.PATCH[-PRERELEASE]"
             exit 1
           fi
 
           MAJOR="${BASH_REMATCH[1]}"
           MAJOR_MINOR="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          PRERELEASE="${BASH_REMATCH[4]}"
           TAGS="${INPUT_REF}"
-          if [[ "$(git rev-parse origin/main)" = "$(git rev-parse "${INPUT_REF}")" ]]; then
+          # Prereleases never receive latest or stable major/minor aliases.
+          if [[ -z "${PRERELEASE}" && "$(git rev-parse origin/main)" = "$(git rev-parse "${INPUT_REF}")" ]]; then
             TAGS="${TAGS} latest v${MAJOR_MINOR} v${MAJOR}"
           fi
+          # Release metadata uses the package version, including its beta suffix.
           CHANNEL="stable"
 
           if [[ -z "${TAGS}" ]]; then
@@ -178,13 +181,17 @@ jobs:
         env:
           CHANNEL: ${{ needs.setup.outputs.channel }}
           TAGS: ${{ needs.setup.outputs.tags }}
+          RELEASE_REF: ${{ inputs.ref }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then
             echo "DISCORD_WEBHOOK_URL is not set; skipping notification."
             exit 0
           fi
-          if [ "$CHANNEL" = "stable" ]; then
+          if [[ "$RELEASE_REF" == *-* ]]; then
+            COLOR=15844367  # Orange
+            TITLE="🧪 Prerelease"
+          elif [ "$CHANNEL" = "stable" ]; then
             COLOR=5763719  # Green
             TITLE="🎉 Stable Release"
           else
@@ -271,3 +278,4 @@ jobs:
           fi
 
           echo "Message sent successfully!"
+
