@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.8.0-beta...v0.8.1-beta) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ci:** allow prerelease Docker tags without stable aliases ([b4bada0](https://github.com/mrcanelas/aiolivetv/commit/b4bada08b94671f564d84b61af25cda145a8652d))
+
 ## [0.8.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.7.0-beta...v0.8.0-beta) (2026-10-05)
 
 
