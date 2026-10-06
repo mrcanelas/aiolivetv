@@ -11,6 +11,10 @@ this is not a real-time alert transport.
   bypasses external cache and the UptimeRobot monitor can be resumed.
 - Add the GitHub Actions secret `UPTIMEROBOT_API_KEY`, preferably a monitor-specific
   read-only key for monitor `804194980`. Never put keys in source files or logs.
+- Run the workflow manually with `mode: verify` to validate API and Discord
+  history access while the monitor remains paused. Use `mode: test` to send
+  clearly labeled red and green delivery-test embeds without changing relay
+  state or reporting an incident. These modes work with the enable flag off.
 - Reuse the existing `DISCORD_BOT_TOKEN` secret. The bot needs View Channel,
   Read Message History, Send Messages and Embed Links in `instance-status`
   (`1557042531571597434`). Do not broaden server-wide permissions.
@@ -29,7 +33,7 @@ does not change the monitor. Reference: https://uptimerobot.com/api/legacy/
 The workflow creates the `instance-status-state` branch and stores only the
 monitor ID, polling watermark, delivered event keys and start of the active
 outage in `instance-status.json`. Its token needs `contents: write` for this
-branch. Protecting this branch against workflow writes prevents persistence.
+  branch. Protecting this branch against workflow writes prevents persistence.
 Runs are serialized; the main branch is not modified by the relay.
 
 Each event is saved after Discord confirms delivery. Discord nonces remain
