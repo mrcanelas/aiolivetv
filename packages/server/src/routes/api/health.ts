@@ -9,7 +9,20 @@ import {
 const router: Router = Router();
 const logger = createLogger('server');
 
+const HEALTH_CACHE_CONTROL = 'no-store, no-cache, must-revalidate';
+
+function setHealthCacheHeaders(res: Response) {
+  res.setHeader('Cache-Control', HEALTH_CACHE_CONTROL);
+  res.setHeader('CDN-Cache-Control', HEALTH_CACHE_CONTROL);
+  res.setHeader('Vercel-CDN-Cache-Control', HEALTH_CACHE_CONTROL);
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+}
+
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  setHealthCacheHeaders(res);
+
   try {
     await UserRepository.getUserCount();
     res.status(200).json(createResponse({ success: true, detail: 'OK' }));
