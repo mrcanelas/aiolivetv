@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.8.1-beta...v0.8.2-beta) (2026-10-06)
+
+
+### Bug Fixes
+
+* **ci:** load saved Beamup config before starting Docker addon ([be748c6](https://github.com/mrcanelas/aiolivetv/commit/be748c6fe90f7fc8de1cf50150e673e26dda985c))
+* verify Beamup health with curl and report HTTP failures ([1860480](https://github.com/mrcanelas/aiolivetv/commit/1860480aea8bddfeb9292566cadb17f2bc938b43))
+
 ## [0.8.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.8.0-beta...v0.8.1-beta) (2026-10-05)
 
 
