@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Test Discord notifications
+        run: node --test scripts/notify-discord.test.cjs
+
       - name: Enable corepack
         run: corepack enable
 

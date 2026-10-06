@@ -105,6 +105,26 @@ pnpm start
 
 ---
 
+## Discord notifications
+
+GitHub Actions publishes release notes and Docker build notifications as a Discord bot, not as a personal account. No continuously running bot service is required.
+
+In the Discord Developer Portal, create a bot and install it in your server with **View Channels**, **Send Messages**, and **Embed Links**. In read-only notification channels, explicitly allow the bot role to send messages and embed links. Do not grant Administrator or privileged gateway intents.
+
+Configure these repository settings under **Settings > Secrets and variables > Actions**:
+
+| Setting | Type | Purpose |
+| --- | --- | --- |
+| `DISCORD_BOT_TOKEN` | Secret | The bot token from the Developer Portal, never a personal account token |
+| `DISCORD_ANNOUNCEMENTS_CHANNEL_ID` | Variable | Channel for published GitHub release notes |
+| `DISCORD_BUILDS_CHANNEL_ID` | Variable | Channel for Docker build notifications and connection tests |
+
+Never commit the token or paste it into issues, chat, or workflow logs. `DISCORD_WEBHOOK_URL` is no longer used.
+
+After these workflows are available on the default branch, manually run **Discord Announcements** to send a clearly labeled connection test to the builds channel. Published releases trigger announcements; Docker notifications run only after image publication succeeds. Releases created with `GITHUB_TOKEN` do not trigger another workflow, so automated releases must continue using the existing `RELEASE_PLEASE_TOKEN`.
+
+Run `node --test scripts/notify-discord.test.cjs` to check notification formatting and mocked API requests without sending messages.
+
 ## Credits
 
 AIOLiveTV is an adaptation of [AIOStreams](https://github.com/Viren070/AIOStreams) by [Viren070](https://github.com/Viren070), and is licensed under the [GNU Affero General Public License v3.0](LICENSE).

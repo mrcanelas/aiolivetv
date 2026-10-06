@@ -176,106 +176,24 @@ jobs:
             "${TAG_ARGS[@]}" \
             "${GHCR_IMAGE}:${VERSION}"
 
+  notify:
+    name: Notify Discord
+    needs: [setup, merge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
       - name: Send Discord Notification
         continue-on-error: true
         env:
           CHANNEL: ${{ needs.setup.outputs.channel }}
           TAGS: ${{ needs.setup.outputs.tags }}
           RELEASE_REF: ${{ inputs.ref }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-            echo "DISCORD_WEBHOOK_URL is not set; skipping notification."
-            exit 0
-          fi
-          if [[ "$RELEASE_REF" == *-* ]]; then
-            COLOR=15844367  # Orange
-            TITLE="🧪 Prerelease"
-          elif [ "$CHANNEL" = "stable" ]; then
-            COLOR=5763719  # Green
-            TITLE="🎉 Stable Release"
-          else
-            COLOR=15844367  # Orange
-            TITLE="🌙 Nightly Build"
-          fi
-
-          # Format tags for display (each tag on a new line with bullet points)
-          FORMATTED_TAGS=""
-          for tag in $TAGS; do
-            if [ -z "$FORMATTED_TAGS" ]; then
-              FORMATTED_TAGS="• \`$tag\`"
-            else
-              FORMATTED_TAGS="$FORMATTED_TAGS\n• \`$tag\`"
-            fi
-          done
-
-          # Get current timestamp in ISO 8601 format UTC
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          # Create JSON payload file
-          cat << EOF > discord_payload.json
-          {
-            "embeds": [
-              {
-                "title": "$TITLE - Docker Images Published",
-                "description": "New Docker images have been built and pushed to registries.",
-                "color": $COLOR,
-                "fields": [
-                  {
-                    "name": "📦 Channel",
-                    "value": "• \`$CHANNEL\`",
-                    "inline": true
-                  },
-                  {
-                    "name": "🏷️ Tags Published",
-                    "value": "$FORMATTED_TAGS",
-                    "inline": false
-                  },
-                  {
-                    "name": "📍 View Images",
-                    "value": "[GHCR](https://github.com/${{ github.repository }}/pkgs/container/aiolivetv) | [Docker Hub](https://hub.docker.com/r/mrcanelas/aiolivetv)",
-                    "inline": false
-                  },
-                  {
-                    "name": "📝 View Release Notes",
-                    "value": "[GitHub](https://github.com/${{ github.repository }}/releases/tag/${{ inputs.ref }})",
-                    "inline": false
-                  },
-                  {
-                    "name": "🔗 View Build",
-                    "value": "[GitHub Actions](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})",
-                    "inline": false
-                  }
-                ],
-                "footer": {
-                  "text": "AIOLiveTV CI",
-                  "icon_url": "https://github.com/${{ github.repository_owner }}.png"
-                },
-                "timestamp": "$TIMESTAMP"
-              }
-            ]
-          }
-          EOF
-
-          echo "Sending to Discord:"
-          cat discord_payload.json
-
-          # Send payload to Discord and capture response and status code
-          http_response=$(curl -s -w "\n%{http_code}" -H "Content-Type: application/json" \
-            -X POST \
-            -d @discord_payload.json \
-            "${{ secrets.DISCORD_WEBHOOK_URL }}")
-
-          http_body=$(echo "$http_response" | sed '$d')
-          http_code=$(echo "$http_response" | tail -n1)
-
-          echo "HTTP Status Code: $http_code"
-          echo "Discord Response Body: $http_body"
-
-          if [ "$http_code" != "204" ]; then
-            echo "Error sending to Discord webhook."
-            exit 1
-          fi
-
-          echo "Message sent successfully!"
-
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_BUILDS_CHANNEL_ID: ${{ vars.DISCORD_BUILDS_CHANNEL_ID }}
+        run: node scripts/notify-discord.cjs build

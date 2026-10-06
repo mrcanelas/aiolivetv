@@ -1,0 +1,32 @@
+name: Discord Announcements
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Publish release announcement or connection test
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_ANNOUNCEMENTS_CHANNEL_ID: ${{ vars.DISCORD_ANNOUNCEMENTS_CHANNEL_ID }}
+          DISCORD_BUILDS_CHANNEL_ID: ${{ vars.DISCORD_BUILDS_CHANNEL_ID }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            node scripts/notify-discord.cjs release
+          else
+            node scripts/notify-discord.cjs test
+          fi
