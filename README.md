@@ -13,6 +13,7 @@
 <p align="center">
   <a href="https://github.com/mrcanelas/aiolivetv/actions/workflows/deploy-docker.yml"><img src="https://img.shields.io/github/actions/workflow/status/mrcanelas/aiolivetv/deploy-docker.yml?style=for-the-badge&logo=github&labelColor=000" alt="Build Status"></a>
   <a href="https://github.com/mrcanelas/aiolivetv/releases/latest"><img src="https://img.shields.io/github/v/release/mrcanelas/aiolivetv?style=for-the-badge&logo=github&labelColor=000" alt="Latest Release"></a>
+  <a href="https://hub.docker.com/r/mrcanelas/aiolivetv"><img src="https://img.shields.io/docker/pulls/mrcanelas/aiolivetv?style=for-the-badge&logo=docker&labelColor=000" alt="Docker Pulls"></a>
   <a href="https://github.com/mrcanelas/aiolivetv/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mrcanelas/aiolivetv?style=for-the-badge&labelColor=000" alt="GitHub License"></a>
   <a href="https://github.com/mrcanelas/aiolivetv"><img src="https://img.shields.io/github/stars/mrcanelas/aiolivetv?style=for-the-badge&logo=github&labelColor=000" alt="GitHub Stars"></a>
 </p>
