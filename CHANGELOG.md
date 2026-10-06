@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.8.2-beta...v0.9.0-beta) (2026-10-06)
+
+
+### Features
+
+* **discord:** publish release and build notifications as a bot ([de687ad](https://github.com/mrcanelas/aiolivetv/commit/de687adf16c49531cf5700bcd1bd4302bc86d51d))
+
 ## [0.8.2-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.8.1-beta...v0.8.2-beta) (2026-10-06)
 
 
