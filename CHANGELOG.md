@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.9.0-beta...v0.9.1-beta) (2026-10-06)
+
+
+### Bug Fixes
+
+* **health:** prevent caching of health check responses ([e07d2de](https://github.com/mrcanelas/aiolivetv/commit/e07d2de5ac7b4327dc760a7efe790890f0ffc5eb))
+
 ## [0.9.0-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.8.2-beta...v0.9.0-beta) (2026-10-06)
 
 
