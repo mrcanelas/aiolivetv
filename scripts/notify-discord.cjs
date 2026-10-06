@@ -31,7 +31,8 @@ function createPayload(kind, env, release = {}) {
     const channel = prerelease ? 'prerelease' : env.CHANNEL || 'stable';
     embed = {
       title: `${prerelease ? 'Prerelease' : 'Stable Release'} - Docker Images Published`,
-      description: 'New multi-platform Docker images are available on GHCR and Docker Hub.',
+      description:
+        'New multi-platform Docker images are available on GHCR and Docker Hub.',
       color: prerelease ? 15844367 : 5763719,
       fields: [
         { name: 'Channel', value: channel, inline: true },
