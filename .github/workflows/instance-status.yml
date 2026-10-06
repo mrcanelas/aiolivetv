@@ -1,0 +1,35 @@
+name: Discord Instance Status
+
+on:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: discord-instance-status
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  notify:
+    if: vars.INSTANCE_STATUS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Relay UptimeRobot incidents to Discord
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+          UPTIMEROBOT_MONITOR_ID: '804194980'
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_INSTANCE_STATUS_CHANNEL_ID: '1557042531571597434'
+        run: node scripts/notify-instance-status.cjs
