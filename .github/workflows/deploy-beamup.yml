@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, subprocess, sys, time, urllib.request
+          import json, os, subprocess, sys, time
           ssh = ['ssh', '-T', '-i', os.environ['RUNNER_TEMP'] + '/beamup-config-key',
                  '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'ConnectTimeout=10',
                  'dokku@' + os.environ['BEAMUP_HOST'], 'logs', os.environ['BEAMUP_APP']]
@@ -125,19 +125,32 @@ jobs:
                   output = (error.stdout or b'') + (error.stderr or b'')
               found = found or marker in output
               healthy = False
+              health_detail = 'request not completed'
               try:
                   url = os.environ['BEAMUP_URL'] + '/api/v1/status?deploy=' + os.environ['GITHUB_RUN_ID']
-                  request = urllib.request.Request(url, headers={'Cache-Control': 'no-cache'})
-                  with urllib.request.urlopen(request, timeout=10) as response:
-                      healthy = response.status == 200
-              except Exception:
-                  pass
+                  response = subprocess.run(
+                      ['curl', '--silent', '--show-error', '--connect-timeout', '10',
+                       '--max-time', '15', '--header', 'Cache-Control: no-cache',
+                       '--write-out', '\n%{http_code}', url],
+                      capture_output=True, timeout=20)
+                  body, _, status = response.stdout.rpartition(b'\n')
+                  code = status.decode('ascii', errors='replace')
+                  health_detail = 'curl=' + str(response.returncode) + ', HTTP=' + code
+                  if response.returncode == 0 and code == '200':
+                      try:
+                          payload = json.loads(body)
+                          healthy = isinstance(payload, dict) and payload.get('success') is True
+                          health_detail += ', success=' + str(healthy)
+                      except (ValueError, UnicodeError):
+                          health_detail += ', invalid JSON'
+              except subprocess.TimeoutExpired:
+                  health_detail = 'request timed out'
               if found and healthy:
                   print('Verified: this deployment loaded all 4 variables in the Swarm runner; status endpoint returned HTTP 200.')
                   with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
                       summary.write('Beamup deployment verified: all four runtime variables loaded in the runner and /api/v1/status returned HTTP 200.\n')
                   break
-              print('Waiting for runner startup and health (' + str(attempt + 1) + '/24); config=' + str(found) + ', health=' + str(healthy))
+              print('Waiting for runner startup and health (' + str(attempt + 1) + '/24); config=' + str(found) + ', health=' + str(healthy) + ' (' + health_detail + ')')
               time.sleep(5)
           else:
               sys.exit('Beamup runtime verification failed. Raw application logs are withheld to avoid exposing secrets.')
@@ -149,3 +162,4 @@ jobs:
         run: |
           rm -f "$RUNNER_TEMP/beamup-config-key" beamup-runtime.json beamup-env.cjs
           git restore -- Dockerfile
+
