@@ -124,6 +124,7 @@ try {
     })),
   };
   const output = resolve(process.env.UI_OUTPUT_DIR || 'testing/channels-ui');
+  const streamCount = Number(process.env.UI_STREAM_COUNT || 10000);
   await mkdir(output, { recursive: true });
   for (const [name, viewport] of [
     ['desktop', { width: 1440, height: 1000 }],
@@ -182,6 +183,12 @@ try {
                       name: 'Channel 0000 HD',
                       confidence: 1,
                     },
+                    ...Array.from({ length: streamCount }, (_, index) => ({
+                      addonId: 'inventory',
+                      addonName: 'Inventory',
+                      channelId: `inventory:${index}`,
+                      name: `Stream ${String(index).padStart(5, '0')}`,
+                    })),
                   ],
                 },
               ]
@@ -363,7 +370,40 @@ try {
         ) && !mapping.streams.some((item) => item.channelId === 'weak')
       );
     });
+    const openedAt = performance.now();
     await dialog.getByRole('combobox').click();
+    const input = page.locator('[cmdk-input]');
+    await page.locator('[cmdk-item]').first().waitFor();
+    const openingMs = performance.now() - openedAt;
+    const mountedOptions = await page.locator('[cmdk-item]').count();
+    assert(
+      mountedOptions < 50,
+      'Stream select must not mount the full inventory'
+    );
+    await input.press('End');
+    await page
+      .locator('[cmdk-item][aria-selected="true"]')
+      .filter({
+        hasText: `Stream ${String(streamCount - 1).padStart(5, '0')}`,
+      })
+      .waitFor();
+    await input.press('ArrowUp');
+    await page
+      .locator('[cmdk-item][aria-selected="true"]')
+      .filter({
+        hasText: `Stream ${String(streamCount - 2).padStart(5, '0')}`,
+      })
+      .waitFor();
+    const searchAt = performance.now();
+    await input.fill(`Stream ${String(streamCount - 1).padStart(5, '0')}`);
+    await page
+      .getByText(
+        `Inventory · Stream ${String(streamCount - 1).padStart(5, '0')}`,
+        { exact: true }
+      )
+      .waitFor();
+    const searchMs = performance.now() - searchAt;
+    await input.fill('Unrelated Sports');
     await page.getByText('Streams · Unrelated Sports', { exact: true }).click();
     await dialog.getByRole('button', { name: 'Link', exact: true }).click();
     await page.waitForFunction(() => {
@@ -450,6 +490,12 @@ try {
         draftPersistence: true,
         mobileActions: viewport.width < 640,
         refreshCentered: true,
+        streamOptions: streamCount + 2,
+        mountedOptions,
+        openingMs: Math.round(openingMs),
+        searchMs: Math.round(searchMs),
+        fullInventorySearch: true,
+        virtualKeyboard: true,
       })
     );
     await context.close();

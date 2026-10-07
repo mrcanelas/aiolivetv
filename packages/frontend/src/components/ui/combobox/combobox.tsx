@@ -1,6 +1,8 @@
 import { cva } from 'class-variance-authority';
 import equal from 'fast-deep-equal';
 import * as React from 'react';
+import { defaultFilter } from 'cmdk';
+import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import {
   BasicField,
   BasicFieldOptions,
@@ -138,6 +140,8 @@ export type ComboboxProps = Omit<
      * Maximum items
      */
     maxItems?: number;
+    /** Virtualize large local option lists while searching the full inventory. */
+    virtualized?: boolean;
   };
 
 export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
@@ -176,6 +180,7 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
         inputRef,
         keepOpenOnSelect = true,
         maxItems,
+        virtualized = false,
         ...rest
       },
       {
@@ -205,6 +210,16 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
     );
 
     const [open, setOpen] = React.useState(false);
+    const [search, setSearch] = React.useState('');
+    const [activeValue, setActiveValue] = React.useState('');
+    const listRef = React.useRef<HTMLDivElement>(null);
+    const handleOpenChange = (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) {
+        setSearch('');
+        setActiveValue('');
+      }
+    };
 
     const handleUpdateValue = React.useCallback((value: string[]) => {
       setValue(value);
@@ -224,24 +239,59 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
       onValueChange?.(value);
     }, [value]);
 
-    const counts: Record<string, number> = {};
-    const options = rawOptions.map((option) => {
-      const textValue = (option.textValue || option.value)?.trim() || 'Unnamed';
-      const label =
-        typeof option.label === 'string'
-          ? option.label?.trim() || 'Unnamed'
-          : option.label;
-      counts[textValue] = (counts[textValue] || 0) + 1;
-      return {
-        ...option,
-        label:
-          counts[textValue] > 1 ? `${label} (${counts[textValue]})` : label,
-        textValue:
-          counts[textValue] > 1
-            ? `${textValue} (${counts[textValue]})`
-            : textValue,
-      };
+    const options = React.useMemo(() => {
+      const counts = new Map<string, number>();
+      return rawOptions.map((option) => {
+        const textValue =
+          (option.textValue || option.value)?.trim() || 'Unnamed';
+        const label =
+          typeof option.label === 'string'
+            ? option.label?.trim() || 'Unnamed'
+            : option.label;
+        const count = (counts.get(textValue) ?? 0) + 1;
+        counts.set(textValue, count);
+        return {
+          ...option,
+          label:
+            count > 1 ? (
+              <>
+                {label} ({count})
+              </>
+            ) : (
+              label
+            ),
+          textValue: count > 1 ? `${textValue} (${count})` : textValue,
+        };
+      });
+    }, [rawOptions]);
+
+    const visibleOptions = React.useMemo(() => {
+      if (!virtualized || !search.trim()) return options;
+      const filter = commandProps?.filter ?? defaultFilter;
+      return options
+        .map((option) => ({ option, score: filter(option.textValue, search) }))
+        .filter(({ score }) => score > 0)
+        .sort((left, right) => right.score - left.score)
+        .map(({ option }) => option);
+    }, [options, virtualized, search, commandProps?.filter]);
+    const activeIndex = Math.max(
+      0,
+      visibleOptions.findIndex((option) => option.textValue === activeValue)
+    );
+    const virtualizer = useVirtualizer({
+      count: virtualized ? visibleOptions.length : 0,
+      enabled: open && virtualized,
+      getScrollElement: () => listRef.current,
+      getItemKey: (index) => visibleOptions[index].value,
+      estimateSize: () => 40,
+      initialRect: { width: 0, height: 300 },
+      overscan: 5,
+      rangeExtractor: (range) =>
+        [...new Set([...defaultRangeExtractor(range), activeIndex])].sort(
+          (a, b) => a - b
+        ),
     });
+    const virtualRows = virtualizer.getVirtualItems();
 
     const selectedOptions = options.filter((option) =>
       value.includes(option.value)
@@ -270,7 +320,7 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
                 onClick={(e) => {
                   e.preventDefault();
                   handleUpdateValue(value.filter((v) => v !== option.value));
-                  setOpen(false);
+                  handleOpenChange(false);
                 }}
               >
                 <svg
@@ -302,7 +352,7 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
 
           <Popover
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={handleOpenChange}
             className={cn(ComboboxAnatomy.popover(), popoverClass)}
             trigger={
               <button
@@ -341,7 +391,7 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
                       onClick={(e) => {
                         e.preventDefault();
                         handleUpdateValue([]);
-                        setOpen(keepOpenOnSelect);
+                        handleOpenChange(keepOpenOnSelect);
                       }}
                     >
                       <svg
@@ -375,48 +425,119 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
               </button>
             }
           >
-            <Command inputContainerClass="py-1" {...commandProps}>
+            <Command
+              inputContainerClass="py-1"
+              {...commandProps}
+              {...(virtualized
+                ? {
+                    shouldFilter: false,
+                    value: visibleOptions[activeIndex]?.textValue ?? '',
+                    onValueChange: setActiveValue,
+                    onKeyDownCapture: (
+                      event: React.KeyboardEvent<HTMLDivElement>
+                    ) => {
+                      commandProps?.onKeyDownCapture?.(event);
+                      if (event.defaultPrevented || !visibleOptions.length)
+                        return;
+                      let index: number;
+                      if (event.key === 'ArrowDown')
+                        index = (activeIndex + 1) % visibleOptions.length;
+                      else if (event.key === 'ArrowUp')
+                        index =
+                          (activeIndex - 1 + visibleOptions.length) %
+                          visibleOptions.length;
+                      else if (event.key === 'Home') index = 0;
+                      else if (event.key === 'End')
+                        index = visibleOptions.length - 1;
+                      else return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setActiveValue(visibleOptions[index].textValue);
+                      virtualizer.scrollToIndex(index, { align: 'auto' });
+                    },
+                  }
+                : {})}
+            >
               <CommandInput
                 placeholder={placeholder}
-                onValueChange={onTextChange}
+                aria-label={placeholder || 'Search options'}
+                onValueChange={(text) => {
+                  onTextChange?.(text);
+                  if (virtualized) {
+                    setSearch(text);
+                    setActiveValue('');
+                    virtualizer.scrollToOffset(0);
+                  }
+                }}
               />
-              <CommandList>
+              <CommandList
+                ref={listRef}
+                style={
+                  virtualized
+                    ? {
+                        height: Math.min(300, visibleOptions.length * 40) || 64,
+                      }
+                    : undefined
+                }
+              >
                 <CommandEmpty>{emptyMessage}</CommandEmpty>
-                <CommandGroup>
-                  {options.map((option) => {
+                <CommandGroup
+                  forceMount={virtualized || undefined}
+                  style={
+                    virtualized
+                      ? {
+                          height: virtualizer.getTotalSize(),
+                          position: 'relative',
+                        }
+                      : undefined
+                  }
+                >
+                  {(virtualized
+                    ? virtualRows.map((row) => visibleOptions[row.index])
+                    : options
+                  ).map((option, index) => {
+                    const row = virtualized ? virtualRows[index] : undefined;
                     const isDisabled =
                       maxReached && !value.includes(option.value);
                     return (
                       <CommandItem
                         key={option.value}
+                        ref={row ? virtualizer.measureElement : undefined}
+                        data-index={row?.index}
+                        aria-posinset={row ? row.index + 1 : undefined}
+                        aria-setsize={
+                          virtualized ? visibleOptions.length : undefined
+                        }
+                        style={
+                          row
+                            ? {
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                transform: `translateY(${row.start}px)`,
+                              }
+                            : undefined
+                        }
                         value={option.textValue || option.value}
                         disabled={isDisabled}
                         className={cn(
                           isDisabled &&
                             'opacity-50 cursor-not-allowed pointer-events-none'
                         )}
-                        onSelect={(currentValue: string) => {
-                          const _option = options.find(
-                            (n) =>
-                              (n.textValue || n.value).toLowerCase() ===
-                              currentValue.toLowerCase()
-                          );
-                          if (_option) {
-                            if (!multiple) {
-                              handleUpdateValue(
-                                value.includes(_option.value)
-                                  ? []
-                                  : [_option.value]
-                              );
-                            } else {
-                              handleUpdateValue(
-                                !value.includes(_option.value)
-                                  ? [...value, _option.value]
-                                  : value.filter((v) => v !== _option.value)
-                              );
-                            }
+                        onSelect={() => {
+                          if (!multiple) {
+                            handleUpdateValue(
+                              value.includes(option.value) ? [] : [option.value]
+                            );
+                          } else {
+                            handleUpdateValue(
+                              !value.includes(option.value)
+                                ? [...value, option.value]
+                                : value.filter((v) => v !== option.value)
+                            );
                           }
-                          setOpen(keepOpenOnSelect);
+                          handleOpenChange(keepOpenOnSelect);
                         }}
                         leftIcon={
                           <svg

@@ -73,18 +73,21 @@ export function ChannelMappingModal({
   sourcesError,
   onRetrySources,
 }: ChannelMappingModalProps) {
+  const streamSourceOptions = React.useMemo(
+    () =>
+      channel?.availableStreamSources?.map((source) => ({
+        value: streamSourceKey(source.addonId, source.channelId),
+        label: `${source.addonName} · ${source.name}`,
+        textValue: `${source.addonName} ${source.name}`,
+      })) ?? [],
+    [channel?.availableStreamSources]
+  );
+
   if (!channel) return null;
 
   const pendingCount = channel.mappings.filter((mapping) =>
     isVisibleChannelSuggestion(mapping.confidence)
   ).length;
-
-  const streamSourceOptions =
-    channel.availableStreamSources?.map((source) => ({
-      value: streamSourceKey(source.addonId, source.channelId),
-      label: `${source.addonName} · ${source.name}`,
-      textValue: `${source.addonName} ${source.name}`,
-    })) ?? [];
 
   const mappingStatus = (mapping: ChannelInfo['mappings'][number]) => {
     const suggestion = isChannelSuggestion(mapping.confidence);
@@ -148,6 +151,7 @@ export function ChannelMappingModal({
             <div className="min-w-0 flex-1">
               <Combobox
                 label="Link stream source"
+                virtualized
                 placeholder="Search stream channels..."
                 value={linkStreamTarget ? [linkStreamTarget] : []}
                 onValueChange={(value) =>
