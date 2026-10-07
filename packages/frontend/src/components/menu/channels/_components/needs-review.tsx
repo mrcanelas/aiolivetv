@@ -1,6 +1,7 @@
 import { StaticTabs } from '@/components/ui/tabs';
+import { Select } from '@/components/ui/select';
 import type { ChannelInfo, DuplicateChannelGroup } from '@/lib/api';
-import { type ChannelReviewFilter, countSuggestions } from '../utils';
+import { type ChannelReviewFilter, isVisibleChannelSuggestion } from '../utils';
 
 type NeedsReviewCardProps = {
   filter: ChannelReviewFilter;
@@ -26,36 +27,49 @@ export function NeedsReviewCard({
   duplicateGroups,
   noScheduleCount,
 }: NeedsReviewCardProps) {
-  const suggestionCount = countSuggestions(channels);
-  const duplicateCount = duplicateGroups.reduce(
-    (total, group) => total + group.channelIds.length,
-    0
-  );
+  const suggestionCount = channels.filter((channel) =>
+    channel.mappings.some((mapping) =>
+      isVisibleChannelSuggestion(mapping.confidence)
+    )
+  ).length;
+  const duplicateCount = new Set(
+    duplicateGroups.flatMap((group) => group.channelIds)
+  ).size;
   const total =
     noStreamCount + suggestionCount + duplicateCount + noScheduleCount;
 
-  const tab = (
-    name: string,
-    value: ChannelReviewFilter,
-    count: number
-  ) => ({
+  const tab = (name: string, value: ChannelReviewFilter, count: number) => ({
     name: count > 0 ? `${name} (${count})` : name,
     isCurrent: filter === value,
     onClick: () => onFilterChange(value),
   });
+  const filters = [
+    tab('All', 'all', channels.length),
+    tab('No stream', 'no-stream', noStreamCount),
+    tab('Suggestions', 'suggestions', suggestionCount),
+    tab('Duplicates', 'duplicates', duplicateCount),
+    tab('No schedule', 'no-schedule', noScheduleCount),
+  ];
 
   return (
     <div className="space-y-3">
+      <div className="sm:hidden">
+        <Select
+          aria-label="Filter channels by status"
+          value={filter}
+          onValueChange={(value) =>
+            onFilterChange(value as ChannelReviewFilter)
+          }
+          options={filters.map((item, index) => ({
+            label: item.name,
+            value: ['all', ...CHANNEL_FILTERS][index],
+          }))}
+        />
+      </div>
       <StaticTabs
-        className="h-10 w-fit max-w-full rounded-full border"
+        className="hidden sm:flex h-10 w-fit max-w-full rounded-full border"
         triggerClass="px-3 py-1 text-xs"
-        items={[
-          tab('All', 'all', total),
-          tab('No stream', 'no-stream', noStreamCount),
-          tab('Suggestions', 'suggestions', suggestionCount),
-          tab('Duplicates', 'duplicates', duplicateCount),
-          tab('No schedule', 'no-schedule', noScheduleCount),
-        ]}
+        items={filters}
       />
 
       {total === 0 ? (

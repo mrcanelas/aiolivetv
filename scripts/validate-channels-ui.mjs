@@ -208,6 +208,38 @@ try {
     await page.goto(base + '/stremio/configure?menu=channels');
     const list = page.locator('div[aria-label="Channels"]');
     await list.locator('li[data-index]').first().waitFor();
+    if (viewport.width < 640) {
+      assert.equal(
+        await page
+          .locator('[data-top-navbar]')
+          .getByRole('button', { name: 'Previous', exact: true })
+          .count(),
+        1
+      );
+      assert.equal(
+        await page
+          .locator('[data-top-navbar]')
+          .getByRole('button', { name: 'Next', exact: true })
+          .count(),
+        1
+      );
+      await page
+        .getByRole('combobox', { name: 'Filter channels by status' })
+        .click();
+      await page
+        .getByRole('option', { name: 'All (1287)', exact: true })
+        .click();
+    } else {
+      assert.equal(
+        await page
+          .getByText('All (1287)', { exact: true })
+          .evaluateAll(
+            (items) =>
+              items.filter((item) => item.getClientRects().length > 0).length
+          ),
+        1
+      );
+    }
     const headerLayout = await page
       .locator('[data-settings-card]')
       .first()
