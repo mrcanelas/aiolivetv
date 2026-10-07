@@ -2,6 +2,7 @@ import { parseStringPromise } from 'xml2js';
 import type { ContentRating } from '../../db/index.js';
 import { decodeHtmlEntities } from '../../utils/text.js';
 import { toContentRatings } from '../live-tv/epg.js';
+import { programRuntime } from '../live-tv/shared.js';
 
 export interface XmltvChannel {
   id: string;
@@ -108,13 +109,6 @@ function parseProgramDate(input: unknown): string | undefined {
   return Number.isNaN(timestamp)
     ? undefined
     : new Date(timestamp).toISOString();
-}
-
-function programRuntime(startTime: string, endTime: string) {
-  const minutes = Math.round(
-    (Date.parse(endTime) - Date.parse(startTime)) / 60_000
-  );
-  return minutes > 0 ? `${minutes} min` : undefined;
 }
 
 function parseRatings(input: unknown): ContentRating[] | undefined {

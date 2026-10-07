@@ -14,7 +14,16 @@ import {
   parseStreamSourceKey,
   streamSourceKey,
   isVisibleChannelSuggestion,
+  normalizeChannelGroup,
 } from '../utils';
+
+describe('shared channel group normalization', () => {
+  it('decodes HTML entities consistently with delivery', () => {
+    expect(normalizeChannelGroup('News &amp; Sports HD')).toBe('News & Sports');
+    expect(normalizeChannelGroup('CANAIS | FILMES FHD')).toBe('Filmes');
+    expect(normalizeChannelGroup('News &#1114112;')).toBe('News &#1114112;');
+  });
+});
 
 describe('visible stream suggestions', () => {
   it.each([0, 0.5, 0.75, 0.9, 1])(
