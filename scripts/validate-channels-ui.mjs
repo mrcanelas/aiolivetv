@@ -435,6 +435,21 @@ try {
       )
       .waitFor();
     const searchMs = performance.now() - searchAt;
+    await input.fill('no-such-stream-unique-fixture');
+    await page.getByText('No stream channels found', { exact: true }).waitFor();
+    await input.fill(`Stream ${String(streamCount - 1).padStart(5, '0')}`);
+    await page
+      .getByText(
+        `Inventory · Stream ${String(streamCount - 1).padStart(5, '0')}`,
+        { exact: true }
+      )
+      .waitFor();
+    await input.press('Enter');
+    await dialog
+      .getByRole('combobox')
+      .filter({ hasText: `Stream ${String(streamCount - 1).padStart(5, '0')}` })
+      .waitFor();
+    await dialog.getByRole('combobox').click();
     await input.fill('Unrelated Sports');
     await page.getByText('Streams · Unrelated Sports', { exact: true }).click();
     await dialog.getByRole('button', { name: 'Link', exact: true }).click();

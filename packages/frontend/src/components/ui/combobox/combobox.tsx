@@ -293,9 +293,10 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
     });
     const virtualRows = virtualizer.getVirtualItems();
 
-    const selectedOptions = options.filter((option) =>
-      value.includes(option.value)
-    );
+    const selectedOptions = React.useMemo(() => {
+      const selected = new Set(value);
+      return options.filter((option) => selected.has(option.value));
+    }, [options, value]);
 
     const maxReached =
       multiple && typeof maxItems === 'number' && value.length >= maxItems;
