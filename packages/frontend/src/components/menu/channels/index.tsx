@@ -20,6 +20,7 @@ import { Select } from '@/components/ui/select';
 import { StaticTabs } from '@/components/ui/tabs';
 import { useUserData } from '@/context/userData';
 import { useDisclosure } from '@/hooks/disclosure';
+import { channelsQuery, channelAlternativesQuery } from '@/lib/queries';
 import {
   fetchChannels,
   type ChannelInfo,
@@ -104,14 +105,12 @@ export function ChannelsMenu() {
       }),
     [userData.presets, userData.services, userData.parentConfig]
   );
-  const queryKey = ['channels', channelsConfigKey] as const;
-  const query = useQuery({
-    queryKey,
-    queryFn: ({ signal }) =>
-      fetchChannels(userDataRef.current, { autoMatch: false, signal }),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+  const queryOptions = channelsQuery(
+    channelsConfigKey,
+    () => userDataRef.current
+  );
+  const queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions);
   const [refreshError, setRefreshError] = React.useState<string | null>(null);
   const refreshStreamMappings = React.useCallback(async () => {
     setIsMatchingStreams(true);
@@ -736,28 +735,13 @@ export function ChannelsMenu() {
   const selectedMappingChannel =
     channels.find((channel) => channel.id === mappingChannelId) ?? null;
   const alternativesQuery = useQuery({
-    queryKey: [
-      'channel-alternatives',
+    ...channelAlternativesQuery(
       channelsConfigKey,
       mappingChannelId,
       selectedMappingChannel?.canonicalAddonId,
-    ],
+      () => userDataRef.current
+    ),
     enabled: Boolean(selectedMappingChannel && mappingModal.isOpen),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      const response = await fetchChannels(userDataRef.current, {
-        signal,
-        alternativesFor: mappingChannelId!,
-      });
-      if (response.scan?.truncated) {
-        throw new Error('Source scan stopped before completing. Please retry.');
-      }
-      return (
-        response.channels.find((channel) => channel.id === mappingChannelId)
-          ?.availableStreamSources ?? []
-      );
-    },
   });
   const mappingChannel = React.useMemo(() => {
     if (!selectedMappingChannel) return null;
