@@ -188,7 +188,9 @@ router.post(
       const configuredMappings = validatedUserData.channelMappings ?? [];
       validatedUserData.channelMappings = undefined;
       const hiddenChannelIds = new Set(
-        configuredMappings.filter((mapping) => mapping.hidden).map((mapping) => mapping.id)
+        configuredMappings
+          .filter((mapping) => mapping.hidden)
+          .map((mapping) => mapping.id)
       );
 
       const aio = await new AIOStreams(validatedUserData).initialise();
@@ -291,6 +293,31 @@ router.post(
           ? scanStartedAt + scanBudgetMs
           : Number.POSITIVE_INFINITY;
       let scanTruncated = false;
+      let matchingPairs = 0;
+      const matchingCheckpoint = async (yieldToRequests = false) => {
+        if (yieldToRequests) {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
+        if (
+          matchingPairs >= MAX_AUTO_MATCH_PAIRS ||
+          Date.now() >= scanDeadline ||
+          res.destroyed
+        ) {
+          scanTruncated = true;
+          return false;
+        }
+        return true;
+      };
+      const nextMatchingPair = async () => {
+        if (matchingPairs >= MAX_AUTO_MATCH_PAIRS) return matchingCheckpoint();
+        if (
+          matchingPairs % 128 === 0 &&
+          !(await matchingCheckpoint(matchingPairs > 0))
+        )
+          return false;
+        matchingPairs++;
+        return true;
+      };
 
       type CatalogPage = Awaited<ReturnType<typeof aio.getCatalog>>;
       // Fetch one catalog page, but never past the scan deadline. On a
@@ -405,7 +432,10 @@ router.post(
           const seenCatalogItems = new Set<string>();
           while (true) {
             page++;
-            if (page > MAX_CATALOG_PAGES || addonCandidateCount >= maxCandidates) {
+            if (
+              page > MAX_CATALOG_PAGES ||
+              addonCandidateCount >= maxCandidates
+            ) {
               break;
             }
             const extras = [
@@ -466,7 +496,9 @@ router.post(
                   typeof item.country === 'string' ? item.country : undefined,
                 language:
                   typeof item.language === 'string' ? item.language : undefined,
-                categories: Array.isArray(item.genres) ? item.genres : undefined,
+                categories: Array.isArray(item.genres)
+                  ? item.genres
+                  : undefined,
               });
             }
             if (
@@ -617,7 +649,9 @@ router.post(
         }
         return prepared;
       };
-      const declaredForCandidate = (candidate: Pick<Candidate, 'name' | 'categories'>) =>
+      const declaredForCandidate = (
+        candidate: Pick<Candidate, 'name' | 'categories'>
+      ) =>
         parseDeclaredStreamInfo({
           name: candidate.name,
           group: candidate.categories?.[0],
@@ -726,50 +760,51 @@ router.post(
             : null,
         });
       };
-      const buildAvailableStreamSources = (channel: Channel) => {
+      const buildAvailableStreamSources = async (channel: Channel) => {
         const used = new Set(
           channel.mappings.map(
             (mapping) => `${mapping.addonId}\0${mapping.channelId}`
           )
         );
         const canonical = prepareCanonical(channel);
-        return streamCandidates
-          .flatMap((candidate) => {
-            if (
-              used.has(`${candidate.addonId}\0${candidate.id}`) ||
-              isRejected(channel.id, candidate)
-            ) {
-              return [];
-            }
-            const confidence = getPreparedChannelMatchConfidence(
-              prepareCandidate(candidate),
-              canonical
-            );
-            if (confidence < CHANNEL_LINK_STREAM_CONFIDENCE) return [];
-            return [
-              {
-                addonId: candidate.addonId,
-                addonName: candidate.addonName,
-                channelId: candidate.id,
-                name: candidate.name,
-                poster: candidate.poster,
-                confidence,
-              },
-            ];
-          })
-          .sort((a, b) => {
-            if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-            return a.name.localeCompare(b.name, undefined, {
-              sensitivity: 'base',
-            });
+        const available: Channel['availableStreamSources'] = [];
+        for (const candidate of streamCandidates) {
+          if (
+            used.has(`${candidate.addonId}\0${candidate.id}`) ||
+            isRejected(channel.id, candidate)
+          ) {
+            continue;
+          }
+          if (!(await nextMatchingPair())) break;
+          const confidence = getPreparedChannelMatchConfidence(
+            prepareCandidate(candidate),
+            canonical
+          );
+          if (confidence < CHANNEL_LINK_STREAM_CONFIDENCE) continue;
+          available.push({
+            addonId: candidate.addonId,
+            addonName: candidate.addonName,
+            channelId: candidate.id,
+            name: candidate.name,
+            poster: candidate.poster,
+            confidence,
           });
+        }
+        await matchingCheckpoint();
+        return available.sort((a, b) => {
+          if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+          return a.name.localeCompare(b.name, undefined, {
+            sensitivity: 'base',
+          });
+        });
       };
 
       for (const configured of configuredMappings) {
         if (configured.hidden) continue;
         const manualSources =
-          configured.streams?.filter((source) => isManualStreamSource(source)) ??
-          [];
+          configured.streams?.filter((source) =>
+            isManualStreamSource(source)
+          ) ?? [];
         const streamSources =
           configured.streams?.flatMap((source) => {
             if (isManualStreamSource(source)) return [];
@@ -808,9 +843,8 @@ router.post(
                 candidateKey(configured.canonicalAddonId, configured.id)
               )
             : undefined) ??
-          streamSources.find(
-            ({ candidate }) => candidate.id === configured.id
-          )?.candidate;
+          streamSources.find(({ candidate }) => candidate.id === configured.id)
+            ?.candidate;
         if (!canonical && manualSources.length === 0) continue;
         const channel: Channel = {
           id: configured.id,
@@ -844,16 +878,19 @@ router.post(
         for (const { candidate, source } of streamSources) {
           addConfiguredStreamSource(channel, source, candidate);
         }
-        markChannelAssigned(canonical ?? {
-          id: configured.id,
-          name: channel.name,
-          poster: channel.poster,
-          addonId: channel.canonicalAddonId,
-          addonName: aio.getAddon(channel.canonicalAddonId)?.name ?? 'Channel',
-          epgProvider: false,
-          canStream: false,
-          contributesChannels: true,
-        });
+        markChannelAssigned(
+          canonical ?? {
+            id: configured.id,
+            name: channel.name,
+            poster: channel.poster,
+            addonId: channel.canonicalAddonId,
+            addonName:
+              aio.getAddon(channel.canonicalAddonId)?.name ?? 'Channel',
+            epgProvider: false,
+            canStream: false,
+            contributesChannels: true,
+          }
+        );
         channels.push(channel);
       }
 
@@ -863,7 +900,8 @@ router.post(
       for (const candidate of candidates.values()) {
         if (hiddenChannelIds.has(candidate.id)) continue;
         if (!candidate.contributesChannels) continue;
-        if (assigned.has(candidateKey(candidate.addonId, candidate.id))) continue;
+        if (assigned.has(candidateKey(candidate.addonId, candidate.id)))
+          continue;
         const channel: Channel = {
           id: candidate.id,
           name: candidate.name,
@@ -888,17 +926,16 @@ router.post(
 
       // Pass 2: stream-only sources. Match those onto existing channels.
       if (autoMatch) {
-        const autoMatchStreams =
-          streamCandidates.length * channels.length <= MAX_AUTO_MATCH_PAIRS;
         for (const candidate of streamCandidates.sort(
           (a, b) => Number(b.epgProvider) - Number(a.epgProvider)
         )) {
           if (hiddenChannelIds.has(candidate.id)) continue;
           if (bindsOwnCatalogStreams(candidate)) continue;
-          if (assigned.has(candidateKey(candidate.addonId, candidate.id))) continue;
+          if (assigned.has(candidateKey(candidate.addonId, candidate.id)))
+            continue;
           let best: { channel: Channel; confidence: number } | undefined;
           let suggestion: { channel: Channel; confidence: number } | undefined;
-          if (autoMatchStreams) {
+          if (await matchingCheckpoint()) {
             for (const channel of channels) {
               if (
                 channel.mappings.some(
@@ -908,6 +945,7 @@ router.post(
                 )
               )
                 continue;
+              if (!(await nextMatchingPair())) break;
               const confidence = getPreparedChannelMatchConfidence(
                 prepareCandidate(candidate),
                 prepareCanonical(channel)
@@ -925,6 +963,7 @@ router.post(
                 best = { channel, confidence };
             }
           }
+          if (!(await matchingCheckpoint())) break;
           if (best) {
             if (!isRejected(best.channel.id, candidate)) {
               addStreamSource(best.channel, candidate, 1);
@@ -969,10 +1008,7 @@ router.post(
           const candidate = catalogById.get(mapping.id);
           return {
             id: mapping.id,
-            name:
-              mapping.name?.trim() ||
-              candidate?.name?.trim() ||
-              mapping.id,
+            name: mapping.name?.trim() || candidate?.name?.trim() || mapping.id,
             poster: mapping.poster || candidate?.poster || undefined,
             sourceName: candidate?.addonName,
           };
@@ -981,40 +1017,44 @@ router.post(
           a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
         );
 
-      const visibleChannels = channels
-        .filter((channel) =>
-          !hiddenChannelIds.has(channel.id) &&
-          (!alternativesFor || channel.id === alternativesFor)
+      const visibleChannels = (
+        await Promise.all(
+          channels
+            .filter(
+              (channel) =>
+                !hiddenChannelIds.has(channel.id) &&
+                (!alternativesFor || channel.id === alternativesFor)
+            )
+            .map(async (channel) => {
+              const canonical = resolveCanonical(channel);
+              const configured = configuredMappings.find(
+                (mapping) => mapping.id === channel.id
+              );
+              const sourceGroup = normalizeChannelGroup(
+                canonical.categories?.[0] ??
+                  channel.mappings.find((mapping) => mapping.categories?.[0])
+                    ?.categories?.[0]
+              );
+              return {
+                ...channel,
+                sourceName:
+                  canonical.addonName ||
+                  sources.get(channel.canonicalAddonId)?.name ||
+                  undefined,
+                sourceGroup,
+                group: normalizeChannelGroup(configured?.group) ?? sourceGroup,
+                epgProvider:
+                  canonical.epgProvider ||
+                  channel.mappings.some((mapping) => mapping.epgProvider),
+                availableStreamSources: alternativesFor
+                  ? await buildAvailableStreamSources(channel)
+                  : [],
+              };
+            })
         )
-        .map((channel) => {
-          const canonical = resolveCanonical(channel);
-          const configured = configuredMappings.find(
-            (mapping) => mapping.id === channel.id
-          );
-          const sourceGroup = normalizeChannelGroup(
-            canonical.categories?.[0] ??
-              channel.mappings.find((mapping) => mapping.categories?.[0])
-                ?.categories?.[0]
-          );
-          return {
-            ...channel,
-            sourceName:
-              canonical.addonName ||
-              sources.get(channel.canonicalAddonId)?.name ||
-              undefined,
-            sourceGroup,
-            group: normalizeChannelGroup(configured?.group) ?? sourceGroup,
-            epgProvider:
-              canonical.epgProvider ||
-              channel.mappings.some((mapping) => mapping.epgProvider),
-            availableStreamSources: alternativesFor
-              ? buildAvailableStreamSources(channel)
-              : [],
-          };
-        })
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-        );
+      ).sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
       res.status(200).json(
         createResponse({
           success: true,
@@ -1031,6 +1071,7 @@ router.post(
               durationMs: Date.now() - scanStartedAt,
               budgetMs: scanBudgetMs || null,
               truncated: scanTruncated,
+              matchingPairs,
             },
           },
         })

@@ -1,12 +1,15 @@
 import express from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Server } from 'node:http';
-import { prepareChannelMatchCandidate } from '@aiolivetv/core';
+import {
+  prepareChannelMatchCandidate,
+  getPreparedChannelMatchConfidence,
+} from '@aiolivetv/core';
 import catalogApi from './catalog.js';
 
 const fixture = vi.hoisted(() => {
   process.env.BASE_URL = 'http://127.0.0.1';
-  return { epg: true };
+  return { epg: true, budgetMs: 0, extraStreams: 0, truncated: false };
 });
 
 vi.mock('../../middlewares/ratelimit.js', () => ({
@@ -44,11 +47,22 @@ vi.mock('@aiolivetv/core', async () => {
     normalizeChannelGroup,
     decodeHtmlEntities,
     parseDeclaredStreamInfo,
-    config: { resources: { timeouts: { channelScan: 0 } } },
+    config: {
+      resources: {
+        timeouts: {
+          get channelScan() {
+            return fixture.budgetMs;
+          },
+        },
+      },
+    },
     createLogger: () => ({ info: vi.fn(), error: vi.fn() }),
     catalogSupportsSkip: () => false,
     validateConfig: async (data: unknown) => structuredClone(data),
     prepareChannelMatchCandidate: vi.fn(matching.prepareChannelMatchCandidate),
+    getPreparedChannelMatchConfidence: vi.fn(
+      matching.getPreparedChannelMatchConfidence
+    ),
     addonProvidesResource: (addon: { instanceId: string }, resource: string) =>
       addon.instanceId === 'guide'
         ? resource === 'catalog'
@@ -85,6 +99,10 @@ vi.mock('@aiolivetv/core', async () => {
                 { id: 'bbc-stream', name: 'BBC News HD', tvgId: 'BBC.NEWS' },
                 { id: 'hbo-stream', name: 'HBO West FHD' },
                 { id: 'bbc-alt', name: 'BBC News International' },
+                ...Array.from({ length: fixture.extraStreams }, (_, index) => ({
+                  id: 'extra-' + index,
+                  name: 'BBC News HD',
+                })),
               ],
         };
       }
@@ -101,6 +119,10 @@ afterEach(async () => {
     server = undefined;
   }
   vi.mocked(prepareChannelMatchCandidate).mockClear();
+  vi.mocked(getPreparedChannelMatchConfidence).mockRestore();
+  vi.restoreAllMocks();
+  fixture.budgetMs = 0;
+  fixture.extraStreams = 0;
 });
 
 async function scan(
@@ -142,6 +164,7 @@ async function scan(
   expect(response.status).toBe(200);
   const body = (await response.json()) as {
     data: {
+      scan: { truncated: boolean };
       channels: Array<{
         id: string;
         epgProvider: boolean;
@@ -153,6 +176,7 @@ async function scan(
       }>;
     };
   };
+  fixture.truncated = body.data.scan.truncated;
   return body.data.channels;
 }
 
@@ -196,5 +220,44 @@ describe('Channels prepared matching', () => {
       channels.every((channel) => channel.availableStreamSources.length === 0)
     ).toBe(true);
     expect(prepareChannelMatchCandidate).not.toHaveBeenCalled();
+  });
+
+  it('yields to other requests between scoring batches', async () => {
+    const matching =
+      await import('../../../../core/src/main/channelMappings.js');
+    let heartbeat = false;
+    let calls = 0;
+    fixture.extraStreams = 256;
+    vi.mocked(getPreparedChannelMatchConfidence).mockImplementation(
+      (left, right) => {
+        if (calls++ === 0)
+          setImmediate(() => {
+            heartbeat = true;
+          });
+        if (calls === 129) expect(heartbeat).toBe(true);
+        return matching.getPreparedChannelMatchConfidence(left, right);
+      }
+    );
+    await scan(false, false, 'bbc');
+    expect(calls).toBe(259);
+    expect(fixture.truncated).toBe(false);
+  });
+
+  it('does not accept a partially evaluated match after the scan deadline', async () => {
+    const matching =
+      await import('../../../../core/src/main/channelMappings.js');
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    fixture.budgetMs = 100;
+    vi.mocked(getPreparedChannelMatchConfidence).mockImplementationOnce(
+      (left, right) => {
+        clock.mockReturnValue(2000);
+        return matching.getPreparedChannelMatchConfidence(left, right);
+      }
+    );
+    const channels = await scan(true);
+    expect(channels.every((channel) => channel.mappings.length === 0)).toBe(
+      true
+    );
+    expect(fixture.truncated).toBe(true);
   });
 });

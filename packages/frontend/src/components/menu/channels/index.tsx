@@ -748,6 +748,9 @@ export function ChannelsMenu() {
         signal,
         alternativesFor: mappingChannelId!,
       });
+      if (response.scan?.truncated) {
+        throw new Error('Source scan stopped before completing. Please retry.');
+      }
       return (
         response.channels.find((channel) => channel.id === mappingChannelId)
           ?.availableStreamSources ?? []
