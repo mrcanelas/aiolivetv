@@ -59,8 +59,7 @@ function buildDestination(): DestinationStream | Writable {
   if (format !== 'text') {
     return pino.destination({ dest: 1, sync: false });
   }
-  // Text mode: pino emits NDJSON to this stream; we parse each line,
-  // redact URLs in msg, then re-emit via pino-pretty.
+  // URLs are redacted before either destination receives the NDJSON.
   const prettify = prettyFactory({ colorize: true, sync: true });
   return new Writable({
     write(chunk: Buffer | string, _enc, cb) {
@@ -69,9 +68,6 @@ function buildDestination(): DestinationStream | Writable {
         if (!line) continue;
         try {
           const obj = JSON.parse(line) as Record<string, unknown>;
-          if (typeof obj.msg === 'string') {
-            obj.msg = redactUrlParams(obj.msg);
-          }
           process.stdout.write(prettify(obj));
         } catch {
           process.stdout.write(line + '\n');
@@ -85,8 +81,8 @@ function buildDestination(): DestinationStream | Writable {
 /**
  * Stream B for the multistream: tees every NDJSON line into the in-memory
  * ring buffer that backs the dashboard Logs page. Lines arrive already
- * redacted (pino applies `redact` before any stream sees the record), so the
- * dashboard can never leak secrets. Chunks are not guaranteed to be
+ * URL-redacted by the streamWrite hook before any destination sees the record.
+ * Chunks are not guaranteed to be
  * line-aligned, so we buffer a partial trailing fragment.
  */
 function buildRingStream(): Writable {
@@ -123,6 +119,9 @@ const root: PinoLogger = pino(
       },
     },
     timestamp: pino.stdTimeFunctions.isoTime,
+    hooks: {
+      streamWrite: redactUrlParams,
+    },
     serializers: {
       err: pino.stdSerializers.err,
     },

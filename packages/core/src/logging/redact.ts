@@ -6,10 +6,14 @@ const REDACT_CENSOR = '<redacted>';
  * substring in a string. Used by the URL serializer for log fields that
  * contain freeform text (typically `msg`).
  */
-const URL_PARAM_PATTERN = /([?&](?:apikey|api_key|token|secret)=)([^&\s'"]+)/gi;
+const URL_PARAM_PATTERN =
+  /([?&](?:apikey|api_key|token|secret|password)=)([^&\s'"\\]+)/gi;
+const URL_CREDENTIAL_PATTERN = /([a-z][a-z\d+.-]*:\/\/)[^/\s'"\\?#]+@/gi;
 
 export function redactUrlParams(s: string): string {
-  return s.replace(URL_PARAM_PATTERN, `$1${REDACT_CENSOR}`);
+  return s
+    .replace(URL_CREDENTIAL_PATTERN, `$1${REDACT_CENSOR}@`)
+    .replace(URL_PARAM_PATTERN, `$1${REDACT_CENSOR}`);
 }
 
 /**

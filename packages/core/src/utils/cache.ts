@@ -89,9 +89,7 @@ export class Cache<K, V> {
 
   public static getRedisClient(): RedisClientType {
     if (!this.redisClient) {
-      logger.info(
-        `Initialising Redis client connection to ${appConfig.bootstrap.redisUri}`
-      );
+      logger.info('Initialising Redis client connection');
       this.redisClient = createClient({
         url: appConfig.bootstrap.redisUri,
       });
