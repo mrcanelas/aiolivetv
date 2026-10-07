@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.0.0-rc.1](https://github.com/mrcanelas/aiolivetv/compare/v0.9.1-beta...v1.0.0-rc.1) (2026-10-07)
+
+
+### Features
+
+* **discord:** add safe status relay connection tests ([f3da3c8](https://github.com/mrcanelas/aiolivetv/commit/f3da3c81c2e294a6f7d9df5e2cb93b926e537737))
+* **discord:** relay UptimeRobot incidents as status embeds ([3d31a2a](https://github.com/mrcanelas/aiolivetv/commit/3d31a2a4c56a3b009d5f659151c827678ec557a0))
+* **formatter:** enrich live TV metadata and refresh presets ([033bf29](https://github.com/mrcanelas/aiolivetv/commit/033bf29423d3f1c128c6d73cb4ac57ea6724449a))
+
+
+### Bug Fixes
+
+* **channels:** bound scans including provider initialisation ([3b87efa](https://github.com/mrcanelas/aiolivetv/commit/3b87efaaafdcf4939d6c7e80531973781fbab288))
+* **channels:** center refresh spinner during scanning ([687b632](https://github.com/mrcanelas/aiolivetv/commit/687b632e46d9ec715abe17a6601ab6394b0e4099))
+* **channels:** count distinct channels and simplify mobile filters ([9ae711d](https://github.com/mrcanelas/aiolivetv/commit/9ae711da530d9ba72d3bac1f7cd6af3ad1f3b7fb))
+* **channels:** move mobile row actions into dropdown ([2f1b673](https://github.com/mrcanelas/aiolivetv/commit/2f1b6735c920f9c2c3daac3034d8f102d190cca1))
+* **channels:** report page and candidate scan limits ([c859d86](https://github.com/mrcanelas/aiolivetv/commit/c859d864c38e43d10dc0fa39128e9bcef8e9ee08))
+* **channels:** separate suggestions from manual stream selection ([2d8c262](https://github.com/mrcanelas/aiolivetv/commit/2d8c2627937043478fcf8d81ab73f01986199593))
+* **channels:** stack header actions on mobile ([4e8249c](https://github.com/mrcanelas/aiolivetv/commit/4e8249c14d1851581371586bf5ef1764c3e7c07f))
+* **discord:** monitor uncached health URL during CDN expiration ([cef463d](https://github.com/mrcanelas/aiolivetv/commit/cef463d3e165fb0934b162a7ae431193050b4edd))
+* **live-tv:** enforce source size limits while streaming downloads ([1b66c87](https://github.com/mrcanelas/aiolivetv/commit/1b66c87b894d420d15e0acbd12786b8a9404b176))
+* **logging:** redact URL credentials across log destinations ([dafbfe4](https://github.com/mrcanelas/aiolivetv/commit/dafbfe4a159572cd1ab9c7c98d2a5b485ef18dda))
+* **metadata:** preserve invalid HTML entities without failing scans ([f9a7edf](https://github.com/mrcanelas/aiolivetv/commit/f9a7edf660e5a4cdaab8614f39c47596c47642f4))
+* **ui:** label mobile navigation and keep search controls stable ([f51f4db](https://github.com/mrcanelas/aiolivetv/commit/f51f4db93b55d0b37ee8be161f514581e5c8f741))
+* **ui:** place card descriptions below header actions ([400940a](https://github.com/mrcanelas/aiolivetv/commit/400940a2cd082de505dcb8d2074feb5c20e82f51))
+
+
+### Performance Improvements
+
+* **catalog:** paginate live TV in cached batches of 25 ([f496e50](https://github.com/mrcanelas/aiolivetv/commit/f496e506eccf3f4c1352fca52a30534a95726857))
+* **channels:** bound matching and yield between batches ([e1aff19](https://github.com/mrcanelas/aiolivetv/commit/e1aff19422f9fc5fb65a153cda347fff9c6e7346))
+* **channels:** load stream alternatives on demand ([5b0c743](https://github.com/mrcanelas/aiolivetv/commit/5b0c743e31b7a0461aefb7cbf997ec0678501724))
+* **channels:** reuse complete scan inventories for mapping alternatives ([c357cc6](https://github.com/mrcanelas/aiolivetv/commit/c357cc6824c2c8f0b00dc4d5b4eb9d5e8eafd7ab))
+* **channels:** reuse draft mappings and index updates ([4704489](https://github.com/mrcanelas/aiolivetv/commit/4704489c9cd3667b29bfd69ed7435e5d824ecec3))
+* **channels:** reuse prepared candidates during matching ([0e9cece](https://github.com/mrcanelas/aiolivetv/commit/0e9cece8dfca228b6d63079234d298bf30317a13))
+* **channels:** virtualize lists and memoize derived data ([ce05b10](https://github.com/mrcanelas/aiolivetv/commit/ce05b10dff42f80e86038661432536bd562d6bd3))
+* **channels:** virtualize stream options with full-inventory search ([30eeb55](https://github.com/mrcanelas/aiolivetv/commit/30eeb554c4f9a2d80c5735c1066a4706c5cac481))
+* **combobox:** memoize selection and verify virtual keyboard states ([169b609](https://github.com/mrcanelas/aiolivetv/commit/169b60932abd6b89b494bd17e33fa43f020fff81))
+* **frontend:** lazy load dashboard routes and configurator menus ([88e4af8](https://github.com/mrcanelas/aiolivetv/commit/88e4af8d704cd08458712f2ed507daaa29d07608))
+* **live-tv:** share expiry pruning and bound retained source input ([8746274](https://github.com/mrcanelas/aiolivetv/commit/8746274db9034f57af308a1fe4e0cb8c26478ac1))
+* **m3u:** reuse parsed catalogs and share source loads ([8eb6de0](https://github.com/mrcanelas/aiolivetv/commit/8eb6de0b5658c163a4d0cb78009bc3cd1b55ce41))
+* **streams:** resolve provider channel IDs concurrently ([e6a927a](https://github.com/mrcanelas/aiolivetv/commit/e6a927a6d85feb663e5592c9416a898e89944b2a))
+* **ui:** remove unused pointer state from settings cards ([8445de8](https://github.com/mrcanelas/aiolivetv/commit/8445de8aa7d9bfea0429ca4e83fcee7d96a7fd63))
+* **xmltv:** yield between parser chunks ([0fc04ec](https://github.com/mrcanelas/aiolivetv/commit/0fc04ec1810cac7870d5db65f466d4609608a7e1))
+
 ## [0.9.1-beta](https://github.com/mrcanelas/aiolivetv/compare/v0.9.0-beta...v0.9.1-beta) (2026-10-06)
 
 
