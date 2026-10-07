@@ -1,20 +1,14 @@
-import { createRoute, createRouter, redirect } from '@tanstack/react-router';
+import {
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  redirect,
+} from '@tanstack/react-router';
 import { rootRoute } from './routes/root';
 import { IndexPage } from './routes/index-page';
 import { LoginPage, safeNext } from './routes/login-page';
-import { DashboardLayout } from './routes/dashboard-layout';
-import {
-  DashboardHome,
-  AnalyticsPage,
-  LogsPage,
-  SystemPage,
-  SettingsPage,
-  UsersPage,
-  TasksPage,
-  CachePage,
-} from './routes/dashboard-pages';
 import { SplashscreenPage } from './routes/splashscreen-page';
-import { ConfigureRoute } from './routes/configure-route';
+import { LoadingSpinner } from './components/ui/loading-spinner';
 import { sessionQuery, statusQuery } from './lib/queries';
 import { queryClient } from './lib/query-client';
 import type { StatusResponse } from '@aiolivetv/core';
@@ -83,14 +77,20 @@ const stremioConfigureRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/stremio/configure',
   beforeLoad: configureBeforeLoad,
-  component: ConfigureRoute,
+  component: lazyRouteComponent(
+    () => import('./routes/configure-route'),
+    'ConfigureRoute'
+  ),
 });
 
 const stremioConfigureAuthRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/stremio/$uuid/$encryptedPassword/configure',
   beforeLoad: configureBeforeLoad,
-  component: ConfigureRoute,
+  component: lazyRouteComponent(
+    () => import('./routes/configure-route'),
+    'ConfigureRoute'
+  ),
 });
 
 const dashboardRoute = createRoute({
@@ -113,37 +113,55 @@ const dashboardRoute = createRoute({
       });
     }
   },
-  component: DashboardLayout,
+  component: lazyRouteComponent(
+    () => import('./routes/dashboard-layout'),
+    'DashboardLayout'
+  ),
 });
 
 const dashboardIndexRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: '/',
-  component: DashboardHome,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/overview/overview-page'),
+    'DashboardHome'
+  ),
 });
 
 const dashboardAnalyticsRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'analytics',
-  component: AnalyticsPage,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/analytics/analytics-page'),
+    'AnalyticsPage'
+  ),
 });
 
 const dashboardLogsRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'logs',
-  component: LogsPage,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/logs/logs-page'),
+    'LogsPage'
+  ),
 });
 
 const dashboardSystemRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'system',
-  component: SystemPage,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/system/system-page'),
+    'SystemPage'
+  ),
 });
 
 const dashboardSettingsRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'settings',
-  component: SettingsPage,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/settings/settings-page'),
+    'SettingsPage'
+  ),
 });
 
 const dashboardProxyRoute = createRoute({
@@ -158,19 +176,28 @@ const dashboardProxyRoute = createRoute({
 const dashboardUsersRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'users',
-  component: UsersPage,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/users/users-page'),
+    'UsersPage'
+  ),
 });
 
 const dashboardTasksRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'tasks',
-  component: TasksPage,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/tasks/tasks-page'),
+    'TasksPage'
+  ),
 });
 
 const dashboardCacheRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: 'cache',
-  component: CachePage,
+  component: lazyRouteComponent(
+    () => import('./app/dashboard/cache/cache-page'),
+    'CachePage'
+  ),
 });
 
 const routeTree = rootRoute.addChildren([
@@ -197,6 +224,7 @@ export const router = createRouter({
   context: { queryClient },
   trailingSlash: 'never',
   defaultPreload: 'intent',
+  defaultPendingComponent: () => <LoadingSpinner />,
 });
 
 declare module '@tanstack/react-router' {

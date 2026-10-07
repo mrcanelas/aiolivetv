@@ -1,12 +1,38 @@
 import { useMenu } from '@/context/menu';
-import { AddonsMenu } from './menu/addons';
+import { lazy, Suspense } from 'react';
+import { LoadingSpinner } from './ui/loading-spinner';
 import { AboutMenu } from './menu/about';
-import { MiscellaneousMenu } from './menu/miscellaneous';
-import { SaveInstallMenu } from './menu/save-install';
-import { FormatterMenu } from './menu/formatter';
-import { ChannelsMenu } from './menu/channels';
+const AddonsMenu = lazy(() =>
+  import('./menu/addons').then((module) => ({ default: module.AddonsMenu }))
+);
+const MiscellaneousMenu = lazy(() =>
+  import('./menu/miscellaneous').then((module) => ({
+    default: module.MiscellaneousMenu,
+  }))
+);
+const SaveInstallMenu = lazy(() =>
+  import('./menu/save-install').then((module) => ({
+    default: module.SaveInstallMenu,
+  }))
+);
+const FormatterMenu = lazy(() =>
+  import('./menu/formatter').then((module) => ({
+    default: module.FormatterMenu,
+  }))
+);
+const ChannelsMenu = lazy(() =>
+  import('./menu/channels').then((module) => ({ default: module.ChannelsMenu }))
+);
 
 export function MenuContent() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <SelectedMenu />
+    </Suspense>
+  );
+}
+
+function SelectedMenu() {
   const { selectedMenu } = useMenu();
 
   switch (selectedMenu) {
