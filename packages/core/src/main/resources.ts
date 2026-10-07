@@ -59,9 +59,11 @@ import {
   isManualStreamSource,
   buildManualParsedStreams,
   orderLiveStreamsByMapping,
-  getChannelMatchConfidence,
+  prepareChannelMatchCandidate,
+  getPreparedChannelMatchConfidence,
   isHighConfidenceChannelMatch,
   type ChannelMatchCandidate,
+  type PreparedChannelMatchCandidate,
 } from './channelMappings.js';
 import { decodeHtmlEntities } from '../utils/text.js';
 import { configurationProvidesNativeEpg } from './epgProvider.js';
@@ -760,6 +762,7 @@ function emitAddonContributions(args: {
 }
 
 const LIVE_STREAM_CATALOG_SCAN_LIMIT = 500;
+const LIVE_STREAM_RESOLUTION_CONCURRENCY = 4;
 
 function getAllLiveStreamAddons(
   ctx: Pick<AIOStreamsContext, 'supportedResources' | 'addons'>,
@@ -784,9 +787,7 @@ async function loadCanonicalChannelCandidate(
           id: channelId,
           name: decodeHtmlEntities(channelMapping.name ?? channelId),
           logo: channelMapping.poster ?? undefined,
-          categories: channelMapping.group
-            ? [channelMapping.group]
-            : undefined,
+          categories: channelMapping.group ? [channelMapping.group] : undefined,
         }
       : undefined;
 
@@ -836,7 +837,7 @@ async function resolveStreamChannelIdForAddon(
   ctx: AIOStreamsContext,
   channelId: string,
   addon: Addon,
-  canonical: ChannelMatchCandidate
+  canonical: PreparedChannelMatchCandidate
 ): Promise<string> {
   const streamResource = ctx.supportedResources[addon.instanceId!]?.find(
     (resource) => resource.name === 'stream'
@@ -852,22 +853,20 @@ async function resolveStreamChannelIdForAddon(
     return channelId;
   }
 
-  const catalog = ctx.finalCatalogs.find(
-    (entry) =>
-      entry.id.startsWith(`${addon.instanceId}.`) &&
-      isLiveChannelType(entry.type)
+  const catalog = ctx.manifests[addon.instanceId!]?.catalogs.find((entry) =>
+    isLiveChannelType(entry.type)
   );
   if (!catalog) return channelId;
 
   const response = await new Wrapper(addon).getCatalog(
     catalog.type,
-    catalog.id.split('.').slice(1).join('.'),
+    catalog.id,
     catalog.extra?.some((extra) => extra.name === 'skip') ? 'skip=0' : undefined
   );
   let best: { id: string; confidence: number } | undefined;
   for (const item of response.slice(0, LIVE_STREAM_CATALOG_SCAN_LIMIT)) {
-    const confidence = getChannelMatchConfidence(
-      {
+    const confidence = getPreparedChannelMatchConfidence(
+      prepareChannelMatchCandidate({
         id: item.id,
         name: decodeHtmlEntities(item.name ?? item.id),
         tvgId: typeof item.tvgId === 'string' ? item.tvgId : undefined,
@@ -878,7 +877,7 @@ async function resolveStreamChannelIdForAddon(
         language: typeof item.language === 'string' ? item.language : undefined,
         categories: Array.isArray(item.genres) ? item.genres : undefined,
         logo: item.poster ?? undefined,
-      },
+      }),
       canonical
     );
     if (
@@ -943,12 +942,22 @@ async function resolveLiveStreamFetchPlan(
   }
 
   if (addons.length === 0) {
-    for (const addon of getAllLiveStreamAddons(ctx, type)) {
-      addAddon(
-        addon,
-        await resolveStreamChannelIdForAddon(ctx, channelId, addon, canonical)
-      );
-    }
+    const preparedCanonical = prepareChannelMatchCandidate(canonical);
+    const limit = pLimit(LIVE_STREAM_RESOLUTION_CONCURRENCY);
+    const resolved = await Promise.all(
+      getAllLiveStreamAddons(ctx, type).map((addon) =>
+        limit(async () => ({
+          addon,
+          id: await resolveStreamChannelIdForAddon(
+            ctx,
+            channelId,
+            addon,
+            preparedCanonical
+          ),
+        }))
+      )
+    );
+    for (const { addon, id } of resolved) addAddon(addon, id);
   }
 
   if (channelMapping?.streams?.length) {
@@ -990,6 +999,13 @@ export async function getStreams(
   const channelMapping = isLiveChannel
     ? getChannelMapping(ctx.userData, channelId)
     : undefined;
+  if (isLiveChannel && !isLiveChannelVisible(ctx.userData, channelId)) {
+    return {
+      success: true,
+      data: { streams: [], statistics: [] },
+      errors: [],
+    };
+  }
   const liveStreamPlan = isLiveChannel
     ? await resolveLiveStreamFetchPlan(ctx, type, channelId)
     : undefined;
@@ -1006,14 +1022,6 @@ export async function getStreams(
 
   const context = StreamContext.create(type, channelId, ctx.userData);
   ctx.streamContext = context;
-
-  if (isLiveChannel && !isLiveChannelVisible(ctx.userData, channelId)) {
-    return {
-      success: true,
-      data: { streams: [], statistics: [] },
-      errors: [],
-    };
-  }
 
   ctx.filterer.resetFilterTimings();
   ctx.precomputer.resetPrecomputeTimings();
@@ -1370,7 +1378,8 @@ export async function getMeta(
         meta.links = convertDiscoverDeepLinks(ctx, meta.links);
       }
       if (isLiveChannel) {
-        if (channelMapping?.name?.trim()) meta.name = channelMapping.name.trim();
+        if (channelMapping?.name?.trim())
+          meta.name = channelMapping.name.trim();
         if (channelMapping?.poster?.trim()) {
           meta.poster = channelMapping.poster.trim();
           meta.logo = channelMapping.poster.trim();

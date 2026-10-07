@@ -446,6 +446,79 @@ async function validateChannelMappings(
   console.log('  [ok] channelMappings: disable canal e filtro de catalog');
 }
 
+async function validateParallelStreamResolution(core: CoreModule) {
+  let active = 0;
+  let maxActive = 0;
+  let catalogRequests = 0;
+  const streamIds: string[] = [];
+  const server = createServer(async (req, res) => {
+    const match = req.url?.match(/^\/provider\/(\d+)\/(.*)$/);
+    if (!match) { res.writeHead(404).end(); return; }
+    const [, provider, path] = match;
+    res.setHeader('Content-Type', 'application/json');
+    if (path === 'manifest.json') {
+      res.end(JSON.stringify({
+        id: 'provider-' + provider, name: 'Provider ' + provider, version: '1.0.0',
+        types: ['tv'],
+        resources: [{ name: 'stream', types: ['tv'], idPrefixes: ['provider-' + provider + ':'] }],
+        catalogs: [{ id: 'channels', name: 'Channels', type: 'tv', extra: [{ name: 'skip' }] }],
+      }));
+    } else if (path.startsWith('catalog/')) {
+      active++;
+      catalogRequests++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      active--;
+      res.end(JSON.stringify({ metas: [{
+        id: 'provider-' + provider + ':bbc', type: 'tv', name: 'BBC News HD',
+      }] }));
+    } else if (path.startsWith('stream/')) {
+      streamIds.push(decodeURIComponent(path));
+      res.end(JSON.stringify({ streams: [{
+        name: 'Provider ' + provider,
+        url: 'https://example.com/parallel-' + provider + '.m3u8',
+        behaviorHints: { notWebReady: true },
+      }] }));
+    } else res.writeHead(404).end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  assert(address && typeof address === 'object', 'parallel fixture did not bind');
+  try {
+    const presets: UserData['presets'] = Array.from({ length: 6 }, (_, index) => ({
+      type: 'custom',
+      instanceId: 'provider-' + index,
+      enabled: true,
+      options: {
+        name: 'Provider ' + index,
+        manifestUrl: `http://127.0.0.1:${address.port}/provider/${index}/manifest.json`,
+        resources: ['stream'],
+        timeout: 1000,
+      },
+    }));
+    const data = liveTvUserData(presets, [{
+      id: 'canonical-bbc', name: 'BBC News', enabled: true,
+    }]);
+    const aio = await new core.AIOStreams(data).initialise();
+    const response = await aio.getStreams('canonical-bbc', core.constants.TV_TYPE);
+    assert(response.data.streams.length === 6,
+      `expected streams from all six providers; streams=${response.data.streams.length}, catalogs=${catalogRequests}, maxActive=${maxActive}, ids=${streamIds.join(',')}, errors=${JSON.stringify(response.errors)}`);
+    assert(catalogRequests === 6, 'expected one catalog lookup per stream-only provider');
+    assert(maxActive === 4, 'expected bounded concurrent catalog resolution');
+    assert(streamIds.every((id) => id.includes(':bbc')), 'expected resolved provider channel IDs');
+    const hidden = await new core.AIOStreams(liveTvUserData(presets, [{
+      id: 'hidden-bbc', name: 'BBC News', enabled: false,
+    }])).initialise();
+    await hidden.getStreams('hidden-bbc', core.constants.TV_TYPE);
+    assert(catalogRequests === 6, 'disabled channels must not resolve provider catalogs');
+    console.log('  [ok] parallel stream resolution: six providers, concurrency four, disabled channel skipped');
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => error ? reject(error) : resolve())
+    );
+  }
+}
+
 async function main() {
   console.log('Validando Live TV E2E...');
   const { server: fixtureServer, sourceBase } = await startFixtureServer();
@@ -471,6 +544,7 @@ async function main() {
     await validateWithEpg(sourceBase, deps);
     await validateWithoutEpg(sourceBase, deps);
     await validateChannelMappings(sourceBase, deps);
+    await validateParallelStreamResolution(core);
     console.log('Live TV E2E: todos os checks passaram.');
   } finally {
     await Promise.all([
