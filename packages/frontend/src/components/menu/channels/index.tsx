@@ -1063,7 +1063,7 @@ export function ChannelsMenu() {
               <div className="space-y-1 rounded-md border border-amber-500/40 px-3 py-2 text-xs">
                 {channelsResponse.scan?.truncated ? (
                   <p className="text-amber-400">
-                    The scan hit its time limit and returned partial results
+                    The scan reached a safety limit and returned partial results
                     after {Math.round(channelsResponse.scan.durationMs / 1000)}
                     s.
                   </p>

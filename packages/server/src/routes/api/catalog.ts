@@ -423,6 +423,11 @@ router.post(
         const foundKeys = new Set<string>();
         const errors: string[] = [];
         const skippedCatalogs: string[] = [];
+        const markTruncated = (reason: string) => {
+          scanTruncated = true;
+          diagnostic.truncated = true;
+          errors.push(reason);
+        };
         let stopped = false;
 
         for (const catalog of manifest.catalogs.filter((item) =>
@@ -455,10 +460,10 @@ router.post(
           const seenCatalogItems = new Set<string>();
           while (true) {
             page++;
-            if (
-              page > MAX_CATALOG_PAGES ||
-              addonCandidateCount >= maxCandidates
-            ) {
+            if (page > MAX_CATALOG_PAGES) {
+              markTruncated(
+                `${catalog.id}: reached the ${MAX_CATALOG_PAGES} page scan limit; more channels may be available`
+              );
               break;
             }
             const extras = [
@@ -525,13 +530,15 @@ router.post(
               });
             }
             if (
-              !paginated ||
-              items.length === 0 ||
-              added === 0 ||
               addonCandidateCount >= maxCandidates ||
               skip + items.length >= MAX_CHANNELS_PER_CATALOG
-            )
+            ) {
+              markTruncated(
+                `${catalog.id}: reached the ${maxCandidates} candidate scan limit; more channels may be available`
+              );
               break;
+            }
+            if (!paginated || items.length === 0 || added === 0) break;
             skip += items.length;
           }
           if (stopped) break;

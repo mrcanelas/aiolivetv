@@ -18,6 +18,7 @@ const fixture = vi.hoisted(() => {
     initialiseDelayMs: 0,
     slowCatalogMs: 0,
     stalledValidation: false,
+    sources: [] as Array<{ error?: string; truncated?: boolean }>,
   };
 });
 
@@ -210,6 +211,7 @@ async function scan(
   const body = (await response.json()) as {
     data: {
       scan: { truncated: boolean };
+      sources: Array<{ error?: string; truncated?: boolean }>;
       channels: Array<{
         id: string;
         epgProvider: boolean;
@@ -222,10 +224,35 @@ async function scan(
     };
   };
   fixture.truncated = body.data.scan.truncated;
+  fixture.sources = body.data.sources;
   return body.data.channels;
 }
 
 describe('Channels prepared matching', () => {
+  it('reports the page cap instead of silently dropping channels', async () => {
+    fixture.pagedChannels = 2501;
+    const channels = await scan(false);
+    expect(channels).toHaveLength(2500);
+    expect(fixture.truncated).toBe(true);
+    expect(fixture.sources).toContainEqual(
+      expect.objectContaining({
+        truncated: true,
+        error: expect.stringContaining('100 page scan limit'),
+      })
+    );
+  });
+
+  it('reports the stream candidate cap', async () => {
+    fixture.extraStreams = 2001;
+    await scan(false);
+    expect(fixture.truncated).toBe(true);
+    expect(fixture.sources).toContainEqual(
+      expect.objectContaining({
+        truncated: true,
+        error: expect.stringContaining('2000 candidate scan limit'),
+      })
+    );
+  });
   it('returns JSON when provider validation stalls before scanning', async () => {
     fixture.budgetMs = 20;
     fixture.stalledValidation = true;
