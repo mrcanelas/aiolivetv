@@ -28,6 +28,30 @@ const initial = () => ({
   downSince: null,
 });
 
+test('status cards are English, branded and include public link buttons', () => {
+  const offline = createStatusPayload(String(monitor.id), down, null);
+  const online = createStatusPayload(String(monitor.id), up, down.datetime);
+  assert.equal(offline.embeds[0].title, 'AIOLiveTV is offline');
+  assert.equal(online.embeds[0].title, 'AIOLiveTV is back online');
+  assert.deepEqual(
+    offline.embeds[0].fields.map((field) => field.name),
+    ['Detected', 'Reason']
+  );
+  assert.deepEqual(
+    online.embeds[0].fields.map((field) => field.name),
+    ['Recovered', 'Downtime']
+  );
+  assert.match(offline.embeds[0].fields[0].value, /Jan.*UTC$/);
+  assert.match(offline.embeds[0].thumbnail.url, /favicon\.png$/);
+  assert.equal(offline.components[0].components[0].url, monitor.url);
+  assert.equal(offline.components[0].components[1].label, 'View on GitHub');
+  assert.equal(
+    createStatusPayload('test', { type: 1, datetime: now }, null).embeds[0]
+      .fields[1].value,
+    'Unavailable'
+  );
+});
+
 test('state branch creation and writes preserve the latest file SHA', async () => {
   let writes = 0;
   const store = await createStateStore(

@@ -1,6 +1,23 @@
 const { readFileSync } = require('node:fs');
 const { createHash } = require('node:crypto');
 
+const LOGO_URL =
+  'https://raw.githubusercontent.com/mrcanelas/aiolivetv/main/packages/frontend/public/favicon.png';
+
+function linkButtons(links) {
+  return [
+    {
+      type: 1,
+      components: links.map(([label, url]) => ({
+        type: 2,
+        style: 5,
+        label,
+        url,
+      })),
+    },
+  ];
+}
+
 function createPayload(kind, env, release = {}) {
   const repository = env.GITHUB_REPOSITORY;
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository || '')) {
@@ -12,6 +29,7 @@ function createPayload(kind, env, release = {}) {
   const version = kind === 'release' ? release.tag_name : env.RELEASE_REF;
   const prerelease = release.prerelease || Boolean(version?.includes('-'));
   let embed;
+  let links;
   if (kind === 'release') {
     if (!version) throw new Error('The release event must include a tag.');
     embed = {
@@ -25,6 +43,7 @@ function createPayload(kind, env, release = {}) {
       ).slice(0, 3500),
       color: prerelease ? 15844367 : 5763719,
     };
+    links = [['View on GitHub', embed.url]];
   } else if (kind === 'build') {
     if (!version || !env.TAGS?.trim())
       throw new Error('Build notifications require RELEASE_REF and TAGS.');
@@ -44,16 +63,13 @@ function createPayload(kind, env, release = {}) {
             .join('\n')
             .slice(0, 1024),
         },
-        {
-          name: 'View Images',
-          value: `[GHCR](${base}/pkgs/container/aiolivetv) | [Docker Hub](https://hub.docker.com/r/${repository})`,
-        },
-        {
-          name: 'View Build',
-          value: `[GitHub Actions](${base}/actions/runs/${env.GITHUB_RUN_ID})`,
-        },
       ],
     };
+    links = [
+      ['View Build', `${base}/actions/runs/${env.GITHUB_RUN_ID}`],
+      ['GHCR', `${base}/pkgs/container/aiolivetv`],
+      ['Docker Hub', `https://hub.docker.com/r/${repository}`],
+    ];
   } else if (kind === 'test') {
     embed = {
       title: 'AIOLiveTV bot connection test',
@@ -61,12 +77,15 @@ function createPayload(kind, env, release = {}) {
         'The bot can publish notifications from GitHub Actions. This is not a release or deployment announcement.',
       color: 3447003,
     };
+    links = [['View on GitHub', base]];
   } else {
     throw new Error(`Unknown notification kind: ${kind}`);
   }
   embed.footer = { text: 'AIOLiveTV CI' };
+  embed.thumbnail = { url: LOGO_URL };
   return {
     embeds: [embed],
+    components: linkButtons(links),
     allowed_mentions: { parse: [] },
     // Discord deduplicates retries of the same workflow run and notification kind.
     nonce: createHash('sha256')
@@ -145,7 +164,7 @@ async function main(env = process.env) {
   console.log('Discord notification sent as the AIOLiveTV bot.');
 }
 
-module.exports = { createPayload, sendMessage };
+module.exports = { createPayload, sendMessage, LOGO_URL, linkButtons };
 if (require.main === module) {
   main().catch((error) => {
     console.error(error.message);

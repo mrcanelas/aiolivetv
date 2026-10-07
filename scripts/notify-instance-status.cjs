@@ -1,5 +1,5 @@
 const { createHash } = require('node:crypto');
-const { sendMessage } = require('./notify-discord.cjs');
+const { sendMessage, LOGO_URL, linkButtons } = require('./notify-discord.cjs');
 
 const HEALTH_URL =
   'https://94c8cb9f702d-aiolivetv.baby-beamup.club/api/v1/health';
@@ -14,21 +14,23 @@ function createStatusPayload(monitorId, event, downSince) {
   const down = event.type === 1;
   const fields = [
     {
-      name: down ? 'Detected / Detectado' : 'Recovered / Restabelecido',
-      value: `<t:${event.datetime}:F>`,
+      name: down ? 'Detected' : 'Recovered',
+      value: new Intl.DateTimeFormat('en-GB', {
+        dateStyle: 'medium',
+        timeStyle: 'long',
+        timeZone: 'UTC',
+      }).format(new Date(event.datetime * 1000)),
     },
   ];
   if (down) {
     fields.push({
-      name: 'Reason / Motivo',
-      value: String(
-        event.reason?.detail || 'Unavailable / Indispon\u00edvel'
-      ).slice(0, 1024),
+      name: 'Reason',
+      value: String(event.reason?.detail || 'Unavailable').slice(0, 1024),
     });
   } else if (Number.isInteger(downSince) && downSince <= event.datetime) {
     const seconds = event.datetime - downSince;
     fields.push({
-      name: 'Downtime / Dura\u00e7\u00e3o',
+      name: 'Downtime',
       value: `${Math.floor(seconds / 60)}m ${seconds % 60}s`,
     });
   }
@@ -36,19 +38,22 @@ function createStatusPayload(monitorId, event, downSince) {
   return {
     embeds: [
       {
-        title: down
-          ? 'AIOLiveTV is offline / est\u00e1 indispon\u00edvel'
-          : 'AIOLiveTV is back online / voltou ao ar',
+        title: down ? 'AIOLiveTV is offline' : 'AIOLiveTV is back online',
         url: HEALTH_URL,
         description: down
-          ? 'The public instance is unavailable. / A inst\u00e2ncia p\u00fablica est\u00e1 indispon\u00edvel.'
-          : 'The public instance has recovered. / A inst\u00e2ncia p\u00fablica foi restabelecida.',
+          ? 'The public instance is unavailable.'
+          : 'The public instance has recovered.',
         color: down ? 15548997 : 5763719,
         fields,
+        thumbnail: { url: LOGO_URL },
         timestamp: new Date(event.datetime * 1000).toISOString(),
         footer: { text: 'AIOLiveTV Status \u2022 Monitored by UptimeRobot' },
       },
     ],
+    components: linkButtons([
+      ['Check Health', HEALTH_URL],
+      ['View on GitHub', 'https://github.com/mrcanelas/aiolivetv'],
+    ]),
     allowed_mentions: { parse: [] },
     nonce: createHash('sha256').update(key).digest('hex').slice(0, 25),
     enforce_nonce: true,
@@ -278,16 +283,16 @@ async function main(env = process.env) {
         const event = {
           type,
           datetime: now,
-          reason: { detail: 'Delivery test / Teste de entrega' },
+          reason: { detail: 'Delivery test' },
         };
         const payload = createStatusPayload(
           `test-${env.GITHUB_RUN_ID}`,
           event,
           now - 60
         );
-        payload.embeds[0].title = `TEST / TESTE: ${payload.embeds[0].title}`;
+        payload.embeds[0].title = `TEST: ${payload.embeds[0].title}`;
         payload.embeds[0].description =
-          'Delivery test only; this is not a real incident. / Apenas teste de entrega; este n\u00e3o \u00e9 um incidente real.';
+          'Delivery test only; this is not a real incident.';
         await sendStatusMessage(env, payload);
       }
       console.log('Labeled downtime and recovery test embeds sent.');

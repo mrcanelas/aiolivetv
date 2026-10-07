@@ -11,6 +11,28 @@ const env = {
 };
 const channel = '1557042471077285968';
 
+test('release and build cards include the logo and native link buttons', () => {
+  const release = createPayload('release', env, { tag_name: 'v0.7.0' });
+  const build = createPayload('build', env);
+  for (const payload of [release, build]) {
+    assert.match(payload.embeds[0].thumbnail.url, /favicon\.png$/);
+    assert.equal(payload.flags, undefined);
+    assert.equal(payload.components[0].type, 1);
+    for (const button of payload.components[0].components) {
+      assert.equal(button.type, 2);
+      assert.equal(button.style, 5);
+      assert.equal(button.custom_id, undefined);
+      assert.equal(new URL(button.url).protocol, 'https:');
+    }
+  }
+  assert.equal(release.components[0].components[0].label, 'View on GitHub');
+  assert.equal(release.components[0].components[0].url, release.embeds[0].url);
+  assert.deepEqual(
+    build.components[0].components.map((button) => button.label),
+    ['View Build', 'GHCR', 'Docker Hub']
+  );
+});
+
 test('build embeds preserve tags and block all mentions', () => {
   const payload = createPayload('build', env);
   assert.match(payload.embeds[0].title, /Stable Release/);
