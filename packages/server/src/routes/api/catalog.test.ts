@@ -103,7 +103,11 @@ afterEach(async () => {
   vi.mocked(prepareChannelMatchCandidate).mockClear();
 });
 
-async function scan(autoMatch: boolean, rejectAlternative = false) {
+async function scan(
+  autoMatch: boolean,
+  rejectAlternative = false,
+  alternativesFor?: string
+) {
   const app = express();
   app.use(express.json());
   app.use('/catalogs', catalogApi);
@@ -118,6 +122,7 @@ async function scan(autoMatch: boolean, rejectAlternative = false) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         autoMatch,
+        alternativesFor,
         userData: {
           presets: [],
           channelMappings: [
@@ -176,11 +181,20 @@ describe('Channels prepared matching', () => {
 
   it('keeps alternatives when automatic matching is off and respects rejections', async () => {
     fixture.epg = true;
-    const channels = await scan(false, true);
+    const channels = await scan(false, true, 'bbc');
     expect(channels[0].mappings).toEqual([]);
     expect(channels[0].availableStreamSources).toEqual([
       expect.objectContaining({ channelId: 'bbc-stream', confidence: 1 }),
     ]);
-    expect(prepareChannelMatchCandidate).toHaveBeenCalledTimes(5);
+    expect(channels).toHaveLength(1);
+    expect(prepareChannelMatchCandidate).toHaveBeenCalledTimes(3);
+  });
+
+  it('skips matching alternatives on the initial scan', async () => {
+    const channels = await scan(false);
+    expect(
+      channels.every((channel) => channel.availableStreamSources.length === 0)
+    ).toBe(true);
+    expect(prepareChannelMatchCandidate).not.toHaveBeenCalled();
   });
 });

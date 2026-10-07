@@ -13,6 +13,7 @@ import { Modal } from '../../../ui/modal';
 import { Button } from '../../../ui/button';
 import { Combobox } from '../../../ui/combobox';
 import { Switch } from '../../../ui/switch';
+import { Spinner } from '../../../ui/loading-spinner';
 import type { ChannelInfo } from '@/lib/api';
 import {
   isChannelSuggestion,
@@ -39,6 +40,9 @@ type ChannelMappingModalProps = {
   onEditManualStream: (mapping: ChannelInfo['mappings'][number]) => void;
   onSetCanonical: (addonId: string) => void;
   preventDismiss?: boolean;
+  loadingSources?: boolean;
+  sourcesError?: string;
+  onRetrySources?: () => void;
   onToggleStream: (
     addonId: string,
     enabled: boolean,
@@ -64,6 +68,9 @@ export function ChannelMappingModal({
   onSetCanonical,
   onToggleStream,
   preventDismiss = false,
+  loadingSources = false,
+  sourcesError,
+  onRetrySources,
 }: ChannelMappingModalProps) {
   if (!channel) return null;
 
@@ -130,6 +137,15 @@ export function ChannelMappingModal({
           </div>
         ) : null}
 
+        {loadingSources ? <Spinner /> : null}
+        {sourcesError ? (
+          <div className="flex items-center gap-2 text-sm text-red-400">
+            <span>{sourcesError}</span>
+            <Button size="sm" onClick={onRetrySources}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
         {streamSourceOptions.length > 0 ? (
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">
@@ -163,11 +179,7 @@ export function ChannelMappingModal({
           </p>
         )}
 
-        <Button
-          size="sm"
-          leftIcon={<BiPlus />}
-          onClick={onAddManualStream}
-        >
+        <Button size="sm" leftIcon={<BiPlus />} onClick={onAddManualStream}>
           Add HLS stream
         </Button>
 

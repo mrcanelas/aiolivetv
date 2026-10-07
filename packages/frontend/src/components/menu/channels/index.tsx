@@ -20,7 +20,11 @@ import { Select } from '@/components/ui/select';
 import { StaticTabs } from '@/components/ui/tabs';
 import { useUserData } from '@/context/userData';
 import { useDisclosure } from '@/hooks/disclosure';
-import { fetchChannels, type ChannelInfo, type ChannelsResponse } from '@/lib/api';
+import {
+  fetchChannels,
+  type ChannelInfo,
+  type ChannelsResponse,
+} from '@/lib/api';
 import { ChannelEditModal } from './_components/channel-edit-modal';
 import { ChannelListItem } from './_components/channel-list-item';
 import { ChannelMappingModal } from './_components/channel-mapping-modal';
@@ -107,6 +111,9 @@ export function ChannelsMenu() {
         autoMatch: true,
       });
       queryClient.setQueryData(queryKey, data);
+      await queryClient.invalidateQueries({
+        queryKey: ['channel-alternatives'],
+      });
     } catch (error) {
       // Keep the channels already on screen; just say why the refresh failed.
       setRefreshError(
@@ -185,10 +192,10 @@ export function ChannelsMenu() {
         );
         const isCustomized = Boolean(
           customized.has(channel.id) ||
-            existing?.name ||
-            existing?.poster ||
-            existing?.group ||
-            (channel.group && channel.group !== channel.sourceGroup)
+          existing?.name ||
+          existing?.poster ||
+          existing?.group ||
+          (channel.group && channel.group !== channel.sourceGroup)
         );
         const streams = channel.mappings
           .filter((mapping) => !isChannelSuggestion(mapping.confidence))
@@ -468,7 +475,7 @@ export function ChannelsMenu() {
     setChannels((current) =>
       current.map((channel) => {
         if (channel.id !== channelId) return channel;
-        const source = channel.availableStreamSources?.find(
+        const source = mappingChannel?.availableStreamSources?.find(
           (item) =>
             item.addonId === addonId && item.channelId === streamChannelId
         );
@@ -724,8 +731,54 @@ export function ChannelsMenu() {
     selectedIds.has(channel.id)
   );
   const toggleWillEnable = selectedChannels.some((channel) => !channel.enabled);
-  const mappingChannel =
+  const selectedMappingChannel =
     channels.find((channel) => channel.id === mappingChannelId) ?? null;
+  const alternativesQuery = useQuery({
+    queryKey: [
+      'channel-alternatives',
+      channelsConfigKey,
+      mappingChannelId,
+      selectedMappingChannel?.canonicalAddonId,
+    ],
+    enabled: Boolean(selectedMappingChannel && mappingModal.isOpen),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }) => {
+      const response = await fetchChannels(userDataRef.current, {
+        signal,
+        alternativesFor: mappingChannelId!,
+      });
+      return (
+        response.channels.find((channel) => channel.id === mappingChannelId)
+          ?.availableStreamSources ?? []
+      );
+    },
+  });
+  const mappingChannel = React.useMemo(() => {
+    if (!selectedMappingChannel) return null;
+    const used = new Set(
+      selectedMappingChannel.mappings.map(
+        (mapping) => `${mapping.addonId}\0${mapping.channelId}`
+      )
+    );
+    const rejected = new Set(
+      (selectedMappingChannel.rejectedStreams ?? []).map(
+        (mapping) => `${mapping.addonId}\0${mapping.channelId}`
+      )
+    );
+    const sources = new Map(
+      [
+        ...(alternativesQuery.data ?? []),
+        ...(selectedMappingChannel.availableStreamSources ?? []),
+      ].map((source) => [`${source.addonId}\0${source.channelId}`, source])
+    );
+    return {
+      ...selectedMappingChannel,
+      availableStreamSources: [...sources]
+        .filter(([key]) => !used.has(key) && !rejected.has(key))
+        .map(([, source]) => source),
+    };
+  }, [selectedMappingChannel, alternativesQuery.data]);
   const editChannel =
     channels.find((channel) => channel.id === editChannelId) ?? null;
 
@@ -793,8 +846,8 @@ export function ChannelsMenu() {
         <div>
           <h2>Channels</h2>
           <p className="text-[--muted]">
-            Channels load from your metadata provider. Use refresh to scan stream
-            sources and generate mapping suggestions.
+            Channels load from your metadata provider. Use refresh to scan
+            stream sources and generate mapping suggestions.
           </p>
         </div>
         <div className="hidden lg:ml-auto lg:block">
@@ -1024,8 +1077,8 @@ export function ChannelsMenu() {
                 })}
                 {missingStreamsBySource.map((source) => (
                   <p key={source.addonId} className="text-amber-400/90">
-                    <span className="font-semibold">{source.addonName}</span>
-                    : {source.count} mapped stream
+                    <span className="font-semibold">{source.addonName}</span>:{' '}
+                    {source.count} mapped stream
                     {source.count === 1 ? '' : 's'} were not returned in this
                     scan
                   </p>
@@ -1089,6 +1142,9 @@ export function ChannelsMenu() {
 
       <ChannelMappingModal
         channel={mappingChannel}
+        loadingSources={alternativesQuery.isFetching}
+        sourcesError={alternativesQuery.error?.message}
+        onRetrySources={() => void alternativesQuery.refetch()}
         open={mappingModal.isOpen}
         onOpenChange={(open) => {
           if (open) mappingModal.open();

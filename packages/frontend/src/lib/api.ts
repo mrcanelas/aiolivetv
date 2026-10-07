@@ -546,7 +546,11 @@ export const CHANNEL_SCAN_CLIENT_TIMEOUT_MS = 840_000;
 
 export async function fetchChannels(
   userData: UserData,
-  options?: { autoMatch?: boolean; signal?: AbortSignal }
+  options?: {
+    autoMatch?: boolean;
+    signal?: AbortSignal;
+    alternativesFor?: string;
+  }
 ) {
   const timeout = AbortSignal.timeout(CHANNEL_SCAN_CLIENT_TIMEOUT_MS);
   const signal = options?.signal
@@ -554,7 +558,11 @@ export async function fetchChannels(
     : timeout;
   try {
     return await api<ChannelsResponse>('POST /catalogs/channels', {
-      body: { userData, autoMatch: options?.autoMatch ?? false },
+      body: {
+        userData,
+        autoMatch: options?.autoMatch ?? false,
+        alternativesFor: options?.alternativesFor,
+      },
       signal,
     });
   } catch (error) {

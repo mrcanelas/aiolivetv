@@ -84,7 +84,7 @@ router.use(attachSession);
 async function validateDraft(
   req: Request,
   userData: UserData,
-  options?: { lenientAddons?: boolean }
+  options?: { lenientAddons?: boolean; bypassManifestCache?: boolean }
 ) {
   let configToValidate: UserData = userData;
   if (userData.parentConfig?.uuid) {
@@ -117,7 +117,7 @@ async function validateDraft(
       skipErrorsFromAddonsOrProxies: options?.lenientAddons === true,
       decryptValues: true,
       increasedManifestTimeout: true,
-      bypassManifestCache: true,
+      bypassManifestCache: options?.bypassManifestCache ?? true,
     });
   } catch (error) {
     if (
@@ -177,8 +177,13 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const autoMatch = req.body.autoMatch === true;
+      const alternativesFor =
+        typeof req.body.alternativesFor === 'string'
+          ? req.body.alternativesFor
+          : undefined;
       const validatedUserData = await validateDraft(req, req.body.userData, {
         lenientAddons: true,
+        bypassManifestCache: !alternativesFor,
       });
       const configuredMappings = validatedUserData.channelMappings ?? [];
       validatedUserData.channelMappings = undefined;
@@ -977,7 +982,10 @@ router.post(
         );
 
       const visibleChannels = channels
-        .filter((channel) => !hiddenChannelIds.has(channel.id))
+        .filter((channel) =>
+          !hiddenChannelIds.has(channel.id) &&
+          (!alternativesFor || channel.id === alternativesFor)
+        )
         .map((channel) => {
           const canonical = resolveCanonical(channel);
           const configured = configuredMappings.find(
@@ -999,7 +1007,9 @@ router.post(
             epgProvider:
               canonical.epgProvider ||
               channel.mappings.some((mapping) => mapping.epgProvider),
-            availableStreamSources: buildAvailableStreamSources(channel),
+            availableStreamSources: alternativesFor
+              ? buildAvailableStreamSources(channel)
+              : [],
           };
         })
         .sort((a, b) =>
