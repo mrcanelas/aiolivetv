@@ -52,6 +52,24 @@ beforeEach(() => {
 });
 
 describe('live TV sources', () => {
+  it('yields to other requests while parsing large XMLTV documents', async () => {
+    const xml =
+      '<tv>' +
+      Array.from(
+        { length: 2000 },
+        (_, index) =>
+          `<channel id="${index}"><display-name>Channel ${index}</display-name></channel>`
+      ).join('') +
+      '</tv>';
+    let heartbeat = false;
+    const pending = parseXmltvData(xml);
+    setImmediate(() => {
+      heartbeat = true;
+    });
+    const data = await pending;
+    expect(data.channels).toHaveLength(2000);
+    expect(heartbeat).toBe(true);
+  });
   it('parses catalog extras including optional genre', () => {
     expect(parseCatalogExtras('skip=50/genre=VARIEDADES')).toMatchObject({
       skip: 50,

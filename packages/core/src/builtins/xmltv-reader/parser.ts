@@ -130,9 +130,7 @@ function parseRatings(input: unknown): ContentRating[] | undefined {
         icon?: Array<{ $?: { src?: string } }>;
       };
       return {
-        value: value(
-          Array.isArray(node.value) ? node.value[0] : node.value
-        ),
+        value: value(Array.isArray(node.value) ? node.value[0] : node.value),
         system: value(node.$?.system),
         icon: value(node.icon?.[0]?.$?.src),
       };
@@ -141,7 +139,10 @@ function parseRatings(input: unknown): ContentRating[] | undefined {
 }
 
 export async function parseXmltvData(xml: string): Promise<XmltvData> {
-  const document = await parseStringPromise(xml);
+  const document = await parseStringPromise(xml, {
+    async: true,
+    chunkSize: 64 * 1024,
+  });
   const channels = Array.isArray(document?.tv?.channel)
     ? document.tv.channel
     : [];
