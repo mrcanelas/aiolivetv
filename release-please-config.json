@@ -10,7 +10,6 @@
       "release-type": "node",
       "versioning": "default",
       "prerelease": false,
-      "release-as": "1.0.0",
       "include-component-in-tag": false,
       "exclude-paths": [
         ".env.sample",
