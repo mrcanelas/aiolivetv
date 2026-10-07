@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
-import { Cache } from '../../utils/index.js';
 import { resolveNotWebReady } from '../../streams/web-readiness.js';
 import {
   CHANNEL_ID_PREFIX,
@@ -16,20 +15,97 @@ import {
   bareChannelPreview,
   channelGenreCatalogExtra,
   channelGenres,
-  matchesCatalogGenre,
 } from '../live-tv/epg.js';
 import { parseM3u, type M3uEntry } from './parser.js';
+import { normalizeChannelGroup } from '../../utils/channelName.js';
 
-const SOURCE_CACHE_TTL = 300;
-const sourceCache = Cache.getInstance<string, M3uEntry[]>('m3u-reader-sources');
+const SOURCE_CACHE_TTL_MS = 300_000;
+const SOURCE_CACHE_MAX_ENTRIES = 8;
+type M3uData = {
+  catalog: MetaPreview[];
+  catalogByGenre: Map<string | undefined, MetaPreview[]>;
+  entriesByChannelId: Map<string, M3uEntry[]>;
+  genreExtra: ReturnType<typeof channelGenreCatalogExtra>;
+};
+// Like XMLTV, keep parsed sources read-only in process; clone only returned pages.
+const parsedSources = new Map<string, { data: M3uData; expiresAt: number }>();
+const inflightSources = new Map<string, Promise<M3uData>>();
 
-async function loadM3u(config: LiveTvSourceConfig): Promise<M3uEntry[]> {
+export function clearM3uSourceCache() {
+  parsedSources.clear();
+  inflightSources.clear();
+}
+
+function prepareM3u(entries: M3uEntry[]): M3uData {
+  const entriesByChannelId = new Map<string, M3uEntry[]>();
+  for (const entry of entries) {
+    const key = entry.channelId.trim().toLowerCase();
+    const group = entriesByChannelId.get(key) ?? [];
+    group.push(entry);
+    entriesByChannelId.set(key, group);
+  }
+  const catalog = [
+    ...new Map(
+      entries.map((entry) => [entry.channelId.toLowerCase(), entry])
+    ).values(),
+  ]
+    .map((entry) =>
+      bareChannelPreview({
+        id: encodeChannelId(entry.channelId),
+        name: entry.name,
+        poster: entry.logo,
+        tvgId: entry.channelId,
+        country: entry.country,
+        language: entry.language,
+        genres: channelGenres(entry.group),
+      })
+    )
+    .sort((a, b) =>
+      (a.name ?? a.id).localeCompare(b.name ?? b.id, undefined, {
+        sensitivity: 'base',
+      })
+    );
+  const catalogByGenre = new Map<string | undefined, MetaPreview[]>();
+  for (const item of catalog) {
+    const genre = item.genres?.[0];
+    const group = catalogByGenre.get(genre) ?? [];
+    group.push(item);
+    catalogByGenre.set(genre, group);
+  }
+  return {
+    catalog,
+    catalogByGenre,
+    entriesByChannelId,
+    genreExtra: channelGenreCatalogExtra(entries.map((entry) => entry.group)),
+  };
+}
+
+async function loadM3u(config: LiveTvSourceConfig): Promise<M3uData> {
   const cacheKey = config.sourceUrl;
-  const cached = await sourceCache.get(cacheKey);
-  if (cached) return cached;
-  const entries = parseM3u(await fetchSourceText(config));
-  await sourceCache.set(cacheKey, entries, SOURCE_CACHE_TTL);
-  return entries;
+  const cached = parsedSources.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  if (cached) parsedSources.delete(cacheKey);
+  const pending = inflightSources.get(cacheKey);
+  if (pending) return pending;
+  const load = (async () => {
+    const data = prepareM3u(parseM3u(await fetchSourceText(config)));
+    parsedSources.set(cacheKey, {
+      data,
+      expiresAt: Date.now() + SOURCE_CACHE_TTL_MS,
+    });
+    while (parsedSources.size > SOURCE_CACHE_MAX_ENTRIES) {
+      const oldest = parsedSources.keys().next().value;
+      if (oldest === undefined) break;
+      parsedSources.delete(oldest);
+    }
+    return data;
+  })();
+  inflightSources.set(cacheKey, load);
+  try {
+    return await load;
+  } finally {
+    inflightSources.delete(cacheKey);
+  }
 }
 
 async function mapStream(entry: M3uEntry): Promise<Stream> {
@@ -52,11 +128,11 @@ export class M3uAddon {
   }
 
   async getManifest(): Promise<Manifest> {
-    let groups: Array<string | undefined> = [];
+    let genreExtra = channelGenreCatalogExtra();
     try {
-      groups = (await loadM3u(this.config)).map((entry) => entry.group);
+      genreExtra = structuredClone((await loadM3u(this.config)).genreExtra);
     } catch {
-      groups = [];
+      genreExtra = channelGenreCatalogExtra();
     }
     return {
       id: 'org.aiolivetv.m3u',
@@ -78,44 +154,27 @@ export class M3uAddon {
           id: 'aiolivetv-channels',
           type: TV_TYPE,
           name: 'Channels',
-          extra: [{ name: 'skip' }, channelGenreCatalogExtra(groups)],
+          extra: [{ name: 'skip' }, genreExtra],
         },
       ],
     };
   }
 
   async getCatalog(skip = 0, genre?: string): Promise<MetaPreview[]> {
-    const entries = await loadM3u(this.config);
-    return [
-      ...new Map(
-        entries.map((entry) => [entry.channelId.toLowerCase(), entry])
-      ).values(),
-    ]
-      .filter((entry) => matchesCatalogGenre(entry.group, genre))
-      .map((entry) =>
-        bareChannelPreview({
-          id: encodeChannelId(entry.channelId),
-          name: entry.name,
-          poster: entry.logo,
-          tvgId: entry.channelId,
-          country: entry.country,
-          language: entry.language,
-          genres: channelGenres(entry.group),
-        })
-      )
-      .sort((a, b) =>
-        (a.name ?? a.id).localeCompare(b.name ?? b.id, undefined, {
-          sensitivity: 'base',
-        })
-      )
-      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE);
+    const data = await loadM3u(this.config);
+    const catalog = genre
+      ? (data.catalogByGenre.get(normalizeChannelGroup(genre)) ?? [])
+      : data.catalog;
+    return structuredClone(
+      catalog.slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
+    );
   }
 
   async getMeta(id: string): Promise<Meta> {
     const channelId = decodeChannelId(id);
-    const entry = (await loadM3u(this.config)).find(
-      (item) => item.channelId.trim().toLowerCase() === channelId
-    );
+    const entry = (await loadM3u(this.config)).entriesByChannelId.get(
+      channelId
+    )?.[0];
     if (!entry) throw new Error(`Channel not found: ${channelId}`);
     return {
       id: id.split(':epg:', 1)[0],
@@ -131,9 +190,8 @@ export class M3uAddon {
 
   async getStreams(id: string): Promise<Stream[]> {
     const channelId = decodeChannelId(id);
-    const entries = (await loadM3u(this.config)).filter(
-      (entry) => entry.channelId.trim().toLowerCase() === channelId
-    );
+    const entries =
+      (await loadM3u(this.config)).entriesByChannelId.get(channelId) ?? [];
     return Promise.all(entries.map((entry) => mapStream(entry)));
   }
 }

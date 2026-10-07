@@ -12,6 +12,7 @@ vi.mock('../utils/index.js', () => ({
 const {
   encodeChannelId,
   M3uAddon,
+  clearM3uSourceCache,
   parseM3u,
   XmltvAddon,
   parseXmltv,
@@ -40,6 +41,8 @@ const { makeRequest } = await import('../utils/index.js');
 beforeEach(() => {
   // Parsed XMLTV guides are cached in-process; keep tests independent.
   clearXmltvSourceCache();
+  clearM3uSourceCache();
+  vi.mocked(makeRequest).mockReset();
 });
 
 describe('live TV sources', () => {
@@ -357,6 +360,60 @@ describe('live TV sources', () => {
     const meta = await addon.getMeta(encodeChannelId('bbc.one'));
     vi.useRealTimers();
     expect(meta.videos?.[0]?.released).toBe('2026-06-28T12:00:00.000Z');
+  });
+
+  it('shares concurrent M3U loads and isolates returned catalog pages', async () => {
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      text: async () => '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/bbc.m3u8',
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    const config = { sourceUrl: 'https://example.com/shared.m3u', timeout: 1000 };
+    const [first, second] = await Promise.all([
+      new M3uAddon(config).getCatalog(),
+      new M3uAddon(config).getCatalog(),
+    ]);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+    first[0].name = 'Edited';
+    first[0].genres!.push('Changed');
+    expect(second[0]).toMatchObject({ name: 'BBC One', genres: ['News'] });
+    expect(await new M3uAddon(config).getCatalog(0, 'NEWS HD')).toEqual(second);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('reloads an expired M3U source and retries failed downloads', async () => {
+    const config = { sourceUrl: 'https://example.com/expire.m3u', timeout: 1000 };
+    const addon = new M3uAddon(config);
+    vi.mocked(makeRequest).mockRejectedValueOnce(new Error('offline'));
+    await expect(addon.getCatalog()).rejects.toThrow('offline');
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      text: async () => '#EXTM3U\n#EXTINF:-1 tvg-id="bbc",BBC One\nhttps://example.com/bbc.m3u8',
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    await addon.getCatalog();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 300_001);
+    try {
+      await addon.getCatalog();
+      expect(makeRequest).toHaveBeenCalledTimes(3);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('keeps the M3U catalog duplicate policy and all playback variants', async () => {
+    vi.mocked(makeRequest).mockResolvedValue({
+      ok: true,
+      text: async () => '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/one.m3u8\n#EXTINF:-1 tvg-id="bbc" group-title="Sports",BBC Two\nhttps://example.com/two.m3u8',
+    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    const addon = new M3uAddon({ sourceUrl: 'https://example.com/variants.m3u', timeout: 1000 });
+    const [channel] = await addon.getCatalog();
+    expect(channel.name).toBe('BBC Two');
+    expect(await addon.getCatalog(0, 'News')).toEqual([]);
+    expect(await addon.getCatalog(0, 'Sports')).toHaveLength(1);
+    expect((await addon.getMeta(channel.id)).name).toBe('BBC One');
+    const streams = await addon.getStreams(channel.id);
+    expect(streams.map((stream) => stream.url)).toEqual([
+      'https://example.com/one.m3u8', 'https://example.com/two.m3u8',
+    ]);
   });
 });
 
