@@ -26,6 +26,8 @@ export function PageControls({ middleContent }: PageControlsProps) {
   return (
     <div className="flex flex-1 gap-2 items-center">
       <Button
+        aria-label="Previous"
+        title="Previous"
         leftIcon={<FaArrowLeft />}
         intent="white"
         size="md"
@@ -57,6 +59,8 @@ export function PageControls({ middleContent }: PageControlsProps) {
       {middleContent}
       {isLoggedIn && (
         <IconButton
+          aria-label="Save configuration"
+          title="Save configuration"
           icon={<BiSave />}
           intent="white-outline"
           rounded
@@ -66,6 +70,8 @@ export function PageControls({ middleContent }: PageControlsProps) {
         />
       )}
       <Button
+        aria-label="Next"
+        title="Next"
         rightIcon={<FaArrowRight />}
         intent="white"
         size="md"

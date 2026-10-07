@@ -65,16 +65,21 @@ export function TopNavbar(props: TopNavbarProps) {
               type="button"
               onClick={() => openCommandPalette()}
               aria-label="Search settings"
-              className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md border border-[--border] bg-[--subtle]/50 hover:bg-[--subtle] text-[--muted] hover:text-[--foreground] transition-colors text-sm truncate"
+              title="Search settings"
+              className="shrink-0 sm:flex-1 flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:h-9 px-2 sm:px-3 rounded-md border border-[--border] bg-[--subtle]/50 hover:bg-[--subtle] text-[--muted] hover:text-[--foreground] transition-colors text-sm truncate"
             >
               <BiSearch className="text-base shrink-0" />
-              <span className="flex-1 text-left">Search...</span>
+              <span className="hidden sm:block flex-1 text-left">
+                Search...
+              </span>
             </button>
             {selectedMenu !== 'about' ? (
               <div className="flex items-center gap-2 lg:hidden">
                 <PageControls
                   middleContent={
                     <IconButton
+                      aria-label={uuid && password ? 'Sign out' : 'Sign in'}
+                      title={uuid && password ? 'Sign out' : 'Sign in'}
                       icon={
                         uuid && password ? (
                           <BiLogOutCircle />
