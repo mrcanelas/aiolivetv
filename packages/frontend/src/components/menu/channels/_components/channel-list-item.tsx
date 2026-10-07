@@ -1,8 +1,13 @@
 import { useState, type HTMLAttributes, type Ref } from 'react';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { LuLink } from 'react-icons/lu';
+import { LuLink, LuEllipsis, LuPower, LuSquareCheck } from 'react-icons/lu';
 import { IconButton } from '../../../ui/button';
 import { Switch } from '../../../ui/switch';
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '../../../ui/dropdown-menu';
 import type { ChannelInfo } from '@/lib/api';
 import { getChannelSourceLabel, getMappingStats } from '../utils';
 import {
@@ -106,7 +111,9 @@ export function ChannelListItem({
         <button
           type="button"
           onClick={onToggleSelect}
-          className="flex flex-shrink-0 items-center justify-center"
+          className="hidden flex-shrink-0 items-center justify-center sm:flex"
+          aria-label={`Select ${channel.name}`}
+          aria-pressed={isSelected}
         >
           <div
             className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
@@ -151,8 +158,13 @@ export function ChannelListItem({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <p className="min-w-0 truncate text-base">{channel.name}</p>
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+          <p
+            className="min-w-0 max-w-full break-words text-base sm:truncate"
+            title={channel.name}
+          >
+            {channel.name}
+          </p>
           <ProviderChip label={sourceLabel} />
         </div>
         {channel.group ? (
@@ -161,7 +173,49 @@ export function ChannelListItem({
           </span>
         ) : null}
 
-        <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
+        <div className="flex-shrink-0 sm:hidden">
+          <DropdownMenu
+            align="end"
+            trigger={
+              <IconButton
+                className="h-10 w-10 rounded-full"
+                icon={<LuEllipsis />}
+                intent="primary-subtle"
+                title={`Actions for ${channel.name}`}
+                aria-label={`Actions for ${channel.name}`}
+              />
+            }
+          >
+            <DropdownMenuItem onSelect={onToggleSelect}>
+              <LuSquareCheck className="mr-2 h-4 w-4" />
+              {isSelected ? 'Deselect channel' : 'Select channel'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onToggleEnabled(!channel.enabled)}
+            >
+              <LuPower className="mr-2 h-4 w-4" />
+              {channel.enabled ? 'Disable channel' : 'Enable channel'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onOpenMappings}>
+              <LuLink className="mr-2 h-4 w-4" />
+              Mappings ({accepted}/{total})
+              {pending > 0 ? ` · ${pending} to review` : ''}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onEdit}>
+              <BiEdit className="mr-2 h-4 w-4" />
+              Edit channel
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-400"
+              onSelect={() => confirmDelete.open()}
+            >
+              <BiTrash className="mr-2 h-4 w-4" />
+              Remove channel
+            </DropdownMenuItem>
+          </DropdownMenu>
+        </div>
+        <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
           <MappingBadge
             accepted={accepted}
             pending={pending}

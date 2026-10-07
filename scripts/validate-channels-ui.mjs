@@ -74,7 +74,10 @@ try {
   };
   const channels = Array.from({ length: 1287 }, (_, index) => ({
     id: 'channel:' + index,
-    name: 'Channel ' + String(index).padStart(4, '0'),
+    name:
+      index === 1
+        ? 'Channel 0001 International News and Documentaries HD'
+        : 'Channel ' + String(index).padStart(4, '0'),
     canonicalAddonId: 'guide',
     sourceName: index < 700 ? 'Guide A' : 'Guide B',
     poster: '/favicon.png',
@@ -206,12 +209,6 @@ try {
       path: resolve(output, name + '.png'),
       fullPage: true,
     });
-    if (name === 'mobile-narrow') {
-      assert.deepEqual(errors, [], 'Browser errors');
-      console.log(JSON.stringify({ viewport: name, responsiveHeader: true }));
-      await context.close();
-      continue;
-    }
     await list.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
@@ -220,7 +217,83 @@ try {
       element.scrollTop = 0;
     });
     await list.getByText('Channel 0000', { exact: true }).waitFor();
-    await list.getByTitle('0 mappings').first().click();
+    if (viewport.width < 640) {
+      const actions = list.getByRole('button', {
+        name: 'Actions for Channel 0000',
+        exact: true,
+      });
+      const row = list
+        .locator('li[data-index]')
+        .filter({ hasText: 'Channel 0000' });
+      assert.equal(
+        await row.locator('button:visible').count(),
+        1,
+        'Mobile row must have one action button'
+      );
+      const label = await row
+        .getByText('Channel 0000', { exact: true })
+        .boundingBox();
+      const availableWidth = await row
+        .getByText('Channel 0000', { exact: true })
+        .evaluate(
+          (element) => element.parentElement.getBoundingClientRect().width
+        );
+      assert(
+        label.width >= 80 && availableWidth >= 140,
+        'Mobile channel names must retain readable width'
+      );
+      await actions.click();
+      await page.getByRole('menu').waitFor();
+      await page.waitForTimeout(250);
+      await page.screenshot({
+        path: resolve(output, name + '-actions.png'),
+        fullPage: true,
+      });
+      await page
+        .getByRole('menuitem', { name: 'Select channel', exact: true })
+        .click();
+      await actions.click();
+      await page
+        .getByRole('menuitem', { name: 'Deselect channel', exact: true })
+        .click();
+      await actions.click();
+      await page
+        .getByRole('menuitem', { name: 'Disable channel', exact: true })
+        .click();
+      await page.waitForFunction(() =>
+        JSON.parse(
+          localStorage.getItem('aiolivetv-user-data')
+        ).channelMappings.some(
+          (mapping) => mapping.id === 'channel:0' && mapping.enabled === false
+        )
+      );
+      await actions.click();
+      await page
+        .getByRole('menuitem', { name: 'Enable channel', exact: true })
+        .click();
+      await actions.click();
+      await page
+        .getByRole('menuitem', { name: 'Edit channel', exact: true })
+        .click();
+      await page.getByRole('dialog').getByPlaceholder('Channel name').waitFor();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Cancel', exact: true })
+        .click();
+      await actions.click();
+      await page
+        .getByRole('menuitem', { name: 'Remove channel', exact: true })
+        .click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Cancel', exact: true })
+        .click();
+      await list.getByText('Channel 0000', { exact: true }).waitFor();
+      await actions.click();
+      await page.getByRole('menuitem', { name: /^Mappings/ }).click();
+    } else {
+      await list.getByTitle('0 mappings').first().click();
+    }
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('combobox').click();
     await page
@@ -268,6 +341,7 @@ try {
         groups: true,
         removedVirtualized: true,
         draftPersistence: true,
+        mobileActions: viewport.width < 640,
       })
     );
     await context.close();
