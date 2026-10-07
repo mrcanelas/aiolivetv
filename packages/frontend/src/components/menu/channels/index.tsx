@@ -26,7 +26,11 @@ import {
   type ChannelsResponse,
 } from '@/lib/api';
 import { ChannelEditModal } from './_components/channel-edit-modal';
-import { ChannelListItem } from './_components/channel-list-item';
+import {
+  ChannelListItem,
+  type ChannelListItemProps,
+} from './_components/channel-list-item';
+import { ChannelList } from './_components/channel-list';
 import { ChannelMappingModal } from './_components/channel-mapping-modal';
 import { ManualHlsModal } from './_components/manual-hls-modal';
 import { NeedsReviewCard } from './_components/needs-review';
@@ -123,18 +127,33 @@ export function ChannelsMenu() {
       setIsMatchingStreams(false);
     }
   }, [queryClient, queryKey]);
-  const channelsResponse = asChannelsResponse(query.data);
+  const channelsResponse = React.useMemo(
+    () => asChannelsResponse(query.data),
+    [query.data]
+  );
   const channels = channelsResponse.channels;
-  const removedChannels = getRemovedChannels(
-    userData.channelMappings,
-    channelsResponse.removedChannels
+  const removedChannels = React.useMemo(
+    () =>
+      getRemovedChannels(
+        userData.channelMappings,
+        channelsResponse.removedChannels
+      ),
+    [userData.channelMappings, channelsResponse.removedChannels]
   );
   const isInitialLoading = query.isPending && channels.length === 0;
-  const sourceProblems = channelsResponse.sources.filter(
-    (source) => !source.ok || source.truncated
+  const sourceProblems = React.useMemo(
+    () =>
+      channelsResponse.sources.filter(
+        (source) => !source.ok || source.truncated
+      ),
+    [channelsResponse.sources]
   );
-  const sourcesWithSkippedCatalogs = channelsResponse.sources.filter(
-    (source) => (source.skippedCatalogs?.length ?? 0) > 0
+  const sourcesWithSkippedCatalogs = React.useMemo(
+    () =>
+      channelsResponse.sources.filter(
+        (source) => (source.skippedCatalogs?.length ?? 0) > 0
+      ),
+    [channelsResponse.sources]
   );
   const unavailableBySource = React.useMemo(() => {
     const bySource = new Map<
@@ -164,18 +183,32 @@ export function ChannelsMenu() {
   const missingStreamsBySource = unavailableBySource.filter(
     (source) => !failedSourceIds.has(source.addonId)
   );
-  const suggestionCount = countSuggestions(channels);
-  const duplicateGroups = findDuplicateGroups(channels);
+  const suggestionCount = React.useMemo(
+    () => countSuggestions(channels),
+    [channels]
+  );
+  const duplicateGroups = React.useMemo(
+    () => findDuplicateGroups(channels),
+    [channels]
+  );
   const duplicateIds = React.useMemo(
     () => new Set(duplicateGroups.flatMap((group) => group.channelIds)),
     [duplicateGroups]
   );
-  const noStreamCount = channels.filter(
-    (channel) => channel.enabled && !channelHasPlayableStream(channel)
-  ).length;
-  const noScheduleCount = channels.filter(
-    (channel) => channel.enabled && !channelHasSchedule(channel)
-  ).length;
+  const noStreamCount = React.useMemo(
+    () =>
+      channels.filter(
+        (channel) => channel.enabled && !channelHasPlayableStream(channel)
+      ).length,
+    [channels]
+  );
+  const noScheduleCount = React.useMemo(
+    () =>
+      channels.filter(
+        (channel) => channel.enabled && !channelHasSchedule(channel)
+      ).length,
+    [channels]
+  );
 
   const buildVisibleMappings = React.useCallback(
     (
@@ -694,10 +727,9 @@ export function ChannelsMenu() {
     );
   };
 
-  const reviewedChannels = filterChannelsByReview(
-    channels,
-    reviewFilter,
-    duplicateIds
+  const reviewedChannels = React.useMemo(
+    () => filterChannelsByReview(channels, reviewFilter, duplicateIds),
+    [channels, reviewFilter, duplicateIds]
   );
   const knownGroups = React.useMemo(() => {
     const groups = new Set<string>();
@@ -708,21 +740,29 @@ export function ChannelsMenu() {
       left.localeCompare(right, undefined, { sensitivity: 'base' })
     );
   }, [channels]);
-  const filteredChannels = sortChannels(
-    reviewedChannels.filter((channel) => {
-      if (
-        search.trim() &&
-        !channel.name.toLowerCase().includes(search.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      if (groupFilter && channel.group !== groupFilter) return false;
-      return true;
-    }),
-    sortMode
+  const searchQuery = React.useDeferredValue(search.trim().toLowerCase());
+  const filteredChannels = React.useMemo(
+    () =>
+      sortChannels(
+        reviewedChannels.filter((channel) => {
+          if (
+            searchQuery &&
+            !channel.name.toLowerCase().includes(searchQuery)
+          ) {
+            return false;
+          }
+          if (groupFilter && channel.group !== groupFilter) return false;
+          return true;
+        }),
+        sortMode
+      ),
+    [reviewedChannels, searchQuery, groupFilter, sortMode]
   );
-  const groupedChannels =
-    sortMode === 'source' ? groupChannelsBySource(filteredChannels) : null;
+  const groupedChannels = React.useMemo(
+    () =>
+      sortMode === 'source' ? groupChannelsBySource(filteredChannels) : null,
+    [sortMode, filteredChannels]
+  );
   const visibleIds = filteredChannels.map((channel) => channel.id);
   const isAllSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
@@ -828,9 +868,13 @@ export function ChannelsMenu() {
     editModal.open();
   };
 
-  const renderChannel = (channel: ChannelInfo) => (
+  const renderChannel = (
+    channel: ChannelInfo,
+    rowProps?: ChannelListItemProps['rowProps']
+  ) => (
     <ChannelListItem
-      key={channel.id}
+      key={`${channel.canonicalAddonId}:${channel.id}`}
+      rowProps={rowProps}
       channel={channel}
       isSelected={selectedIds.has(channel.id)}
       onToggleSelect={() => toggleSelection(channel.id)}
@@ -1118,26 +1162,13 @@ export function ChannelsMenu() {
                     ? 'No channels in this review list.'
                     : 'No channels match your search.'}
               </p>
-            ) : groupedChannels ? (
-              <div className="space-y-5">
-                {groupedChannels.map(([source, sourceChannels]) => (
-                  <div key={source} className="space-y-2">
-                    <div className="flex items-center gap-2 px-1">
-                      <span className="h-2 w-2 rounded-full bg-blue-500" />
-                      <p className="text-xs font-semibold uppercase tracking-widest text-[--muted]">
-                        {source} ({sourceChannels.length})
-                      </p>
-                    </div>
-                    <ul className="space-y-2">
-                      {sourceChannels.map(renderChannel)}
-                    </ul>
-                  </div>
-                ))}
-              </div>
             ) : (
-              <ul className="space-y-2">
-                {filteredChannels.map(renderChannel)}
-              </ul>
+              <ChannelList
+                channels={filteredChannels}
+                groups={groupedChannels}
+                resetKey={`${searchQuery}\0${groupFilter}\0${reviewFilter}\0${sortMode}`}
+                renderChannel={renderChannel}
+              />
             )}
           </>
         )}

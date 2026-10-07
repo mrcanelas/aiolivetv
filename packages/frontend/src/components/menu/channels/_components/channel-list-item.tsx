@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type HTMLAttributes, type Ref } from 'react';
 import { BiEdit, BiTrash } from 'react-icons/bi';
 import { LuLink } from 'react-icons/lu';
 import { IconButton } from '../../../ui/button';
@@ -10,7 +10,11 @@ import {
   useConfirmationDialog,
 } from '../../../shared/confirmation-dialog';
 
-type ChannelListItemProps = {
+export type ChannelListItemProps = {
+  rowProps?: HTMLAttributes<HTMLLIElement> & {
+    ref?: Ref<HTMLLIElement>;
+    'data-index'?: number;
+  };
   channel: ChannelInfo;
   isSelected: boolean;
   onToggleSelect: () => void;
@@ -69,6 +73,7 @@ export function ProviderChip({ label }: { label?: string }) {
 }
 
 export function ChannelListItem({
+  rowProps,
   channel,
   isSelected,
   onToggleSelect,
@@ -90,7 +95,7 @@ export function ChannelListItem({
   });
 
   return (
-    <li>
+    <li {...rowProps}>
       <div
         className={`flex items-center gap-2 rounded-[--radius-md] border px-2.5 py-2 transition-colors sm:gap-3 ${
           isSelected
@@ -133,6 +138,7 @@ export function ChannelListItem({
             <img
               src={channel.poster}
               alt=""
+              loading="lazy"
               className="absolute inset-0 h-full w-full rounded-md object-contain"
               onError={() => setLogoFailed(true)}
             />
