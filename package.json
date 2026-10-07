@@ -1,6 +1,6 @@
 {
   "name": "aiolivetv",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "description": "A unified Live TV hub for Stremio. Aggregate channels from multiple addons, EPG providers and M3U playlists into a single guide.",
   "type": "module",
   "main": "dist/index.js",
