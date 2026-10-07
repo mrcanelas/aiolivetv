@@ -52,11 +52,12 @@ router.get(
       setStremioCatalogCacheHeaders(res, {
         cacheable:
           result.success &&
+          result.cacheable !== false &&
           itemCount > 0 &&
           catalogExtrasAreCdnCacheable(extras),
       });
       res.status(200).json(
-        result.success
+        result.success && result.cacheable !== false
           ? {
               ...catalog,
               cacheMaxAge: 300,

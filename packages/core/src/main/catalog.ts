@@ -5,6 +5,7 @@ import {
   getSimpleTextHash,
   maskSensitiveInfo,
   constants,
+  withTimeout,
 } from '../utils/index.js';
 import { Wrapper } from './wrapper.js';
 import { createPosterService } from '../poster/index.js';
@@ -47,6 +48,80 @@ export {
 const logger = createLogger('core');
 const MAX_LIVE_TV_SOURCE_PAGES = 100;
 const MAX_LIVE_TV_SOURCE_ITEMS = 10_000;
+const LIVE_TV_GUIDE_BUDGET_MS = 6000;
+
+async function fetchSelectedGuidePages(
+  ctx: AIOStreamsContext,
+  encodedCatalogId: string,
+  extras: ExtrasParser,
+  selectedIds: ReadonlySet<string>,
+  deadline: number
+): Promise<{ items: Meta[]; cacheable: boolean }> {
+  const params = new URLSearchParams(encodedCatalogId);
+  const id = params.get('id');
+  const type = params.get('type');
+  if (!id || !type) return { items: [], cacheable: false };
+  const instanceId = id.split('.', 1)[0];
+  const catalogId = id.split('.').slice(1).join('.');
+  const supported = getCatalogExtras(ctx, instanceId, catalogId, type);
+  if (!supported?.some((extra) => extra.name === 'date')) {
+    return { items: [], cacheable: true };
+  }
+  const supportsSkip = catalogSupportsSkip(supported);
+  const requests: ReturnType<typeof fetchRawCatalogItems>[] = [];
+  const remaining = new Set(selectedIds);
+  let skip = 0;
+  let complete = false;
+  let cacheable = true;
+
+  // Scan cheap channel previews, never the full schedule, to locate source pages.
+  for (let page = 0; page < MAX_LIVE_TV_SOURCE_PAGES; page++) {
+    if (Date.now() >= deadline || skip >= MAX_LIVE_TV_SOURCE_ITEMS) break;
+    const previewsExtras = new ExtrasParser(extras.toString());
+    previewsExtras.date = undefined;
+    previewsExtras.genre = undefined;
+    previewsExtras.skip = supportsSkip && skip > 0 ? skip : undefined;
+    const previews = await fetchRawCatalogItems(
+      ctx,
+      instanceId,
+      catalogId,
+      type,
+      previewsExtras
+    );
+    if (Date.now() >= deadline) break;
+    if (!previews.success) {
+      cacheable = false;
+      break;
+    }
+    const batch = previews.metasDetailed ?? previews.items;
+    if (!batch.length) {
+      complete = true;
+      break;
+    }
+    if (batch.some((item) => selectedIds.has(item.id))) {
+      const guideExtras = new ExtrasParser(extras.toString());
+      guideExtras.genre = undefined;
+      guideExtras.skip = previewsExtras.skip;
+      requests.push(
+        fetchRawCatalogItems(ctx, instanceId, catalogId, type, guideExtras)
+      );
+      for (const item of batch) remaining.delete(item.id);
+    }
+    skip += batch.length;
+    if (!supportsSkip || !remaining.size) {
+      complete = true;
+      break;
+    }
+  }
+  const results = await Promise.all(requests);
+  return {
+    items: results.flatMap((result) =>
+      (result.metasDetailed ?? []).filter((item) => selectedIds.has(item.id))
+    ),
+    cacheable:
+      complete && cacheable && results.every((result) => result.success),
+  };
+}
 
 export function convertDiscoverDeepLinks(
   ctx: Pick<AIOStreamsContext, 'addons' | 'manifestUrl'>,
@@ -556,6 +631,70 @@ export async function getMergedCatalog(
   const baseCacheKey = `${id}-${ctx.userData.uuid}-${configHash}${extrasCacheKeyPart ? `-${extrasCacheKeyPart}` : ''}`;
   const skipCacheKey = `${baseCacheKey}-skip=${requestedSkip}`;
   const liveCatalogCacheKey = `${baseCacheKey}-live-page-v1`;
+  if (isLiveMerged && parsedExtras.date) {
+    const guideCacheKey = `${baseCacheKey}-guide-page-v2-skip=${requestedSkip}`;
+    const cached = await mergedCatalogCache.get(guideCacheKey);
+    if (cached?.catalog) return cached.catalog;
+
+    const previewsExtras = new ExtrasParser(extras);
+    previewsExtras.date = undefined;
+    const previews = await getMergedCatalog(
+      ctx,
+      type,
+      id,
+      previewsExtras.toString()
+    );
+    if (!previews.success) return previews;
+    const selectedIds = new Set(previews.data.map((item) => item.id));
+    const deadline = Date.now() + LIVE_TV_GUIDE_BUDGET_MS;
+    const sources = selectedIds.size
+      ? await Promise.all(
+          mergedCatalog.catalogIds.map((source) =>
+            withTimeout(
+              () =>
+                fetchSelectedGuidePages(
+                  ctx,
+                  source,
+                  parsedExtras,
+                  selectedIds,
+                  deadline
+                ),
+              { items: [] as Meta[], cacheable: false },
+              {
+                timeout: LIVE_TV_GUIDE_BUDGET_MS,
+                getContext: () => 'selected Live TV guide page',
+              }
+            )
+          )
+        )
+      : [];
+    const detailed = new Map<string, Meta>();
+    for (const source of sources) {
+      for (const item of source.items) {
+        if (!detailed.has(item.id)) detailed.set(item.id, item);
+      }
+    }
+    const cacheable = sources.every((source) => source.cacheable);
+    const catalog: AIOStreamsCatalogResponse = {
+      success: true,
+      data: [],
+      metasDetailed: previews.data.map((item) => ({
+        ...detailed.get(item.id),
+        ...item,
+        videos: detailed.get(item.id)?.videos ?? [],
+      })),
+      errors: [],
+      cacheable,
+    };
+    if (cacheable)
+      await mergedCatalogCache.set(
+        guideCacheKey,
+        { sourceSkips: {}, catalog },
+        300,
+        true
+      );
+    return catalog;
+  }
   const paginate = (
     catalog: AIOStreamsCatalogResponse
   ): AIOStreamsCatalogResponse => ({
@@ -829,70 +968,16 @@ export async function getMergedCatalog(
   }
 
   const itemsBySource: MetaPreview[][] = [];
-  const detailedBySource: Meta[][] = [];
-  const isGuide = type === constants.TV_TYPE && Boolean(parsedExtras.date);
   for (const {
     encodedCatalogId,
     items,
-    metasDetailed,
     fetched,
     skipped,
   } of fetchResults) {
     if (skipped) continue;
     nextSourceSkips[encodedCatalogId] =
       (skipState.sourceSkips[encodedCatalogId] || 0) + fetched;
-    if (isGuide) {
-      detailedBySource.push(
-        metasDetailed?.length ? metasDetailed : (items as Meta[])
-      );
-    } else {
-      itemsBySource.push(items);
-    }
-  }
-
-  if (isGuide) {
-    let allDetailed = applyMergeMethod(
-      detailedBySource,
-      mergedCatalog.mergeMethod
-    ) as Meta[];
-    allDetailed = deduplicateLiveTvItems(ctx.userData, allDetailed);
-    allDetailed = applyLiveTvCatalogOverlay(
-      ctx,
-      type,
-      allDetailed,
-      requestedGenre
-    );
-    if (isLiveMerged) {
-      const catalog = {
-        success: true,
-        data: [],
-        metasDetailed: allDetailed,
-        errors: [],
-      };
-      if (cacheable)
-        await mergedCatalogCache.set(
-          liveCatalogCacheKey,
-          { sourceSkips: {}, catalog },
-          300,
-          true
-        );
-      return paginate(catalog);
-    }
-    const nextSkip = requestedSkip + allDetailed.length;
-    if (allDetailed.length > 0) {
-      await mergedCatalogCache.set(
-        `${baseCacheKey}-skip=${nextSkip}`,
-        { sourceSkips: nextSourceSkips },
-        3600,
-        true
-      );
-    }
-    return {
-      success: true,
-      data: [],
-      metasDetailed: allDetailed,
-      errors: [],
-    };
+    itemsBySource.push(items);
   }
 
   let allItems: MetaPreview[] = applyMergeMethod(
@@ -1001,6 +1086,7 @@ export async function getCatalog(
       data: merged.data,
       metasDetailed: merged.metasDetailed,
       errors: merged.errors,
+      cacheable: merged.cacheable,
     };
   }
 

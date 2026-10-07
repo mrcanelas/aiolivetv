@@ -36,6 +36,7 @@ export interface AIOStreamsCatalogResponse {
   data: MetaPreview[];
   metasDetailed?: Meta[];
   errors: AIOStreamsError[];
+  cacheable?: boolean;
 }
 
 export interface AIOStreamsOptions {

@@ -41,6 +41,7 @@ vi.mock('../utils/index.js', async () => ({
   getTimeTakenSincePoint: () => '',
   createLogger: () => ({ debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
   maskSensitiveInfo: (value: string) => value,
+  withTimeout: (await import('../utils/general.js')).withTimeout,
 }));
 import { getMergedCatalog } from './catalog.js';
 import {
@@ -91,7 +92,9 @@ function provideChannels(count: number, detailed = false) {
   fixture.fetch.mockImplementation(async (_type, _id, extras) => {
     const skip = Number(new URLSearchParams(extras).get('skip') || 0);
     return {
-      [detailed ? 'metasDetailed' : 'metas']: items.slice(skip, skip + 25),
+      [detailed && new URLSearchParams(extras).has('date')
+        ? 'metasDetailed'
+        : 'metas']: items.slice(skip, skip + 25),
     };
   });
   return items;
@@ -252,14 +255,116 @@ describe('merged Live TV pagination', () => {
     expect(first.metasDetailed).toHaveLength(25);
     expect(second.metasDetailed).toHaveLength(5);
     expect(second.metasDetailed?.[0].videos?.[0].id).toBe('programme:25');
-    expect(fixture.fetch).toHaveBeenCalledTimes(3);
+    expect(
+      fixture.fetch.mock.calls.filter((call) =>
+        new URLSearchParams(call[2]).has('date')
+      )
+    ).toHaveLength(2);
+    const callsBeforeCacheHit = fixture.fetch.mock.calls.length;
+    await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'date=2026-10-07&skip=25'
+    );
+    expect(fixture.fetch).toHaveBeenCalledTimes(callsBeforeCacheHit);
     await getMergedCatalog(
       ctx,
       'tv',
       LIVE_TV_MERGED_CATALOG_ID,
       'date=2026-10-08'
     );
-    expect(fixture.fetch).toHaveBeenCalledTimes(6);
+    expect(
+      fixture.fetch.mock.calls.filter((call) =>
+        new URLSearchParams(call[2]).has('date')
+      )
+    ).toHaveLength(3);
+  });
+
+  it('loads only the selected guide page from a large inventory', async () => {
+    const ctx = context();
+    const items = provideChannels(1287, true);
+    const response = await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'date=2026-10-07&skip=500'
+    );
+    expect(response.metasDetailed?.map((item) => item.id)).toEqual(
+      items.slice(500, 525).map((item) => item.id)
+    );
+    const guideCalls = fixture.fetch.mock.calls.filter((call) =>
+      new URLSearchParams(call[2]).has('date')
+    );
+    expect(guideCalls).toHaveLength(1);
+    expect(new URLSearchParams(guideCalls[0][2]).get('skip')).toBe('500');
+    expect(response.metasDetailed?.[0].videos?.[0].id).toBe('programme:500');
+  });
+
+  it('uses source offsets after visibility, genre and name overrides', async () => {
+    const ctx = context();
+    const items = provideChannels(80, true);
+    ctx.userData.channelMappings = [
+      { id: 'channel:1', hidden: true },
+      { id: 'channel:3', enabled: false },
+      { id: 'channel:79', name: 'A first channel' },
+    ];
+    const response = await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'date=2026-10-07&genre=News'
+    );
+    expect(response.metasDetailed).toHaveLength(25);
+    expect(response.metasDetailed?.[0].id).toBe('channel:79');
+    expect(response.metasDetailed?.[0].name).toBe('A first channel');
+    expect(response.metasDetailed?.[0].videos?.[0].id).toBe('programme:79');
+    expect(
+      response.metasDetailed?.some((item) =>
+        ['channel:1', 'channel:3'].includes(item.id)
+      )
+    ).toBe(false);
+    expect(
+      response.metasDetailed?.every(
+        (item) =>
+          items.find((original) => original.id === item.id)?.genres[0] ===
+          'News'
+      )
+    ).toBe(true);
+  });
+
+  it('bounds stalled guide requests and retries without caching missing schedules', async () => {
+    vi.useFakeTimers();
+    const ctx = context();
+    provideChannels(30, true);
+    const healthy = fixture.fetch.getMockImplementation()!;
+    fixture.fetch.mockImplementation((...args) =>
+      new URLSearchParams(args[2]).has('date')
+        ? new Promise(() => {})
+        : healthy(...args)
+    );
+    const pending = getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'date=2026-10-07'
+    );
+    await vi.advanceTimersByTimeAsync(6000);
+    const response = await pending;
+    expect(response.cacheable).toBe(false);
+    expect(response.metasDetailed).toHaveLength(25);
+    expect(
+      response.metasDetailed?.every((item) => item.videos?.length === 0)
+    ).toBe(true);
+    fixture.fetch.mockImplementation(healthy);
+    const recovered = await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'date=2026-10-07'
+    );
+    expect(recovered.cacheable).toBe(true);
+    expect(recovered.metasDetailed?.[0].videos?.[0].id).toBe('programme:0');
   });
 
   it('expires the consolidated cache after five minutes', async () => {
