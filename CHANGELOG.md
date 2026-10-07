@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://github.com/mrcanelas/aiolivetv/compare/v1.0.0-rc.1...v1.0.0) (2026-10-07)
+
+
+### Bug Fixes
+
+* **release:** promote release candidate to stable 1.0.0 ([416c534](https://github.com/mrcanelas/aiolivetv/commit/416c534f4a93c6c5c0808840ef7fb1f22d8fac43))
+
 ## [1.0.0-rc.1](https://github.com/mrcanelas/aiolivetv/compare/v0.9.1-beta...v1.0.0-rc.1) (2026-10-07)
 
 
