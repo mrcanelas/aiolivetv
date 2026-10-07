@@ -7,6 +7,13 @@ this is not a real-time alert transport.
 
 ## Configuration
 
+- The monitor currently uses the fixed URL
+  `https://94c8cb9f702d-aiolivetv.baby-beamup.club/api/v1/health?break=1`
+  to avoid an old CDN entry on the original URL. Repeated GETs to this exact
+  URL returned `BYPASS`, `no-store` and no `Age` before activation. The query
+  parameter itself does not disable cache. Switch the monitor and relay URL
+  together only after the original URL consistently bypasses cache following
+  expiration or invalidation; do not assume all CDN locations expire together.
 - Keep `INSTANCE_STATUS_ENABLED` unset until the fixed health URL consistently
   bypasses external cache and the UptimeRobot monitor can be resumed.
 - Add the GitHub Actions secret `UPTIMEROBOT_API_KEY`, preferably a monitor-specific

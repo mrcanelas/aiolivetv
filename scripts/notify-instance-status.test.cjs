@@ -18,7 +18,7 @@ const up = { type: 2, datetime: 9960, duration: 30 };
 const monitor = {
   id: 804194980,
   status: 2,
-  url: 'https://94c8cb9f702d-aiolivetv.baby-beamup.club/api/v1/health',
+  url: 'https://94c8cb9f702d-aiolivetv.baby-beamup.club/api/v1/health?break=1',
   logs: [up, down],
 };
 const initial = () => ({

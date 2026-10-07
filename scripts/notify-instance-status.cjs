@@ -2,7 +2,7 @@ const { createHash } = require('node:crypto');
 const { sendMessage, LOGO_URL, linkButtons } = require('./notify-discord.cjs');
 
 const HEALTH_URL =
-  'https://94c8cb9f702d-aiolivetv.baby-beamup.club/api/v1/health';
+  'https://94c8cb9f702d-aiolivetv.baby-beamup.club/api/v1/health?break=1';
 const STATE_BRANCH = 'instance-status-state';
 const STATE_PATH = 'instance-status.json';
 
