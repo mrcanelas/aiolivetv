@@ -9,7 +9,13 @@ import catalogApi from './catalog.js';
 
 const fixture = vi.hoisted(() => {
   process.env.BASE_URL = 'http://127.0.0.1';
-  return { epg: true, budgetMs: 0, extraStreams: 0, truncated: false };
+  return {
+    epg: true,
+    budgetMs: 0,
+    extraStreams: 0,
+    truncated: false,
+    pagedChannels: 0,
+  };
 });
 
 vi.mock('../../middlewares/ratelimit.js', () => ({
@@ -57,7 +63,7 @@ vi.mock('@aiolivetv/core', async () => {
       },
     },
     createLogger: () => ({ info: vi.fn(), error: vi.fn() }),
-    catalogSupportsSkip: () => false,
+    catalogSupportsSkip: () => fixture.pagedChannels > 0,
     validateConfig: async (data: unknown) => structuredClone(data),
     prepareChannelMatchCandidate: vi.fn(matching.prepareChannelMatchCandidate),
     getPreparedChannelMatchConfidence: vi.fn(
@@ -87,7 +93,19 @@ vi.mock('@aiolivetv/core', async () => {
           behaviorHints: { epgProvider: id === 'guide' && fixture.epg },
         };
       }
-      async getCatalog(_type: string, id: string) {
+      async getCatalog(_type: string, id: string, extras?: string) {
+        if (fixture.pagedChannels) {
+          const skip = Number(new URLSearchParams(extras).get('skip') || 0);
+          return {
+            success: true,
+            data: id.startsWith('guide.')
+              ? Array.from({ length: fixture.pagedChannels }, (_, index) => ({
+                  id: `channel:${index}`,
+                  name: `Channel ${index}`,
+                })).slice(skip, skip + 25)
+              : [],
+          };
+        }
         return {
           success: true,
           data: id.startsWith('guide.')
@@ -123,6 +141,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   fixture.budgetMs = 0;
   fixture.extraStreams = 0;
+  fixture.pagedChannels = 0;
 });
 
 async function scan(
@@ -181,6 +200,14 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('scans all 1287 channels when providers return pages of 25', async () => {
+    fixture.epg = true;
+    fixture.pagedChannels = 1287;
+    const channels = await scan(false);
+    expect(channels).toHaveLength(1287);
+    expect(new Set(channels.map((channel) => channel.id)).size).toBe(1287);
+    expect(fixture.truncated).toBe(false);
+  });
   it.each([true, false])('preserves bindings with epg=%s', async (epg) => {
     fixture.epg = epg;
     const channels = await scan(true);

@@ -27,7 +27,8 @@ const {
   ...m3u,
   ...xmltv,
 }));
-const { applyEpgTimeShift, parseCatalogExtras, toContentRatings } = await import('./live-tv/epg.js');
+const { applyEpgTimeShift, parseCatalogExtras, toContentRatings } =
+  await import('./live-tv/epg.js');
 const { normalizeChannelGroup } = await import('../utils/channelName.js');
 const {
   getChannelMapping,
@@ -51,13 +52,13 @@ describe('live TV sources', () => {
       skip: 50,
       genre: 'VARIEDADES',
     });
-    expect(parseCatalogExtras('skip=0&date=2026-06-28&genre=News')).toMatchObject(
-      {
-        skip: 0,
-        date: '2026-06-28',
-        genre: 'News',
-      }
-    );
+    expect(
+      parseCatalogExtras('skip=0&date=2026-06-28&genre=News')
+    ).toMatchObject({
+      skip: 0,
+      date: '2026-06-28',
+      genre: 'News',
+    });
   });
 
   it('cleans channel group labels', () => {
@@ -82,18 +83,14 @@ describe('live TV sources', () => {
   });
 
   it('fills missing content rating icons from age-rating-kit', () => {
-    expect(
-      toContentRatings([{ value: '12', system: 'ClassInd' }])
-    ).toEqual([
+    expect(toContentRatings([{ value: '12', system: 'ClassInd' }])).toEqual([
       {
         value: '12',
         system: 'ClassInd',
         icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/classind/12.svg',
       },
     ]);
-    expect(
-      toContentRatings([{ value: 'PG-13', system: 'MPAA' }])
-    ).toEqual([
+    expect(toContentRatings([{ value: 'PG-13', system: 'MPAA' }])).toEqual([
       {
         value: 'PG-13',
         system: 'MPAA',
@@ -324,7 +321,7 @@ describe('live TV sources', () => {
     });
   });
 
-  it('paginates Live TV catalogs in groups of fifty channels', async () => {
+  it('paginates Live TV catalogs in groups of twenty-five channels', async () => {
     const playlist = [
       '#EXTM3U',
       ...Array.from({ length: 55 }, (_, index) => {
@@ -341,7 +338,8 @@ describe('live TV sources', () => {
       timeout: 1000,
     });
 
-    expect(await addon.getCatalog()).toHaveLength(50);
+    expect(await addon.getCatalog()).toHaveLength(25);
+    expect(await addon.getCatalog(25)).toHaveLength(25);
     expect(await addon.getCatalog(50)).toHaveLength(5);
   });
 
@@ -365,9 +363,13 @@ describe('live TV sources', () => {
   it('shares concurrent M3U loads and isolates returned catalog pages', async () => {
     vi.mocked(makeRequest).mockResolvedValue({
       ok: true,
-      text: async () => '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/bbc.m3u8',
+      text: async () =>
+        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/bbc.m3u8',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
-    const config = { sourceUrl: 'https://example.com/shared.m3u', timeout: 1000 };
+    const config = {
+      sourceUrl: 'https://example.com/shared.m3u',
+      timeout: 1000,
+    };
     const [first, second] = await Promise.all([
       new M3uAddon(config).getCatalog(),
       new M3uAddon(config).getCatalog(),
@@ -381,13 +383,17 @@ describe('live TV sources', () => {
   });
 
   it('reloads an expired M3U source and retries failed downloads', async () => {
-    const config = { sourceUrl: 'https://example.com/expire.m3u', timeout: 1000 };
+    const config = {
+      sourceUrl: 'https://example.com/expire.m3u',
+      timeout: 1000,
+    };
     const addon = new M3uAddon(config);
     vi.mocked(makeRequest).mockRejectedValueOnce(new Error('offline'));
     await expect(addon.getCatalog()).rejects.toThrow('offline');
     vi.mocked(makeRequest).mockResolvedValue({
       ok: true,
-      text: async () => '#EXTM3U\n#EXTINF:-1 tvg-id="bbc",BBC One\nhttps://example.com/bbc.m3u8',
+      text: async () =>
+        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc",BBC One\nhttps://example.com/bbc.m3u8',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
     await addon.getCatalog();
     const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 300_001);
@@ -402,9 +408,13 @@ describe('live TV sources', () => {
   it('keeps the M3U catalog duplicate policy and all playback variants', async () => {
     vi.mocked(makeRequest).mockResolvedValue({
       ok: true,
-      text: async () => '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/one.m3u8\n#EXTINF:-1 tvg-id="bbc" group-title="Sports",BBC Two\nhttps://example.com/two.m3u8',
+      text: async () =>
+        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/one.m3u8\n#EXTINF:-1 tvg-id="bbc" group-title="Sports",BBC Two\nhttps://example.com/two.m3u8',
     } as unknown as Awaited<ReturnType<typeof makeRequest>>);
-    const addon = new M3uAddon({ sourceUrl: 'https://example.com/variants.m3u', timeout: 1000 });
+    const addon = new M3uAddon({
+      sourceUrl: 'https://example.com/variants.m3u',
+      timeout: 1000,
+    });
     const [channel] = await addon.getCatalog();
     expect(channel.name).toBe('BBC Two');
     expect(await addon.getCatalog(0, 'News')).toEqual([]);
@@ -412,7 +422,8 @@ describe('live TV sources', () => {
     expect((await addon.getMeta(channel.id)).name).toBe('BBC One');
     const streams = await addon.getStreams(channel.id);
     expect(streams.map((stream) => stream.url)).toEqual([
-      'https://example.com/one.m3u8', 'https://example.com/two.m3u8',
+      'https://example.com/one.m3u8',
+      'https://example.com/two.m3u8',
     ]);
   });
 });

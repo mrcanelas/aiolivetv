@@ -5,7 +5,7 @@ import { normalizeChannelGroup } from '../../utils/channelName.js';
 import { getContentRatingIconUrl } from './content-rating-icon.js';
 import { programRuntime } from './shared.js';
 
-export const LIVE_TV_CATALOG_PAGE_SIZE = 50;
+export const LIVE_TV_CATALOG_PAGE_SIZE = 25;
 export const EPG_FETCH_CONCURRENCY = 4;
 
 export async function mapWithEpgConcurrency<T, R>(

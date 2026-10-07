@@ -36,7 +36,7 @@ const router: Router = Router();
 const logger = createLogger('server');
 const MAX_CHANNELS_PER_CATALOG = 10_000;
 const MAX_STREAM_ONLY_CANDIDATES = 2_000;
-const MAX_CATALOG_PAGES = 50;
+const MAX_CATALOG_PAGES = 100;
 const MAX_AUTO_MATCH_PAIRS = 5_000_000;
 
 /**

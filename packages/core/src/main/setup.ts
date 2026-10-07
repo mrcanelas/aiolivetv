@@ -589,6 +589,12 @@ export function buildResources(ctx: AIOStreamsContext): void {
     );
     for (const mc of enabledMergedCatalogs) {
       const mergedExtras = buildMergedCatalogExtras(ctx, mc.catalogIds);
+      if (
+        mc.type === constants.TV_TYPE &&
+        !mergedExtras.some((extra) => extra.name === 'skip')
+      ) {
+        mergedExtras.push({ name: 'skip' });
+      }
       ctx.finalCatalogs.push({
         id: mc.id,
         name: mc.name,

@@ -36,6 +36,7 @@ import {
 } from './caches.js';
 
 import { isMergedCatalogId } from './liveTvMergedCatalog.js';
+import { LIVE_TV_CATALOG_PAGE_SIZE } from '../builtins/live-tv/epg.js';
 
 export {
   LIVE_TV_MERGED_CATALOG_ID,
@@ -44,7 +45,7 @@ export {
 } from './liveTvMergedCatalog.js';
 
 const logger = createLogger('core');
-const MAX_LIVE_TV_SOURCE_PAGES = 50;
+const MAX_LIVE_TV_SOURCE_PAGES = 100;
 const MAX_LIVE_TV_SOURCE_ITEMS = 10_000;
 
 export function convertDiscoverDeepLinks(
@@ -173,12 +174,14 @@ async function fetchAllLiveCatalogPages(
   items: MetaPreview[];
   metasDetailed?: Meta[];
   error?: { title: string; description: string };
+  cacheable?: boolean;
 }> {
   const items: MetaPreview[] = [];
   const metasDetailed: Meta[] = [];
   let skip = 0;
   let page = 0;
   let firstError: { title: string; description: string } | undefined;
+  let exhausted = false;
 
   while (
     page < MAX_LIVE_TV_SOURCE_PAGES &&
@@ -202,7 +205,10 @@ async function fetchAllLiveCatalogPages(
     const batch = result.metasDetailed?.length
       ? result.metasDetailed
       : result.items;
-    if (batch.length === 0) break;
+    if (batch.length === 0) {
+      exhausted = true;
+      break;
+    }
     if (result.metasDetailed?.length) {
       metasDetailed.push(...result.metasDetailed);
     } else {
@@ -219,6 +225,7 @@ async function fetchAllLiveCatalogPages(
     success: true,
     items,
     metasDetailed: metasDetailed.length ? metasDetailed : undefined,
+    cacheable: exhausted && !firstError,
   };
 }
 
@@ -541,10 +548,35 @@ export async function getMergedCatalog(
       catalogIds: mergedCatalog.catalogIds,
       deduplicationMethods: mergedCatalog.deduplicationMethods,
       mergeMethod: mergedCatalog.mergeMethod,
+      ...(isLiveMerged
+        ? { userData: ctx.userData, manifests: ctx.manifests }
+        : {}),
     })
   );
   const baseCacheKey = `${id}-${ctx.userData.uuid}-${configHash}${extrasCacheKeyPart ? `-${extrasCacheKeyPart}` : ''}`;
   const skipCacheKey = `${baseCacheKey}-skip=${requestedSkip}`;
+  const liveCatalogCacheKey = `${baseCacheKey}-live-page-v1`;
+  const paginate = (
+    catalog: AIOStreamsCatalogResponse
+  ): AIOStreamsCatalogResponse => ({
+    ...catalog,
+    data: catalog.data.slice(
+      requestedSkip,
+      requestedSkip + LIVE_TV_CATALOG_PAGE_SIZE
+    ),
+    ...(catalog.metasDetailed
+      ? {
+          metasDetailed: catalog.metasDetailed.slice(
+            requestedSkip,
+            requestedSkip + LIVE_TV_CATALOG_PAGE_SIZE
+          ),
+        }
+      : {}),
+  });
+  if (isLiveMerged) {
+    const cached = await mergedCatalogCache.get(liveCatalogCacheKey);
+    if (cached?.catalog) return paginate(cached.catalog);
+  }
 
   let skipState: MergedCatalogSkipState | undefined;
 
@@ -756,6 +788,7 @@ export async function getMergedCatalog(
         fetched: result.metasDetailed?.length || result.items.length,
         success: true,
         skipped: false,
+        cacheable: !('cacheable' in result) || result.cacheable !== false,
       };
     }
   );
@@ -772,6 +805,9 @@ export async function getMergedCatalog(
   const fetchResults = await Promise.all(fetchPromises);
 
   const nonSkippedResults = fetchResults.filter((r) => !r.skipped);
+  const cacheable = nonSkippedResults.every(
+    (result) => result.success && result.cacheable !== false
+  );
   const allFailed =
     nonSkippedResults.length > 0 && nonSkippedResults.every((r) => !r.success);
   if (allFailed) {
@@ -827,7 +863,20 @@ export async function getMergedCatalog(
       requestedGenre
     );
     if (isLiveMerged) {
-      allDetailed = allDetailed.slice(requestedSkip);
+      const catalog = {
+        success: true,
+        data: [],
+        metasDetailed: allDetailed,
+        errors: [],
+      };
+      if (cacheable)
+        await mergedCatalogCache.set(
+          liveCatalogCacheKey,
+          { sourceSkips: {}, catalog },
+          300,
+          true
+        );
+      return paginate(catalog);
     }
     const nextSkip = requestedSkip + allDetailed.length;
     if (allDetailed.length > 0) {
@@ -864,7 +913,9 @@ export async function getMergedCatalog(
     allItems = deduplicateLiveTvItems(ctx.userData, allItems);
   }
 
-  const shuffleCacheKey = `${baseCacheKey}-skip=${requestedSkip}-shuffle`;
+  const shuffleCacheKey = isLiveMerged
+    ? `${baseCacheKey}-shuffle`
+    : `${baseCacheKey}-skip=${requestedSkip}-shuffle`;
 
   allItems = await applyCatalogModifications(
     ctx,
@@ -877,8 +928,7 @@ export async function getMergedCatalog(
 
   if (type === constants.TV_TYPE) {
     const modification = ctx.userData.catalogModifications?.find(
-      (mod) =>
-        mod.id === id && (mod.type === type || mod.overrideType === type)
+      (mod) => mod.id === id && (mod.type === type || mod.overrideType === type)
     );
     allItems = applyLiveTvCatalogOverlay(
       ctx,
@@ -888,7 +938,15 @@ export async function getMergedCatalog(
       !modification?.shuffle && !modification?.reverse
     );
     if (isLiveMerged) {
-      allItems = allItems.slice(requestedSkip);
+      const catalog = { success: true, data: allItems, errors: [] };
+      if (cacheable)
+        await mergedCatalogCache.set(
+          liveCatalogCacheKey,
+          { sourceSkips: {}, catalog },
+          300,
+          true
+        );
+      return paginate(catalog);
     }
   }
 
@@ -1013,8 +1071,7 @@ export async function getCatalog(
   );
 
   const modification = ctx.userData.catalogModifications?.find(
-    (mod) =>
-      mod.id === id && (mod.type === type || mod.overrideType === type)
+    (mod) => mod.id === id && (mod.type === type || mod.overrideType === type)
   );
 
   return {
