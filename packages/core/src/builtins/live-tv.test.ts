@@ -38,6 +38,11 @@ const {
   isChannelMappingSuggestion,
 } = await import('../main/channelMappings.js');
 const { makeRequest } = await import('../utils/index.js');
+function sourceResponse(text: string) {
+  return new Response(text) as unknown as Awaited<
+    ReturnType<typeof makeRequest>
+  >;
+}
 
 beforeEach(() => {
   // Parsed XMLTV guides are cached in-process; keep tests independent.
@@ -197,11 +202,11 @@ describe('live TV sources', () => {
   });
 
   it('returns XMLTV programs only from channel meta', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /><rating system="MPAA"><value>PG</value><icon src="https://example.com/pg.png" /></rating></programme></tv>',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /><rating system="MPAA"><value>PG</value><icon src="https://example.com/pg.png" /></rating></programme></tv>'
+      )
+    );
     const addon = new XmltvAddon({
       sourceUrl: 'https://example.com/guide.xml',
       timeout: 1000,
@@ -213,11 +218,11 @@ describe('live TV sources', () => {
       { name: 'date' },
     ]);
     expect(await addon.getCatalog()).toHaveLength(1);
-    vi.mocked(makeRequest).mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /><rating system="MPAA"><value>PG</value><icon src="https://example.com/pg.png" /></rating></programme></tv>',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title><sub-title>Evening</sub-title><desc>Latest news</desc><category>News</category><credits><actor>Jane Doe</actor><director>John Doe</director></credits><icon src="https://example.com/news.jpg" /><rating system="MPAA"><value>PG</value><icon src="https://example.com/pg.png" /></rating></programme></tv>'
+      )
+    );
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-28T12:00:00.000Z'));
     const meta = await addon.getMeta(encodeChannelId('bbc.one'));
@@ -246,11 +251,11 @@ describe('live TV sources', () => {
   });
 
   it('applies XMLTV time shift to program videos', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>'
+      )
+    );
     const addon = new XmltvAddon({
       sourceUrl: 'https://example.com/guide.xml',
       timeout: 1000,
@@ -265,11 +270,11 @@ describe('live TV sources', () => {
   });
 
   it('uses an M3U as catalog and channel metadata without program videos', async () => {
-    vi.mocked(makeRequest).mockResolvedValue({
-      ok: true,
-      text: async () =>
-        '#EXTM3U\n#EXTINF:-1 tvg-name="BBC One" group-title="News",BBC One\nhttps://example.com/live.m3u8',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValue(
+      sourceResponse(
+        '#EXTM3U\n#EXTINF:-1 tvg-name="BBC One" group-title="News",BBC One\nhttps://example.com/live.m3u8'
+      )
+    );
     const addon = new M3uAddon({
       sourceUrl: 'https://example.com/list.m3u',
       timeout: 1000,
@@ -296,11 +301,11 @@ describe('live TV sources', () => {
   });
 
   it('returns guide catalog with programs when date extra is present', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>'
+      )
+    );
     const addon = new XmltvAddon({
       sourceUrl: 'https://example.com/guide.xml',
       timeout: 1000,
@@ -329,10 +334,7 @@ describe('live TV sources', () => {
         return `#EXTINF:-1 tvg-id="channel.${number}",Channel ${number}\nhttps://example.com/${number}.m3u8`;
       }),
     ].join('\n');
-    vi.mocked(makeRequest).mockResolvedValue({
-      ok: true,
-      text: async () => playlist,
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValue(sourceResponse(playlist));
     const addon = new M3uAddon({
       sourceUrl: 'https://example.com/large.m3u',
       timeout: 1000,
@@ -344,11 +346,11 @@ describe('live TV sources', () => {
   });
 
   it('falls back program released to startTime when XMLTV date is missing', async () => {
-    vi.mocked(makeRequest).mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>'
+      )
+    );
     const addon = new XmltvAddon({
       sourceUrl: 'https://example.com/guide.xml',
       timeout: 1000,
@@ -361,11 +363,11 @@ describe('live TV sources', () => {
   });
 
   it('shares concurrent M3U loads and isolates returned catalog pages', async () => {
-    vi.mocked(makeRequest).mockResolvedValue({
-      ok: true,
-      text: async () =>
-        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/bbc.m3u8',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValue(
+      sourceResponse(
+        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/bbc.m3u8'
+      )
+    );
     const config = {
       sourceUrl: 'https://example.com/shared.m3u',
       timeout: 1000,
@@ -390,11 +392,11 @@ describe('live TV sources', () => {
     const addon = new M3uAddon(config);
     vi.mocked(makeRequest).mockRejectedValueOnce(new Error('offline'));
     await expect(addon.getCatalog()).rejects.toThrow('offline');
-    vi.mocked(makeRequest).mockResolvedValue({
-      ok: true,
-      text: async () =>
-        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc",BBC One\nhttps://example.com/bbc.m3u8',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValue(
+      sourceResponse(
+        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc",BBC One\nhttps://example.com/bbc.m3u8'
+      )
+    );
     await addon.getCatalog();
     const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 300_001);
     try {
@@ -406,11 +408,11 @@ describe('live TV sources', () => {
   });
 
   it('keeps the M3U catalog duplicate policy and all playback variants', async () => {
-    vi.mocked(makeRequest).mockResolvedValue({
-      ok: true,
-      text: async () =>
-        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/one.m3u8\n#EXTINF:-1 tvg-id="bbc" group-title="Sports",BBC Two\nhttps://example.com/two.m3u8',
-    } as unknown as Awaited<ReturnType<typeof makeRequest>>);
+    vi.mocked(makeRequest).mockResolvedValue(
+      sourceResponse(
+        '#EXTM3U\n#EXTINF:-1 tvg-id="bbc" group-title="News",BBC One\nhttps://example.com/one.m3u8\n#EXTINF:-1 tvg-id="bbc" group-title="Sports",BBC Two\nhttps://example.com/two.m3u8'
+      )
+    );
     const addon = new M3uAddon({
       sourceUrl: 'https://example.com/variants.m3u',
       timeout: 1000,
@@ -607,5 +609,58 @@ describe('channel mappings', () => {
         timeShiftMinutes: 0,
       })
     ).rejects.toThrow(/maximum size/);
+  });
+
+  it('cancels oversized chunked downloads before reading the rest', async () => {
+    const { fetchSourceText } = await import('./live-tv/shared.js');
+    const cancel = vi.fn();
+    let pulls = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          pulls++;
+          controller.enqueue(new Uint8Array(8));
+        },
+        cancel,
+      },
+      { highWaterMark: 0 }
+    );
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      new Response(body) as unknown as Awaited<ReturnType<typeof makeRequest>>
+    );
+    await expect(
+      fetchSourceText(
+        {
+          sourceUrl: 'https://example.test/list',
+          timeout: 1000,
+          timeShiftMinutes: 0,
+        },
+        { maxBytes: 10 }
+      )
+    ).rejects.toThrow('maximum size');
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(pulls).toBe(2);
+  });
+
+  it('decodes UTF-8 characters split across response chunks', async () => {
+    const { fetchSourceText } = await import('./live-tv/shared.js');
+    const bytes = new TextEncoder().encode('TV \u00e9');
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.slice(0, -1));
+        controller.enqueue(bytes.slice(-1));
+        controller.close();
+      },
+    });
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      new Response(body) as unknown as Awaited<ReturnType<typeof makeRequest>>
+    );
+    expect(
+      await fetchSourceText({
+        sourceUrl: 'https://example.test/list',
+        timeout: 1000,
+        timeShiftMinutes: 0,
+      })
+    ).toBe('TV \u00e9');
   });
 });

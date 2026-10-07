@@ -77,13 +77,30 @@ export async function fetchSourceText(
   const maxBytes = options?.maxBytes ?? MAX_LIVE_TV_SOURCE_BYTES;
   const contentLength = Number(response.headers?.get?.('content-length'));
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    await response.body?.cancel();
     throw new Error(
       `Source exceeds maximum size of ${maxBytes} bytes (${contentLength})`
     );
   }
-  const data = await response.text();
-  if (Buffer.byteLength(data) > maxBytes) {
-    throw new Error(`Source exceeds maximum size of ${maxBytes} bytes`);
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const parts: string[] = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel();
+        throw new Error(`Source exceeds maximum size of ${maxBytes} bytes`);
+      }
+      parts.push(decoder.decode(value, { stream: true }));
+    }
+    parts.push(decoder.decode());
+    return parts.join('');
+  } finally {
+    reader.releaseLock();
   }
-  return data;
 }
