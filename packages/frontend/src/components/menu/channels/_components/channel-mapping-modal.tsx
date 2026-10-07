@@ -17,6 +17,7 @@ import { Spinner } from '../../../ui/loading-spinner';
 import type { ChannelInfo } from '@/lib/api';
 import {
   isChannelSuggestion,
+  isVisibleChannelSuggestion,
   isManualStreamMapping,
   streamSourceKey,
 } from '../utils';
@@ -75,17 +76,13 @@ export function ChannelMappingModal({
   if (!channel) return null;
 
   const pendingCount = channel.mappings.filter((mapping) =>
-    isChannelSuggestion(mapping.confidence)
+    isVisibleChannelSuggestion(mapping.confidence)
   ).length;
 
   const streamSourceOptions =
     channel.availableStreamSources?.map((source) => ({
       value: streamSourceKey(source.addonId, source.channelId),
-      label: `${source.addonName} · ${source.name}${
-        typeof source.confidence === 'number'
-          ? ` · ${Math.round(source.confidence * 100)}%`
-          : ''
-      }`,
+      label: `${source.addonName} · ${source.name}`,
       textValue: `${source.addonName} ${source.name}`,
     })) ?? [];
 
@@ -157,7 +154,7 @@ export function ChannelMappingModal({
                   onLinkStreamTargetChange(value[value.length - 1] ?? '')
                 }
                 options={streamSourceOptions}
-                emptyMessage="No stream channels match this one at 50% or higher"
+                emptyMessage="No stream channels found"
                 keepOpenOnSelect={false}
               />
             </div>
@@ -173,9 +170,8 @@ export function ChannelMappingModal({
           </div>
         ) : (
           <p className="text-xs text-[--muted]">
-            No unlinked stream channels match this one at 50% or higher. Add a
-            stream addon such as FrostView, Fenix TV or M3U, or add a manual HLS
-            link below.
+            No unlinked stream channels available. Add a stream addon such as
+            FrostView, Fenix TV or M3U, or add a manual HLS link below.
           </p>
         )}
 
@@ -184,13 +180,19 @@ export function ChannelMappingModal({
         </Button>
 
         <div className="min-w-0 space-y-2">
-          {channel.mappings.length === 0 ? (
+          {channel.mappings.every(
+            (mapping) =>
+              isChannelSuggestion(mapping.confidence) &&
+              !isVisibleChannelSuggestion(mapping.confidence)
+          ) ? (
             <p className="rounded border border-[--border] p-3 text-sm text-[--muted]">
               No stream sources linked yet.
             </p>
           ) : null}
           {channel.mappings.map((mapping, index) => {
             const suggestion = isChannelSuggestion(mapping.confidence);
+            if (suggestion && !isVisibleChannelSuggestion(mapping.confidence))
+              return null;
             const manual = isManualStreamMapping(mapping);
             const declaredSummary = formatDeclaredSummary(mapping.declared);
             const headerCount = mapping.headers

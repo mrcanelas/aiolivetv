@@ -45,7 +45,7 @@ import {
   filterChannelsByReview,
   findDuplicateGroups,
   getRemovedChannels,
-  isChannelSuggestion,
+  isVisibleChannelSuggestion,
   isManualStreamMapping,
   buildManualStreamChannelId,
   persistableManualStreamFields,
@@ -337,7 +337,7 @@ export function ChannelsMenu() {
           ? {
               ...channel,
               mappings: channel.mappings.map((mapping) =>
-                isChannelSuggestion(mapping.confidence)
+                isVisibleChannelSuggestion(mapping.confidence)
                   ? { ...mapping, confidence: 1 }
                   : mapping
               ),
@@ -352,7 +352,7 @@ export function ChannelsMenu() {
       current.map((channel) => {
         if (channel.id !== channelId) return channel;
         const suggestions = channel.mappings.filter((mapping) =>
-          isChannelSuggestion(mapping.confidence)
+          isVisibleChannelSuggestion(mapping.confidence)
         );
         if (suggestions.length === 0) return channel;
         const existing = new Set(
@@ -375,7 +375,7 @@ export function ChannelsMenu() {
         return {
           ...channel,
           mappings: channel.mappings.filter(
-            (mapping) => !isChannelSuggestion(mapping.confidence)
+            (mapping) => !isVisibleChannelSuggestion(mapping.confidence)
           ),
           rejectedStreams,
         };
@@ -484,6 +484,10 @@ export function ChannelsMenu() {
               canStream: true,
             },
           ],
+          rejectedStreams: channel.rejectedStreams?.filter(
+            (item) =>
+              !(item.addonId === addonId && item.channelId === streamChannelId)
+          ),
           availableStreamSources: channel.availableStreamSources?.filter(
             (item) =>
               !(item.addonId === addonId && item.channelId === streamChannelId)
@@ -762,11 +766,6 @@ export function ChannelsMenu() {
         (mapping) => `${mapping.addonId}\0${mapping.channelId}`
       )
     );
-    const rejected = new Set(
-      (selectedMappingChannel.rejectedStreams ?? []).map(
-        (mapping) => `${mapping.addonId}\0${mapping.channelId}`
-      )
-    );
     const sources = new Map(
       [
         ...(alternativesQuery.data ?? []),
@@ -776,7 +775,7 @@ export function ChannelsMenu() {
     return {
       ...selectedMappingChannel,
       availableStreamSources: [...sources]
-        .filter(([key]) => !used.has(key) && !rejected.has(key))
+        .filter(([key]) => !used.has(key))
         .map(([, source]) => source),
     };
   }, [selectedMappingChannel, alternativesQuery.data]);

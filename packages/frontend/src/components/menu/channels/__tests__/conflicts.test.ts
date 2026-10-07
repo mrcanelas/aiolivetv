@@ -13,7 +13,23 @@ import {
   getRemovedChannels,
   parseStreamSourceKey,
   streamSourceKey,
+  isVisibleChannelSuggestion,
 } from '../utils';
+
+describe('visible stream suggestions', () => {
+  it.each([0, 0.5, 0.75, 0.9, 1])(
+    'does not show score %s as a suggestion',
+    (confidence) => {
+      expect(isVisibleChannelSuggestion(confidence)).toBe(false);
+    }
+  );
+  it.each([0.7501, 0.8, 0.89])(
+    'shows score %s as a suggestion',
+    (confidence) => {
+      expect(isVisibleChannelSuggestion(confidence)).toBe(true);
+    }
+  );
+});
 
 function channel(
   overrides: Partial<ChannelInfo> & Pick<ChannelInfo, 'id' | 'name'>

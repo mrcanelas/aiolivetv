@@ -83,7 +83,35 @@ try {
     poster: '/favicon.png',
     enabled: true,
     epgProvider: true,
-    mappings: [],
+    mappings:
+      index === 0
+        ? [
+            {
+              id: 'weak',
+              channelId: 'weak',
+              addonId: 'weak-source',
+              addonName: 'Weak source',
+              name: 'Weak suggestion',
+              confidence: 0.75,
+              enabled: true,
+              canStream: true,
+              epgProvider: false,
+            },
+            {
+              id: 'strong',
+              channelId: 'strong',
+              addonId: 'strong-source',
+              addonName: 'Strong source',
+              name: 'Strong suggestion',
+              confidence: 0.8,
+              enabled: true,
+              canStream: true,
+              epgProvider: false,
+            },
+          ]
+        : [],
+    rejectedStreams:
+      index === 0 ? [{ addonId: 'streams', channelId: 'unrelated' }] : [],
     availableStreamSources: [],
   }));
   const userData = {
@@ -135,6 +163,13 @@ try {
                     (channel) => channel.id === body.alternativesFor
                   ),
                   availableStreamSources: [
+                    {
+                      addonId: 'streams',
+                      addonName: 'Streams',
+                      channelId: 'unrelated',
+                      name: 'Unrelated Sports',
+                      confidence: 0,
+                    },
                     {
                       addonId: 'streams',
                       addonName: 'Streams',
@@ -302,13 +337,43 @@ try {
       await actions.click();
       await page.getByRole('menuitem', { name: /^Mappings/ }).click();
     } else {
-      await list.getByTitle('0 mappings').first().click();
+      await list.getByTitle('0 accepted, 1 to review').first().click();
     }
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('combobox').click();
-    await page
-      .getByText('Streams · Channel 0000 HD · 100%', { exact: true })
+    await dialog.getByText('Strong suggestion', { exact: true }).waitFor();
+    assert.equal(
+      await dialog.getByText('Weak suggestion', { exact: true }).count(),
+      0
+    );
+    await dialog
+      .getByRole('button', { name: 'Accept all', exact: true })
       .click();
+    await page.waitForFunction(() => {
+      const mapping = JSON.parse(
+        localStorage.getItem('aiolivetv-user-data')
+      ).channelMappings.find((item) => item.id === 'channel:0');
+      return (
+        mapping.streams.some(
+          (item) => item.channelId === 'strong' && item.confidence === 1
+        ) && !mapping.streams.some((item) => item.channelId === 'weak')
+      );
+    });
+    await dialog.getByRole('combobox').click();
+    await page.getByText('Streams · Unrelated Sports', { exact: true }).click();
+    await dialog.getByRole('button', { name: 'Link', exact: true }).click();
+    await page.waitForFunction(() => {
+      const mapping = JSON.parse(
+        localStorage.getItem('aiolivetv-user-data')
+      ).channelMappings.find((item) => item.id === 'channel:0');
+      return (
+        mapping.streams.some(
+          (item) => item.channelId === 'unrelated' && item.confidence === 0
+        ) &&
+        !mapping.rejectedStreams?.some((item) => item.channelId === 'unrelated')
+      );
+    });
+    await dialog.getByRole('combobox').click();
+    await page.getByText('Streams · Channel 0000 HD', { exact: true }).click();
     await dialog.getByRole('button', { name: 'Link', exact: true }).click();
     await page.waitForFunction(() => {
       const draft = JSON.parse(localStorage.getItem('aiolivetv-user-data'));

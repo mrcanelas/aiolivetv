@@ -88,6 +88,10 @@ export function isChannelSuggestion(confidence: number) {
   return confidence > 0 && confidence < 0.9;
 }
 
+export function isVisibleChannelSuggestion(confidence: number) {
+  return confidence > 0.75 && isChannelSuggestion(confidence);
+}
+
 export function normalizeChannelGroup(group?: string): string | undefined {
   if (!group) return undefined;
   const cleaned = group
@@ -110,16 +114,20 @@ export function countSuggestions(channels: ChannelInfo[]) {
     (total, channel) =>
       total +
       channel.mappings.filter((mapping) =>
-        isChannelSuggestion(mapping.confidence)
+        isVisibleChannelSuggestion(mapping.confidence)
       ).length,
     0
   );
 }
 
 export function getMappingStats(channel: ChannelInfo) {
-  const total = channel.mappings.length;
+  const total = channel.mappings.filter(
+    (mapping) =>
+      !isChannelSuggestion(mapping.confidence) ||
+      isVisibleChannelSuggestion(mapping.confidence)
+  ).length;
   const pending = channel.mappings.filter((mapping) =>
-    isChannelSuggestion(mapping.confidence)
+    isVisibleChannelSuggestion(mapping.confidence)
   ).length;
   const accepted = total - pending;
   return { accepted, pending, total };
@@ -384,7 +392,7 @@ export function filterChannelsByReview(
     case 'suggestions':
       return channels.filter((channel) =>
         channel.mappings.some((mapping) =>
-          isChannelSuggestion(mapping.confidence)
+          isVisibleChannelSuggestion(mapping.confidence)
         )
       );
     case 'duplicates':

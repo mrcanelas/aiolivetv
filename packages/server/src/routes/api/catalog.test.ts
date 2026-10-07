@@ -272,16 +272,36 @@ describe('Channels prepared matching', () => {
     expect(prepareChannelMatchCandidate).toHaveBeenCalledTimes(5);
   });
 
-  it('keeps alternatives when automatic matching is off and respects rejections', async () => {
+  it('lists all unlinked stream channels for manual selection without scoring, including rejected suggestions', async () => {
     fixture.epg = true;
     const channels = await scan(false, true, 'bbc');
     expect(channels[0].mappings).toEqual([]);
-    expect(channels[0].availableStreamSources).toEqual([
-      expect.objectContaining({ channelId: 'bbc-stream', confidence: 1 }),
-    ]);
+    expect(
+      channels[0].availableStreamSources.map((source) => source.channelId)
+    ).toEqual(['bbc-stream', 'bbc-alt', 'hbo-stream']);
+    expect(
+      channels[0].availableStreamSources.every(
+        (source) => source.confidence === undefined
+      )
+    ).toBe(true);
     expect(channels).toHaveLength(1);
-    expect(prepareChannelMatchCandidate).toHaveBeenCalledTimes(3);
+    expect(prepareChannelMatchCandidate).not.toHaveBeenCalled();
+    expect(getPreparedChannelMatchConfidence).not.toHaveBeenCalled();
   });
+
+  it.each([0, 0.5, 0.75, 0.7501, 0.89, 0.9])(
+    'only generates suggestions above 75%% (score=%s)',
+    async (confidence) => {
+      vi.mocked(getPreparedChannelMatchConfidence).mockReturnValue(confidence);
+      const channels = await scan(true);
+      const mappings = channels.flatMap((channel) => channel.mappings);
+      expect(mappings).toHaveLength(confidence > 0.75 ? 3 : 0);
+      if (confidence >= 0.9)
+        expect(mappings.every((mapping) => mapping.confidence === 1)).toBe(
+          true
+        );
+    }
+  );
 
   it('skips matching alternatives on the initial scan', async () => {
     const channels = await scan(false);
@@ -307,8 +327,8 @@ describe('Channels prepared matching', () => {
         return matching.getPreparedChannelMatchConfidence(left, right);
       }
     );
-    await scan(false, false, 'bbc');
-    expect(calls).toBe(259);
+    await scan(true);
+    expect(calls).toBeGreaterThanOrEqual(259);
     expect(fixture.truncated).toBe(false);
   });
 

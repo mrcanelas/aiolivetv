@@ -16,7 +16,6 @@ import {
   prepareChannelMatchCandidate,
   type PreparedChannelMatchCandidate,
   isHighConfidenceChannelMatch,
-  CHANNEL_LINK_STREAM_CONFIDENCE,
   bindsOwnCatalogStreams,
   findPossibleDuplicateChannels,
   catalogSupportsSkip,
@@ -283,7 +282,7 @@ router.post(
           channelId: string;
           name: string;
           poster?: string | null;
-          confidence: number;
+          confidence?: number;
         }>;
       };
       type SourceDiagnostic = {
@@ -790,36 +789,28 @@ router.post(
             (mapping) => `${mapping.addonId}\0${mapping.channelId}`
           )
         );
-        const canonical = prepareCanonical(channel);
         const available: Channel['availableStreamSources'] = [];
         for (const candidate of streamCandidates) {
-          if (
-            used.has(`${candidate.addonId}\0${candidate.id}`) ||
-            isRejected(channel.id, candidate)
-          ) {
+          if (used.has(`${candidate.addonId}\0${candidate.id}`)) {
             continue;
           }
-          if (!(await nextMatchingPair())) break;
-          const confidence = getPreparedChannelMatchConfidence(
-            prepareCandidate(candidate),
-            canonical
-          );
-          if (confidence < CHANNEL_LINK_STREAM_CONFIDENCE) continue;
           available.push({
             addonId: candidate.addonId,
             addonName: candidate.addonName,
             channelId: candidate.id,
             name: candidate.name,
             poster: candidate.poster,
-            confidence,
           });
         }
-        await matchingCheckpoint();
         return available.sort((a, b) => {
-          if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-          return a.name.localeCompare(b.name, undefined, {
-            sensitivity: 'base',
-          });
+          return (
+            a.addonName.localeCompare(b.addonName, undefined, {
+              sensitivity: 'base',
+            }) ||
+            a.name.localeCompare(b.name, undefined, {
+              sensitivity: 'base',
+            })
+          );
         });
       };
 
@@ -994,7 +985,7 @@ router.post(
             }
           } else if (
             suggestion &&
-            suggestion.confidence > 0 &&
+            suggestion.confidence > 0.75 &&
             !isRejected(suggestion.channel.id, candidate)
           ) {
             addStreamSource(
