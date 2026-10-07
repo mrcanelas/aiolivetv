@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/mrcanelas/aiolivetv/compare/v1.0.0...v1.0.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **catalog:** load EPG only for selected channel pages ([44d3d35](https://github.com/mrcanelas/aiolivetv/commit/44d3d35b894b0c6672361e0af565b5cb3ec14ab0))
+
 ## [1.0.0](https://github.com/mrcanelas/aiolivetv/compare/v1.0.0-rc.1...v1.0.0) (2026-10-07)
 
 
