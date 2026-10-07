@@ -862,6 +862,7 @@ export function ChannelsMenu() {
 
       <SettingsCard
         title="Channels"
+        headerClassName="flex-col sm:flex-row"
         description={
           channelsTab === 'removed'
             ? 'These channels are hidden from the catalog. Restore one to put it back in My Channels.'

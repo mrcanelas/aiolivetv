@@ -97,6 +97,7 @@ try {
   for (const [name, viewport] of [
     ['desktop', { width: 1440, height: 1000 }],
     ['mobile', { width: 390, height: 844 }],
+    ['mobile-narrow', { width: 320, height: 740 }],
   ]) {
     const context = await browser.newContext({ viewport });
     await context.addInitScript((draft) => {
@@ -157,6 +158,44 @@ try {
     await page.goto(base + '/stremio/configure?menu=channels');
     const list = page.locator('div[aria-label="Channels"]');
     await list.locator('li[data-index]').first().waitFor();
+    const headerLayout = await page
+      .locator('[data-settings-card]')
+      .first()
+      .evaluate((card) => {
+        const description = [...card.querySelectorAll('p, div')].find(
+          (element) =>
+            element.textContent.trim() ===
+            'Manage channels, review mappings, and control stream priority.'
+        );
+        const toolbar = card.querySelector(
+          '[title="Group by source"]'
+        ).parentElement;
+        const text = description.getBoundingClientRect();
+        const actions = toolbar.getBoundingClientRect();
+        return {
+          textWidth: text.width,
+          cardWidth: card.getBoundingClientRect().width,
+          textBottom: text.bottom,
+          actionsTop: actions.top,
+          pageFits:
+            document.documentElement.scrollWidth <=
+            document.documentElement.clientWidth,
+        };
+      });
+    assert(
+      headerLayout.pageFits,
+      'Channels page must not overflow horizontally'
+    );
+    if (viewport.width < 640) {
+      assert(
+        headerLayout.textWidth > headerLayout.cardWidth * 0.75,
+        'Description must use the mobile header width'
+      );
+      assert(
+        headerLayout.actionsTop >= headerLayout.textBottom,
+        'Mobile actions must follow the description'
+      );
+    }
     const mounted = await list.locator('li[data-index]').count();
     assert(mounted > 0 && mounted < 60, 'List must mount only visible rows');
     assert(
@@ -167,6 +206,12 @@ try {
       path: resolve(output, name + '.png'),
       fullPage: true,
     });
+    if (name === 'mobile-narrow') {
+      assert.deepEqual(errors, [], 'Browser errors');
+      console.log(JSON.stringify({ viewport: name, responsiveHeader: true }));
+      await context.close();
+      continue;
+    }
     await list.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });

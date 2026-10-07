@@ -15,6 +15,7 @@ type SettingsCardProps = {
   className?: string;
   action?: React.ReactNode;
   titleClassName?: string;
+  headerClassName?: string;
   id?: string;
 };
 
@@ -56,6 +57,7 @@ export function SettingsCard({
   children,
   className,
   titleClassName,
+  headerClassName,
   action,
   id,
 }: SettingsCardProps) {
@@ -86,7 +88,12 @@ export function SettingsCard({
       >
         {title && (
           <CardHeader className="p-0 pb-4">
-            <div className="flex items-start justify-between gap-4">
+            <div
+              className={cn(
+                'flex items-start justify-between gap-4',
+                headerClassName
+              )}
+            >
               <div className="flex-1">
                 <CardTitle
                   className={cn(
