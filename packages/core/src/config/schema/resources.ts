@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { cacheTtlMap, nonNegativeInt, positiveInt, seconds } from './helpers.js';
+import {
+  cacheTtlMap,
+  nonNegativeInt,
+  positiveInt,
+  seconds,
+} from './helpers.js';
 import type { RuntimeConfigSection } from '../types.js';
 import { isEphemeralRuntime } from '../../utils/runtime.js';
 
@@ -116,10 +121,10 @@ export const resourcesSchema = {
     },
     channelScan: {
       schema: nonNegativeInt,
-      default: isEphemeralRuntime() ? 240_000 : 0,
+      default: isEphemeralRuntime() ? 240_000 : 45_000,
       label: 'Channel scan budget (ms)',
       description:
-        'Wall-clock budget for one Channels page scan. When reached, the scan stops and returns the channels found so far, listing each unfinished source. On hosts with a reverse-proxy limit (Beamup ~60s, Vercel Function max duration), set this about 10–60s below that limit so you get partial results instead of a 504. Defaults to 240000 on Vercel. Set 0 to remove the limit.',
+        'Wall-clock budget for one Channels page scan, including provider initialisation. When reached, the scan returns the channels found so far and lists unfinished sources. Defaults to 45000, or 240000 on Vercel. Keep this below your reverse-proxy request limit. Set 0 to remove the limit.',
       env: 'CHANNEL_SCAN_BUDGET_MS',
       requiresRestart: false,
       secret: false,

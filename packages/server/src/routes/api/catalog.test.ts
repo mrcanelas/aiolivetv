@@ -15,6 +15,9 @@ const fixture = vi.hoisted(() => {
     extraStreams: 0,
     truncated: false,
     pagedChannels: 0,
+    initialiseDelayMs: 0,
+    slowCatalogMs: 0,
+    stalledValidation: false,
   };
 });
 
@@ -62,9 +65,12 @@ vi.mock('@aiolivetv/core', async () => {
         },
       },
     },
-    createLogger: () => ({ info: vi.fn(), error: vi.fn() }),
+    createLogger: () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }),
     catalogSupportsSkip: () => fixture.pagedChannels > 0,
-    validateConfig: async (data: unknown) => structuredClone(data),
+    validateConfig: async (data: unknown) => {
+      if (fixture.stalledValidation) return new Promise(() => {});
+      return structuredClone(data);
+    },
     prepareChannelMatchCandidate: vi.fn(matching.prepareChannelMatchCandidate),
     getPreparedChannelMatchConfidence: vi.fn(
       matching.getPreparedChannelMatchConfidence
@@ -75,6 +81,10 @@ vi.mock('@aiolivetv/core', async () => {
         : resource === 'stream',
     AIOStreams: class {
       async initialise() {
+        if (fixture.initialiseDelayMs)
+          await new Promise((resolve) =>
+            setTimeout(resolve, fixture.initialiseDelayMs)
+          );
         return this;
       }
       getAddons() {
@@ -94,6 +104,10 @@ vi.mock('@aiolivetv/core', async () => {
         };
       }
       async getCatalog(_type: string, id: string, extras?: string) {
+        if (id.startsWith('streams.') && fixture.slowCatalogMs)
+          await new Promise((resolve) =>
+            setTimeout(resolve, fixture.slowCatalogMs)
+          );
         if (fixture.pagedChannels) {
           const skip = Number(new URLSearchParams(extras).get('skip') || 0);
           return {
@@ -142,12 +156,16 @@ afterEach(async () => {
   fixture.budgetMs = 0;
   fixture.extraStreams = 0;
   fixture.pagedChannels = 0;
+  fixture.initialiseDelayMs = 0;
+  fixture.slowCatalogMs = 0;
+  fixture.stalledValidation = false;
 });
 
 async function scan(
   autoMatch: boolean,
   rejectAlternative = false,
-  alternativesFor?: string
+  alternativesFor?: string,
+  expectedStatus = 200
 ) {
   const app = express();
   app.use(express.json());
@@ -180,7 +198,15 @@ async function scan(
       }),
     }
   );
-  expect(response.status).toBe(200);
+  expect(response.status).toBe(expectedStatus);
+  expect(response.headers.get('content-type')).toContain('application/json');
+  if (expectedStatus !== 200) {
+    expect(await response.json()).toMatchObject({
+      success: false,
+      error: { message: expect.stringContaining('initialising providers') },
+    });
+    return [];
+  }
   const body = (await response.json()) as {
     data: {
       scan: { truncated: boolean };
@@ -200,6 +226,22 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('returns JSON when provider validation stalls before scanning', async () => {
+    fixture.budgetMs = 20;
+    fixture.stalledValidation = true;
+    await scan(false, false, undefined, 503);
+  });
+
+  it('counts provider initialisation in the budget and preserves partial channels', async () => {
+    fixture.epg = true;
+    fixture.budgetMs = 100;
+    fixture.initialiseDelayMs = 70;
+    fixture.slowCatalogMs = 70;
+    const channels = await scan(false);
+    expect(channels.map((channel) => channel.id)).toEqual(['bbc', 'hbo']);
+    expect(fixture.truncated).toBe(true);
+  });
+
   it('scans all 1287 channels when providers return pages of 25', async () => {
     fixture.epg = true;
     fixture.pagedChannels = 1287;

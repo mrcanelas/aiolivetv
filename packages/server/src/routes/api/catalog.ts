@@ -176,24 +176,66 @@ router.post(
   '/channels',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const scanStartedAt = Date.now();
+      const scanBudgetMs = channelScanBudgetMs();
+      const scanDeadline =
+        scanBudgetMs > 0
+          ? scanStartedAt + scanBudgetMs
+          : Number.POSITIVE_INFINITY;
+      const withinScanBudget = async <T>(
+        request: () => Promise<T>
+      ): Promise<T | 'deadline'> => {
+        const remaining = scanDeadline - Date.now();
+        if (remaining <= 0) return 'deadline';
+        if (!Number.isFinite(remaining)) return request();
+        let timer: NodeJS.Timeout | undefined;
+        try {
+          return await Promise.race([
+            request(),
+            new Promise<'deadline'>((resolve) => {
+              timer = setTimeout(() => resolve('deadline'), remaining);
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      };
       const autoMatch = req.body.autoMatch === true;
       const alternativesFor =
         typeof req.body.alternativesFor === 'string'
           ? req.body.alternativesFor
           : undefined;
-      const validatedUserData = await validateDraft(req, req.body.userData, {
-        lenientAddons: true,
-        bypassManifestCache: !alternativesFor,
+      const prepared = await withinScanBudget(async () => {
+        const validatedUserData = await validateDraft(req, req.body.userData, {
+          lenientAddons: true,
+          bypassManifestCache: !alternativesFor,
+        });
+        if (Date.now() >= scanDeadline) return 'deadline' as const;
+        const configuredMappings = validatedUserData.channelMappings ?? [];
+        validatedUserData.channelMappings = undefined;
+        const aio = await new AIOStreams(validatedUserData).initialise();
+        return { validatedUserData, configuredMappings, aio };
       });
-      const configuredMappings = validatedUserData.channelMappings ?? [];
-      validatedUserData.channelMappings = undefined;
+      if (prepared === 'deadline') {
+        res.status(503).json(
+          createResponse({
+            success: false,
+            error: {
+              code: constants.ErrorCode.INTERNAL_SERVER_ERROR,
+              message:
+                'Channel scan timed out while initialising providers. Retry or check slow provider manifests.',
+            },
+          })
+        );
+        return;
+      }
+      const { validatedUserData, configuredMappings, aio } = prepared;
       const hiddenChannelIds = new Set(
         configuredMappings
           .filter((mapping) => mapping.hidden)
           .map((mapping) => mapping.id)
       );
 
-      const aio = await new AIOStreams(validatedUserData).initialise();
       type Candidate = {
         id: string;
         name: string;
@@ -286,12 +328,6 @@ router.post(
 
       const sources = new Map<string, SourceDiagnostic>();
       const todayUtc = new Date().toISOString().slice(0, 10);
-      const scanStartedAt = Date.now();
-      const scanBudgetMs = channelScanBudgetMs();
-      const scanDeadline =
-        scanBudgetMs > 0
-          ? scanStartedAt + scanBudgetMs
-          : Number.POSITIVE_INFINITY;
       let scanTruncated = false;
       let matchingPairs = 0;
       const matchingCheckpoint = async (yieldToRequests = false) => {
@@ -328,11 +364,8 @@ router.post(
         catalogId: string,
         extras: string | undefined
       ): Promise<CatalogPage | 'deadline'> => {
-        const remaining = scanDeadline - Date.now();
-        if (remaining <= 0) return 'deadline';
-        const request: Promise<CatalogPage> = aio
-          .getCatalog(type, catalogId, extras, { strictErrors: true })
-          .catch(
+        return withinScanBudget(() =>
+          aio.getCatalog(type, catalogId, extras, { strictErrors: true }).catch(
             (error: unknown): CatalogPage => ({
               success: false,
               data: [],
@@ -344,17 +377,8 @@ router.post(
                 },
               ],
             })
-          );
-        if (!Number.isFinite(remaining)) return request;
-        let timer: NodeJS.Timeout | undefined;
-        const deadline = new Promise<'deadline'>((resolve) => {
-          timer = setTimeout(() => resolve('deadline'), remaining);
-        });
-        try {
-          return await Promise.race([request, deadline]);
-        } finally {
-          clearTimeout(timer);
-        }
+          )
+        );
       };
 
       const scanAddon = async (
