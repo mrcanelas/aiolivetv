@@ -52,6 +52,31 @@ beforeEach(() => {
 });
 
 describe('live TV sources', () => {
+  it('prunes all expired sources and bounds retained input bytes', async () => {
+    const { trimSourceCache } = await import('./live-tv/shared.js');
+    const entries = new Map([
+      ['expired', { expiresAt: 100, sourceBytes: 50 * 1024 * 1024 }],
+      ['oldest', { expiresAt: 200, sourceBytes: 50 * 1024 * 1024 }],
+      ['current', { expiresAt: 200, sourceBytes: 50 * 1024 * 1024 }],
+      ['latest', { expiresAt: 200, sourceBytes: 50 * 1024 * 1024 }],
+    ]);
+    trimSourceCache(entries, 100);
+    expect([...entries.keys()]).toEqual(['current', 'latest']);
+  });
+
+  it('keeps the existing eight-entry cache cap for small sources', async () => {
+    const { trimSourceCache } = await import('./live-tv/shared.js');
+    const entries = new Map(
+      Array.from({ length: 10 }, (_, index) => [
+        String(index),
+        { expiresAt: 200, sourceBytes: 1 },
+      ])
+    );
+    trimSourceCache(entries, 100);
+    expect(entries.size).toBe(8);
+    expect(entries.has('0')).toBe(false);
+    expect(entries.has('9')).toBe(true);
+  });
   it('yields to other requests while parsing large XMLTV documents', async () => {
     const xml =
       '<tv>' +

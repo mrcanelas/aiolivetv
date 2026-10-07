@@ -11,6 +11,24 @@ export { LIVE_TV_CATALOG_PAGE_SIZE } from './epg.js';
 /** Upper bound for M3U/XMLTV downloads to keep Function memory in check. */
 export const MAX_LIVE_TV_SOURCE_BYTES = 50 * 1024 * 1024;
 
+/** Input-byte budget, not an exact measurement of parsed objects' heap usage. */
+const MAX_CACHED_SOURCE_BYTES = 100 * 1024 * 1024;
+
+export function trimSourceCache<
+  T extends { expiresAt: number; sourceBytes: number },
+>(entries: Map<string, T>, now = Date.now()) {
+  let bytes = 0;
+  for (const [key, entry] of entries) {
+    if (entry.expiresAt <= now) entries.delete(key);
+    else bytes += entry.sourceBytes;
+  }
+  for (const [key, entry] of entries) {
+    if (entries.size <= 8 && bytes <= MAX_CACHED_SOURCE_BYTES) break;
+    entries.delete(key);
+    bytes -= entry.sourceBytes;
+  }
+}
+
 export const LiveTvSourceConfigSchema = z.object({
   sourceUrl: z.url(),
   timeout: z.number().int().positive(),

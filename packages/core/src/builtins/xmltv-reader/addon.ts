@@ -21,11 +21,15 @@ import {
   fetchSourceText,
   LiveTvSourceConfig,
   LiveTvSourceConfigSchema,
+  trimSourceCache,
 } from '../live-tv/shared.js';
-import { parseXmltvData, buildProgramsByChannelId, type XmltvData } from './parser.js';
+import {
+  parseXmltvData,
+  buildProgramsByChannelId,
+  type XmltvData,
+} from './parser.js';
 
 const SOURCE_CACHE_TTL_MS = 300_000;
-const SOURCE_CACHE_MAX_ENTRIES = 8;
 
 /**
  * Parsed guides are kept in this process only. A whole country guide is far
@@ -36,7 +40,10 @@ const SOURCE_CACHE_MAX_ENTRIES = 8;
  * get/set, which would deep-copy the whole guide per catalog page. The parsed
  * data is treated as read-only instead.
  */
-const parsedSources = new Map<string, { data: XmltvData; expiresAt: number }>();
+const parsedSources = new Map<
+  string,
+  { data: XmltvData; expiresAt: number; sourceBytes: number }
+>();
 const inflightSources = new Map<string, Promise<XmltvData>>();
 
 /** Drop parsed guides held by this process (used by tests). */
@@ -46,6 +53,7 @@ export function clearXmltvSourceCache() {
 }
 
 async function loadXmltv(config: LiveTvSourceConfig): Promise<XmltvData> {
+  trimSourceCache(parsedSources);
   const cacheKey = config.sourceUrl;
   const cached = parsedSources.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
@@ -56,18 +64,14 @@ async function loadXmltv(config: LiveTvSourceConfig): Promise<XmltvData> {
   if (pending) return pending;
 
   const load = (async () => {
-    const data = hydrateXmltvData(
-      await parseXmltvData(await fetchSourceText(config))
-    );
+    const text = await fetchSourceText(config);
+    const data = hydrateXmltvData(await parseXmltvData(text));
     parsedSources.set(cacheKey, {
       data,
       expiresAt: Date.now() + SOURCE_CACHE_TTL_MS,
+      sourceBytes: Buffer.byteLength(text),
     });
-    while (parsedSources.size > SOURCE_CACHE_MAX_ENTRIES) {
-      const oldest = parsedSources.keys().next().value;
-      if (oldest === undefined) break;
-      parsedSources.delete(oldest);
-    }
+    trimSourceCache(parsedSources);
     return data;
   })();
   inflightSources.set(cacheKey, load);

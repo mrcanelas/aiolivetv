@@ -10,6 +10,7 @@ import {
   LiveTvSourceConfig,
   LiveTvSourceConfigSchema,
   LIVE_TV_CATALOG_PAGE_SIZE,
+  trimSourceCache,
 } from '../live-tv/shared.js';
 import {
   bareChannelPreview,
@@ -20,7 +21,6 @@ import { parseM3u, type M3uEntry } from './parser.js';
 import { normalizeChannelGroup } from '../../utils/channelName.js';
 
 const SOURCE_CACHE_TTL_MS = 300_000;
-const SOURCE_CACHE_MAX_ENTRIES = 8;
 type M3uData = {
   catalog: MetaPreview[];
   catalogByGenre: Map<string | undefined, MetaPreview[]>;
@@ -28,7 +28,10 @@ type M3uData = {
   genreExtra: ReturnType<typeof channelGenreCatalogExtra>;
 };
 // Like XMLTV, keep parsed sources read-only in process; clone only returned pages.
-const parsedSources = new Map<string, { data: M3uData; expiresAt: number }>();
+const parsedSources = new Map<
+  string,
+  { data: M3uData; expiresAt: number; sourceBytes: number }
+>();
 const inflightSources = new Map<string, Promise<M3uData>>();
 
 export function clearM3uSourceCache() {
@@ -81,6 +84,7 @@ function prepareM3u(entries: M3uEntry[]): M3uData {
 }
 
 async function loadM3u(config: LiveTvSourceConfig): Promise<M3uData> {
+  trimSourceCache(parsedSources);
   const cacheKey = config.sourceUrl;
   const cached = parsedSources.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
@@ -88,16 +92,14 @@ async function loadM3u(config: LiveTvSourceConfig): Promise<M3uData> {
   const pending = inflightSources.get(cacheKey);
   if (pending) return pending;
   const load = (async () => {
-    const data = prepareM3u(parseM3u(await fetchSourceText(config)));
+    const text = await fetchSourceText(config);
+    const data = prepareM3u(parseM3u(text));
     parsedSources.set(cacheKey, {
       data,
       expiresAt: Date.now() + SOURCE_CACHE_TTL_MS,
+      sourceBytes: Buffer.byteLength(text),
     });
-    while (parsedSources.size > SOURCE_CACHE_MAX_ENTRIES) {
-      const oldest = parsedSources.keys().next().value;
-      if (oldest === undefined) break;
-      parsedSources.delete(oldest);
-    }
+    trimSourceCache(parsedSources);
     return data;
   })();
   inflightSources.set(cacheKey, load);
