@@ -7,15 +7,21 @@ export function decodeHtmlEntities(value: string): string {
     apos: "'",
     nbsp: ' ',
   };
-  return value.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity) => {
-    if (entity.startsWith('#x') || entity.startsWith('#X')) {
-      const code = Number.parseInt(entity.slice(2), 16);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+  return value.replace(
+    /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
+    (match, entity: string) => {
+      if (!entity.startsWith('#')) return named[entity.toLowerCase()] ?? match;
+      const hexadecimal = entity[1].toLowerCase() === 'x';
+      const code = Number.parseInt(
+        entity.slice(hexadecimal ? 2 : 1),
+        hexadecimal ? 16 : 10
+      );
+      return Number.isInteger(code) &&
+        code >= 0 &&
+        code <= 0x10ffff &&
+        !(code >= 0xd800 && code <= 0xdfff)
+        ? String.fromCodePoint(code)
+        : match;
     }
-    if (entity.startsWith('#')) {
-      const code = Number.parseInt(entity.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
-    }
-    return named[entity.toLowerCase()] ?? match;
-  });
+  );
 }
