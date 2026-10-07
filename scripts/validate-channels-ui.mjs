@@ -108,9 +108,16 @@ try {
     page.setDefaultTimeout(10_000);
     const errors = [];
     const scans = [];
+    const writes = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.route('**/api/v1/**', async (route) => {
       const url = new URL(route.request().url());
+      if (
+        route.request().method() !== 'GET' &&
+        !url.pathname.endsWith('/catalogs/channels')
+      ) {
+        writes.push(url.pathname);
+      }
       let data = null;
       if (url.pathname.endsWith('/status')) data = status;
       else if (url.pathname.endsWith('/catalogs/channels')) {
@@ -173,8 +180,24 @@ try {
     await dialog.getByRole('combobox').click();
     await page
       .getByText('Streams · Channel 0000 HD · 100%', { exact: true })
-      .waitFor();
-    await page.keyboard.press('Escape');
+      .click();
+    await dialog.getByRole('button', { name: 'Link', exact: true }).click();
+    await page.waitForFunction(() => {
+      const draft = JSON.parse(localStorage.getItem('aiolivetv-user-data'));
+      return draft.channelMappings.some(
+        (mapping) =>
+          mapping.id === 'channel:0' &&
+          mapping.streams?.some((stream) => stream.channelId === 'stream:0')
+      );
+    });
+    const draft = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+    );
+    assert.equal(
+      draft.channelMappings.filter((mapping) => mapping.hidden).length,
+      1000
+    );
+    assert.deepEqual(writes, [], 'Draft edits must not save to the backend');
     assert(scans.some((scan) => scan.alternativesFor === 'channel:0'));
     await dialog.locator('.UI-Modal__close').click();
     await dialog.waitFor({ state: 'hidden' });
@@ -199,6 +222,7 @@ try {
         search: true,
         groups: true,
         removedVirtualized: true,
+        draftPersistence: true,
       })
     );
     await context.close();

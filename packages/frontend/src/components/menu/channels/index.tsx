@@ -40,6 +40,8 @@ import {
   type ChannelSortMode,
   countSuggestions,
   asChannelsResponse,
+  buildVisibleChannelMappings,
+  type ChannelMappingProjectionCache,
   filterChannelsByReview,
   findDuplicateGroups,
   getRemovedChannels,
@@ -93,11 +95,15 @@ export function ChannelsMenu() {
   const queryClient = useQueryClient();
   const userDataRef = React.useRef(userData);
   userDataRef.current = userData;
-  const channelsConfigKey = JSON.stringify({
-    presets: userData.presets,
-    services: userData.services,
-    parentConfig: userData.parentConfig,
-  });
+  const channelsConfigKey = React.useMemo(
+    () =>
+      JSON.stringify({
+        presets: userData.presets,
+        services: userData.services,
+        parentConfig: userData.parentConfig,
+      }),
+    [userData.presets, userData.services, userData.parentConfig]
+  );
   const queryKey = ['channels', channelsConfigKey] as const;
   const query = useQuery({
     queryKey,
@@ -210,6 +216,9 @@ export function ChannelsMenu() {
     [channels]
   );
 
+  const mappingProjectionCache = React.useRef<ChannelMappingProjectionCache>(
+    new WeakMap()
+  );
   const buildVisibleMappings = React.useCallback(
     (
       nextChannels: ChannelInfo[],
@@ -219,68 +228,12 @@ export function ChannelsMenu() {
       const customized = new Set(customizedIds);
       for (const id of extraCustomizedIds ?? []) customized.add(id);
 
-      return nextChannels.flatMap((channel) => {
-        const existing = currentMappings?.find(
-          (mapping) => mapping.id === channel.id
-        );
-        const isCustomized = Boolean(
-          customized.has(channel.id) ||
-          existing?.name ||
-          existing?.poster ||
-          existing?.group ||
-          (channel.group && channel.group !== channel.sourceGroup)
-        );
-        const streams = channel.mappings
-          .filter((mapping) => !isChannelSuggestion(mapping.confidence))
-          .map((mapping) => ({
-            addonId: mapping.addonId,
-            channelId: mapping.channelId,
-            confidence: mapping.confidence,
-            enabled: mapping.enabled,
-            ...(mapping.url
-              ? persistableManualStreamFields({
-                  url: mapping.url,
-                  name: mapping.name,
-                  headers: mapping.headers,
-                  resolution: mapping.resolution,
-                  encode: mapping.encode,
-                  quality: mapping.quality,
-                  languages: mapping.languages,
-                  audioChannels: mapping.audioChannels,
-                  visualTags: mapping.visualTags,
-                })
-              : {}),
-          }));
-        const rejectedStreams = channel.rejectedStreams?.length
-          ? channel.rejectedStreams
-          : undefined;
-        if (
-          channel.enabled &&
-          streams.length === 0 &&
-          !rejectedStreams?.length &&
-          !isCustomized
-        ) {
-          return [];
-        }
-        return [
-          {
-            id: channel.id,
-            canonicalAddonId: channel.canonicalAddonId,
-            enabled: channel.enabled,
-            ...(isCustomized
-              ? {
-                  name: channel.name,
-                  poster: channel.poster ?? undefined,
-                  ...(channel.group && channel.group !== channel.sourceGroup
-                    ? { group: channel.group }
-                    : {}),
-                }
-              : {}),
-            rejectedStreams,
-            streams,
-          },
-        ];
-      });
+      return buildVisibleChannelMappings(
+        nextChannels,
+        currentMappings,
+        customized,
+        mappingProjectionCache.current
+      );
     },
     [customizedIds]
   );
@@ -293,15 +246,16 @@ export function ChannelsMenu() {
           current.channelMappings,
           extraCustomizedIds
         );
+        const visibleIds = new Set(visibleMappings.map((item) => item.id));
         const hidden = (current.channelMappings ?? []).filter(
-          (mapping) =>
-            mapping.hidden &&
-            !visibleMappings.some((item) => item.id === mapping.id)
+          (mapping) => mapping.hidden && !visibleIds.has(mapping.id)
         );
         const channelMappings = [...visibleMappings, ...hidden];
         if (
-          JSON.stringify(current.channelMappings ?? []) ===
-          JSON.stringify(channelMappings)
+          (current.channelMappings ?? []).length === channelMappings.length &&
+          channelMappings.every(
+            (mapping, index) => mapping === current.channelMappings?.[index]
+          )
         ) {
           return current;
         }
@@ -628,6 +582,9 @@ export function ChannelsMenu() {
 
   const removeChannels = (channelIds: Iterable<string>) => {
     const ids = new Set(channelIds);
+    const channelsById = new Map(
+      channels.map((channel) => [channel.id, channel])
+    );
     const nextChannels = channels.filter((channel) => !ids.has(channel.id));
     const currentResponse = asChannelsResponse(
       queryClient.getQueryData<ChannelsResponse>(queryKey)
@@ -640,7 +597,7 @@ export function ChannelsMenu() {
           (channel) => !ids.has(channel.id)
         ),
         ...[...ids].flatMap((id) => {
-          const channel = channels.find((item) => item.id === id);
+          const channel = channelsById.get(id);
           return channel
             ? [
                 {
@@ -660,6 +617,9 @@ export function ChannelsMenu() {
       return next;
     });
     setUserData((current) => {
+      const mappingsById = new Map(
+        (current.channelMappings ?? []).map((mapping) => [mapping.id, mapping])
+      );
       const visibleMappings = buildVisibleMappings(
         nextChannels,
         current.channelMappings
@@ -669,10 +629,8 @@ export function ChannelsMenu() {
           (mapping) => mapping.hidden && !ids.has(mapping.id)
         ),
         ...[...ids].map((id) => {
-          const previous = current.channelMappings?.find(
-            (mapping) => mapping.id === id
-          );
-          const channel = channels.find((item) => item.id === id);
+          const previous = mappingsById.get(id);
+          const channel = channelsById.get(id);
           return {
             ...previous,
             id,

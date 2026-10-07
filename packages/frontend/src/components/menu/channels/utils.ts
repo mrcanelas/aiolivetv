@@ -3,6 +3,86 @@ import type {
   ChannelsResponse,
   RemovedChannelInfo,
 } from '@/lib/api';
+import type { UserData } from '@aiolivetv/core';
+import equal from 'fast-deep-equal';
+
+type ChannelMapping = NonNullable<UserData['channelMappings']>[number];
+export type ChannelMappingProjectionCache = WeakMap<
+  ChannelInfo,
+  { customized: boolean; mapping: ChannelMapping | undefined }
+>;
+
+export function buildVisibleChannelMappings(
+  channels: ChannelInfo[],
+  currentMappings: UserData['channelMappings'],
+  customizedIds: ReadonlySet<string>,
+  cache: ChannelMappingProjectionCache
+): ChannelMapping[] {
+  const byId = new Map((currentMappings ?? []).map((item) => [item.id, item]));
+  const result: ChannelMapping[] = [];
+  for (const channel of channels) {
+    const existing = byId.get(channel.id);
+    const customized = Boolean(
+      customizedIds.has(channel.id) ||
+      existing?.name ||
+      existing?.poster ||
+      existing?.group ||
+      (channel.group && channel.group !== channel.sourceGroup)
+    );
+    let projection = cache.get(channel);
+    if (!projection || projection.customized !== customized) {
+      const streams = channel.mappings
+        .filter((mapping) => !isChannelSuggestion(mapping.confidence))
+        .map((mapping) => ({
+          addonId: mapping.addonId,
+          channelId: mapping.channelId,
+          confidence: mapping.confidence,
+          enabled: mapping.enabled,
+          ...(mapping.url
+            ? persistableManualStreamFields({ ...mapping, url: mapping.url })
+            : {}),
+        }));
+      const rejectedStreams = channel.rejectedStreams?.length
+        ? channel.rejectedStreams
+        : undefined;
+      projection = {
+        customized,
+        mapping:
+          channel.enabled &&
+          streams.length === 0 &&
+          !rejectedStreams &&
+          !customized
+            ? undefined
+            : {
+                id: channel.id,
+                canonicalAddonId: channel.canonicalAddonId,
+                enabled: channel.enabled,
+                ...(customized
+                  ? {
+                      name: channel.name,
+                      ...(channel.poster ? { poster: channel.poster } : {}),
+                      ...(channel.group && channel.group !== channel.sourceGroup
+                        ? { group: channel.group }
+                        : {}),
+                    }
+                  : {}),
+                ...(rejectedStreams ? { rejectedStreams } : {}),
+                streams,
+              },
+      };
+      cache.set(channel, projection);
+    }
+    if (projection.mapping) {
+      const mapping =
+        existing && equal(existing, projection.mapping)
+          ? existing
+          : projection.mapping;
+      projection.mapping = mapping;
+      result.push(mapping);
+    }
+  }
+  return result;
+}
 
 export function isChannelSuggestion(confidence: number) {
   return confidence > 0 && confidence < 0.9;

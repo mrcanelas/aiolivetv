@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { ChannelInfo } from '@/lib/api';
 import {
   asChannelsResponse,
+  buildVisibleChannelMappings,
+  type ChannelMappingProjectionCache,
   channelHasPlayableStream,
   channelHasSchedule,
   compactChannelLabel,
@@ -24,6 +26,128 @@ function channel(
   };
 }
 
+describe('buildVisibleChannelMappings', () => {
+  it('reuses unchanged projections and existing mappings on a single-channel edit', () => {
+    const cache: ChannelMappingProjectionCache = new WeakMap();
+    const channels = Array.from({ length: 1287 }, (_, index) =>
+      channel({ id: String(index), name: String(index), enabled: false })
+    );
+    const initial = buildVisibleChannelMappings(channels, [], new Set(), cache);
+    const next = channels.map((item, index) =>
+      index === 0 ? { ...item, enabled: true } : item
+    );
+    const updated = buildVisibleChannelMappings(
+      next,
+      initial,
+      new Set(),
+      cache
+    );
+    expect(updated).toHaveLength(1286);
+    updated.forEach((mapping, index) =>
+      expect(mapping).toBe(initial[index + 1])
+    );
+    expect(
+      buildVisibleChannelMappings(next, updated, new Set(), cache)
+    ).toEqual(updated);
+  });
+
+  it('retains manual fields and rejections without persisting pending suggestions', () => {
+    const item = channel({
+      id: 'bbc',
+      name: 'BBC',
+      rejectedStreams: [{ addonId: 'rejected', channelId: 'bbc' }],
+      mappings: [
+        {
+          id: 'manual:bbc',
+          addonId: 'manual',
+          addonName: 'Manual',
+          channelId: 'manual:bbc',
+          name: 'BBC HD',
+          confidence: 1,
+          enabled: true,
+          canStream: true,
+          epgProvider: false,
+          url: 'https://example.com/live.m3u8',
+          headers: { Referer: 'https://example.com' },
+          languages: ['en'],
+          resolution: '1080p',
+        },
+        {
+          id: 'suggestion',
+          addonId: 'streams',
+          addonName: 'Streams',
+          channelId: 'suggestion',
+          name: 'BBC',
+          confidence: 0.85,
+          enabled: true,
+          canStream: true,
+          epgProvider: false,
+        },
+      ],
+    });
+    const [mapping] = buildVisibleChannelMappings(
+      [item],
+      [],
+      new Set(),
+      new WeakMap()
+    );
+    expect(mapping.rejectedStreams).toEqual(item.rejectedStreams);
+    expect(mapping.streams).toHaveLength(1);
+    expect(mapping.streams?.[0]).toMatchObject({
+      url: 'https://example.com/live.m3u8',
+      headers: { Referer: 'https://example.com' },
+      languages: ['en'],
+      resolution: '1080p',
+    });
+  });
+
+  it('reprojects an unchanged channel when it becomes customized', () => {
+    const item = channel({
+      id: 'bbc',
+      name: 'BBC',
+      poster: 'https://example.com/logo.png',
+    });
+    const cache: ChannelMappingProjectionCache = new WeakMap();
+    expect(buildVisibleChannelMappings([item], [], new Set(), cache)).toEqual(
+      []
+    );
+    const [mapping] = buildVisibleChannelMappings(
+      [item],
+      [],
+      new Set(['bbc']),
+      cache
+    );
+    expect(mapping).toMatchObject({ name: 'BBC', poster: item.poster });
+  });
+
+  it('preserves bindings discovered on untouched channels during refresh', () => {
+    const item = channel({
+      id: 'bbc',
+      name: 'BBC',
+      mappings: [
+        {
+          id: 'm3u:bbc',
+          addonId: 'm3u',
+          addonName: 'M3U',
+          channelId: 'm3u:bbc',
+          name: 'BBC',
+          confidence: 1,
+          enabled: true,
+          canStream: true,
+          epgProvider: false,
+        },
+      ],
+    });
+    const [mapping] = buildVisibleChannelMappings(
+      [item],
+      [],
+      new Set(),
+      new WeakMap()
+    );
+    expect(mapping.streams?.[0].channelId).toBe('m3u:bbc');
+  });
+});
+
 describe('compactChannelLabel', () => {
   it('strips quality markers so Globo HD matches Globo FHD', () => {
     expect(compactChannelLabel('Globo HD')).toBe(
@@ -32,7 +156,9 @@ describe('compactChannelLabel', () => {
   });
 
   it('strips Rede so Rede Globo matches Globo', () => {
-    expect(compactChannelLabel('Rede Globo')).toBe(compactChannelLabel('Globo'));
+    expect(compactChannelLabel('Rede Globo')).toBe(
+      compactChannelLabel('Globo')
+    );
   });
 });
 
@@ -99,7 +225,9 @@ describe('channelHasPlayableStream', () => {
 describe('channelHasSchedule', () => {
   it('treats EPG-backed channels as having a schedule', () => {
     expect(
-      channelHasSchedule(channel({ id: 'bbc', name: 'BBC One', epgProvider: true }))
+      channelHasSchedule(
+        channel({ id: 'bbc', name: 'BBC One', epgProvider: true })
+      )
     ).toBe(true);
   });
 });
@@ -112,9 +240,7 @@ describe('findDuplicateGroups', () => {
         channel({ id: 'm3u:globo', name: 'Globo FHD' }),
         channel({ id: 'xmltv:sbt', name: 'SBT' }),
       ])
-    ).toEqual([
-      { name: 'Globo HD', channelIds: ['xmltv:globo', 'm3u:globo'] },
-    ]);
+    ).toEqual([{ name: 'Globo HD', channelIds: ['xmltv:globo', 'm3u:globo'] }]);
   });
 });
 
@@ -159,9 +285,9 @@ describe('filterChannelsByReview', () => {
 
 describe('asChannelsResponse', () => {
   it('wraps a legacy channel array', () => {
-    expect(asChannelsResponse([channel({ id: 'a', name: 'A' })]).channels).toHaveLength(
-      1
-    );
+    expect(
+      asChannelsResponse([channel({ id: 'a', name: 'A' })]).channels
+    ).toHaveLength(1);
   });
 });
 
@@ -184,7 +310,12 @@ describe('getRemovedChannels', () => {
     expect(
       getRemovedChannels([
         { id: 'keep', name: 'Globo' },
-        { id: 'gone', name: 'SBT', hidden: true, poster: 'https://cdn/sbt.png' },
+        {
+          id: 'gone',
+          name: 'SBT',
+          hidden: true,
+          poster: 'https://cdn/sbt.png',
+        },
         { id: 'noid', hidden: true },
       ])
     ).toEqual([
