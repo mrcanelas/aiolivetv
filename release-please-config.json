@@ -8,16 +8,15 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "versioning": "prerelease",
-      "prerelease": true,
-      "prerelease-type": "rc",
+      "versioning": "default",
+      "prerelease": false,
+      "release-as": "1.0.0",
       "include-component-in-tag": false,
       "exclude-paths": [
         ".env.sample",
         ".gitignore",
         ".release-please-manifest.json",
-        "compose.yaml",
-        "release-please-config.json"
+        "compose.yaml"
       ],
       "pull-request-title-pattern": "chore: release ${version}",
       "extra-files": [
