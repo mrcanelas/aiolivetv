@@ -8,6 +8,10 @@
   "packages": {
     ".": {
       "release-type": "node",
+      "versioning": "prerelease",
+      "prerelease": true,
+      "prerelease-type": "rc",
+      "release-as": "1.0.0-rc.1",
       "include-component-in-tag": false,
       "exclude-paths": [
         ".env.sample",
