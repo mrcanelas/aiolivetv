@@ -140,6 +140,7 @@ try {
     page.setDefaultTimeout(10_000);
     const errors = [];
     const scans = [];
+    let releaseRefresh;
     const writes = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.route('**/api/v1/**', async (route) => {
@@ -155,6 +156,10 @@ try {
       else if (url.pathname.endsWith('/catalogs/channels')) {
         const body = route.request().postDataJSON();
         scans.push(body);
+        if (body.autoMatch)
+          await new Promise((resolve) => {
+            releaseRefresh = resolve;
+          });
         data = {
           channels: body.alternativesFor
             ? [
@@ -401,6 +406,33 @@ try {
     await search.fill('');
     await page.getByTitle('Group by source').click();
     await list.getByText('Guide A (700)', { exact: true }).waitFor();
+    const refresh = page.getByTitle('Scan stream sources and match channels');
+    const idleSize = await refresh.boundingBox();
+    await refresh.click();
+    const spinner = refresh.locator('.UI-LoadingSpinner__icon');
+    await spinner.waitFor();
+    const alignment = await refresh.evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      const icon = button.querySelector('svg').getBoundingClientRect();
+      return {
+        dx: Math.abs(bounds.x + bounds.width / 2 - icon.x - icon.width / 2),
+        dy: Math.abs(bounds.y + bounds.height / 2 - icon.y - icon.height / 2),
+        width: bounds.width,
+        height: bounds.height,
+      };
+    });
+    assert(
+      alignment.dx <= 1 && alignment.dy <= 1,
+      `Refresh spinner must stay centered: ${JSON.stringify(alignment)}`
+    );
+    assert.equal(alignment.width, idleSize.width);
+    assert.equal(alignment.height, idleSize.height);
+    await page.screenshot({
+      path: resolve(output, name + '-refresh.png'),
+      fullPage: true,
+    });
+    releaseRefresh();
+    await spinner.waitFor({ state: 'hidden' });
     await page.getByText('Removed (1000)', { exact: true }).click();
     await list.locator('li[data-index]').first().waitFor();
     assert((await list.locator('li[data-index]').count()) < 60);
@@ -417,6 +449,7 @@ try {
         removedVirtualized: true,
         draftPersistence: true,
         mobileActions: viewport.width < 640,
+        refreshCentered: true,
       })
     );
     await context.close();

@@ -915,11 +915,13 @@ export function ChannelsMenu() {
                 rounded
                 intent="primary-subtle"
                 icon={
-                  isMatchingStreams ? (
-                    <Spinner className="h-5 w-5" />
-                  ) : (
-                    <BiRefresh className="h-5 w-5" />
-                  )
+                  <span className="flex h-5 w-5 items-center justify-center">
+                    {isMatchingStreams ? (
+                      <Spinner className="h-5 w-5 mr-0" />
+                    ) : (
+                      <BiRefresh className="h-5 w-5" />
+                    )}
+                  </span>
                 }
                 onClick={() => void refreshStreamMappings()}
                 disabled={isMatchingStreams || isInitialLoading}
