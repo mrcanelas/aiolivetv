@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/components/ui/core/styling';
-import React, { useRef, useState } from 'react';
+import React from 'react';
 
 type SettingsCardProps = {
   title?: string;
@@ -18,32 +18,12 @@ type SettingsCardProps = {
   id?: string;
 };
 
-export function SettingsNavCard({ title, children }: SettingsCardProps) {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setPosition({ x, y });
-  };
-
+export function SettingsNavCard({ children }: SettingsCardProps) {
   return (
     <div className="pb-4">
       <div
-        ref={cardRef}
-        onMouseMove={handleMouseMove}
         className="lg:p-2 lg:border lg:rounded-[--radius] lg:bg-gray-950/70 contents lg:block relative group/settings-nav"
-        // className=" contents lg:block relative group/settings-nav overflow-hidden"
       >
-        {/* <div
-                    className="pointer-events-none absolute -inset-px transition-opacity duration-300 opacity-0 group-hover/settings-nav:opacity-100 hidden lg:block"
-                    style={{
-                        background: `radial-gradient(250px circle at ${position.x}px ${position.y}px, rgb(255 255 255 / 0.025), transparent 40%)`,
-                    }}
-                 /> */}
         {children}
       </div>
     </div>
@@ -59,22 +39,9 @@ export function SettingsCard({
   action,
   id,
 }: SettingsCardProps) {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isHovered, setIsHovered] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setPosition({ x, y });
-  };
-
   return (
     <>
       <Card
-        ref={cardRef}
         id={id}
         data-settings-card
         className={cn(
@@ -82,7 +49,6 @@ export function SettingsCard({
           'data-[command-target=true]:ring-2 data-[command-target=true]:ring-brand-500 data-[command-target=true]:ring-offset-2 data-[command-target=true]:ring-offset-[--background] transition-shadow',
           className
         )}
-        onMouseMove={handleMouseMove}
       >
         {title && (
           <CardHeader className="p-0 pb-4">
