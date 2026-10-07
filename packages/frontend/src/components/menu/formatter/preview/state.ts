@@ -12,6 +12,7 @@ import type {
   LiveProviderType,
   LiveStreamMetadata,
 } from '../../../../../../core/src/streams/live-metadata';
+import { currentProgramMetadata } from '../../../../../../core/src/streams/live-metadata';
 
 export type PreviewStreamType = 'live' | 'http';
 
@@ -26,6 +27,11 @@ export interface PreviewInput {
   country: string;
   language: string;
   logo: string;
+  programTitle: string;
+  programSubtitle: string;
+  programStart: string;
+  programEnd: string;
+  sourceChannelId: string;
 
   providerName: string;
   providerType: LiveProviderType;
@@ -67,7 +73,7 @@ export const PREVIEW_SCENARIOS: { id: string; label: string }[] = [
   { id: 'xtream', label: 'Xtream' },
   { id: 'epg-m3u', label: 'EPG + M3U' },
   { id: 'manual-hls', label: 'Manual HLS' },
-  { id: 'bare', label: 'Sem metadados' },
+  { id: 'bare', label: 'No metadata' },
 ];
 
 const STORAGE_KEY = 'aiolivetv:formatter-preview';
@@ -99,6 +105,11 @@ function baseInput(partial: Partial<PreviewInput>): PreviewInput {
     country: 'BR',
     language: 'Portuguese (Brazil)',
     logo: '',
+    programTitle: '',
+    programSubtitle: '',
+    programStart: '',
+    programEnd: '',
+    sourceChannelId: 'playlist:axn',
     providerName: 'M3U Brasil',
     providerType: 'm3u',
     matchConfidence: 1,
@@ -203,8 +214,17 @@ const SCENARIO_INPUTS: Record<string, PreviewInput> = {
   }),
 };
 
-export function applyScenario(id: string): PreviewInput {
-  return SCENARIO_INPUTS[id] ?? DEFAULT_PREVIEW_INPUT;
+export function applyScenario(id: string, now = Date.now()): PreviewInput {
+  const input = SCENARIO_INPUTS[id] ?? DEFAULT_PREVIEW_INPUT;
+  return id === 'epg-m3u'
+    ? {
+        ...input,
+        programTitle: 'Evening News',
+        programSubtitle: 'Headlines and live reports',
+        programStart: new Date(now - 15 * 60_000).toISOString(),
+        programEnd: new Date(now + 15 * 60_000).toISOString(),
+      }
+    : input;
 }
 
 export function loadPreviewInput(): PreviewInput {
@@ -243,7 +263,10 @@ export function declaredSummary(input: PreviewInput): string | undefined {
   );
 }
 
-export function buildPreviewStream(input: PreviewInput): ParsedStream {
+export function buildPreviewStream(
+  input: PreviewInput,
+  now = Date.now()
+): ParsedStream {
   const declared = parseDeclaredStreamInfo({
     name: input.streamName,
     group: input.group,
@@ -274,6 +297,7 @@ export function buildPreviewStream(input: PreviewInput): ParsedStream {
     providerName: input.providerName || input.addonName || undefined,
     providerType: input.providerType,
     streamName: input.streamName || undefined,
+    sourceChannelId: input.sourceChannelId || undefined,
     streamUrl: input.streamUrl || undefined,
     ...urlSafe,
     matchConfidence: input.matchConfidence,
@@ -290,6 +314,17 @@ export function buildPreviewStream(input: PreviewInput): ParsedStream {
     isHls: urlInfo.format === 'hls',
     isMpegTs: urlInfo.format === 'mpegts',
     isDash: urlInfo.format === 'dash',
+    ...currentProgramMetadata(
+      [
+        {
+          title: input.programTitle || undefined,
+          subtitle: input.programSubtitle || undefined,
+          startTime: input.programStart,
+          endTime: input.programEnd,
+        },
+      ],
+      now
+    ),
   };
 
   const presetType = PRESET_FROM_PROVIDER[input.providerType] ?? 'custom';
@@ -357,10 +392,17 @@ const TAB_FIELDS: Record<string, readonly string[]> = {
     'live.group',
     'live.country',
     'live.language',
+    'live.programTitle',
+    'live.programSubtitle',
+    'live.programStart',
+    'live.programEnd',
+    'live.programProgress',
+    'live.isCurrentProgram',
   ],
   source: [
     'live.providerName',
     'live.providerType',
+    'live.sourceChannelId',
     'live.matchConfidence',
     'live.matchStatus',
     'live.priority',

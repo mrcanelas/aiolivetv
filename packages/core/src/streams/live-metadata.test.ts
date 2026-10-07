@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { attachLiveMetadata, providerTypeFromPreset } from './live-metadata.js';
+import {
+  attachLiveMetadata,
+  providerTypeFromPreset,
+  currentProgramMetadata,
+} from './live-metadata.js';
+import { orderLiveStreamsByMapping } from '../main/channelMappings.js';
 import { MANUAL_STREAM_ADDON_ID } from '../main/channelMappings.js';
 import type { ParsedStream } from '../db/index.js';
 
@@ -24,6 +29,56 @@ function stream(partial: Partial<ParsedStream> = {}): ParsedStream {
 }
 
 describe('attachLiveMetadata', () => {
+  it('preserves source metadata when canonical fields are unavailable', () => {
+    const source = stream({
+      live: {
+        channelName: 'BBC',
+        country: 'GB',
+        language: 'English',
+        hasSchedule: true,
+      },
+    });
+    const result = attachLiveMetadata(source);
+    expect(result.live).toMatchObject({
+      channelName: 'BBC',
+      country: 'GB',
+      language: 'English',
+      hasSchedule: true,
+    });
+    expect(
+      attachLiveMetadata(source, { channelName: 'BBC HD', hasSchedule: false })
+        .live
+    ).toMatchObject({ channelName: 'BBC HD', hasSchedule: false });
+  });
+
+  it('identifies the correct source channel and does not guess ambiguous mappings', () => {
+    const source = stream({
+      addon: {
+        ...manualAddon,
+        instanceId: 'm3u',
+        preset: { id: 'm3u', type: 'm3u', options: {} },
+      },
+      live: { sourceChannelId: 'second' },
+    });
+    const mapping = {
+      id: 'bbc',
+      streams: [
+        { addonId: 'm3u', channelId: 'first', confidence: 0.95 },
+        { addonId: 'm3u', channelId: 'second', confidence: 1 },
+      ],
+    };
+    expect(attachLiveMetadata(source, { mapping }).live).toMatchObject({
+      priority: 1,
+      matchConfidence: 1,
+      matchStatus: 'auto',
+    });
+    expect(
+      attachLiveMetadata({ ...source, live: undefined }, { mapping }).live
+    ).toMatchObject({ matchStatus: 'fallback' });
+    expect(orderLiveStreamsByMapping([source], [], mapping.streams)).toEqual([
+      source,
+    ]);
+  });
   it('marks a manual HLS URL as HLS and providerType manual', () => {
     const mapped = attachLiveMetadata(stream(), {
       channelId: 'aiolivetv:caras',
@@ -122,6 +177,43 @@ describe('attachLiveMetadata', () => {
     expect(mapped.live?.streamUrlSafe).toBe(
       'provider.example.com/live/.../301.ts'
     );
+  });
+});
+
+describe('currentProgramMetadata', () => {
+  const videos = [
+    {
+      title: 'News',
+      subtitle: 'Headlines',
+      startTime: '2026-10-07T10:00:00Z',
+      endTime: '2026-10-07T11:00:00Z',
+    },
+  ];
+  it('uses real schedule times to calculate progress, including zero', () => {
+    expect(
+      currentProgramMetadata(videos, Date.parse('2026-10-07T10:00:00Z'))
+    ).toMatchObject({
+      programTitle: 'News',
+      programProgress: 0,
+      isCurrentProgram: true,
+    });
+    expect(
+      currentProgramMetadata(videos, Date.parse('2026-10-07T10:30:00Z'))
+    ).toMatchObject({ programProgress: 50, programSubtitle: 'Headlines' });
+  });
+  it('does not label expired, future or invalid programmes as current', () => {
+    expect(
+      currentProgramMetadata(videos, Date.parse('2026-10-07T11:00:00Z'))
+    ).toEqual({});
+    expect(
+      currentProgramMetadata(videos, Date.parse('2026-10-07T09:59:00Z'))
+    ).toEqual({});
+    expect(
+      currentProgramMetadata([
+        { title: 'Invalid', startTime: 'bad', endTime: 'bad' },
+      ])
+    ).toEqual({});
+    expect(currentProgramMetadata([])).toEqual({});
   });
 });
 

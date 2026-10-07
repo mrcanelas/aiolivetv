@@ -49,6 +49,32 @@ export function ChannelTab({
           placeholder="Portuguese (Brazil)"
         />
       </FieldGrid>
+      <FieldGrid cols={2}>
+        <TextField
+          field="live.programTitle"
+          label="Programme"
+          value={input.programTitle}
+          onChange={(programTitle) => patch({ programTitle })}
+        />
+        <TextField
+          field="live.programSubtitle"
+          label="Programme subtitle"
+          value={input.programSubtitle}
+          onChange={(programSubtitle) => patch({ programSubtitle })}
+        />
+        <TextField
+          field="live.programStart"
+          label="Starts (ISO 8601)"
+          value={input.programStart}
+          onChange={(programStart) => patch({ programStart })}
+        />
+        <TextField
+          field="live.programEnd"
+          label="Ends (ISO 8601)"
+          value={input.programEnd}
+          onChange={(programEnd) => patch({ programEnd })}
+        />
+      </FieldGrid>
       <AdvancedFields fields={ADVANCED}>
         <FieldGrid>
           <TextField

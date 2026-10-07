@@ -42,6 +42,7 @@ export interface LiveStreamMetadata {
   providerType?: LiveProviderType;
 
   streamName?: string;
+  sourceChannelId?: string;
   streamUrl?: string;
   streamHost?: string;
   streamPathType?: string;
@@ -88,6 +89,47 @@ export interface LiveMetadataContext {
   mapping?: ChannelMapping;
   hasSchedule?: boolean;
   epgProvider?: boolean;
+  program?: ReturnType<typeof currentProgramMetadata>;
+}
+
+export function currentProgramMetadata(
+  videos: Array<{
+    title?: string | null;
+    subtitle?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+  }> = [],
+  now = Date.now()
+): Pick<
+  LiveStreamMetadata,
+  | 'programTitle'
+  | 'programSubtitle'
+  | 'programStart'
+  | 'programEnd'
+  | 'programProgress'
+  | 'isCurrentProgram'
+> {
+  for (const video of videos) {
+    const start = Date.parse(video.startTime ?? '');
+    const end = Date.parse(video.endTime ?? '');
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      end <= start ||
+      now < start ||
+      now >= end
+    )
+      continue;
+    return {
+      programTitle: video.title ?? undefined,
+      programSubtitle: video.subtitle ?? undefined,
+      programStart: new Date(start).toISOString(),
+      programEnd: new Date(end).toISOString(),
+      programProgress: Math.floor(((now - start) / (end - start)) * 100),
+      isCurrentProgram: true,
+    };
+  }
+  return {};
 }
 
 const PRESET_PROVIDER_TYPE: Record<string, LiveProviderType> = {
@@ -123,16 +165,29 @@ function findMappedSource(
 ): { source: ChannelStreamSource; index: number } | undefined {
   const sources = mapping?.streams;
   if (!sources?.length) return undefined;
+  const addonId = streamAddonId(stream);
   if (stream.url) {
     const byUrl = sources.findIndex(
-      (source) => source.url && source.url === stream.url
+      (source) =>
+        source.addonId === addonId && source.url && source.url === stream.url
     );
     if (byUrl >= 0) return { source: sources[byUrl], index: byUrl };
   }
-  const addonId = streamAddonId(stream);
   if (!addonId) return undefined;
-  const byAddon = sources.findIndex((source) => source.addonId === addonId);
-  if (byAddon >= 0) return { source: sources[byAddon], index: byAddon };
+  const sourceChannelId = stream.live?.sourceChannelId;
+  if (sourceChannelId) {
+    const exact = sources.findIndex(
+      (source) =>
+        source.addonId === addonId && source.channelId === sourceChannelId
+    );
+    if (exact >= 0) return { source: sources[exact], index: exact };
+    return undefined;
+  }
+  const indices = sources.flatMap((source, index) =>
+    source.addonId === addonId ? [index] : []
+  );
+  if (indices.length === 1)
+    return { source: sources[indices[0]], index: indices[0] };
   return undefined;
 }
 
@@ -150,7 +205,7 @@ function resolveMatchStatus(
   if (confidence != null && confidence > 0 && confidence < 0.9) {
     return 'suggested';
   }
-  if (confidence == null || confidence >= 0.9) return 'auto';
+  if (source && (confidence == null || confidence >= 0.9)) return 'auto';
   return 'fallback';
 }
 
@@ -210,12 +265,14 @@ export function attachLiveMetadata(
     providerName: stream.addon.name,
     providerType,
     streamName: source?.name ?? stream.filename ?? stream.message,
+    sourceChannelId: source?.channelId ?? stream.live?.sourceChannelId,
     matchConfidence: source?.confidence,
     matchStatus: resolveMatchStatus(stream, source, ctx.mapping),
     priority: mapped?.index,
     epgProvider: ctx.epgProvider,
     hasSchedule: ctx.hasSchedule,
     ...urlFields,
+    ...ctx.program,
   };
 
   const parsedFile = stream.parsedFile
@@ -244,7 +301,9 @@ export function attachLiveMetadata(
     parsedFile,
     live: {
       ...stream.live,
-      ...live,
+      ...Object.fromEntries(
+        Object.entries(live).filter(([, value]) => value !== undefined)
+      ),
     },
   };
 }

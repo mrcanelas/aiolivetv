@@ -2,7 +2,7 @@ import type { UserData } from '@aiolivetv/core';
 import * as constants from '../../../../../core/src/utils/constants';
 import { BUILTIN_FORMATTER_DEFINITIONS } from '../../../../../core/src/utils/formatter-definitions';
 
-export function getTemplates(data: UserData): {
+export function getTemplates(data: Pick<UserData, 'formatter'>): {
   name: string;
   description: string;
 } {

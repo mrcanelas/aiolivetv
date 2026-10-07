@@ -15,7 +15,7 @@ function xmltvTimestamp(date: Date) {
 }
 
 const EPG_START = new Date();
-EPG_START.setUTCHours(12, 0, 0, 0);
+EPG_START.setUTCMinutes(0, 0, 0);
 const EPG_STOP = new Date(EPG_START.getTime() + 60 * 60 * 1000);
 const EPG_START_ISO = EPG_START.toISOString();
 
@@ -45,8 +45,8 @@ function liveTvUserData(
     uuid: '00000000-0000-4000-8000-000000000001',
     encryptedPassword: 'test-password',
     presets,
-    formatter: { id: 'standard' },
-    sortCriteria: { global: [{ key: 'name', direction: 'asc' }] },
+    formatter: { id: 'gdrive' },
+    sortCriteria: { global: [] },
     channelMappings,
   };
 }
@@ -97,13 +97,19 @@ async function startFixtureServer(): Promise<{
     server.listen(0, '127.0.0.1', () => resolve())
   );
   const address = server.address();
-  assert(address && typeof address === 'object', 'fixture server failed to bind');
+  assert(
+    address && typeof address === 'object',
+    'fixture server failed to bind'
+  );
   return { server, sourceBase: `http://127.0.0.1:${address.port}` };
 }
 
 function createBuiltinHandler(core: CoreModule) {
   const { fromUrlSafeBase64, M3uAddon, XmltvAddon } = core;
-  return async (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => {
+  return async (
+    req: import('node:http').IncomingMessage,
+    res: import('node:http').ServerResponse
+  ) => {
     try {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       const manifest = url.pathname.match(
@@ -202,8 +208,12 @@ async function validateWithEpg(
     isHighConfidenceChannelMatch: (typeof import('../packages/core/dist/index.js'))['isHighConfidenceChannelMatch'];
   }
 ) {
-  const { AIOStreams, constants, getChannelMatchConfidence, isHighConfidenceChannelMatch } =
-    deps;
+  const {
+    AIOStreams,
+    constants,
+    getChannelMatchConfidence,
+    isHighConfidenceChannelMatch,
+  } = deps;
   const userData = liveTvUserData([
     {
       ...xmltvPreset,
@@ -249,16 +259,133 @@ async function validateWithEpg(
   const bbcId = bbcXmltv.id;
 
   const epgMeta = (await aio.getMeta(constants.TV_TYPE, bbcId)).data;
-  assert(epgMeta?.videos?.[0]?.title === 'News', 'expected EPG program in meta');
+  assert(
+    epgMeta?.videos?.[0]?.title === 'News',
+    'expected EPG program in meta'
+  );
   assert(
     epgMeta?.videos?.[0]?.startTime === EPG_START_ISO,
     'unexpected EPG start time'
   );
 
-  const streams = (await aio.getStreams(bbcId, constants.TV_TYPE)).data?.streams ?? [];
+  const streamResponse = await aio.getStreams(bbcId, constants.TV_TYPE);
+  const streams = streamResponse.data?.streams ?? [];
   assert(
     streams.some((stream) => stream.url === 'https://example.com/bbc.m3u8'),
     'expected M3U stream for BBC One'
+  );
+  assert(
+    streams.some(
+      (stream) =>
+        stream.live?.programTitle === 'News' && stream.live.isCurrentProgram
+    ),
+    'expected real current programme in stream metadata'
+  );
+  const core = await import('../packages/core/dist/index.js');
+  for (const id of constants.FORMATTERS.filter((id) => id !== 'custom')) {
+    const formattedUserData = core.UserDataSchema.parse({
+      ...userData,
+      formatter: { id },
+    });
+    const formatterContext = {
+      ...aio.getStreamContext()!.toFormatterContext(streams),
+      userData: formattedUserData,
+    };
+    const formatter = core.createFormatter(formatterContext);
+    const bare = await formatter.format({
+      ...streams[0],
+      parsedFile: undefined,
+      live: undefined,
+      filename: undefined,
+      message: undefined,
+    });
+    assert(
+      !/undefined|null|Unknown/.test(`${bare.name}\n${bare.description}`),
+      `missing metadata must not render placeholders: ${id}`
+    );
+    assert(
+      !/(?:Source|Language|Group|Country|Codec|Video|Audio|Host|Mapping|Progress):\s*$/m.test(
+        bare.description
+      ),
+      `missing metadata must not render empty labels: ${id}`
+    );
+    const delivered = await new core.StremioTransformer(
+      formattedUserData
+    ).transformStreams(streamResponse, formatterContext, {
+      disableAutoplay: true,
+    });
+    for (let index = 0; index < streams.length; index++) {
+      const expected = await formatter.format(streams[index]);
+      assert(
+        delivered.streams[index].name === expected.name &&
+          delivered.streams[index].description === expected.description,
+        `preview/delivery mismatch: ${id}`
+      );
+      assert(
+        delivered.streams[index].url === streams[index].url,
+        `formatter changed playback URL: ${id}`
+      );
+    }
+    if (id === 'torrentio')
+      assert(
+        delivered.streams.some(
+          (stream) =>
+            stream.description?.includes('Now: News') &&
+            stream.description.includes('Progress:')
+        ),
+        'EPG formatter must include real programme and progress'
+      );
+  }
+  const diagnostic = await core
+    .createFormatter({
+      userData: core.UserDataSchema.parse({
+        ...userData,
+        formatter: { id: 'torbox' },
+      }),
+    })
+    .format({
+      ...streams[0],
+      live: {
+        ...streams[0].live,
+        providerType: 'manual',
+        sourceChannelId: 'manual:https://user:secret@example.com/live.m3u8',
+      },
+    });
+  assert(
+    !diagnostic.description.includes('secret') &&
+      !diagnostic.description.includes('Source channel:'),
+    'diagnostic formatter must not expose manual source URLs'
+  );
+  for (const formatter of [
+    {
+      id: 'custom',
+      definitions: { custom: { name: 'My channel', description: 'My layout' } },
+    },
+    {
+      id: 'custom',
+      selectedSaved: 'Saved',
+      definitions: {
+        saved: { Saved: { name: 'My channel', description: 'My layout' } },
+      },
+    },
+    {
+      id: 'gdrive',
+      definitions: {
+        overrides: { gdrive: { name: 'My channel', description: 'My layout' } },
+      },
+    },
+  ]) {
+    const data = core.UserDataSchema.parse({ ...userData, formatter });
+    const rendered = await core
+      .createFormatter({ userData: data })
+      .format(streams[0]);
+    assert(
+      rendered.name === 'My channel' && rendered.description === 'My layout',
+      'custom definitions must remain unchanged'
+    );
+  }
+  console.log(
+    '  [ok] formatter: seven presets, real EPG, playback URLs and custom definitions'
   );
 
   const lowConfidence = getChannelMatchConfidence(
@@ -302,9 +429,13 @@ async function validateWithoutEpg(
   const bbcId = channels.find((item) => item.name === 'BBC One')!.id;
   const meta = (await aio.getMeta(constants.TV_TYPE, bbcId)).data;
   assert(meta?.name === 'BBC One', 'expected M3U channel meta');
-  assert(meta?.videos === undefined, 'M3U-only meta must not include EPG videos');
+  assert(
+    meta?.videos === undefined,
+    'M3U-only meta must not include EPG videos'
+  );
 
-  const streams = (await aio.getStreams(bbcId, constants.TV_TYPE)).data?.streams ?? [];
+  const streams =
+    (await aio.getStreams(bbcId, constants.TV_TYPE)).data?.streams ?? [];
   assert(streams.length >= 1, 'expected stream for M3U channel');
 
   console.log('  [ok] sem EPG: catalog, meta e stream apenas via M3U');
@@ -387,8 +518,14 @@ async function validateChannelMappings(
     (item) => item.name === 'RTP-1' || item.name === 'RTP 1'
   );
   const bbc = m3uChannels.find((item) => item.name === 'BBC One');
-  assert(rtp, `missing RTP in merged catalog: ${m3uChannels.map((item) => item.name).join(', ')}`);
-  assert(bbc, `missing BBC One in merged catalog: ${m3uChannels.map((item) => item.name).join(', ')}`);
+  assert(
+    rtp,
+    `missing RTP in merged catalog: ${m3uChannels.map((item) => item.name).join(', ')}`
+  );
+  assert(
+    bbc,
+    `missing BBC One in merged catalog: ${m3uChannels.map((item) => item.name).join(', ')}`
+  );
   const rtpId = rtp.id;
   const bbcId = bbc.id;
 
@@ -426,7 +563,8 @@ async function validateChannelMappings(
   );
 
   const aio = await new AIOStreams(userData).initialise();
-  const disabledStreams = (await aio.getStreams(rtpId, constants.TV_TYPE)).data?.streams;
+  const disabledStreams = (await aio.getStreams(rtpId, constants.TV_TYPE)).data
+    ?.streams;
   assert(
     (disabledStreams?.length ?? 0) === 0,
     'disabled channel must not return streams'
@@ -453,68 +591,134 @@ async function validateParallelStreamResolution(core: CoreModule) {
   const streamIds: string[] = [];
   const server = createServer(async (req, res) => {
     const match = req.url?.match(/^\/provider\/(\d+)\/(.*)$/);
-    if (!match) { res.writeHead(404).end(); return; }
+    if (!match) {
+      res.writeHead(404).end();
+      return;
+    }
     const [, provider, path] = match;
     res.setHeader('Content-Type', 'application/json');
     if (path === 'manifest.json') {
-      res.end(JSON.stringify({
-        id: 'provider-' + provider, name: 'Provider ' + provider, version: '1.0.0',
-        types: ['tv'],
-        resources: [{ name: 'stream', types: ['tv'], idPrefixes: ['provider-' + provider + ':'] }],
-        catalogs: [{ id: 'channels', name: 'Channels', type: 'tv', extra: [{ name: 'skip' }] }],
-      }));
+      res.end(
+        JSON.stringify({
+          id: 'provider-' + provider,
+          name: 'Provider ' + provider,
+          version: '1.0.0',
+          types: ['tv'],
+          resources: [
+            {
+              name: 'stream',
+              types: ['tv'],
+              idPrefixes: ['provider-' + provider + ':'],
+            },
+          ],
+          catalogs: [
+            {
+              id: 'channels',
+              name: 'Channels',
+              type: 'tv',
+              extra: [{ name: 'skip' }],
+            },
+          ],
+        })
+      );
     } else if (path.startsWith('catalog/')) {
       active++;
       catalogRequests++;
       maxActive = Math.max(maxActive, active);
       await new Promise((resolve) => setTimeout(resolve, 30));
       active--;
-      res.end(JSON.stringify({ metas: [{
-        id: 'provider-' + provider + ':bbc', type: 'tv', name: 'BBC News HD',
-      }] }));
+      res.end(
+        JSON.stringify({
+          metas: [
+            {
+              id: 'provider-' + provider + ':bbc',
+              type: 'tv',
+              name: 'BBC News HD',
+            },
+          ],
+        })
+      );
     } else if (path.startsWith('stream/')) {
       streamIds.push(decodeURIComponent(path));
-      res.end(JSON.stringify({ streams: [{
-        name: 'Provider ' + provider,
-        url: 'https://example.com/parallel-' + provider + '.m3u8',
-        behaviorHints: { notWebReady: true },
-      }] }));
+      res.end(
+        JSON.stringify({
+          streams: [
+            {
+              name: 'Provider ' + provider,
+              url: 'https://example.com/parallel-' + provider + '.m3u8',
+              behaviorHints: { notWebReady: true },
+            },
+          ],
+        })
+      );
     } else res.writeHead(404).end();
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
-  assert(address && typeof address === 'object', 'parallel fixture did not bind');
+  assert(
+    address && typeof address === 'object',
+    'parallel fixture did not bind'
+  );
   try {
-    const presets: UserData['presets'] = Array.from({ length: 6 }, (_, index) => ({
-      type: 'custom',
-      instanceId: 'provider-' + index,
-      enabled: true,
-      options: {
-        name: 'Provider ' + index,
-        manifestUrl: `http://127.0.0.1:${address.port}/provider/${index}/manifest.json`,
-        resources: ['stream'],
-        timeout: 1000,
+    const presets: UserData['presets'] = Array.from(
+      { length: 6 },
+      (_, index) => ({
+        type: 'custom',
+        instanceId: 'provider-' + index,
+        enabled: true,
+        options: {
+          name: 'Provider ' + index,
+          manifestUrl: `http://127.0.0.1:${address.port}/provider/${index}/manifest.json`,
+          resources: ['stream'],
+          timeout: 1000,
+        },
+      })
+    );
+    const data = liveTvUserData(presets, [
+      {
+        id: 'canonical-bbc',
+        name: 'BBC News',
+        enabled: true,
       },
-    }));
-    const data = liveTvUserData(presets, [{
-      id: 'canonical-bbc', name: 'BBC News', enabled: true,
-    }]);
+    ]);
     const aio = await new core.AIOStreams(data).initialise();
-    const response = await aio.getStreams('canonical-bbc', core.constants.TV_TYPE);
-    assert(response.data.streams.length === 6,
-      `expected streams from all six providers; streams=${response.data.streams.length}, catalogs=${catalogRequests}, maxActive=${maxActive}, ids=${streamIds.join(',')}, errors=${JSON.stringify(response.errors)}`);
-    assert(catalogRequests === 6, 'expected one catalog lookup per stream-only provider');
+    const response = await aio.getStreams(
+      'canonical-bbc',
+      core.constants.TV_TYPE
+    );
+    assert(
+      response.data.streams.length === 6,
+      `expected streams from all six providers; streams=${response.data.streams.length}, catalogs=${catalogRequests}, maxActive=${maxActive}, ids=${streamIds.join(',')}, errors=${JSON.stringify(response.errors)}`
+    );
+    assert(
+      catalogRequests === 6,
+      'expected one catalog lookup per stream-only provider'
+    );
     assert(maxActive === 4, 'expected bounded concurrent catalog resolution');
-    assert(streamIds.every((id) => id.includes(':bbc')), 'expected resolved provider channel IDs');
-    const hidden = await new core.AIOStreams(liveTvUserData(presets, [{
-      id: 'hidden-bbc', name: 'BBC News', enabled: false,
-    }])).initialise();
+    assert(
+      streamIds.every((id) => id.includes(':bbc')),
+      'expected resolved provider channel IDs'
+    );
+    const hidden = await new core.AIOStreams(
+      liveTvUserData(presets, [
+        {
+          id: 'hidden-bbc',
+          name: 'BBC News',
+          enabled: false,
+        },
+      ])
+    ).initialise();
     await hidden.getStreams('hidden-bbc', core.constants.TV_TYPE);
-    assert(catalogRequests === 6, 'disabled channels must not resolve provider catalogs');
-    console.log('  [ok] parallel stream resolution: six providers, concurrency four, disabled channel skipped');
+    assert(
+      catalogRequests === 6,
+      'disabled channels must not resolve provider catalogs'
+    );
+    console.log(
+      '  [ok] parallel stream resolution: six providers, concurrency four, disabled channel skipped'
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
-      server.close((error) => error ? reject(error) : resolve())
+      server.close((error) => (error ? reject(error) : resolve()))
     );
   }
 }

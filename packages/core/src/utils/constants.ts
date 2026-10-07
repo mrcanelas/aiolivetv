@@ -206,18 +206,18 @@ export const FORMATTER_DETAILS: Record<FormatterType, FormatterDetail> = {
   },
   [MINIMALISTIC_GDRIVE_FORMATTER]: {
     id: MINIMALISTIC_GDRIVE_FORMATTER,
-    name: 'Minimalistic',
-    description: 'Resolution, delivery format and channel name only.',
+    name: 'Minimal',
+    description: 'Channel and resolution, with no extra labels.',
   },
   [TORRENTIO_FORMATTER]: {
     id: TORRENTIO_FORMATTER,
-    name: 'Two-line',
-    description: 'Short name line and a compact details line.',
+    name: 'EPG',
+    description: 'Current programme, UTC schedule and progress when available.',
   },
   [TORBOX_FORMATTER]: {
     id: TORBOX_FORMATTER,
-    name: 'Labeled',
-    description: 'Key/value lines for channel, source, format and languages.',
+    name: 'Diagnostic',
+    description: 'Provider, source channel, mapping confidence and priority.',
   },
   [CUSTOM_FORMATTER]: {
     id: CUSTOM_FORMATTER,

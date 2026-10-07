@@ -1032,6 +1032,7 @@ export const LiveStreamMetadataSchema = z.object({
     ])
     .optional(),
   streamName: z.string().optional(),
+  sourceChannelId: z.string().optional(),
   streamUrl: z.string().optional(),
   streamHost: z.string().optional(),
   streamPathType: z.string().optional(),

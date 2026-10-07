@@ -399,14 +399,29 @@ export function orderLiveStreamsByMapping(
       .map((stream) => [stream.url!, stream] as const)
   );
   const ordered: ParsedStream[] = [];
+  const included = new Set<ParsedStream>();
   for (const source of sources) {
+    if (source.enabled === false) continue;
     if (isManualStreamSource(source) && source.url) {
       const stream = manualByUrl.get(source.url);
-      if (stream) ordered.push(stream);
+      if (stream && !included.has(stream)) {
+        ordered.push(stream);
+        included.add(stream);
+      }
       continue;
     }
     if (!source.addonId) continue;
-    ordered.push(...(fetchedByAddon.get(source.addonId) ?? []));
+    for (const stream of fetchedByAddon.get(source.addonId) ?? []) {
+      if (
+        included.has(stream) ||
+        (stream.live?.sourceChannelId &&
+          source.channelId &&
+          stream.live.sourceChannelId !== source.channelId)
+      )
+        continue;
+      ordered.push(stream);
+      included.add(stream);
+    }
   }
   return ordered.length ? ordered : [...manual, ...fetched];
 }

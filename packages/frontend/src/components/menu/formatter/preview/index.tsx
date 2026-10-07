@@ -41,6 +41,7 @@ import { ScoringTab } from './tabs/scoring';
 export function FormatterPreview() {
   const { userData } = useUserData();
   const formatQueueRef = useRef(new FormatQueue(200));
+  const formatVersion = useRef(0);
 
   const [input, setInput] = useState<PreviewInput>(loadPreviewInput);
   const [activeTab, setActiveTab] = useState('channel');
@@ -68,26 +69,34 @@ export function FormatterPreview() {
     [templates.name, templates.description]
   );
 
-  const formatStream = useCallback(async () => {
-    try {
-      const stream = buildPreviewStream(input);
-      const formatted = await getFormattedStream(stream, {
-        userData,
-        maxRegexScore: input.maxRegexScore,
-        maxSeScore: input.maxSeScore,
-        title: input.channelName || 'AXN',
-        type: 'tv',
-        queryType: 'channel',
-      });
-      setFormattedStream(formatted);
-    } catch (error) {
-      console.error('Error formatting stream:', error);
-      toast.error(`Failed to format stream: ${error}`);
-    }
-  }, [input, userData]);
+  const formatStream = useCallback(
+    async (version: number) => {
+      try {
+        const stream = buildPreviewStream(input);
+        const formatted = await getFormattedStream(stream, {
+          userData,
+          maxRegexScore: input.maxRegexScore,
+          maxSeScore: input.maxSeScore,
+          title: input.channelName || 'AXN',
+          type: 'tv',
+          queryType: 'channel',
+        });
+        if (version === formatVersion.current) setFormattedStream(formatted);
+      } catch (error) {
+        console.error('Error formatting stream:', error);
+        if (version === formatVersion.current)
+          toast.error(`Failed to format stream: ${error}`);
+      }
+    },
+    [input, userData]
+  );
 
   useEffect(() => {
-    formatQueueRef.current.enqueue(formatStream);
+    const version = ++formatVersion.current;
+    formatQueueRef.current.enqueue(() => formatStream(version));
+    return () => {
+      ++formatVersion.current;
+    };
   }, [formatStream]);
 
   const allTabs = [

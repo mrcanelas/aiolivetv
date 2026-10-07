@@ -137,6 +137,7 @@ export const FIELD_REGISTRY: Readonly<Record<string, readonly string[]>> = {
     'providerName',
     'providerType',
     'streamName',
+    'sourceChannelId',
     'streamUrl',
     'streamHost',
     'streamPathType',

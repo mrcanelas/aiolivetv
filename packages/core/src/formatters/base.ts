@@ -182,6 +182,7 @@ export interface ParseValue {
     providerName: string | null;
     providerType: string | null;
     streamName: string | null;
+    sourceChannelId: string | null;
     streamUrl: string | null;
     streamHost: string | null;
     streamPathType: string | null;
@@ -738,6 +739,7 @@ export abstract class BaseFormatter {
         providerName: stream.live?.providerName || stream.addon?.name || null,
         providerType: stream.live?.providerType || null,
         streamName: stream.live?.streamName || stream.filename || null,
+        sourceChannelId: stream.live?.sourceChannelId || null,
         streamUrl: stream.live?.streamUrl || stream.url || null,
         streamHost: stream.live?.streamHost || null,
         streamPathType: stream.live?.streamPathType || null,

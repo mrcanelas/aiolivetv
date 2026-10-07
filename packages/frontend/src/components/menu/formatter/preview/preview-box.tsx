@@ -24,13 +24,13 @@ export function FormatterPreviewBox({
           'font-bold mb-1 overflow-x-auto',
           compact ? 'text-lg' : 'text-xl'
         )}
-        style={{ whiteSpace: 'pre' }}
+        style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
       >
         {name}
       </div>
       <div
         className="text-base text-muted-foreground overflow-x-auto"
-        style={{ whiteSpace: 'pre' }}
+        style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
       >
         {description}
       </div>

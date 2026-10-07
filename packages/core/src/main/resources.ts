@@ -16,7 +16,10 @@ import { FeatureControl } from '../utils/feature.js';
 import { StreamContext, StreamUtils } from '../streams/index.js';
 import { enrichStreamsWithProbe } from '../streams/stream-probe.js';
 import { applyLiveStreamWebHints } from '../streams/web-readiness.js';
-import { attachLiveMetadataToStreams } from '../streams/live-metadata.js';
+import {
+  attachLiveMetadataToStreams,
+  currentProgramMetadata,
+} from '../streams/live-metadata.js';
 import { populateNzbFallbacks } from './nzbFailover.js';
 import { resolveServiceWrappedStreams } from './serviceWrapper.js';
 import type { ServiceWrapServiceTiming } from './serviceWrapper.js';
@@ -780,7 +783,11 @@ async function loadCanonicalChannelCandidate(
   type: string,
   channelId: string,
   channelMapping?: ReturnType<typeof getChannelMapping>
-): Promise<ChannelMatchCandidate> {
+): Promise<
+  ChannelMatchCandidate & {
+    program?: ReturnType<typeof currentProgramMetadata>;
+  }
+> {
   const mapped: ChannelMatchCandidate | undefined =
     channelMapping?.name || channelMapping?.poster || channelMapping?.group
       ? {
@@ -824,6 +831,7 @@ async function loadCanonicalChannelCandidate(
           meta.behaviorHints?.hasScheduledVideos ||
           (Array.isArray(meta.videos) && meta.videos.length > 0)
         ),
+        program: currentProgramMetadata(meta.videos ?? []),
       };
     } catch {
       continue;
@@ -899,7 +907,9 @@ async function resolveLiveStreamFetchPlan(
   addons: Addon[];
   channelIds: Map<string, string>;
   streamTypes: Map<string, string>;
-  canonical: ChannelMatchCandidate;
+  canonical: ChannelMatchCandidate & {
+    program?: ReturnType<typeof currentProgramMetadata>;
+  };
 }> {
   const channelMapping = getChannelMapping(ctx.userData, channelId);
   const canonical = await loadCanonicalChannelCandidate(
@@ -962,12 +972,19 @@ async function resolveLiveStreamFetchPlan(
 
   if (channelMapping?.streams?.length) {
     const priority = new Map(
-      channelMapping.streams.map((stream, index) => [stream.addonId, index])
+      channelMapping.streams.map((stream, index) => [
+        `${stream.addonId}\0${stream.channelId ?? channelId}`,
+        index,
+      ])
     );
     addons.sort(
       (left, right) =>
-        (priority.get(left.instanceId!) ?? Number.MAX_SAFE_INTEGER) -
-        (priority.get(right.instanceId!) ?? Number.MAX_SAFE_INTEGER)
+        (priority.get(
+          `${left.instanceId}\0${channelIds.get(left.instanceId!)}`
+        ) ?? Number.MAX_SAFE_INTEGER) -
+        (priority.get(
+          `${right.instanceId}\0${channelIds.get(right.instanceId!)}`
+        ) ?? Number.MAX_SAFE_INTEGER)
     );
   }
 
@@ -1050,7 +1067,14 @@ export async function getStreams(
   let fetchedStreams = isLiveChannel
     ? attachLiveMetadataToStreams(
         orderLiveStreamsByMapping(
-          streams,
+          streams.map((stream) => ({
+            ...stream,
+            live: {
+              ...stream.live,
+              sourceChannelId:
+                channelAddonIds?.get(stream.addon.instanceId!) ?? channelId,
+            },
+          })),
           buildManualParsedStreams(ctx.userData, channelId),
           channelMapping?.streams
         ),
@@ -1073,6 +1097,7 @@ export async function getStreams(
             ctx.manifests
           ),
           hasSchedule: canonical?.hasSchedule,
+          program: canonical?.program,
         }
       )
     : streams;

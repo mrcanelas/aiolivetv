@@ -33,7 +33,12 @@ const MATCH_STATUSES: PreviewInput['matchStatus'][] = [
   'fallback',
 ];
 
-const ADVANCED = ['live.priority', 'addon.presetId', 'addon.manifestUrl'];
+const ADVANCED = [
+  'live.priority',
+  'live.sourceChannelId',
+  'addon.presetId',
+  'addon.manifestUrl',
+];
 
 export function SourceTab({
   input,
@@ -111,6 +116,12 @@ export function SourceTab({
 
       <AdvancedFields fields={ADVANCED}>
         <FieldGrid>
+          <TextField
+            field="live.sourceChannelId"
+            label="Source channel id"
+            value={input.sourceChannelId}
+            onChange={(sourceChannelId) => patch({ sourceChannelId })}
+          />
           <NumberField
             field="live.priority"
             label="Priority"
