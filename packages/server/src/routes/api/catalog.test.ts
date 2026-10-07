@@ -19,6 +19,8 @@ const fixture = vi.hoisted(() => {
     slowCatalogMs: 0,
     stalledValidation: false,
     sources: [] as Array<{ error?: string; truncated?: boolean }>,
+    inventory: new Map<string, { value: unknown; expires: number }>(),
+    catalogCalls: 0,
   };
 });
 
@@ -57,6 +59,24 @@ vi.mock('@aiolivetv/core', async () => {
     normalizeChannelGroup,
     decodeHtmlEntities,
     parseDeclaredStreamInfo,
+    getSimpleTextHash: (value: string) => value,
+    Cache: {
+      getInstance: () => ({
+        get: async (key: string) => {
+          const entry = fixture.inventory.get(key);
+          return entry && entry.expires > Date.now()
+            ? structuredClone(entry.value)
+            : undefined;
+        },
+        set: async (key: string, value: unknown, ttl: number) => {
+          fixture.inventory.set(key, {
+            value: structuredClone(value),
+            expires: Date.now() + ttl * 1000,
+          });
+        },
+        delete: async (key: string) => fixture.inventory.delete(key),
+      }),
+    },
     config: {
       resources: {
         timeouts: {
@@ -105,6 +125,7 @@ vi.mock('@aiolivetv/core', async () => {
         };
       }
       async getCatalog(_type: string, id: string, extras?: string) {
+        fixture.catalogCalls++;
         if (id.startsWith('streams.') && fixture.slowCatalogMs)
           await new Promise((resolve) =>
             setTimeout(resolve, fixture.slowCatalogMs)
@@ -160,19 +181,25 @@ afterEach(async () => {
   fixture.initialiseDelayMs = 0;
   fixture.slowCatalogMs = 0;
   fixture.stalledValidation = false;
+  fixture.inventory.clear();
+  fixture.catalogCalls = 0;
 });
 
 async function scan(
   autoMatch: boolean,
   rejectAlternative = false,
   alternativesFor?: string,
-  expectedStatus = 200
+  expectedStatus = 200,
+  sourceConfig = 'default',
+  enabled = true
 ) {
   const app = express();
   app.use(express.json());
   app.use('/catalogs', catalogApi);
-  server = app.listen(0, '127.0.0.1');
-  await new Promise<void>((resolve) => server!.once('listening', resolve));
+  if (!server) {
+    server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server!.once('listening', resolve));
+  }
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('No test port');
   const response = await fetch(
@@ -185,11 +212,13 @@ async function scan(
         alternativesFor,
         userData: {
           presets: [],
+          sourceConfig,
           channelMappings: [
             {
               id: 'bbc',
               canonicalAddonId: 'guide',
               streams: [],
+              enabled,
               rejectedStreams: rejectAlternative
                 ? [{ addonId: 'streams', channelId: 'bbc-alt' }]
                 : [],
@@ -215,6 +244,7 @@ async function scan(
       channels: Array<{
         id: string;
         epgProvider: boolean;
+        enabled: boolean;
         mappings: Array<{ channelId: string; confidence: number }>;
         availableStreamSources: Array<{
           channelId: string;
@@ -229,6 +259,40 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('reuses a complete inventory for different channels and applies the current draft', async () => {
+    await scan(false);
+    const calls = fixture.catalogCalls;
+    const first = await scan(false, false, 'bbc', 200, 'default', false);
+    const second = await scan(false, false, 'hbo');
+    expect(fixture.catalogCalls).toBe(calls);
+    expect(first[0].enabled).toBe(false);
+    expect(second[0].id).toBe('hbo');
+  });
+
+  it('invalidates inventory on refresh and source changes', async () => {
+    await scan(false);
+    const calls = fixture.catalogCalls;
+    await scan(false, false, 'bbc', 200, 'changed');
+    expect(fixture.catalogCalls).toBe(calls * 2);
+    await scan(true);
+    expect(fixture.catalogCalls).toBe(calls * 3);
+  });
+
+  it('does not cache partial inventories', async () => {
+    fixture.extraStreams = 2001;
+    await scan(false);
+    const calls = fixture.catalogCalls;
+    await scan(false, false, 'bbc');
+    expect(fixture.catalogCalls).toBeGreaterThan(calls);
+  });
+
+  it('expires inventory after five minutes', async () => {
+    await scan(false);
+    const calls = fixture.catalogCalls;
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 300001);
+    await scan(false, false, 'bbc');
+    expect(fixture.catalogCalls).toBeGreaterThan(calls);
+  });
   it('reports the page cap instead of silently dropping channels', async () => {
     fixture.pagedChannels = 2501;
     const channels = await scan(false);

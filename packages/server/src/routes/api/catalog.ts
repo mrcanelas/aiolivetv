@@ -28,6 +28,8 @@ import {
   parseDeclaredStreamInfo,
   type DeclaredStreamInfo,
   config as appConfig,
+  Cache,
+  getSimpleTextHash,
 } from '@aiolivetv/core';
 
 const router: Router = Router();
@@ -37,6 +39,43 @@ const MAX_CHANNELS_PER_CATALOG = 10_000;
 const MAX_STREAM_ONLY_CANDIDATES = 2_000;
 const MAX_CATALOG_PAGES = 100;
 const MAX_AUTO_MATCH_PAIRS = 5_000_000;
+
+type Candidate = {
+  id: string;
+  name: string;
+  poster?: string | null;
+  addonId: string;
+  addonName: string;
+  epgProvider: boolean;
+  canStream: boolean;
+  contributesChannels: boolean;
+  tvgId?: string;
+  aliases?: string[];
+  country?: string;
+  language?: string;
+  categories?: string[];
+};
+type SourceDiagnostic = {
+  instanceId: string;
+  name: string;
+  presetType?: string;
+  contributesChannels: boolean;
+  canStream: boolean;
+  epgProvider: boolean;
+  ok: boolean;
+  error?: string;
+  durationMs: number;
+  fetchedAt: string;
+  channelCount: number;
+  streamCount: number;
+  programCount?: number;
+  truncated?: boolean;
+  skippedCatalogs?: string[];
+};
+const channelInventoryCache = Cache.getInstance<
+  string,
+  Array<{ diagnostic: SourceDiagnostic; found: Candidate[] } | undefined>
+>('channel-scan-inventory', 16, 'memory');
 
 /**
  * Wall-clock budget for one Channels scan (`resources.timeouts.channelScan` /
@@ -235,21 +274,6 @@ router.post(
           .map((mapping) => mapping.id)
       );
 
-      type Candidate = {
-        id: string;
-        name: string;
-        poster?: string | null;
-        addonId: string;
-        addonName: string;
-        epgProvider: boolean;
-        canStream: boolean;
-        contributesChannels: boolean;
-        tvgId?: string;
-        aliases?: string[];
-        country?: string;
-        language?: string;
-        categories?: string[];
-      };
       type Channel = {
         id: string;
         name: string;
@@ -284,23 +308,6 @@ router.post(
           poster?: string | null;
           confidence?: number;
         }>;
-      };
-      type SourceDiagnostic = {
-        instanceId: string;
-        name: string;
-        presetType?: string;
-        contributesChannels: boolean;
-        canStream: boolean;
-        epgProvider: boolean;
-        ok: boolean;
-        error?: string;
-        durationMs: number;
-        fetchedAt: string;
-        channelCount: number;
-        streamCount: number;
-        programCount?: number;
-        truncated?: boolean;
-        skippedCatalogs?: string[];
       };
       type UnavailableStream = {
         channelId: string;
@@ -567,7 +574,35 @@ router.post(
 
       // Sources are scanned in parallel: one slow addon no longer delays the
       // others. Pages within a single catalog remain sequential.
-      const scanned = await Promise.all(aio.getAddons().map(scanAddon));
+      const inventoryKey = getSimpleTextHash(
+        JSON.stringify({
+          config: validatedUserData,
+          manifests: aio
+            .getAddons()
+            .map((addon) => aio.getManifest(addon.instanceId!)),
+          day: todayUtc,
+        })
+      );
+      // Initial scans/refreshes replace the inventory; alternatives reuse it.
+      if (!alternativesFor) await channelInventoryCache.delete(inventoryKey);
+      const cachedInventory = alternativesFor
+        ? await channelInventoryCache.get(inventoryKey)
+        : undefined;
+      const scanned =
+        cachedInventory ?? (await Promise.all(aio.getAddons().map(scanAddon)));
+      if (
+        !cachedInventory &&
+        !scanTruncated &&
+        aio.getInitialisationErrors().length === 0 &&
+        scanned.every(
+          (result) =>
+            !result ||
+            (result.diagnostic.ok && !result.diagnostic.skippedCatalogs?.length)
+        ) &&
+        Buffer.byteLength(JSON.stringify(scanned)) <= 4 * 1024 * 1024
+      ) {
+        await channelInventoryCache.set(inventoryKey, scanned, 300);
+      }
       for (const result of scanned) {
         if (!result) continue;
         sources.set(result.diagnostic.instanceId, result.diagnostic);
