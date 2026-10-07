@@ -12,7 +12,9 @@ import {
   constants,
   UserRepository,
   mergeConfigs,
-  getChannelMatchConfidence,
+  getPreparedChannelMatchConfidence,
+  prepareChannelMatchCandidate,
+  type PreparedChannelMatchCandidate,
   isHighConfidenceChannelMatch,
   CHANNEL_LINK_STREAM_CONFIDENCE,
   bindsOwnCatalogStreams,
@@ -583,6 +585,33 @@ router.post(
           contributesChannels: true,
         };
       };
+      const preparedCandidates = new WeakMap<
+        Candidate,
+        PreparedChannelMatchCandidate
+      >();
+      const preparedChannels = new WeakMap<
+        Channel,
+        PreparedChannelMatchCandidate
+      >();
+      const prepareCandidate = (candidate: Candidate) => {
+        let prepared = preparedCandidates.get(candidate);
+        if (!prepared) {
+          prepared = prepareChannelMatchCandidate({
+            ...candidate,
+            logo: candidate.poster ?? undefined,
+          });
+          preparedCandidates.set(candidate, prepared);
+        }
+        return prepared;
+      };
+      const prepareCanonical = (channel: Channel) => {
+        let prepared = preparedChannels.get(channel);
+        if (!prepared) {
+          prepared = prepareCandidate(resolveCanonical(channel));
+          preparedChannels.set(channel, prepared);
+        }
+        return prepared;
+      };
       const declaredForCandidate = (candidate: Pick<Candidate, 'name' | 'categories'>) =>
         parseDeclaredStreamInfo({
           name: candidate.name,
@@ -698,7 +727,7 @@ router.post(
             (mapping) => `${mapping.addonId}\0${mapping.channelId}`
           )
         );
-        const canonical = resolveCanonical(channel);
+        const canonical = prepareCanonical(channel);
         return streamCandidates
           .flatMap((candidate) => {
             if (
@@ -707,9 +736,9 @@ router.post(
             ) {
               return [];
             }
-            const confidence = getChannelMatchConfidence(
-              { ...candidate, logo: candidate.poster ?? undefined },
-              { ...canonical, logo: canonical.poster ?? undefined }
+            const confidence = getPreparedChannelMatchConfidence(
+              prepareCandidate(candidate),
+              canonical
             );
             if (confidence < CHANNEL_LINK_STREAM_CONFIDENCE) return [];
             return [
@@ -823,8 +852,6 @@ router.post(
         channels.push(channel);
       }
 
-      // ponytail: O(n²) is adequate for configuration-time channel lists;
-      // index normalized fields only if real guides make this measurably slow.
       // Pass 1: catalog-defined channels stay separate so the user can hide
       // duplicates per provider. Catalog+stream builtins already bind playback
       // to the same channel id — skip name/tvg proximity.
@@ -876,10 +903,9 @@ router.post(
                 )
               )
                 continue;
-              const canonical = resolveCanonical(channel);
-              const confidence = getChannelMatchConfidence(
-                { ...candidate, logo: candidate.poster ?? undefined },
-                { ...canonical, logo: canonical.poster ?? undefined }
+              const confidence = getPreparedChannelMatchConfidence(
+                prepareCandidate(candidate),
+                prepareCanonical(channel)
               );
               if (
                 confidence > 0 &&

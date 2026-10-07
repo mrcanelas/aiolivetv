@@ -4,7 +4,7 @@ import { CHANNEL_TYPE, LIVE_STREAM_TYPE, TV_TYPE } from '../utils/constants.js';
 import type { ChannelStreamSource } from '../db/channelMapping.js';
 import {
   compactChannelName,
-  containsNormalizedChannelName,
+  containsAsWordSequence,
   getChannelNameSimilarity,
   normalizeChannelGroup,
   normalizeChannelName,
@@ -150,102 +150,107 @@ function normaliseId(value?: string) {
     .trim();
 }
 
-function equalId(left?: string, right?: string) {
-  const normalizedLeft = normaliseId(left);
-  return Boolean(normalizedLeft && normalizedLeft === normaliseId(right));
+/** Normalized once per candidate and reused throughout a Channels scan. */
+export function prepareChannelMatchCandidate(candidate: ChannelMatchCandidate) {
+  return {
+    id: normaliseId(candidate.id),
+    tvgId: normaliseId(candidate.tvgId),
+    country: normaliseId(candidate.country),
+    language: normaliseId(candidate.language),
+    logo: normaliseId(candidate.logo),
+    categories: new Set(
+      (candidate.categories ?? []).map(normalizeChannelName).filter(Boolean)
+    ),
+    names: [
+      ...(candidate.name ? [{ value: candidate.name, alias: false }] : []),
+      ...(candidate.aliases ?? []).map((value) => ({ value, alias: true })),
+    ].map(({ value, alias }) => {
+      const normalized = normalizeChannelName(value);
+      return { normalized, compact: normalized.replace(/\s+/g, ''), alias };
+    }),
+  };
 }
 
-function equalOptional(a?: string, b?: string) {
-  const left = normaliseId(a);
-  return Boolean(left && left === normaliseId(b));
+export type PreparedChannelMatchCandidate = ReturnType<
+  typeof prepareChannelMatchCandidate
+>;
+
+function equalPreparedId(left: string, right: string) {
+  return Boolean(left && left === right);
 }
 
-function overlaps(left: string[] = [], right: string[] = []) {
-  const values = new Set(left.map(normalizeChannelName).filter(Boolean));
-  return right.some((value) => values.has(normalizeChannelName(value)));
-}
-
-function collectNameEntries(candidate: ChannelMatchCandidate) {
-  const entries: Array<{ value: string; alias: boolean }> = [];
-  if (candidate.name) entries.push({ value: candidate.name, alias: false });
-  for (const alias of candidate.aliases ?? []) {
-    entries.push({ value: alias, alias: true });
-  }
-  return entries;
-}
-
-function scoreNamePair(
-  left: { value: string; alias: boolean },
-  right: { value: string; alias: boolean }
+export function getPreparedChannelMatchConfidence(
+  left: PreparedChannelMatchCandidate,
+  right: PreparedChannelMatchCandidate
 ) {
-  const leftNorm = normalizeChannelName(left.value);
-  const rightNorm = normalizeChannelName(right.value);
-  if (!leftNorm || !rightNorm) return 0;
-
-  const aliasMatch = left.alias || right.alias;
-  const leftCompact = compactChannelName(left.value);
-  const rightCompact = compactChannelName(right.value);
-  const minCompact = Math.min(leftCompact.length, rightCompact.length);
-
   if (
-    leftNorm === rightNorm ||
-    (leftCompact.length >= 2 && leftCompact === rightCompact)
+    equalPreparedId(left.tvgId, right.tvgId) ||
+    equalPreparedId(left.tvgId, right.id) ||
+    equalPreparedId(left.id, right.tvgId)
   ) {
-    return aliasMatch ? 0.88 : 0.9;
+    return 1;
   }
 
-  if (minCompact <= 3) return 0;
-
-  let score = Math.max(
-    getChannelNameSimilarity(leftNorm, rightNorm),
-    getChannelNameSimilarity(leftCompact, rightCompact)
-  );
-
-  if (
-    containsNormalizedChannelName(left.value, right.value) ||
-    containsNormalizedChannelName(right.value, left.value)
-  ) {
-    score = Math.max(score, 0.85);
-  }
-
-  if (!score) return 0;
-  if (aliasMatch) return Math.min(score, 0.88);
-  return score;
-}
-
-function matchNormalizedNames(
-  left: ChannelMatchCandidate,
-  right: ChannelMatchCandidate
-) {
   let best = 0;
-  for (const leftEntry of collectNameEntries(left)) {
-    for (const rightEntry of collectNameEntries(right)) {
-      best = Math.max(best, scoreNamePair(leftEntry, rightEntry));
+  for (const a of left.names) {
+    for (const b of right.names) {
+      if (!a.normalized || !b.normalized) continue;
+      const alias = a.alias || b.alias;
+      let score: number;
+      if (
+        a.normalized === b.normalized ||
+        (a.compact.length >= 2 && a.compact === b.compact)
+      ) {
+        score = alias ? 0.88 : 0.9;
+      } else {
+        if (Math.min(a.compact.length, b.compact.length) <= 3) continue;
+        // Dice already removes spaces, so the normalized-name pass is redundant.
+        score = getChannelNameSimilarity(a.compact, b.compact);
+        const shorter =
+          a.compact.length <= b.compact.length ? a.compact : b.compact;
+        const longer =
+          a.compact.length > b.compact.length ? a.compact : b.compact;
+        const shortNorm =
+          a.normalized.length <= b.normalized.length
+            ? a.normalized
+            : b.normalized;
+        const longNorm =
+          a.normalized.length > b.normalized.length
+            ? a.normalized
+            : b.normalized;
+        if (
+          shorter.length >= 4 &&
+          ((shorter.length >= 5 && longer.includes(shorter)) ||
+            containsAsWordSequence(longNorm, shortNorm))
+        ) {
+          score = Math.max(score, 0.85);
+        }
+        if (alias) score = Math.min(score, 0.88);
+      }
+      best = Math.max(best, score);
     }
   }
-  return best;
+  if (!best) return 0;
+  if (equalPreparedId(left.country, right.country)) best += 0.03;
+  if (equalPreparedId(left.language, right.language)) best += 0.03;
+  for (const category of right.categories) {
+    if (left.categories.has(category)) {
+      best += 0.02;
+      break;
+    }
+  }
+  if (equalPreparedId(left.logo, right.logo)) best += 0.02;
+  return Math.min(best, 0.99);
 }
 
 export function getChannelMatchConfidence(
   left: ChannelMatchCandidate,
   right: ChannelMatchCandidate
 ) {
-  if (
-    equalId(left.tvgId, right.tvgId) ||
-    equalId(left.tvgId, right.id) ||
-    equalId(left.id, right.tvgId)
-  ) {
-    return 1;
-  }
-
-  let score = matchNormalizedNames(left, right);
-  if (!score) return 0;
-
-  if (equalOptional(left.country, right.country)) score += 0.03;
-  if (equalOptional(left.language, right.language)) score += 0.03;
-  if (overlaps(left.categories, right.categories)) score += 0.02;
-  if (equalOptional(left.logo, right.logo)) score += 0.02;
-  return Math.min(score, 0.99);
+  return getPreparedChannelMatchConfidence(
+    prepareChannelMatchCandidate(left),
+    prepareChannelMatchCandidate(right)
+  );
 }
 
 export function findPossibleDuplicateChannels(

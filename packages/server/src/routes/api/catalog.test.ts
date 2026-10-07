@@ -1,0 +1,186 @@
+import express from 'express';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Server } from 'node:http';
+import { prepareChannelMatchCandidate } from '@aiolivetv/core';
+import catalogApi from './catalog.js';
+
+const fixture = vi.hoisted(() => {
+  process.env.BASE_URL = 'http://127.0.0.1';
+  return { epg: true };
+});
+
+vi.mock('../../middlewares/ratelimit.js', () => ({
+  catalogApiRateLimiter: (_req: unknown, _res: unknown, next: () => void) =>
+    next(),
+}));
+vi.mock('../../middlewares/auth.js', () => ({
+  attachSession: (_req: unknown, _res: unknown, next: () => void) => next(),
+  injectAccessKey: vi.fn(),
+}));
+vi.mock('@aiolivetv/core', async () => {
+  const matching = await import('../../../../core/src/main/channelMappings.js');
+  const constants = await import('../../../../core/src/utils/constants.js');
+  const { normalizeChannelGroup } =
+    await import('../../../../core/src/utils/channelName.js');
+  const { decodeHtmlEntities } =
+    await import('../../../../core/src/utils/text.js');
+  const { parseDeclaredStreamInfo } =
+    await import('../../../../core/src/streams/declared.js');
+  const addons = [
+    {
+      instanceId: 'guide',
+      name: 'Guide',
+      preset: { type: 'xmltv' },
+    },
+    {
+      instanceId: 'streams',
+      name: 'Streams',
+      preset: { type: 'm3u' },
+    },
+  ];
+  return {
+    ...matching,
+    constants,
+    normalizeChannelGroup,
+    decodeHtmlEntities,
+    parseDeclaredStreamInfo,
+    config: { resources: { timeouts: { channelScan: 0 } } },
+    createLogger: () => ({ info: vi.fn(), error: vi.fn() }),
+    catalogSupportsSkip: () => false,
+    validateConfig: async (data: unknown) => structuredClone(data),
+    prepareChannelMatchCandidate: vi.fn(matching.prepareChannelMatchCandidate),
+    addonProvidesResource: (addon: { instanceId: string }, resource: string) =>
+      addon.instanceId === 'guide'
+        ? resource === 'catalog'
+        : resource === 'stream',
+    AIOStreams: class {
+      async initialise() {
+        return this;
+      }
+      getAddons() {
+        return addons;
+      }
+      getAddon(id: string) {
+        return addons.find((addon) => addon.instanceId === id);
+      }
+      getInitialisationErrors() {
+        return [];
+      }
+      getManifest(id: string) {
+        return {
+          resources: id === 'guide' ? ['catalog', 'meta'] : ['stream'],
+          catalogs: [{ id: 'channels', type: constants.TV_TYPE }],
+          behaviorHints: { epgProvider: id === 'guide' && fixture.epg },
+        };
+      }
+      async getCatalog(_type: string, id: string) {
+        return {
+          success: true,
+          data: id.startsWith('guide.')
+            ? [
+                { id: 'bbc', name: 'BBC News', tvgId: 'bbc.news' },
+                { id: 'hbo', name: 'HBO West' },
+              ]
+            : [
+                { id: 'bbc-stream', name: 'BBC News HD', tvgId: 'BBC.NEWS' },
+                { id: 'hbo-stream', name: 'HBO West FHD' },
+                { id: 'bbc-alt', name: 'BBC News International' },
+              ],
+        };
+      }
+    },
+  };
+});
+
+let server: Server | undefined;
+afterEach(async () => {
+  if (server) {
+    await new Promise<void>((resolve, reject) =>
+      server!.close((error) => (error ? reject(error) : resolve()))
+    );
+    server = undefined;
+  }
+  vi.mocked(prepareChannelMatchCandidate).mockClear();
+});
+
+async function scan(autoMatch: boolean, rejectAlternative = false) {
+  const app = express();
+  app.use(express.json());
+  app.use('/catalogs', catalogApi);
+  server = app.listen(0, '127.0.0.1');
+  await new Promise<void>((resolve) => server!.once('listening', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('No test port');
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/catalogs/channels`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        autoMatch,
+        userData: {
+          presets: [],
+          channelMappings: [
+            {
+              id: 'bbc',
+              canonicalAddonId: 'guide',
+              streams: [],
+              rejectedStreams: rejectAlternative
+                ? [{ addonId: 'streams', channelId: 'bbc-alt' }]
+                : [],
+            },
+          ],
+        },
+      }),
+    }
+  );
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as {
+    data: {
+      channels: Array<{
+        id: string;
+        epgProvider: boolean;
+        mappings: Array<{ channelId: string; confidence: number }>;
+        availableStreamSources: Array<{
+          channelId: string;
+          confidence: number;
+        }>;
+      }>;
+    };
+  };
+  return body.data.channels;
+}
+
+describe('Channels prepared matching', () => {
+  it.each([true, false])('preserves bindings with epg=%s', async (epg) => {
+    fixture.epg = epg;
+    const channels = await scan(true);
+    expect(channels.map((channel: { id: string }) => channel.id)).toEqual([
+      'bbc',
+      'hbo',
+    ]);
+    expect(channels[0].epgProvider).toBe(epg);
+    expect(channels[0].mappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          channelId: 'bbc-stream',
+          confidence: 1,
+        }),
+      ])
+    );
+    expect(channels[1].mappings).toEqual([
+      expect.objectContaining({ channelId: 'hbo-stream', confidence: 1 }),
+    ]);
+    expect(prepareChannelMatchCandidate).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps alternatives when automatic matching is off and respects rejections', async () => {
+    fixture.epg = true;
+    const channels = await scan(false, true);
+    expect(channels[0].mappings).toEqual([]);
+    expect(channels[0].availableStreamSources).toEqual([
+      expect.objectContaining({ channelId: 'bbc-stream', confidence: 1 }),
+    ]);
+    expect(prepareChannelMatchCandidate).toHaveBeenCalledTimes(5);
+  });
+});

@@ -7,6 +7,8 @@ import {
   findChannelMappingForId,
   findPossibleDuplicateChannels,
   getEffectiveChannelGroup,
+  getPreparedChannelMatchConfidence,
+  prepareChannelMatchCandidate,
   isLiveChannelVisible,
   MANUAL_STREAM_ADDON_ID,
   sortLiveCatalogItems,
@@ -15,6 +17,71 @@ import type { UserData } from '../db/index.js';
 import { ChannelMapping } from '../db/channelMapping.js';
 
 const baseUserData = { uuid: 'test' } as UserData;
+
+describe('prepared channel matching', () => {
+  it('reuses candidates without changing scores or mutating prepared data', () => {
+    const canonical = prepareChannelMatchCandidate({
+      id: 'catalog:bbc',
+      name: 'BBC News',
+      aliases: ['World News'],
+      country: 'GB',
+      language: 'en',
+      categories: ['News'],
+    });
+    const cases = [
+      { name: 'BBC News HD', expected: 0.98 },
+      { name: 'World News', expected: 0.96 },
+      { name: 'Unrelated Cinema', expected: undefined },
+    ];
+    const streams = cases.map(({ name }) =>
+      prepareChannelMatchCandidate({
+        id: 'stream:' + name,
+        name,
+        country: 'gb',
+        language: 'EN',
+        categories: ['NEWS HD'],
+      })
+    );
+    const snapshot = structuredClone(canonical);
+    const scores = streams.map((stream) =>
+      getPreparedChannelMatchConfidence(stream, canonical)
+    );
+    expect(scores[0]).toBeCloseTo(cases[0].expected!);
+    expect(scores[1]).toBeCloseTo(cases[1].expected!);
+    expect(scores[2]).toBeLessThan(0.9);
+    for (let pass = 0; pass < 3; pass++) {
+      expect(
+        streams.map((stream) =>
+          getPreparedChannelMatchConfidence(stream, canonical)
+        )
+      ).toEqual(scores);
+    }
+    expect(canonical).toEqual(snapshot);
+  });
+
+  it('prioritizes normalized TVG IDs and guards short names', () => {
+    const canonical = prepareChannelMatchCandidate({
+      id: 'Shared&amp;ID',
+      name: 'TV',
+    });
+    expect(
+      getPreparedChannelMatchConfidence(
+        prepareChannelMatchCandidate({
+          id: 'stream',
+          tvgId: 'SHARED&ID',
+          name: 'Different',
+        }),
+        canonical
+      )
+    ).toBe(1);
+    expect(
+      getPreparedChannelMatchConfidence(
+        prepareChannelMatchCandidate({ id: 'stream', name: 'TV News' }),
+        canonical
+      )
+    ).toBe(0);
+  });
+});
 
 describe('channel group overlay', () => {
   it('treats catalog+stream sources as already bound', () => {
