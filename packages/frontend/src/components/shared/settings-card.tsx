@@ -15,7 +15,6 @@ type SettingsCardProps = {
   className?: string;
   action?: React.ReactNode;
   titleClassName?: string;
-  headerClassName?: string;
   id?: string;
 };
 
@@ -57,7 +56,6 @@ export function SettingsCard({
   children,
   className,
   titleClassName,
-  headerClassName,
   action,
   id,
 }: SettingsCardProps) {
@@ -88,13 +86,8 @@ export function SettingsCard({
       >
         {title && (
           <CardHeader className="p-0 pb-4">
-            <div
-              className={cn(
-                'flex items-start justify-between gap-4',
-                headerClassName
-              )}
-            >
-              <div className="flex-1">
+            <div className="flex items-start justify-between gap-2 sm:gap-4">
+              <div className="min-w-0 flex-1">
                 <CardTitle
                   className={cn(
                     'font-bold tracking-widest uppercase text-sm transition-colors duration-300 group-hover/settings-card:text-white group-hover/settings-card:from-brand-500/10 group-hover/settings-card:to-purple-500/5 px-4 py-2 border bg-transparent bg-gradient-to-br bg-[--subtle] border-t-0 border-l-0 w-fit rounded-tl-md rounded-br-md',
@@ -103,16 +96,16 @@ export function SettingsCard({
                 >
                   {title}
                 </CardTitle>
-                {description && (
-                  <CardDescription className="px-4 mt-2">
-                    {description}
-                  </CardDescription>
-                )}
               </div>
               {action && (
                 <div className="flex-shrink-0 px-4 pt-2">{action}</div>
               )}
             </div>
+            {description && (
+              <CardDescription className="px-4 mt-2">
+                {description}
+              </CardDescription>
+            )}
           </CardHeader>
         )}
         <CardContent className={cn(!title && 'pt-4', 'space-y-3 flex-wrap')}>

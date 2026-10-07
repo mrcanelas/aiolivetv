@@ -862,7 +862,6 @@ export function ChannelsMenu() {
 
       <SettingsCard
         title="Channels"
-        headerClassName="flex-col sm:flex-row"
         description={
           channelsTab === 'removed'
             ? 'These channels are hidden from the catalog. Restore one to put it back in My Channels.'
@@ -882,8 +881,9 @@ export function ChannelsMenu() {
               Restore all
             </Button>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <IconButton
+                className="h-8 w-8 sm:h-10 sm:w-10"
                 rounded
                 intent={sortMode === 'source' ? 'primary' : 'primary-subtle'}
                 icon={<LuLayers className="h-5 w-5" />}
@@ -892,6 +892,7 @@ export function ChannelsMenu() {
                 title="Group by source"
               />
               <IconButton
+                className="h-8 w-8 sm:h-10 sm:w-10"
                 rounded
                 intent={
                   sortMode === 'alphabetical' ? 'primary' : 'primary-subtle'
@@ -902,6 +903,7 @@ export function ChannelsMenu() {
                 title="Sort alphabetically"
               />
               <IconButton
+                className="h-8 w-8 sm:h-10 sm:w-10"
                 rounded
                 intent={isAllSelected ? 'primary' : 'primary-subtle'}
                 icon={<LuSquareCheck className="h-5 w-5" />}
@@ -910,6 +912,7 @@ export function ChannelsMenu() {
                 title={isAllSelected ? 'Deselect all' : 'Select all'}
               />
               <IconButton
+                className="h-8 w-8 sm:h-10 sm:w-10"
                 rounded
                 intent="primary-subtle"
                 icon={

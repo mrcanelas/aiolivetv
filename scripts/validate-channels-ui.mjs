@@ -175,11 +175,16 @@ try {
         ).parentElement;
         const text = description.getBoundingClientRect();
         const actions = toolbar.getBoundingClientRect();
+        const title = card.querySelector('h3').getBoundingClientRect();
         return {
           textWidth: text.width,
           cardWidth: card.getBoundingClientRect().width,
           textBottom: text.bottom,
           actionsTop: actions.top,
+          actionsBottom: actions.bottom,
+          textTop: text.top,
+          titleTop: title.top,
+          titleBottom: title.bottom,
           pageFits:
             document.documentElement.scrollWidth <=
             document.documentElement.clientWidth,
@@ -195,8 +200,13 @@ try {
         'Description must use the mobile header width'
       );
       assert(
-        headerLayout.actionsTop >= headerLayout.textBottom,
-        'Mobile actions must follow the description'
+        headerLayout.textTop >= headerLayout.actionsBottom,
+        'Mobile description must follow the actions'
+      );
+      assert(
+        headerLayout.actionsTop < headerLayout.titleBottom &&
+          headerLayout.actionsBottom > headerLayout.titleTop,
+        'Title and actions must share the top row'
       );
     }
     const mounted = await list.locator('li[data-index]').count();
