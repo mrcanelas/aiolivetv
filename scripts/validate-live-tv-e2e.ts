@@ -14,9 +14,10 @@ function xmltvTimestamp(date: Date) {
   return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())} +0000`;
 }
 
-const EPG_START = new Date();
-EPG_START.setUTCMinutes(0, 0, 0);
-const EPG_STOP = new Date(EPG_START.getTime() + 60 * 60 * 1000);
+// Keep the fixture current even when validation crosses an hour boundary.
+const EPG_START = new Date(Date.now() - 30 * 60 * 1000);
+EPG_START.setUTCMilliseconds(0);
+const EPG_STOP = new Date(EPG_START.getTime() + 2 * 60 * 60 * 1000);
 const EPG_START_ISO = EPG_START.toISOString();
 
 const XMLTV_FIXTURE = `<tv>
