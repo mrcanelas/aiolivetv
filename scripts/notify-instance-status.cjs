@@ -256,7 +256,10 @@ async function main(env = process.env) {
     if (!env[name]) throw new Error(`${name} is required.`);
   }
   const monitor = await getMonitor(env);
-  if (env.INSTANCE_STATUS_MODE === 'verify' || env.INSTANCE_STATUS_MODE === 'test') {
+  if (
+    env.INSTANCE_STATUS_MODE === 'verify' ||
+    env.INSTANCE_STATUS_MODE === 'test'
+  ) {
     const response = await fetch(
       `https://discord.com/api/v10/channels/${env.DISCORD_INSTANCE_STATUS_CHANNEL_ID}/messages?limit=1`,
       {
@@ -264,15 +267,27 @@ async function main(env = process.env) {
         signal: AbortSignal.timeout(10000),
       }
     );
-    if (!response.ok) throw new Error(`Discord verification failed (HTTP ${response.status}).`);
-    console.log(`Verified UptimeRobot monitor ${monitor.id} and Discord channel access; monitor status=${monitor.status}.`);
+    if (!response.ok)
+      throw new Error(`Discord verification failed (HTTP ${response.status}).`);
+    console.log(
+      `Verified UptimeRobot monitor ${monitor.id} and Discord channel access; monitor status=${monitor.status}.`
+    );
     if (env.INSTANCE_STATUS_MODE === 'test') {
       const now = Math.floor(Date.now() / 1000);
       for (const type of [1, 2]) {
-        const event = { type, datetime: now, reason: { detail: 'Delivery test / Teste de entrega' } };
-        const payload = createStatusPayload(`test-${env.GITHUB_RUN_ID}`, event, now - 60);
+        const event = {
+          type,
+          datetime: now,
+          reason: { detail: 'Delivery test / Teste de entrega' },
+        };
+        const payload = createStatusPayload(
+          `test-${env.GITHUB_RUN_ID}`,
+          event,
+          now - 60
+        );
         payload.embeds[0].title = `TEST / TESTE: ${payload.embeds[0].title}`;
-        payload.embeds[0].description = 'Delivery test only; this is not a real incident. / Apenas teste de entrega; este n\u00e3o \u00e9 um incidente real.';
+        payload.embeds[0].description =
+          'Delivery test only; this is not a real incident. / Apenas teste de entrega; este n\u00e3o \u00e9 um incidente real.';
         await sendStatusMessage(env, payload);
       }
       console.log('Labeled downtime and recovery test embeds sent.');

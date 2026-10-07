@@ -33,7 +33,7 @@ does not change the monitor. Reference: https://uptimerobot.com/api/legacy/
 The workflow creates the `instance-status-state` branch and stores only the
 monitor ID, polling watermark, delivered event keys and start of the active
 outage in `instance-status.json`. Its token needs `contents: write` for this
-  branch. Protecting this branch against workflow writes prevents persistence.
+branch. Protecting this branch against workflow writes prevents persistence.
 Runs are serialized; the main branch is not modified by the relay.
 
 Each event is saved after Discord confirms delivery. Discord nonces remain
