@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.2](https://github.com/mrcanelas/aiolivetv/compare/v1.0.1...v1.0.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **catalog:** make ExtrasParser round-trip lossless — genre/search values with spaces or colons never match (empty groups in Stremio) ([#24](https://github.com/mrcanelas/aiolivetv/issues/24)) ([cdf985e](https://github.com/mrcanelas/aiolivetv/commit/cdf985e7caabbdc9134dd14fd0c13ed70c54c0dd))
+* **channels:** match streams when opening Channels ([814421d](https://github.com/mrcanelas/aiolivetv/commit/814421db0b56587f26af731420e71e0742d55b81))
+* **channels:** preserve partial manual stream alternatives ([dae2710](https://github.com/mrcanelas/aiolivetv/commit/dae27107973a48ef8a7ae6c5bf0f477413c0ac45))
+* **channels:** preserve saved edits across configuration reloads ([044c7be](https://github.com/mrcanelas/aiolivetv/commit/044c7beef7c3a14e34be1a3b040128ace4b1f8d8))
+* **manifest:** include saved channel groups in genre options ([480b82d](https://github.com/mrcanelas/aiolivetv/commit/480b82da1443fb03e05a630b562ae43c87036e86))
+
 ## [1.0.1](https://github.com/mrcanelas/aiolivetv/compare/v1.0.0...v1.0.1) (2026-10-07)
 
 
