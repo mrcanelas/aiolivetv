@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Server } from 'node:http';
 import catalogRouter from './catalog.js';
 
-const fixture = vi.hoisted(() => ({ cacheable: true }));
+const fixture = vi.hoisted(() => ({ cacheable: true, getCatalog: vi.fn() }));
 vi.mock('../../middlewares/ratelimit.js', () => ({
   stremioCatalogRateLimiter: (_req: unknown, _res: unknown, next: () => void) =>
     next(),
@@ -18,7 +18,8 @@ vi.mock('@aiolivetv/core', () => ({
     async initialise() {
       return this;
     }
-    async getCatalog() {
+    async getCatalog(...args: unknown[]) {
+      fixture.getCatalog(...args);
       return {
         success: true,
         data: [],
@@ -42,7 +43,7 @@ afterEach(() => {
   server?.close();
 });
 
-async function requestCatalog(cacheable: boolean) {
+async function requestCatalog(cacheable: boolean, extras = 'date=2026-10-07') {
   fixture.cacheable = cacheable;
   const app = express();
   app.use((req, _res, next) => {
@@ -55,11 +56,28 @@ async function requestCatalog(cacheable: boolean) {
   if (!address || typeof address === 'string')
     throw new Error('Test server did not bind');
   return fetch(
-    `http://127.0.0.1:${address.port}/catalog/tv/aiolivetv.merged.live-tv/date=2026-10-07.json`
+    `http://127.0.0.1:${address.port}/catalog/tv/aiolivetv.merged.live-tv${extras ? `/${extras}` : ''}.json`
   );
 }
 
 describe('Stremio guide catalog caching', () => {
+  it.each([
+    'genre=News%20%26%20Sports&skip=0',
+    'search=a%3Db%26c',
+    'genre=C%2B%2B',
+    'genre=%2526',
+    'genre=News%2FSports',
+    '',
+  ])('passes encoded extras to core: %s', async (extras) => {
+    const response = await requestCatalog(true, extras);
+    expect(response.status).toBe(200);
+    expect(fixture.getCatalog).toHaveBeenLastCalledWith(
+      'tv',
+      'aiolivetv.merged.live-tv',
+      extras || undefined
+    );
+  });
+
   it('does not cache schedules missing because a provider timed out', async () => {
     const response = await requestCatalog(false);
     expect(response.status).toBe(200);

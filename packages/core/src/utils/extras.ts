@@ -1,5 +1,14 @@
 import { Extras, ExtrasSchema } from '../db/schemas.js';
 
+// Callers pass encoded extras; decode values only after separating parameters.
+function safeDecodeExtraValue(value: string): string {
+  try {
+    return decodeURIComponent(value.replace(/\+/g, ' '));
+  } catch {
+    return value;
+  }
+}
+
 export class ExtrasParser {
   private extras: Partial<Extras>;
 
@@ -13,8 +22,12 @@ export class ExtrasParser {
     }
     const extrasObject = Object.fromEntries(
       extras.split('&').map((e) => {
-        const [key, value] = e.split('=');
-        return [key, encodeURIComponent(value)];
+        const separator = e.indexOf('=');
+        if (separator === -1) return [e, undefined];
+        return [
+          e.slice(0, separator),
+          safeDecodeExtraValue(e.slice(separator + 1)),
+        ];
       })
     );
 
@@ -65,7 +78,7 @@ export class ExtrasParser {
   public toString(): string {
     return Object.entries(this.extras)
       .filter(([_, value]) => value !== undefined)
-      .map(([key, value]) => `${key}=${value}`)
+      .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
       .join('&');
   }
 }

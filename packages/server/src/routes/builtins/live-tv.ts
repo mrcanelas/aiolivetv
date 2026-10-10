@@ -25,6 +25,7 @@ import {
   type MiTvConfig,
   type XtreamConfig,
 } from '@aiolivetv/core';
+import { getEncodedExtras } from '../../utils/stremioExtras.js';
 
 const router: Router = Router();
 
@@ -100,7 +101,7 @@ router.get(
   '/xmltv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new XmltvAddon(
         config(req.params.encodedConfig)
       ).getCatalogResponse(skip, date);
@@ -134,7 +135,7 @@ router.get(
   '/m3u/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const extras = parseCatalogExtras(req.params.extras);
+      const extras = parseCatalogExtras(getEncodedExtras(req));
       const metas = await new M3uAddon(
         config(req.params.encodedConfig)
       ).getCatalog(extras.skip, extras.genre);
@@ -201,7 +202,7 @@ router.get(
   '/xtream/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date, genre } = parseCatalogExtras(req.params.extras);
+      const { skip, date, genre } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new XtreamAddon(
         xtreamConfig(req.params.encodedConfig)
       ).getCatalogResponse(skip, date, genre);
@@ -235,7 +236,7 @@ router.get(
   '/vivo-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new VivoTvAddon(
         vivoConfig(req.params.encodedConfig)
       ).getCatalogResponse(skip, date);
@@ -269,7 +270,7 @@ router.get(
   '/movistar-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new MovistarTvAddon(
         movistarConfig(req.params.encodedConfig)
       ).getCatalogResponse(skip, date);
@@ -303,7 +304,7 @@ router.get(
   '/tvp/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new TvpAddon(
         tvpConfig(req.params.encodedConfig)
       ).getCatalogResponse(skip, date);
@@ -337,7 +338,7 @@ router.get(
   '/directv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new DirectvAddon(
         directvConfig(req.params.encodedConfig)
       ).getCatalogResponse(skip, date);
@@ -371,7 +372,7 @@ router.get(
   '/claro-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date, genre } = parseCatalogExtras(req.params.extras);
+      const { skip, date, genre } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new ClaroTvAddon(
         claroConfig(req.params.encodedConfig)
       ).getCatalogResponse(skip, date, genre);
@@ -405,7 +406,7 @@ router.get(
   '/mi-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date } = parseCatalogExtras(req.params.extras);
+      const { skip, date } = parseCatalogExtras(getEncodedExtras(req));
       const response = await new MiTvAddon(
         miTvConfig(req.params.encodedConfig)
       ).getCatalogResponse(skip, date);
