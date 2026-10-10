@@ -7,6 +7,7 @@ import {
 } from '@aiolivetv/core';
 import { stremioSubtitleRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
+import { getEncodedExtras } from '../../utils/stremioExtras.js';
 
 const logger = createLogger('server');
 const router: Router = Router();
@@ -37,7 +38,8 @@ router.get(
     }
     const transformer = new StremioTransformer(req.userData);
     try {
-      const { type, id, extras } = req.params;
+      const { type, id } = req.params;
+      const extras = getEncodedExtras(req);
 
       res
         .status(200)

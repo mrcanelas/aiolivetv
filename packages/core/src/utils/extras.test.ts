@@ -11,6 +11,24 @@ import { describe, expect, it } from 'vitest';
 const { ExtrasParser } = await import('./extras.js');
 
 describe('ExtrasParser', () => {
+  it.each(['News & Sports', 'a=b=c', 'C++', '%26', 'News/Sports'])(
+    'preserves %s through parsing and repeated serialization',
+    (value) => {
+      const first = new ExtrasParser(
+        `genre=${encodeURIComponent(value)}&search=${encodeURIComponent(value)}&skip=25`
+      );
+      const second = new ExtrasParser(first.toString());
+      for (const parser of [first, second]) {
+        expect(parser.genre).toBe(value);
+        expect(parser.search).toBe(value);
+        expect(parser.skip).toBe(25);
+      }
+    }
+  );
+
+  it('keeps equals signs after the first parameter separator', () => {
+    expect(new ExtrasParser('search=a=b=c').search).toBe('a=b=c');
+  });
   it('decodes percent-encoded genre values once, yielding the plain string', () => {
     const parser = new ExtrasParser(
       'genre=' + encodeURIComponent('US: Sports')

@@ -7,6 +7,7 @@ import {
 } from '@aiolivetv/core';
 import { stremioCatalogRateLimiter } from '../../middlewares/ratelimit.js';
 import { trackResource } from '../../middlewares/analytics.js';
+import { getEncodedExtras } from '../../utils/stremioExtras.js';
 import {
   catalogExtrasAreCdnCacheable,
   setStremioCatalogCacheHeaders,
@@ -41,7 +42,8 @@ router.get(
     }
 
     try {
-      const { type, id, extras } = req.params;
+      const { type, id } = req.params;
+      const extras = getEncodedExtras(req);
 
       const result = await (
         await new AIOStreams(req.userData).initialise()

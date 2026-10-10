@@ -1,10 +1,6 @@
 import { Extras, ExtrasSchema } from '../db/schemas.js';
 
-/**
- * Values arriving through Express have already been percent-decoded by the
- * router. Parse must therefore DECODE (not encode) so callers always work
- * with the plain string. `+` is treated as a space for form-encoded clients.
- */
+// Callers pass encoded extras; decode values only after separating parameters.
 function safeDecodeExtraValue(value: string): string {
   try {
     return decodeURIComponent(value.replace(/\+/g, ' '));
@@ -26,8 +22,12 @@ export class ExtrasParser {
     }
     const extrasObject = Object.fromEntries(
       extras.split('&').map((e) => {
-        const [key, value] = e.split('=');
-        return [key, value === undefined ? value : safeDecodeExtraValue(value)];
+        const separator = e.indexOf('=');
+        if (separator === -1) return [e, undefined];
+        return [
+          e.slice(0, separator),
+          safeDecodeExtraValue(e.slice(separator + 1)),
+        ];
       })
     );
 
