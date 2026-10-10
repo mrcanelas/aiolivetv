@@ -20,7 +20,7 @@ export function channelsQuery(configKey: string, getDraft: () => UserData) {
   return queryOptions({
     queryKey: ['channels', configKey] as const,
     queryFn: ({ signal }) =>
-      fetchChannels(getDraft(), { autoMatch: false, signal }),
+      fetchChannels(getDraft(), { autoMatch: true, signal }),
     staleTime: 0,
     refetchOnWindowFocus: false,
   });

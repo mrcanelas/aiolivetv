@@ -44,6 +44,13 @@ describe('channel configuration reload', () => {
     const client = new QueryClient();
     try {
       await client.fetchQuery(channelsQuery('same-sources', () => draft));
+      expect(fetchChannels).toHaveBeenLastCalledWith(
+        draft,
+        expect.objectContaining({
+          autoMatch: true,
+          signal: expect.any(AbortSignal),
+        })
+      );
       draft = JSON.parse(
         JSON.stringify({
           ...draft,
