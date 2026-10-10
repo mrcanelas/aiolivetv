@@ -34,7 +34,6 @@ export function channelAlternativesQuery(
 ) {
   return queryOptions({
     queryKey: ['channel-alternatives', configKey, channelId, canonicalAddonId],
-    staleTime: Infinity,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       if (!channelId) throw new Error('No channel selected');
@@ -42,17 +41,25 @@ export function channelAlternativesQuery(
         signal,
         alternativesFor: channelId,
       });
-      if (response.scan?.truncated) {
-        const source = response.sources.find((item) => item.truncated);
-        throw new Error(
-          source?.error ??
-            'Source scan stopped before completing. Please retry.'
-        );
-      }
-      return (
-        response.channels.find((channel) => channel.id === channelId)
-          ?.availableStreamSources ?? []
+      const problems = response.sources.filter(
+        (source) => !source.ok || source.truncated
       );
+      return {
+        sources:
+          response.channels.find((channel) => channel.id === channelId)
+            ?.availableStreamSources ?? [],
+        warning:
+          problems.length > 0 || response.scan?.truncated
+            ? `Some stream channels could not be loaded. ${
+                problems
+                  .map(
+                    (source) => source.error ?? `${source.name}: stopped early`
+                  )
+                  .join(' · ') || 'Source scan stopped before completing.'
+              }`
+            : undefined,
+      };
     },
+    staleTime: (query) => (query.state.data?.warning ? 0 : Infinity),
   });
 }

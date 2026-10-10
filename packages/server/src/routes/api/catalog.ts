@@ -458,16 +458,23 @@ router.post(
             skippedCatalogs.push(`${catalog.id} (needs ${missing.join(', ')})`);
             continue;
           }
-          const maxCandidates = contributesChannels
-            ? MAX_CHANNELS_PER_CATALOG
-            : MAX_STREAM_ONLY_CANDIDATES;
+          const maxCandidates = alternativesFor
+            ? Number.POSITIVE_INFINITY
+            : contributesChannels
+              ? MAX_CHANNELS_PER_CATALOG
+              : MAX_STREAM_ONLY_CANDIDATES;
           let skip = 0;
           let page = 0;
           let addonCandidateCount = 0;
           const seenCatalogItems = new Set<string>();
           while (true) {
+            if (res.destroyed) {
+              markTruncated(`${catalog.id}: channel scan cancelled`);
+              stopped = true;
+              break;
+            }
             page++;
-            if (page > MAX_CATALOG_PAGES) {
+            if (!alternativesFor && page > MAX_CATALOG_PAGES) {
               markTruncated(
                 `${catalog.id}: reached the ${MAX_CATALOG_PAGES} page scan limit; more channels may be available`
               );
@@ -538,7 +545,8 @@ router.post(
             }
             if (
               addonCandidateCount >= maxCandidates ||
-              skip + items.length >= MAX_CHANNELS_PER_CATALOG
+              (!alternativesFor &&
+                skip + items.length >= MAX_CHANNELS_PER_CATALOG)
             ) {
               markTruncated(
                 `${catalog.id}: reached the ${maxCandidates} candidate scan limit; more channels may be available`

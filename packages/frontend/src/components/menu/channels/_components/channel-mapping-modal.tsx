@@ -43,6 +43,7 @@ type ChannelMappingModalProps = {
   preventDismiss?: boolean;
   loadingSources?: boolean;
   sourcesError?: string;
+  sourcesWarning?: string;
   onRetrySources?: () => void;
   onToggleStream: (
     addonId: string,
@@ -71,6 +72,7 @@ export function ChannelMappingModal({
   preventDismiss = false,
   loadingSources = false,
   sourcesError,
+  sourcesWarning,
   onRetrySources,
 }: ChannelMappingModalProps) {
   const streamSourceOptions = React.useMemo(
@@ -146,6 +148,14 @@ export function ChannelMappingModal({
             </Button>
           </div>
         ) : null}
+        {sourcesWarning && !sourcesError ? (
+          <div className="flex items-center gap-2 text-sm text-amber-400">
+            <span className="min-w-0 flex-1 break-words">{sourcesWarning}</span>
+            <Button size="sm" onClick={onRetrySources}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
         {streamSourceOptions.length > 0 ? (
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">
@@ -172,7 +182,7 @@ export function ChannelMappingModal({
               Link
             </Button>
           </div>
-        ) : (
+        ) : loadingSources || sourcesError || sourcesWarning ? null : (
           <p className="text-xs text-[--muted]">
             No unlinked stream channels available. Add a stream addon such as
             FrostView, Fenix TV or M3U, or add a manual HLS link below.

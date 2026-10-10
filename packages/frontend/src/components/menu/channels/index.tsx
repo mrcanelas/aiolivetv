@@ -752,7 +752,7 @@ export function ChannelsMenu() {
     );
     const sources = new Map(
       [
-        ...(alternativesQuery.data ?? []),
+        ...(alternativesQuery.data?.sources ?? []),
         ...(selectedMappingChannel.availableStreamSources ?? []),
       ].map((source) => [`${source.addonId}\0${source.channelId}`, source])
     );
@@ -1125,6 +1125,7 @@ export function ChannelsMenu() {
         channel={mappingChannel}
         loadingSources={alternativesQuery.isFetching}
         sourcesError={alternativesQuery.error?.message}
+        sourcesWarning={alternativesQuery.data?.warning}
         onRetrySources={() => void alternativesQuery.refetch()}
         open={mappingModal.isOpen}
         onOpenChange={(open) => {

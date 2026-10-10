@@ -15,6 +15,8 @@ const fixture = vi.hoisted(() => {
     extraStreams: 0,
     truncated: false,
     pagedChannels: 0,
+    pagedStreams: 0,
+    repeatPages: false,
     initialiseDelayMs: 0,
     slowCatalogMs: 0,
     stalledValidation: false,
@@ -87,7 +89,8 @@ vi.mock('@aiolivetv/core', async () => {
       },
     },
     createLogger: () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }),
-    catalogSupportsSkip: () => fixture.pagedChannels > 0,
+    catalogSupportsSkip: () =>
+      fixture.pagedChannels > 0 || fixture.pagedStreams > 0,
     validateConfig: async (data: unknown) => {
       if (fixture.stalledValidation) return new Promise(() => {});
       return structuredClone(data);
@@ -130,8 +133,10 @@ vi.mock('@aiolivetv/core', async () => {
           await new Promise((resolve) =>
             setTimeout(resolve, fixture.slowCatalogMs)
           );
-        if (fixture.pagedChannels) {
-          const skip = Number(new URLSearchParams(extras).get('skip') || 0);
+        if (fixture.pagedChannels || fixture.pagedStreams) {
+          const skip = fixture.repeatPages
+            ? 0
+            : Number(new URLSearchParams(extras).get('skip') || 0);
           return {
             success: true,
             data: id.startsWith('guide.')
@@ -139,7 +144,10 @@ vi.mock('@aiolivetv/core', async () => {
                   id: `channel:${index}`,
                   name: `Channel ${index}`,
                 })).slice(skip, skip + 25)
-              : [],
+              : Array.from({ length: fixture.pagedStreams }, (_, index) => ({
+                  id: `stream:${index}`,
+                  name: `Stream ${index}`,
+                })).slice(skip, skip + 25),
           };
         }
         return {
@@ -178,6 +186,8 @@ afterEach(async () => {
   fixture.budgetMs = 0;
   fixture.extraStreams = 0;
   fixture.pagedChannels = 0;
+  fixture.pagedStreams = 0;
+  fixture.repeatPages = false;
   fixture.initialiseDelayMs = 0;
   fixture.slowCatalogMs = 0;
   fixture.stalledValidation = false;
@@ -316,6 +326,33 @@ describe('Channels prepared matching', () => {
         error: expect.stringContaining('2000 candidate scan limit'),
       })
     );
+  });
+  it('lists all manual alternatives beyond candidate and page scan caps', async () => {
+    fixture.pagedChannels = 1;
+    fixture.pagedStreams = 10026;
+    const channels = await scan(false, false, 'channel:0');
+    const alternatives = channels.find(
+      (channel) => channel.id === 'channel:0'
+    )!.availableStreamSources;
+    expect(alternatives).toHaveLength(10026);
+    expect(alternatives).toContainEqual(
+      expect.objectContaining({ channelId: 'stream:10025' })
+    );
+    expect(fixture.truncated).toBe(false);
+    const calls = fixture.catalogCalls;
+    await scan(false, false, 'channel:0');
+    expect(fixture.catalogCalls).toBe(calls);
+  });
+
+  it('stops manual pagination when a provider repeats the same page', async () => {
+    fixture.pagedChannels = 1;
+    fixture.pagedStreams = 25;
+    fixture.repeatPages = true;
+    const channels = await scan(false, false, 'channel:0');
+    expect(
+      channels.find((channel) => channel.id === 'channel:0')?.availableStreamSources
+    ).toHaveLength(25);
+    expect(fixture.catalogCalls).toBe(4);
   });
   it('returns JSON when provider validation stalls before scanning', async () => {
     fixture.budgetMs = 20;
