@@ -19,6 +19,7 @@ export function buildVisibleChannelMappings(
   cache: ChannelMappingProjectionCache
 ): ChannelMapping[] {
   const byId = new Map((currentMappings ?? []).map((item) => [item.id, item]));
+  const visibleIds = new Set(channels.map((channel) => channel.id));
   const result: ChannelMapping[] = [];
   for (const channel of channels) {
     const existing = byId.get(channel.id);
@@ -80,6 +81,10 @@ export function buildVisibleChannelMappings(
       projection.mapping = mapping;
       result.push(mapping);
     }
+  }
+  // A missing source channel is not an instruction to delete its saved edits.
+  for (const mapping of currentMappings ?? []) {
+    if (!mapping.hidden && !visibleIds.has(mapping.id)) result.push(mapping);
   }
   return result;
 }

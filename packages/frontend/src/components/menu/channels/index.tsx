@@ -626,7 +626,7 @@ export function ChannelsMenu() {
       const visibleMappings = buildVisibleMappings(
         nextChannels,
         current.channelMappings
-      );
+      ).filter((mapping) => !ids.has(mapping.id));
       const hidden = [
         ...(current.channelMappings ?? []).filter(
           (mapping) => mapping.hidden && !ids.has(mapping.id)

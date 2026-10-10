@@ -52,6 +52,33 @@ function channel(
 }
 
 describe('buildVisibleChannelMappings', () => {
+  it.each([false, true])(
+    'preserves saved edits and bindings when a source channel is absent (empty=%s)',
+    (empty) => {
+      const saved = {
+        id: 'aiolivetv:MzI4',
+        canonicalAddonId: 'claro',
+        name: 'Canal do Boi',
+        poster: 'https://example.com/custom-boi.png',
+        streams: [{ addonId: 'streams', channelId: 'boi', enabled: true }],
+      };
+      const hidden = { id: 'removed', hidden: true };
+      const channels = empty
+        ? []
+        : [channel({ id: 'vivo:other', name: 'Other', enabled: false })];
+
+      const mappings = buildVisibleChannelMappings(
+        channels,
+        [saved, hidden],
+        new Set(),
+        new WeakMap()
+      );
+
+      expect(mappings.find((mapping) => mapping.id === saved.id)).toBe(saved);
+      expect(mappings.some((mapping) => mapping.id === hidden.id)).toBe(false);
+    }
+  );
+
   it('reuses unchanged projections and existing mappings on a single-channel edit', () => {
     const cache: ChannelMappingProjectionCache = new WeakMap();
     const channels = Array.from({ length: 1287 }, (_, index) =>
