@@ -45,6 +45,7 @@ vi.mock('../utils/index.js', async () => ({
 }));
 import { getMergedCatalog } from './catalog.js';
 import {
+  addLiveTvChannelMappingGenreOptions,
   buildLiveTvMergedCatalog,
   LIVE_TV_MERGED_CATALOG_ID,
 } from './liveTvMergedCatalog.js';
@@ -441,5 +442,36 @@ describe('buildLiveTvMergedCatalog', () => {
     );
 
     expect(merged?.catalogIds).toEqual(['id=0bbe3b0.vivo-tv-channels&type=tv']);
+  });
+});
+
+describe('addLiveTvChannelMappingGenreOptions', () => {
+  it('adds saved channel groups to the merged Live TV genre extra', () => {
+    const extras = [{ name: 'skip' }, { name: 'genre', options: ['News'] }];
+
+    addLiveTvChannelMappingGenreOptions(extras, [
+      { id: 'aiolivetv:a', group: 'Esportes' },
+      { id: 'aiolivetv:b', group: 'ESPORTES' },
+      { id: 'aiolivetv:c', group: 'Filmes', hidden: true },
+      { id: 'aiolivetv:d', group: 'Kids', enabled: false },
+    ]);
+
+    expect(extras).toEqual([
+      { name: 'skip' },
+      { name: 'genre', options: ['Esportes', 'News'] },
+    ]);
+  });
+
+  it('creates the genre extra when mappings are the only genre source', () => {
+    const extras = [{ name: 'skip' }];
+
+    addLiveTvChannelMappingGenreOptions(extras, [
+      { id: 'aiolivetv:a', group: 'Variedades' },
+    ]);
+
+    expect(extras).toEqual([
+      { name: 'skip' },
+      { name: 'genre', isRequired: false, options: ['Variedades'] },
+    ]);
   });
 });

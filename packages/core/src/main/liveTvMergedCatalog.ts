@@ -1,6 +1,11 @@
-import type { CatalogModification, MergedCatalog } from '../db/schemas.js';
-import type { Manifest } from '../db/index.js';
+import type {
+  CatalogModification,
+  Manifest,
+  MergedCatalog,
+  UserData,
+} from '../db/index.js';
 import { TV_TYPE } from '../utils/constants.js';
+import { normalizeChannelGroup } from '../utils/channelName.js';
 import {
   LIVE_TV_MERGED_CATALOG_ID,
   isMergedCatalogId,
@@ -38,4 +43,30 @@ export function buildLiveTvMergedCatalog(
     ),
     enabled: true,
   };
+}
+
+export function addLiveTvChannelMappingGenreOptions(
+  extras: NonNullable<Manifest['catalogs'][number]['extra']>,
+  channelMappings: UserData['channelMappings']
+) {
+  const options = [
+    ...new Set(
+      (channelMappings ?? [])
+        .filter((mapping) => mapping.enabled !== false && !mapping.hidden)
+        .map((mapping) => normalizeChannelGroup(mapping.group))
+        .filter((group): group is string => Boolean(group))
+    ),
+  ].sort((left, right) => left.localeCompare(right, 'pt-BR'));
+  if (!options.length) return extras;
+
+  const genreExtra = extras.find((extra) => extra.name === 'genre');
+  if (!genreExtra) {
+    extras.push({ name: 'genre', isRequired: false, options });
+    return extras;
+  }
+
+  genreExtra.options = [
+    ...new Set([...(genreExtra.options ?? []), ...options]),
+  ].sort((left, right) => String(left).localeCompare(String(right), 'pt-BR'));
+  return extras;
 }

@@ -15,6 +15,7 @@ import type { Addon, Resource, UserData } from '../db/index.js';
 import type { AIOStreamsContext } from './types.js';
 import { CHANNEL_ID_PREFIX } from '../builtins/live-tv/shared.js';
 import {
+  addLiveTvChannelMappingGenreOptions,
   buildLiveTvMergedCatalog,
   isLiveTvMergedCatalogId,
   isMergedCatalogId,
@@ -594,6 +595,12 @@ export function buildResources(ctx: AIOStreamsContext): void {
         !mergedExtras.some((extra) => extra.name === 'skip')
       ) {
         mergedExtras.push({ name: 'skip' });
+      }
+      if (isLiveTvMergedCatalogId(mc.id)) {
+        addLiveTvChannelMappingGenreOptions(
+          mergedExtras,
+          ctx.userData.channelMappings
+        );
       }
       ctx.finalCatalogs.push({
         id: mc.id,
