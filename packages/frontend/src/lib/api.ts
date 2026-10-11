@@ -473,6 +473,32 @@ export async function changePassword(
   });
 }
 
+export type ExportLinksResponse = {
+  enabled: boolean;
+  disabledReason?: string;
+  created?: boolean;
+  proxyEnabled?: boolean;
+  m3uUrl?: string;
+  xmltvUrl?: string;
+  channelCount?: number;
+  channelsWithEpg?: number;
+  channelsWithoutStream?: number;
+  playbackMode?: 'redirect' | 'proxy';
+  warnings?: string[];
+};
+
+export async function fetchExportLinks(uuid: string, password: string) {
+  return api<ExportLinksResponse>('GET /user/export', {
+    headers: { Authorization: basicAuthHeader(uuid, password) },
+  });
+}
+
+export async function regenerateExportLinks(uuid: string, password: string) {
+  return api<ExportLinksResponse>('POST /user/export/regenerate', {
+    headers: { Authorization: basicAuthHeader(uuid, password) },
+  });
+}
+
 /**
  * Resolve synced items (regex patterns and/or stream expressions) from URLs
  */

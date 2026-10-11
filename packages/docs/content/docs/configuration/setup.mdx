@@ -42,6 +42,8 @@ For each source, leave **Resources** at the defaults unless you only want stream
 
 XMLTV, Xtream, TVHeadend, Vivo TV, Claro TV+ and Mi.tv can shift programme times with **EPG Time Shift**. Local playlists or a LAN TVHeadend need `HTTP_ALLOW_PRIVATE_URLS=true` on a personal instance — leave it `false` on anything shared. TVHeadend proxy playback also needs `TVHEADEND_PROXY_ENABLED=true` when players cannot reach the TVH HTTP port directly.
 
+To feed Jellyfin (or other players) from a saved config, use the **Jellyfin / Outros players** block on **Save / Install** — see [Export to Jellyfin](/guides/jellyfin). Export proxy playback is controlled separately with `EXPORT_PROXY_ENABLED`.
+
 ## 3. Review Channels
 
 Open **Channels**. AIOLiveTV builds canonical channels from EPG when a guide exists, otherwise from stream sources. High-confidence matches (`tvg-id`, then normalised name) are applied automatically; weaker matches stay as suggestions.

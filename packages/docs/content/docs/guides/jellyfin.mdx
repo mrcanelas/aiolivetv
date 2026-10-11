@@ -1,0 +1,72 @@
+---
+title: Export to Jellyfin (M3U + XMLTV)
+description: Use AIOLiveTV channels and EPG in Jellyfin without a plugin.
+---
+
+AIOLiveTV can export your **saved** Live TV configuration as:
+
+- a playlist **M3U** (`channels.m3u`)
+- a guide **XMLTV** (`guide.xml`)
+
+Jellyfin then uses its built-in **M3U Tuner** and **XMLTV** guide provider. No AIOLiveTV plugin is required.
+
+## Prerequisites
+
+1. Configure sources on **Addons**.
+2. Review channels on **Channels** (enable/disable, mappings, stream priority).
+3. **Save** the configuration on **Save / Install**.
+4. Open the **Jellyfin / Outros players** block on the same page and copy the URLs.
+
+The export always reflects the **saved** configuration. Unsaved draft changes are not published until you save.
+
+## Instance policy
+
+| Env | Default | Effect |
+| --- | --- | --- |
+| `EXPORT_ENABLED` | `true` | Allow M3U/XMLTV export |
+| `EXPORT_DISABLED_REASON` | Portuguese admin message | Shown when export is disabled |
+| `EXPORT_PROXY_ENABLED` | `false` | Proxy video through AIOLiveTV for exported play URLs |
+| `EXPORT_EPG_WINDOW_HOURS` | `48` | Future EPG window in the XMLTV file |
+| `HTTP_ALLOW_PRIVATE_URLS` | `false` | Needed if AIOLiveTV must reach private source URLs when proxying |
+
+Export and proxy are separate. A public instance may allow playlist/guide download without carrying video.
+
+## Connectivity
+
+| Link | Who must reach it |
+| --- | --- |
+| M3U / XMLTV URLs on AIOLiveTV | The Jellyfin server |
+| Final source URL (redirect mode) | The Jellyfin server |
+| Source (proxy mode) | The AIOLiveTV instance; Jellyfin only talks to AIOLiveTV |
+
+`localhost` inside a Jellyfin container is the container itself, not your TVHeadend host.
+
+## Security
+
+- Export links use a high-entropy token, not your configure password.
+- Anyone with the links can read the playlist/guide and play allowed channels — **do not share them publicly**.
+- **Regenerar links** invalidates previous URLs (update Jellyfin afterwards).
+- Permanent provider credentials are never written into the M3U.
+- Playback URLs are stable; streams are resolved when Jellyfin tunes a channel.
+
+## Jellyfin steps
+
+1. Admin dashboard → **Live TV**
+2. Add a tuner → type **M3U Tuner** → paste the M3U URL
+3. Add a **TV Guide Data Provider** → **XMLTV** → paste the guide URL  
+   (Schedules Direct and XMLTV cannot both be active)
+4. Refresh tuners / guide data
+5. Use **Map Channels** if Jellyfin does not auto-match; AIOLiveTV keeps the same id in `tvg-id` and XMLTV `channel id` to make mapping easier
+
+## Identity notes
+
+- One playlist entry per enabled canonical channel (not per programme).
+- Stream priority follows the order on the Channels page; only the first working resolution is used at tune time.
+- Renaming a channel or updating EPG does not change `tvg-id`.
+- Changing which mapping is the canonical channel may change the exported id — remap in Jellyfin if that happens.
+
+## Limitations
+
+- No Jellyfin recordings management, HDHomeRun emulation, or AIOLiveTV-side transcoding.
+- Redirect mode requires Jellyfin to reach the upstream URL; proxy mode must be enabled by the instance admin.
+- End-to-end validation against a real Jellyfin server may still be pending; parsers and unit tests cover M3U/XMLTV structure and id matching.

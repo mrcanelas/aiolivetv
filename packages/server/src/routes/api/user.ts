@@ -1,12 +1,20 @@
-import { Router } from 'express';
+import { Router, type NextFunction } from 'express';
 import {
   APIError,
   AnalyticsRepository,
+  collectExportChannels,
   config as appConfig,
   constants,
   createLogger,
+  deleteExportTokensForUser,
+  ensureExportToken,
   encryptString,
+  ExportPolicyError,
+  getExportInstancePolicy,
   hmac,
+  regenerateExportToken,
+  summariseExport,
+  updateExportTokenPassword,
   UserRepository,
   type UserAnalyticsRange,
 } from '@aiolivetv/core';
@@ -247,6 +255,7 @@ router.delete('/', async (req, res, next) => {
   const password = creds.password;
   try {
     await UserRepository.deleteUser(uuid, password);
+    await deleteExportTokensForUser(uuid).catch(() => undefined);
     res.status(200).json(
       createResponse({
         success: true,
@@ -303,6 +312,7 @@ router.post('/password', async (req, res, next) => {
       currentPassword,
       newPassword
     );
+    await updateExportTokenPassword(uuid, newPassword).catch(() => undefined);
 
     res.status(200).json(
       createResponse({
@@ -314,6 +324,127 @@ router.post('/password', async (req, res, next) => {
       })
     );
   } catch (error) {
+    if (error instanceof APIError) {
+      next(error);
+    } else {
+      logger.error(error);
+      next(new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR));
+    }
+  }
+});
+
+async function requireUserCreds(req: any, next: NextFunction) {
+  let creds;
+  try {
+    creds = parseBasicAuthHeader(req);
+  } catch (error) {
+    next(error);
+    return null;
+  }
+  if (!creds) {
+    next(
+      new APIError(
+        constants.ErrorCode.MISSING_REQUIRED_FIELDS,
+        undefined,
+        'Authorization header (Basic) is required'
+      )
+    );
+    return null;
+  }
+  return {
+    uuid: req.uuid || creds.uuid,
+    password: creds.password,
+  };
+}
+
+// Ensure (or return) M3U/XMLTV export links for Jellyfin and other players
+router.get('/export', async (req, res, next) => {
+  const creds = await requireUserCreds(req, next);
+  if (!creds) return;
+  const policy = getExportInstancePolicy();
+  if (!policy.enabled) {
+    res.status(200).json(
+      createResponse({
+        success: true,
+        data: {
+          enabled: false,
+          disabledReason: policy.disabledReason,
+          proxyEnabled: policy.proxyEnabled,
+        },
+      })
+    );
+    return;
+  }
+  try {
+    await UserRepository.verifyUser(creds.uuid, creds.password);
+    const userData = await UserRepository.getUser(creds.uuid, creds.password);
+    if (!userData) {
+      throw new APIError(constants.ErrorCode.USER_INVALID_DETAILS);
+    }
+    const { token, created } = await ensureExportToken(
+      creds.uuid,
+      creds.password
+    );
+    const channels = collectExportChannels(userData);
+    const summary = summariseExport(token, channels);
+    res.status(200).json(
+      createResponse({
+        success: true,
+        data: {
+          enabled: true,
+          created,
+          proxyEnabled: policy.proxyEnabled,
+          ...summary,
+        },
+      })
+    );
+  } catch (error) {
+    if (error instanceof ExportPolicyError) {
+      next(
+        new APIError(constants.ErrorCode.FORBIDDEN, undefined, error.message)
+      );
+      return;
+    }
+    if (error instanceof APIError) {
+      next(error);
+    } else {
+      logger.error(error);
+      next(new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR));
+    }
+  }
+});
+
+router.post('/export/regenerate', async (req, res, next) => {
+  const creds = await requireUserCreds(req, next);
+  if (!creds) return;
+  try {
+    await UserRepository.verifyUser(creds.uuid, creds.password);
+    const userData = await UserRepository.getUser(creds.uuid, creds.password);
+    if (!userData) {
+      throw new APIError(constants.ErrorCode.USER_INVALID_DETAILS);
+    }
+    const token = await regenerateExportToken(creds.uuid, creds.password);
+    const channels = collectExportChannels(userData);
+    const summary = summariseExport(token, channels);
+    res.status(200).json(
+      createResponse({
+        success: true,
+        detail: 'Export links regenerated',
+        data: {
+          enabled: true,
+          created: true,
+          proxyEnabled: getExportInstancePolicy().proxyEnabled,
+          ...summary,
+        },
+      })
+    );
+  } catch (error) {
+    if (error instanceof ExportPolicyError) {
+      next(
+        new APIError(constants.ErrorCode.FORBIDDEN, undefined, error.message)
+      );
+      return;
+    }
     if (error instanceof APIError) {
       next(error);
     } else {

@@ -49,6 +49,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import internalTasksApi from './routes/api/internal-tasks.js';
+import exportsRouter from './routes/exports.js';
 const app: Express = express();
 const logger = createLogger('server');
 
@@ -113,6 +114,9 @@ apiRouter.use((req, res) => {
 
 app.use(`/api/v${constants.API_VERSION}`, apiRouter);
 app.use('/api/internal/tasks', internalTasksApi);
+
+// Public M3U / XMLTV export (token-authenticated)
+app.use('/exports', exportsRouter);
 
 // Stremio Routes
 const stremioRouter = express.Router({ mergeParams: true });

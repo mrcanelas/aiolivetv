@@ -7,15 +7,25 @@ import {
   createUserConfig,
   deleteUserConfig,
   changePassword,
+  fetchExportLinks,
+  regenerateExportLinks,
   CreateUserResponse,
+  type ExportLinksResponse,
 } from '@/lib/api';
 import { PageWrapper } from '@/components/shared/page-wrapper';
 import { Alert } from '@/components/ui/alert';
 import { SettingsCard } from '../shared/settings-card';
 import { toast } from 'sonner';
-import { CopyIcon, DownloadIcon, PlusIcon, UploadIcon } from 'lucide-react';
+import {
+  CopyIcon,
+  DownloadIcon,
+  PlusIcon,
+  UploadIcon,
+  MonitorPlay,
+  RefreshCw,
+  RotateCcw,
+} from 'lucide-react';
 import { useStatus } from '@/context/status';
-import { BiCopy } from 'react-icons/bi';
 import { copyToClipboard } from '@/utils/clipboard';
 import { PageControls } from '../shared/page-controls';
 import { useDisclosure } from '@/hooks/disclosure';
@@ -166,14 +176,22 @@ function SaveConfigCard({
           isClosable={false}
           description={
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-md text-[--primary]">
-                  Your UUID: <span className="font-bold">{uuid}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm text-[--primary] min-w-0">
+                  Your UUID:{' '}
+                  <span className="font-mono font-bold break-all">{uuid}</span>
                 </span>
-                <BiCopy
-                  className="min-h-5 min-w-5 cursor-pointer"
+                <Button
+                  type="button"
+                  intent="gray-outline"
+                  size="sm"
+                  className="shrink-0 px-2"
+                  aria-label="Copy UUID"
+                  title="Copy UUID"
                   onClick={onCopyUuid}
-                />
+                >
+                  <CopyIcon className="h-4 w-4" />
+                </Button>
               </div>
               <p className="text-sm text-[--muted]">
                 Save your UUID and password - you'll need them to update your
@@ -185,7 +203,7 @@ function SaveConfigCard({
         />
       </div>
       <form onSubmit={onSave}>
-        <div className="flex items-center justify-between gap-4 mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 mt-4">
           <Button type="submit" intent="white" loading={saveLoading} rounded>
             Save
           </Button>
@@ -210,6 +228,200 @@ interface InstallCardProps {
   encodedManifest: string;
   manifestUrl: string;
   onCopyManifestUrl: () => void;
+  onExportOpen: () => void;
+}
+
+interface JellyfinExportCardProps {
+  uuid: string;
+  password: string | null;
+}
+
+function JellyfinExportCard({ uuid, password }: JellyfinExportCardProps) {
+  const [data, setData] = React.useState<ExportLinksResponse | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const load = React.useCallback(async () => {
+    if (!password) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchExportLinks(uuid, password);
+      setData(result);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to load export links'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [uuid, password]);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  const regenerateConfirm = useConfirmationDialog({
+    title: 'Regenerate Links',
+    description:
+      'Your previous playlist and guide links will stop working. Update them in any players that use them.',
+    actionText: 'Regenerate',
+    actionIntent: 'alert',
+    onConfirm: async () => {
+      if (!password) return;
+      setLoading(true);
+      try {
+        const result = await regenerateExportLinks(uuid, password);
+        setData(result);
+        toast.success('Links regenerated');
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to regenerate links'
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+  });
+
+  const copyUrl = async (url: string, label: string) => {
+    await copyToClipboard(url, {
+      onSuccess: () => toast.success(`${label} copied`),
+      onError: () => toast.error(`Failed to copy ${label}`),
+    });
+  };
+
+  return (
+    <div className="min-w-0 space-y-4">
+      {!password ? (
+        <Alert
+          intent="warning"
+          description="Sign in with your password to access your export links."
+        />
+      ) : loading && !data ? (
+        <p className="text-sm text-gray-400">Loading links...</p>
+      ) : error ? (
+        <Alert intent="alert" description={error} />
+      ) : data && !data.enabled ? (
+        <Alert
+          intent="alert"
+          title="Export Disabled"
+          description={
+            data.disabledReason ||
+            'M3U and XMLTV exports are disabled by this instance administrator.'
+          }
+        />
+      ) : data ? (
+        <div className="space-y-4">
+          <Alert
+            intent="warning"
+            description="Keep these links private. Anyone with them can access your channels."
+          />
+          <div className="space-y-1.5">
+            <label
+              htmlFor="export-m3u-url"
+              className="text-xs font-medium text-gray-400 ml-1"
+            >
+              M3U Playlist
+            </label>
+            <div className="flex items-center gap-2">
+              <TextInput
+                id="export-m3u-url"
+                type="text"
+                readOnly
+                value={data.m3uUrl || ''}
+                className="flex-1 min-w-0 font-mono text-sm bg-black/20"
+                onClick={(e) => e.currentTarget.select()}
+              />
+              <Button
+                onClick={() =>
+                  data.m3uUrl && copyUrl(data.m3uUrl, 'M3U playlist')
+                }
+                intent="primary"
+                className="shrink-0 px-3"
+                aria-label="Copy M3U playlist"
+                title="Copy M3U playlist"
+              >
+                <CopyIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label
+              htmlFor="export-xmltv-url"
+              className="text-xs font-medium text-gray-400 ml-1"
+            >
+              XMLTV Guide
+            </label>
+            <div className="flex items-center gap-2">
+              <TextInput
+                id="export-xmltv-url"
+                type="text"
+                readOnly
+                value={data.xmltvUrl || ''}
+                className="flex-1 min-w-0 font-mono text-sm bg-black/20"
+                onClick={(e) => e.currentTarget.select()}
+              />
+              <Button
+                onClick={() =>
+                  data.xmltvUrl && copyUrl(data.xmltvUrl, 'XMLTV guide')
+                }
+                intent="primary"
+                className="shrink-0 px-3"
+                aria-label="Copy XMLTV guide"
+                title="Copy XMLTV guide"
+              >
+                <CopyIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            {data.channelCount ?? 0} channels
+            {typeof data.channelsWithoutStream === 'number' &&
+            data.channelsWithoutStream > 0
+              ? ` · ${data.channelsWithoutStream} without streams omitted`
+              : ''}
+            {data.playbackMode
+              ? ` · ${data.playbackMode === 'proxy' ? 'Proxy' : 'Redirect'} playback`
+              : ''}
+          </p>
+          {data.warnings?.length ? (
+            <Alert
+              intent="info"
+              description={
+                <ul className="list-disc list-inside space-y-1">
+                  {data.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              }
+            />
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              intent="gray-outline"
+              loading={loading}
+              onClick={() => void load()}
+              leftIcon={<RefreshCw className="h-4 w-4" />}
+            >
+              Refresh
+            </Button>
+            <Button
+              type="button"
+              intent="alert-outline"
+              loading={loading}
+              onClick={regenerateConfirm.open}
+              leftIcon={<RotateCcw className="h-4 w-4" />}
+            >
+              Regenerate Links
+            </Button>
+          </div>
+          <ConfirmationDialog {...regenerateConfirm} />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function InstallCard({
@@ -219,13 +431,14 @@ function InstallCard({
   encodedManifest,
   manifestUrl,
   onCopyManifestUrl,
+  onExportOpen,
 }: InstallCardProps) {
   return (
     <SettingsCard
       title="Installation Options"
       description="Install your addon using your preferred method. If a reinstall is necessary, a pop-up will tell you — otherwise, you do not need to reinstall."
     >
-      <div className="flex flex-col gap-5 rounded-xl border border-gray-700 bg-gray-800/30 p-5 shadow-inner">
+      <div className="flex flex-col gap-5 min-w-0">
         <div className="flex items-center gap-4 border-b border-gray-700/50 pb-4">
           <div className="flex-shrink-0 h-12 w-12 rounded-lg bg-gray-900 flex items-center justify-center p-2 shadow-sm">
             <img
@@ -237,8 +450,8 @@ function InstallCard({
           <div>
             <h3 className="text-lg font-semibold text-white">Stremio</h3>
             <p className="text-sm text-gray-400">
-              Install to Stremio or other Stremio addon compatible clients
-              using the Manifest URL.
+              Install to Stremio or other Stremio addon compatible clients using
+              the Manifest URL.
             </p>
           </div>
         </div>
@@ -277,7 +490,7 @@ function InstallCard({
               type="text"
               readOnly
               value={manifestUrl}
-              className="flex-1 font-mono text-sm bg-black/20"
+              className="flex-1 min-w-0 font-mono text-sm bg-black/20"
               onClick={(e) => e.currentTarget.select()}
             />
             <Button
@@ -285,12 +498,28 @@ function InstallCard({
               intent="primary"
               className="shrink-0 px-3"
               aria-label="Copy install link"
+              title="Copy install link"
             >
               <CopyIcon className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onExportOpen}
+        className="group flex w-full items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/30 p-3 text-left transition-colors hover:border-brand-400 hover:bg-brand-400/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+      >
+        <MonitorPlay className="h-8 w-8 shrink-0 text-brand-400" />
+        <div className="min-w-0">
+          <span className="text-sm font-medium text-white">
+            Jellyfin & Other Players
+          </span>
+          <p className="mt-0.5 text-xs text-gray-400">
+            M3U playlist and XMLTV guide
+          </p>
+        </div>
+      </button>
     </SettingsCard>
   );
 }
@@ -414,6 +643,7 @@ function Content() {
   const templatesModal = useDisclosure(false);
   const exportMenuModal = useDisclosure(false);
   const importMenuModal = useDisclosure(false);
+  const playerExportModal = useDisclosure(false);
   const [filterCredentialsInExport, setFilterCredentialsInExport] =
     React.useState(true);
   const { handleSave: handleSaveContext, loading: saveLoading } = useSave();
@@ -686,7 +916,7 @@ function Content() {
     <>
       <div className="flex items-center w-full">
         <div>
-          <h2>Install Addon</h2>
+          <h2>Save / Install</h2>
           <p className="text-[--muted]">
             Configure and install your personalized Stremio addon
           </p>
@@ -735,7 +965,22 @@ function Content() {
               encodedManifest={encodedManifest}
               manifestUrl={manifestUrl}
               onCopyManifestUrl={copyManifestUrl}
+              onExportOpen={playerExportModal.open}
             />
+
+            <Modal
+              open={playerExportModal.isOpen}
+              onOpenChange={playerExportModal.toggle}
+              title="Jellyfin & Other Players"
+            >
+              {playerExportModal.isOpen && (
+                <JellyfinExportCard
+                  key={uuid}
+                  uuid={uuid}
+                  password={password}
+                />
+              )}
+            </Modal>
           </>
         )}
 

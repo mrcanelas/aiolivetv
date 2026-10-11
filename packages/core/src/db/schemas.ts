@@ -1494,6 +1494,14 @@ const StatusResponseSchema = z.object({
         proxyEnabled: z.boolean(),
       })
       .optional(),
+    export: z
+      .object({
+        enabled: z.boolean(),
+        disabledReason: z.string().optional(),
+        proxyEnabled: z.boolean(),
+        allowPrivateUrls: z.boolean().optional(),
+      })
+      .optional(),
   }),
 });
 

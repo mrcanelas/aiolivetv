@@ -8,6 +8,7 @@ import {
   UserRepository,
   getTvheadendInstancePolicy,
   formatTvheadendDisabledReason,
+  getExportInstancePolicy,
 } from '@aiolivetv/core';
 import { StatusResponse } from '@aiolivetv/core';
 import { encryptString } from '@aiolivetv/core';
@@ -149,6 +150,15 @@ const statusInfo = async (): Promise<StatusResponse> => {
             : undefined,
           allowPrivateUrls: policy.allowPrivateUrls,
           proxyEnabled: policy.proxyEnabled,
+        };
+      })(),
+      export: (() => {
+        const policy = getExportInstancePolicy();
+        return {
+          enabled: policy.enabled,
+          disabledReason: policy.disabledReason,
+          proxyEnabled: policy.proxyEnabled,
+          allowPrivateUrls: policy.allowPrivateUrls,
         };
       })(),
     },

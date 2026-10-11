@@ -337,4 +337,44 @@ export const builtinsSchema = {
       secret: false,
     },
   },
+  export: {
+    enabled: {
+      schema: z.boolean(),
+      default: true,
+      label: 'M3U / XMLTV export enabled',
+      description:
+        'Allow users to export Live TV playlists (M3U) and guides (XMLTV) for Jellyfin and other players.',
+      env: 'EXPORT_ENABLED',
+      requiresRestart: false,
+      secret: false,
+    },
+    disabledReason: {
+      schema: z.string(),
+      default: 'Disabled by this instance administrator',
+      label: 'Export disabled reason',
+      description: 'Reason shown when M3U/XMLTV export is disabled.',
+      env: 'EXPORT_DISABLED_REASON',
+      requiresRestart: false,
+      secret: false,
+    },
+    proxyEnabled: {
+      schema: z.boolean(),
+      default: false,
+      label: 'Export stream proxy',
+      description:
+        'Allow exported playback URLs to proxy video through this instance. Independent from export itself — a public host may allow M3U/XMLTV without carrying video. Self-hosted setups may enable this when Jellyfin cannot reach sources directly.',
+      env: 'EXPORT_PROXY_ENABLED',
+      requiresRestart: false,
+      secret: false,
+    },
+    epgWindowHours: {
+      schema: positiveInt,
+      default: 48,
+      label: 'Export EPG window (hours)',
+      description: 'How many hours of future programme data to include in exported XMLTV guides.',
+      env: 'EXPORT_EPG_WINDOW_HOURS',
+      requiresRestart: false,
+      secret: false,
+    },
+  },
 } as const satisfies RuntimeConfigSection;
