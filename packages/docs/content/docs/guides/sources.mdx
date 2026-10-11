@@ -1,5 +1,5 @@
 ---
-title: XMLTV, M3U and Xtream
+title: XMLTV, M3U, Xtream and TVHeadend
 description: Configure the Live TV builtins and how AIOLiveTV matches equivalent channels.
 ---
 
@@ -48,6 +48,44 @@ Xtream can supply catalog, meta (including EPG when the provider has it) and str
 | Resources | Catalog, Meta and Stream by default |
 
 Treat credentials like any other secret stored in `UserData`. Prefer HTTPS to the Xtream panel when the provider supports it.
+
+## TVHeadend
+
+TVHeadend can supply catalog, meta (EPG) and live streams over its HTTP JSON API. Recordings, DVR scheduling, timeshift, HDHomeRun and Jellyfin bridges are out of scope.
+
+**Requer acesso ao seu servidor** — the AIOLiveTV instance must be able to reach the TVHeadend HTTP port. That is not the same as “only self-hosted AIOLiveTV”: a remote instance with VPN or a private route works; a public instance that cannot reach your LAN does not.
+
+| Address | Who must reach it |
+| --- | --- |
+| **URL do servidor** (API) | The AIOLiveTV backend (channel list, EPG, tickets, proxy upstream) |
+| **URL de reprodução** (optional) | The player device in **direct** mode (or leave blank to reuse the API URL) |
+| Proxy stream URL on this instance | The player device in **proxy** mode; AIOLiveTV then reaches TVHeadend |
+
+Private literals such as `192.168.x.x`, `localhost` or Docker service names resolve on the **instance network**, not automatically on your home LAN.
+
+| Option | Purpose |
+| --- | --- |
+| Nome da conexão | Label in the Addons list |
+| URL do servidor | Base URL used by AIOLiveTV for `/api/channel/grid`, `/api/epg/events/grid`, … |
+| Usuário / Senha | TVHeadend account (Basic auth). Empty if the server allows anonymous access |
+| URL de reprodução | Player-facing base URL when it differs from the internal API URL |
+| Modo de reprodução | **Direto** (short-lived ticket, no permanent password in the URL) or **Proxy** (video through AIOLiveTV, if the admin enabled it) |
+| Perfil HTTP | TVHeadend streaming profile (default `pass`; no transcoding in AIOLiveTV) |
+| IDs de tags/grupos | Optional comma-separated channel-tag UUIDs |
+| Testar conexão | Backend probe of `/api/channel/grid?limit=1` (does not start a tuner) |
+
+### Instance policy
+
+| Env | Default | Effect |
+| --- | --- | --- |
+| `TVHEADEND_ENABLED` | `true` | Disable the provider for everyone on this instance |
+| `TVHEADEND_DISABLED_REASON` | Portuguese admin message | Shown as **Desabilitado pelo administrador desta instância** |
+| `HTTP_ALLOW_PRIVATE_URLS` | `false` | Required for API/playback URLs on private/reserved addresses |
+| `TVHEADEND_PROXY_ENABLED` | `false` | Allow proxy playback (bandwidth on the instance) |
+
+On public / multi-user hosts keep private URLs and proxy off. On a personal LAN or Docker network set `HTTP_ALLOW_PRIVATE_URLS=true`, and set `TVHEADEND_PROXY_ENABLED=true` only if players cannot reach TVHeadend directly.
+
+Credentials stay on the backend. Direct mode uses TVHeadend playlist tickets (~5 minutes). Proxy mode streams with flow control and closes the upstream when the player disconnects. Prefer the `pass` profile; exotic containers may need `behaviorHints.notWebReady` on some Stremio clients.
 
 ## Other live sources
 

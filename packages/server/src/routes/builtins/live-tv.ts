@@ -15,6 +15,7 @@ import {
   ClaroTvAddon,
   MiTvAddon,
   XtreamAddon,
+  TvheadendAddon,
   parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
@@ -24,6 +25,7 @@ import {
   type ClaroTvConfig,
   type MiTvConfig,
   type XtreamConfig,
+  type TvheadendConfig,
 } from '@aiolivetv/core';
 import { getEncodedExtras } from '../../utils/stremioExtras.js';
 
@@ -68,6 +70,10 @@ function xtreamConfig(encodedConfig: string): XtreamConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
+function tvheadendConfig(encodedConfig: string): TvheadendConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
 router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
   try {
     const addon =
@@ -77,6 +83,8 @@ router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
           ? new M3uAddon(config(req.params.encodedConfig))
           : req.params.source === 'xtream'
             ? new XtreamAddon(xtreamConfig(req.params.encodedConfig))
+          : req.params.source === 'tvheadend'
+            ? new TvheadendAddon(tvheadendConfig(req.params.encodedConfig))
           : req.params.source === 'vivo-tv'
             ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
           : req.params.source === 'movistar-tv'
@@ -219,6 +227,54 @@ router.get(
     try {
       const meta = await new XtreamAddon(
         xtreamConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/tvheadend/:encodedConfig/stream/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const streams = await new TvheadendAddon(
+        tvheadendConfig(req.params.encodedConfig)
+      ).getStreams(req.params.id);
+      res.json({ streams });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/tvheadend/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const { skip, date, genre } = parseCatalogExtras(getEncodedExtras(req));
+      const response = await new TvheadendAddon(
+        tvheadendConfig(req.params.encodedConfig)
+      ).getCatalogResponse(skip, date, genre);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/tvheadend/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new TvheadendAddon(
+        tvheadendConfig(req.params.encodedConfig)
       ).getMeta(req.params.id);
       res.json({
         meta,

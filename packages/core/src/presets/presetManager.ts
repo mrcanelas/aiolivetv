@@ -17,12 +17,14 @@ import {
   DirectvPreset,
   XmltvPreset,
   XtreamPreset,
+  TvheadendPreset,
 } from './liveTv.js';
 
 const PRESETS = {
   m3u: M3uPreset,
   xmltv: XmltvPreset,
   xtream: XtreamPreset,
+  tvheadend: TvheadendPreset,
   'vivo-tv': VivoTvPreset,
   'movistar-tv': MovistarTvPreset,
   tvp: TvpPreset,

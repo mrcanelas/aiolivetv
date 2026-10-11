@@ -8,6 +8,11 @@ import type {
 import { MI_TV_COUNTRIES } from '../builtins/mitv/index.js';
 import { MOVISTAR_COUNTRIES } from '../builtins/movistartv/index.js';
 import { XtreamConfigSchema } from '../builtins/xtream/config.js';
+import {
+  TvheadendConfigSchema,
+  getTvheadendInstancePolicy,
+  formatTvheadendDisabledReason,
+} from '../builtins/tvheadend/index.js';
 import StreamParser from '../parser/streams.js';
 import { appConfig, constants, toUrlSafeBase64 } from '../utils/index.js';
 import { Preset } from './preset.js';
@@ -964,5 +969,229 @@ export class XtreamPreset extends Preset {
     options: Record<string, any>
   ): Promise<Addon[]> {
     return [generateXtreamAddon(options)];
+  }
+}
+
+function generateTvheadendAddon(options: Record<string, any>): Addon {
+  const policy = getTvheadendInstancePolicy();
+  if (!policy.enabled) {
+    throw new Error(
+      formatTvheadendDisabledReason(
+        policy.disabledReason ||
+          'Desabilitado pelo administrador desta instância'
+      )
+    );
+  }
+  if (options.playbackMode === 'proxy' && !policy.proxyEnabled) {
+    throw new Error(
+      'A reprodução por proxy está desabilitada pelo administrador desta instância'
+    );
+  }
+
+  const config = TvheadendConfigSchema.parse({
+    url: options.url,
+    username: options.username || '',
+    password: options.password || '',
+    playbackUrl: options.playbackUrl || '',
+    playbackMode: options.playbackMode || 'direct',
+    profile: options.profile || 'pass',
+    tagIds: options.tagIds || '',
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
+  });
+
+  return {
+    name: options.name || 'TVHeadend',
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/tvheadend/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    enabled: true,
+    resources: options.resources || [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ],
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: 'tvheadend', options },
+    headers: { 'User-Agent': appConfig.http.defaultUserAgent },
+  };
+}
+
+function tvheadendOptions(
+  resources: ('catalog' | 'meta' | 'stream')[]
+): Option[] {
+  const policy = getTvheadendInstancePolicy();
+  const proxyOptionAvailable = policy.proxyEnabled;
+  const playbackModes = [
+    { label: 'Direto (ticket temporário)', value: 'direct' },
+    ...(proxyOptionAvailable
+      ? [{ label: 'Proxy (via esta instância)', value: 'proxy' }]
+      : []),
+  ];
+
+  return [
+    {
+      id: 'accessNotice',
+      name: 'Requer acesso ao seu servidor',
+      description:
+        'A instância do AIOLiveTV precisa alcançar o TVHeadend para importar canais e EPG. Endereços como `192.168.x.x`, `localhost` ou nomes Docker internos apontam para a **rede desta instância**, não automaticamente para a sua casa. Em instâncias públicas, o acesso a endereços privados fica bloqueado até o administrador permitir (`HTTP_ALLOW_PRIVATE_URLS`).',
+      type: 'alert',
+      intent: 'info',
+      required: false,
+      showInSimpleMode: true,
+    },
+    {
+      id: 'resources',
+      name: 'Resources',
+      description:
+        'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
+      type: 'multi-select',
+      required: false,
+      showInSimpleMode: true,
+      default: resources,
+      options: resources.map((resource) => ({
+        label: constants.RESOURCE_LABELS[resource],
+        value: resource,
+      })),
+    },
+    {
+      id: 'name',
+      name: 'Nome da conexão',
+      description: 'Como esta conexão TVHeadend aparece na lista de addons',
+      type: 'string',
+      required: true,
+      default: 'TVHeadend',
+    },
+    {
+      id: 'url',
+      name: 'URL do servidor',
+      description:
+        'Endereço usado pelo AIOLiveTV para consultar canais e programação (por exemplo `http://tvheadend:9981` ou `https://tvh.example.com`).',
+      type: 'url',
+      required: true,
+    },
+    {
+      id: 'username',
+      name: 'Usuário',
+      description: 'Usuário do TVHeadend (deixe vazio se o servidor permitir acesso anônimo)',
+      type: 'string',
+      required: false,
+    },
+    {
+      id: 'password',
+      name: 'Senha',
+      description:
+        'Senha do TVHeadend. Fica no backend; o navegador de configuração não consulta o TVHeadend diretamente.',
+      type: 'password',
+      required: false,
+    },
+    {
+      id: 'playbackUrl',
+      name: 'URL de reprodução',
+      description:
+        'Endereço usado pelo player quando for diferente do endereço interno da API (por exemplo URL pública ou VPN). Deixe vazio para reutilizar a URL do servidor.',
+      type: 'url',
+      required: false,
+    },
+    {
+      id: 'playbackMode',
+      name: 'Modo de reprodução',
+      description: proxyOptionAvailable
+        ? '**Direto:** o player abre o TVHeadend com um ticket temporário (sem senha permanente na URL). **Proxy:** o vídeo passa pela instância do AIOLiveTV; as credenciais permanecem no backend.'
+        : '**Direto:** o player abre o TVHeadend com um ticket temporário. O modo proxy está desabilitado pelo administrador desta instância.',
+      type: 'select',
+      required: true,
+      default: 'direct',
+      options: playbackModes,
+    },
+    {
+      id: 'profile',
+      name: 'Perfil HTTP',
+      description:
+        'Perfil de streaming do TVHeadend (padrão `pass`, sem transcodificação). Clientes Stremio costumam lidar melhor com MPEG-TS/`pass` do que com contentores exóticos.',
+      type: 'string',
+      required: false,
+      default: 'pass',
+      showInSimpleMode: false,
+    },
+    {
+      id: 'tagIds',
+      name: 'IDs de tags/grupos',
+      description:
+        'Opcional. Lista separada por vírgulas de UUIDs de channel tags do TVHeadend para importar só esses grupos.',
+      type: 'string',
+      required: false,
+      showInSimpleMode: false,
+    },
+    {
+      id: 'timeout',
+      name: 'Timeout (ms)',
+      description: 'Timeout for API requests',
+      type: 'number',
+      required: true,
+      default: appConfig.presets.defaultTimeout,
+      constraints: {
+        min: appConfig.userLimits.timeouts.minTimeout,
+        max: appConfig.userLimits.timeouts.maxTimeout,
+        forceInUi: false,
+      },
+    },
+    epgTimeShiftOption(),
+    {
+      id: 'testConnection',
+      name: 'Testar conexão',
+      description:
+        'Consulta leve à API do TVHeadend (lista 1 canal). Não inicia stream nem ocupa sintonizador.',
+      type: 'action',
+      required: false,
+      showInSimpleMode: true,
+      buttonIntent: 'primary-subtle',
+    },
+  ];
+}
+
+export class TvheadendPreset extends Preset {
+  static override getParser(): typeof StreamParser {
+    return LiveTvStreamParser;
+  }
+
+  static override get METADATA() {
+    const resources = [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ];
+    const policy = getTvheadendInstancePolicy();
+    return {
+      ID: 'tvheadend',
+      NAME: 'TVHeadend',
+      LOGO: '',
+      URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/tvheadend`],
+      TIMEOUT: appConfig.presets.defaultTimeout,
+      USER_AGENT: appConfig.http.defaultUserAgent,
+      SUPPORTED_SERVICES: [],
+      DESCRIPTION:
+        'Canais, EPG e streams ao vivo a partir do seu servidor TVHeadend. Requer acesso ao seu servidor.',
+      OPTIONS: tvheadendOptions(resources),
+      SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
+      SUPPORTED_RESOURCES: resources,
+      BUILTIN: true,
+      CATEGORY: constants.PresetCategory.STREAMS,
+      DISABLED: policy.enabled
+        ? undefined
+        : {
+            disabled: true,
+            reason: formatTvheadendDisabledReason(
+              policy.disabledReason ||
+                'Desabilitado pelo administrador desta instância'
+            ),
+          },
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    return [generateTvheadendAddon(options)];
   }
 }

@@ -16,6 +16,7 @@ const VALID_INPUT_TYPES = new Set([
   'oauth',
   'subsection',
   'custom-nntp-servers',
+  'action',
 ]);
 
 const VALID_SOCIAL_IDS = new Set([
@@ -315,7 +316,10 @@ export function validateTemplate(
         return;
       }
 
-      const nameAllowEmpty = input.type === 'socials' || input.type === 'alert';
+      const nameAllowEmpty =
+        input.type === 'socials' ||
+        input.type === 'alert' ||
+        input.type === 'action';
       if (!nameAllowEmpty) {
         if (typeof input.name !== 'string' || !input.name.trim()) {
           errors.push(`${basePath}.name: must be a non-empty string`);

@@ -11,6 +11,7 @@ import {
   syncApi,
   authApi,
   dashboardApi,
+  tvheadendApi,
 } from './routes/api/index.js';
 import {
   configure,
@@ -100,6 +101,7 @@ apiRouter.use('/templates', templatesApi);
 apiRouter.use('/sync', syncApi);
 apiRouter.use('/auth', authApi);
 apiRouter.use('/dashboard', dashboardApi);
+apiRouter.use('/tvheadend', tvheadendApi);
 apiRouter.use((req, res) => {
   res.status(404).json(
     createResponse({

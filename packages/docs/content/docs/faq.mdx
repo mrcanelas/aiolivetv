@@ -64,7 +64,7 @@ description: Answers to the most commonly asked questions about AIOLiveTV.
 
   </Accordion>
 
-  <Accordion title="Local XMLTV or M3U URLs fail">
-    Outbound HTTP to private and loopback addresses is blocked by default (SSRF protection). On a personal instance that must fetch `http://192.168.x.x/...`, set `HTTP_ALLOW_PRIVATE_URLS=true`. Leave it `false` on any shared host.
+  <Accordion title="Local XMLTV, M3U or TVHeadend URLs fail">
+    Outbound HTTP to private and loopback addresses is blocked by default (SSRF protection). On a personal instance that must fetch `http://192.168.x.x/...`, set `HTTP_ALLOW_PRIVATE_URLS=true`. Leave it `false` on any shared host. TVHeadend proxy playback also needs `TVHEADEND_PROXY_ENABLED=true` when the player cannot reach TVHeadend directly.
   </Accordion>
 </Accordions>

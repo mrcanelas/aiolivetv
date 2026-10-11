@@ -305,4 +305,36 @@ export const builtinsSchema = {
       secret: false,
     },
   },
+  tvheadend: {
+    enabled: {
+      schema: z.boolean(),
+      default: true,
+      label: 'TVHeadend enabled',
+      description:
+        'Allow users to add the TVHeadend provider. Disable on instances that must not reach user-supplied TVHeadend servers.',
+      env: 'TVHEADEND_ENABLED',
+      requiresRestart: false,
+      secret: false,
+    },
+    disabledReason: {
+      schema: z.string(),
+      default: 'Desabilitado pelo administrador desta instância',
+      label: 'TVHeadend disabled reason',
+      description:
+        'Reason shown in the UI when TVHeadend is disabled for this instance.',
+      env: 'TVHEADEND_DISABLED_REASON',
+      requiresRestart: false,
+      secret: false,
+    },
+    proxyEnabled: {
+      schema: z.boolean(),
+      default: false,
+      label: 'TVHeadend proxy playback',
+      description:
+        'Allow video to be proxied through this AIOLiveTV instance. Keep false on public hosts unless you intentionally accept the bandwidth and trust model. Self-hosted LAN setups may set true.',
+      env: 'TVHEADEND_PROXY_ENABLED',
+      requiresRestart: false,
+      secret: false,
+    },
+  },
 } as const satisfies RuntimeConfigSection;

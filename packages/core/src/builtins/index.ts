@@ -8,3 +8,4 @@ export * from './directv/index.js';
 export * from './clarotv/index.js';
 export * from './mitv/index.js';
 export * from './xtream/index.js';
+export * from './tvheadend/index.js';

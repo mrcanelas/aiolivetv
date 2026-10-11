@@ -6,6 +6,7 @@ import TemplateOption from '../../../shared/template-option';
 import MarkdownLite from '../../../shared/markdown-lite';
 import { useMode } from '@/context/mode';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 export function AddonModal({
   open,
@@ -24,6 +25,7 @@ export function AddonModal({
 }) {
   const { mode: configMode } = useMode();
   const [values, setValues] = useState<Record<string, any>>(initialValues);
+  const [testingConnection, setTestingConnection] = useState(false);
   useEffect(() => {
     if (open) {
       setValues(initialValues);
@@ -47,11 +49,49 @@ export function AddonModal({
   // Check if all required fields are filled
   const allRequiredFilled = dynamicOptions.every((opt: any) => {
     if (!opt.required) return true;
+    if (opt.type === 'action' || opt.type === 'alert') return true;
     const val = values.options?.[opt.id];
     // For booleans, false is valid; for others, check for empty string/null/undefined
     if (opt.type === 'boolean') return typeof val === 'boolean';
     return val !== undefined && val !== null && val !== '';
   });
+
+  async function handleTestConnection() {
+    if (presetMetadata?.ID !== 'tvheadend') return;
+    const options = values.options || {};
+    if (!options.url) {
+      toast.error('Informe a URL do servidor antes de testar');
+      return;
+    }
+    setTestingConnection(true);
+    try {
+      const result = await api<{
+        code: string;
+        message: string;
+        channelCount?: number;
+      }>('POST /tvheadend/test', {
+        body: {
+          url: options.url,
+          username: options.username || '',
+          password: options.password || '',
+          timeout: options.timeout,
+        },
+      });
+      if (result.code === 'ok') {
+        toast.success(result.message);
+      } else if (result.code === 'no_channels') {
+        toast.warning(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Falha ao testar conexão'
+      );
+    } finally {
+      setTestingConnection(false);
+    }
+  }
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -118,17 +158,36 @@ export function AddonModal({
       <form className="space-y-4" onSubmit={handleFormSubmit}>
         {dynamicOptions.map((opt: any) => (
           <div key={opt.id} className="mb-2">
-            <TemplateOption
-              option={opt}
-              value={values.options?.[opt.id]}
-              onChange={(v: any) =>
-                setValues((val) => ({
-                  ...val,
-                  options: { ...val.options, [opt.id]: v },
-                }))
-              }
-              disabled={false}
-            />
+            {opt.type === 'action' && opt.id === 'testConnection' ? (
+              <div>
+                <Button
+                  type="button"
+                  className="w-full"
+                  intent={(opt.buttonIntent as any) ?? 'primary-subtle'}
+                  disabled={testingConnection}
+                  onClick={handleTestConnection}
+                >
+                  {testingConnection ? 'Testando…' : opt.name}
+                </Button>
+                {opt.description && (
+                  <div className="text-xs text-[--muted] mt-1">
+                    <MarkdownLite>{opt.description}</MarkdownLite>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <TemplateOption
+                option={opt}
+                value={values.options?.[opt.id]}
+                onChange={(v: any) =>
+                  setValues((val) => ({
+                    ...val,
+                    options: { ...val.options, [opt.id]: v },
+                  }))
+                }
+                disabled={false}
+              />
+            )}
           </div>
         ))}
         <Button

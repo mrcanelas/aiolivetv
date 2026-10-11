@@ -6,6 +6,8 @@ import {
   PresetManager,
   SelAccess,
   UserRepository,
+  getTvheadendInstancePolicy,
+  formatTvheadendDisabledReason,
 } from '@aiolivetv/core';
 import { StatusResponse } from '@aiolivetv/core';
 import { encryptString } from '@aiolivetv/core';
@@ -93,9 +95,8 @@ const statusInfo = async (): Promise<StatusResponse> => {
         },
         timeout: appConfig.presets.defaultTimeout ?? null,
       },
-      presets: PresetManager.getPresetList().map((preset) => ({
-        ...preset,
-        DISABLED: FeatureControl.removedAddons.has(preset.ID)
+      presets: PresetManager.getPresetList().map((preset) => {
+        const disabledFromFeature = FeatureControl.removedAddons.has(preset.ID)
           ? {
               reason:
                 FeatureControl.removedAddons.get(preset.ID) ||
@@ -110,8 +111,25 @@ const statusInfo = async (): Promise<StatusResponse> => {
                   'Disabled by owner of the instance',
                 disabled: true,
               }
-            : preset.DISABLED,
-      })),
+            : preset.DISABLED;
+
+        if (preset.ID === 'tvheadend' && disabledFromFeature) {
+          return {
+            ...preset,
+            DISABLED: {
+              ...disabledFromFeature,
+              reason: formatTvheadendDisabledReason(
+                disabledFromFeature.reason
+              ),
+            },
+          };
+        }
+
+        return {
+          ...preset,
+          DISABLED: disabledFromFeature,
+        };
+      }),
       services: getEnvironmentServiceDetails(),
       limits: {
         maxMergedCatalogSources: appConfig.userLimits.maxMergedCatalogSources,
@@ -122,6 +140,17 @@ const statusInfo = async (): Promise<StatusResponse> => {
         maxNzbFailoverCount: appConfig.userLimits.maxNzbFailoverCount,
         maxBackgroundPings: appConfig.userLimits.maxBackgroundPings,
       },
+      tvheadend: (() => {
+        const policy = getTvheadendInstancePolicy();
+        return {
+          enabled: policy.enabled,
+          disabledReason: policy.disabledReason
+            ? formatTvheadendDisabledReason(policy.disabledReason)
+            : undefined,
+          allowPrivateUrls: policy.allowPrivateUrls,
+          proxyEnabled: policy.proxyEnabled,
+        };
+      })(),
     },
   };
 };

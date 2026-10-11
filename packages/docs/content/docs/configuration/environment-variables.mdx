@@ -55,7 +55,7 @@ These are validated at startup and cannot be set from the dashboard.
 | `INTERNAL_URL`              | `http://localhost:${PORT}`  | Internal URL used for communication with built-in addons. The default is fine for almost all setups, including Vercel Container Functions.                                                                                                                                                                   |
 | `AIOLIVETV_AGE_RATING_ICONS_BASE_URL` | `https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest` | Base URL for age-rating SVG icons used when an EPG source does not provide `ContentRating.icon`. |
 | `CRON_SECRET`               | —                           | Bearer token required by `/api/internal/tasks/*`. Vercel Cron Jobs send `Authorization: Bearer ${CRON_SECRET}` automatically when this variable is set.                                                                                                                                                      |
-| `HTTP_ALLOW_PRIVATE_URLS`   | `false`                     | Allow outbound HTTP to localhost and private/reserved IP ranges (RFC1918, link-local, cloud metadata). Leave `false` on public or multi-user instances. Set `true` only for a personal LAN that hosts XMLTV or M3U locally.                                                                                    |
+| `HTTP_ALLOW_PRIVATE_URLS`   | `false`                     | Allow outbound HTTP to localhost and private/reserved IP ranges (RFC1918, link-local, cloud metadata). Leave `false` on public or multi-user instances. Set `true` only for a personal LAN/Docker network that hosts XMLTV, M3U or TVHeadend locally. See also `TVHEADEND_*` under Builtins.                                                                                    |
 
 <Callout type="warn">
   `SECRET_KEY` is required and must be a 64-character hexadecimal string.
@@ -456,6 +456,14 @@ neither the environment variable nor a stored value is present.
 | `BUILTIN_TORRENT_METADATA_CACHE_TTL` | Torrent › Metadata Cache TTL | duration | `604800` | Cache TTL for torrent metadata. |
 | `BUILTIN_MINIMUM_BACKGROUND_REFRESH_INTERVAL` | Torrent › Minimum Background Refresh Interval | duration | `86400` | Minimum interval between background search-cache refreshes triggered during normal searches. |
 
+#### Tvheadend
+
+| Environment Variable | UI Setting | Type | Default | Description |
+| --- | --- | --- | --- | --- |
+| `TVHEADEND_ENABLED` | Tvheadend › Enabled | boolean | `true` | Allow users to add the TVHeadend provider. Disable on instances that must not reach user-supplied TVHeadend servers. |
+| `TVHEADEND_DISABLED_REASON` | Tvheadend › Disabled Reason | string | `Desabilitado pelo administrador desta instância` | Reason shown in the UI when TVHeadend is disabled for this instance. |
+| `TVHEADEND_PROXY_ENABLED` | Tvheadend › Proxy Enabled | boolean | `false` | Allow video to be proxied through this AIOLiveTV instance. Keep false on public hosts unless you intentionally accept the bandwidth and trust model. Self-hosted LAN setups may set true. |
+
 ### Posters
 
 | Environment Variable | UI Setting | Type | Default | Description |
@@ -476,7 +484,7 @@ neither the environment variable nor a stored value is present.
 | `MANIFEST_INCREASED_TIMEOUT` | Timeouts › Manifest Increased | number | `10000` | Extended timeout used during slower manifest operations (milliseconds). |
 | `META_TIMEOUT` | Timeouts › Meta | number | `30000` | Timeout for `/meta` requests (milliseconds). |
 | `CATALOG_TIMEOUT` | Timeouts › Catalog | number | `30000` | Timeout for `/catalog/*` fetches (milliseconds). |
-| `CHANNEL_SCAN_BUDGET_MS` | Timeouts › Channel Scan | number | `0` | Wall-clock budget for one Channels page scan. When reached, the scan stops and returns the channels found so far, listing each unfinished source. On hosts with a reverse-proxy limit (Beamup ~60s, Vercel Function max duration), set this about 10–60s below that limit so you get partial results instead of a 504. Defaults to 240000 on Vercel. Set 0 to remove the limit. |
+| `CHANNEL_SCAN_BUDGET_MS` | Timeouts › Channel Scan | number | `45000` | Wall-clock budget for one Channels page scan, including provider initialisation. When reached, the scan returns the channels found so far and lists unfinished sources. Defaults to 45000, or 240000 on Vercel. Keep this below your reverse-proxy request limit. Set 0 to remove the limit. |
 
 #### Precache
 

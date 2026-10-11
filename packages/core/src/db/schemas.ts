@@ -291,6 +291,7 @@ const OptionDefinition = z.looseObject({
     'oauth',
     'subsection',
     'custom-nntp-servers',
+    'action',
   ]),
   oauth: z
     .object({
@@ -1485,6 +1486,14 @@ const StatusResponseSchema = z.object({
       maxNzbFailoverCount: z.number(),
       maxBackgroundPings: z.number(),
     }),
+    tvheadend: z
+      .object({
+        enabled: z.boolean(),
+        disabledReason: z.string().optional(),
+        allowPrivateUrls: z.boolean(),
+        proxyEnabled: z.boolean(),
+      })
+      .optional(),
   }),
 });
 
