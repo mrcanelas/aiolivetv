@@ -11,6 +11,9 @@
       "versioning": "default",
       "prerelease": false,
       "include-component-in-tag": false,
+      "changelog-type": "github",
+      "pull-request-header": "## Next AIOLiveTV release\n\nHere are the updates included in this release. Review the changes below before publishing.",
+      "pull-request-footer": "Thanks to everyone who helped improve AIOLiveTV through code, bug reports and feedback!",
       "exclude-paths": [
         ".env.sample",
         ".gitignore",
