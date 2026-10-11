@@ -37,7 +37,7 @@ const TestBodySchema = z.object({
     .int()
     .positive()
     .optional()
-    .default(appConfig.presets.defaultTimeout),
+    .default(() => appConfig.presets.defaultTimeout),
 });
 
 router.post(
