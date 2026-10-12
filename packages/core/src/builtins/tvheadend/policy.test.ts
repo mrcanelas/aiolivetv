@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const state = {
   enabled: true,
-  disabledReason: 'Motivo customizado',
+  disabledReason: 'Custom reason',
   proxyEnabled: false,
   allowPrivateUrls: false,
   disabledAddons: {} as Record<string, string>,
@@ -54,21 +54,21 @@ const {
 describe('TVHeadend instance policy', () => {
   beforeEach(() => {
     state.enabled = true;
-    state.disabledReason = 'Motivo customizado';
+    state.disabledReason = 'Custom reason';
     state.proxyEnabled = false;
     state.allowPrivateUrls = false;
     state.disabledAddons = {};
   });
 
-  it('formats admin disable reasons in Portuguese', () => {
+  it('formats admin disable reasons in English', () => {
     expect(formatTvheadendDisabledReason('LAN only')).toBe(
-      'Desabilitado pelo administrador desta instância. LAN only'
+      'Disabled by this instance administrator. LAN only'
     );
     expect(
       formatTvheadendDisabledReason(
-        'Desabilitado pelo administrador desta instância'
+        'Disabled by this instance administrator'
       )
-    ).toBe('Desabilitado pelo administrador desta instância');
+    ).toBe('Disabled by this instance administrator');
   });
 
   it('disables the provider from builtins config', () => {
@@ -79,7 +79,7 @@ describe('TVHeadend instance policy', () => {
   });
 
   it('blocks proxy when not enabled by admin', () => {
-    expect(() => assertTvheadendProxyAllowed()).toThrow(/proxy/);
+    expect(() => assertTvheadendProxyAllowed()).toThrow(/proxy/i);
     state.proxyEnabled = true;
     expect(() => assertTvheadendProxyAllowed()).not.toThrow();
   });

@@ -53,33 +53,33 @@ Treat credentials like any other secret stored in `UserData`. Prefer HTTPS to th
 
 TVHeadend can supply catalog, meta (EPG) and live streams over its HTTP JSON API. Recordings, DVR scheduling, timeshift, HDHomeRun and Jellyfin bridges are out of scope.
 
-**Requer acesso ao seu servidor** — the AIOLiveTV instance must be able to reach the TVHeadend HTTP port. That is not the same as “only self-hosted AIOLiveTV”: a remote instance with VPN or a private route works; a public instance that cannot reach your LAN does not.
+**Server Access Required** — the AIOLiveTV instance must be able to reach the TVHeadend HTTP port. That is not the same as “only self-hosted AIOLiveTV”: a remote instance with VPN or a private route works; a public instance that cannot reach your LAN does not.
 
 | Address | Who must reach it |
 | --- | --- |
-| **URL do servidor** (API) | The AIOLiveTV backend (channel list, EPG, tickets, proxy upstream) |
-| **URL de reprodução** (optional) | The player device in **direct** mode (or leave blank to reuse the API URL) |
+| **Server URL** (API) | The AIOLiveTV backend (channel list, EPG, tickets, proxy upstream) |
+| **Playback URL** (optional) | The player device in **direct** mode (or leave blank to reuse the API URL) |
 | Proxy stream URL on this instance | The player device in **proxy** mode; AIOLiveTV then reaches TVHeadend |
 
 Private literals such as `192.168.x.x`, `localhost` or Docker service names resolve on the **instance network**, not automatically on your home LAN.
 
 | Option | Purpose |
 | --- | --- |
-| Nome da conexão | Label in the Addons list |
-| URL do servidor | Base URL used by AIOLiveTV for `/api/channel/grid`, `/api/epg/events/grid`, … |
-| Usuário / Senha | TVHeadend account (Basic auth). Empty if the server allows anonymous access |
-| URL de reprodução | Player-facing base URL when it differs from the internal API URL |
-| Modo de reprodução | **Direto** (short-lived ticket, no permanent password in the URL) or **Proxy** (video through AIOLiveTV, if the admin enabled it) |
-| Perfil HTTP | TVHeadend streaming profile (default `pass`; no transcoding in AIOLiveTV) |
-| IDs de tags/grupos | Optional comma-separated channel-tag UUIDs |
-| Testar conexão | Backend probe of `/api/channel/grid?limit=1` (does not start a tuner) |
+| Connection Name | Label in the Addons list |
+| Server URL | Base URL used by AIOLiveTV for `/api/channel/grid`, `/api/epg/events/grid`, … |
+| Username / Password | TVHeadend account (Basic auth). Empty if the server allows anonymous access |
+| Playback URL | Player-facing base URL when it differs from the internal API URL |
+| Playback Mode | **Direto** (short-lived ticket, no permanent password in the URL) or **Proxy** (video through AIOLiveTV, if the admin enabled it) |
+| HTTP Profile | TVHeadend streaming profile (default `pass`; no transcoding in AIOLiveTV) |
+| Tag / Group IDs | Optional comma-separated channel-tag UUIDs |
+| Test Connection | Backend probe of `/api/channel/grid?limit=1` (does not start a tuner) |
 
 ### Instance policy
 
 | Env | Default | Effect |
 | --- | --- | --- |
 | `TVHEADEND_ENABLED` | `true` | Disable the provider for everyone on this instance |
-| `TVHEADEND_DISABLED_REASON` | Portuguese admin message | Shown as **Desabilitado pelo administrador desta instância** |
+| `TVHEADEND_DISABLED_REASON` | English admin message | Shown as **Disabled by this instance administrator** |
 | `HTTP_ALLOW_PRIVATE_URLS` | `false` | Required for API/playback URLs on private/reserved addresses |
 | `TVHEADEND_PROXY_ENABLED` | `false` | Allow proxy playback (bandwidth on the instance) |
 
@@ -100,10 +100,10 @@ Only country codes that have **both** files verified are listed in the UI. VOD p
 
 | Option | Purpose |
 | --- | --- |
-| Catálogo / País | Regional catalog to import. Add one addon instance per country. |
+| Catalog / Country | Regional catalog to import. Add one addon instance per country. |
 | Timeout | Download timeout for M3U/XMLTV |
 | EPG Time Shift | Same as XMLTV |
-| Testar importação | Downloads playlist + guide and reports channel / EPG match counts (does not start streams) |
+| Test Import | Downloads playlist + guide and reports channel / EPG match counts (does not start streams) |
 | Resources | Catalog, Meta and Stream by default |
 
 ### Region and playback
@@ -117,7 +117,7 @@ On Brazil (`pluto-live-BR.m3u` + `PlutoTV/br.xml.gz`) we measured a full `tvg-id
 | Env | Default | Effect |
 | --- | --- | --- |
 | `PLUTOTV_ENABLED` | `true` | Disable the provider for everyone on this instance |
-| `PLUTOTV_DISABLED_REASON` | Portuguese admin message | Shown when Pluto TV is disabled |
+| `PLUTOTV_DISABLED_REASON` | English admin message | Shown when Pluto TV is disabled |
 
 Internal ids are `pluto:{region}:{originalId}`. Catalog `tvg-id` keeps the original Pluto id so M3U and XMLTV stay aligned for export.
 

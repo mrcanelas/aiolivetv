@@ -61,7 +61,7 @@ export function AddonModal({
     if (presetId !== 'tvheadend' && presetId !== 'pluto-tv') return;
     const options = values.options || {};
     if (presetId === 'tvheadend' && !options.url) {
-      toast.error('Informe a URL do servidor antes de testar');
+      toast.error('Informe a Server URL antes de testar');
       return;
     }
     setTestingConnection(true);
@@ -95,17 +95,14 @@ export function AddonModal({
             });
       if (result.code === 'ok') {
         toast.success(result.message);
-      } else if (
-        result.code === 'no_channels' ||
-        result.code === 'partial'
-      ) {
+      } else if (result.code === 'no_channels' || result.code === 'partial') {
         toast.warning(result.message);
       } else {
         toast.error(result.message);
       }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Falha ao testar conexão'
+        error instanceof Error ? error.message : 'Failed to test connection'
       );
     } finally {
       setTestingConnection(false);

@@ -25,7 +25,7 @@ vi.mock('../../config/index.js', () => ({
     builtins: {
       plutotv: {
         enabled: true,
-        disabledReason: 'Desabilitado pelo administrador desta instância',
+        disabledReason: 'Disabled by this instance administrator',
       },
     },
   },

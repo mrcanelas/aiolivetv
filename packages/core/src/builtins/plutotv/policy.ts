@@ -12,7 +12,7 @@ export function getPlutoTvInstancePolicy(): PlutoTvInstancePolicy {
     disabledReason: section.enabled
       ? undefined
       : section.disabledReason.trim() ||
-        'Desabilitado pelo administrador desta instância',
+        'Disabled by this instance administrator',
   };
 }
 
@@ -29,8 +29,7 @@ export function assertPlutoTvEnabled(): void {
   const policy = getPlutoTvInstancePolicy();
   if (!policy.enabled) {
     throw new PlutoTvPolicyError(
-      policy.disabledReason ||
-        'Desabilitado pelo administrador desta instância'
+      policy.disabledReason || 'Disabled by this instance administrator'
     );
   }
 }
@@ -38,14 +37,12 @@ export function assertPlutoTvEnabled(): void {
 export function formatPlutoTvDisabledReason(reason: string): string {
   const trimmed = reason.trim();
   if (!trimmed) {
-    return 'Desabilitado pelo administrador desta instância';
+    return 'Disabled by this instance administrator';
   }
   if (
-    trimmed
-      .toLowerCase()
-      .startsWith('desabilitado pelo administrador desta instância')
+    trimmed.toLowerCase().startsWith('disabled by this instance administrator')
   ) {
     return trimmed;
   }
-  return `Desabilitado pelo administrador desta instância. ${trimmed}`;
+  return `Disabled by this instance administrator. ${trimmed}`;
 }

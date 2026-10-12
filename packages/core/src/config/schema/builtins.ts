@@ -318,7 +318,7 @@ export const builtinsSchema = {
     },
     disabledReason: {
       schema: z.string(),
-      default: 'Desabilitado pelo administrador desta instância',
+      default: 'Disabled by this instance administrator',
       label: 'TVHeadend disabled reason',
       description:
         'Reason shown in the UI when TVHeadend is disabled for this instance.',
@@ -350,7 +350,7 @@ export const builtinsSchema = {
     },
     disabledReason: {
       schema: z.string(),
-      default: 'Desabilitado pelo administrador desta instância',
+      default: 'Disabled by this instance administrator',
       label: 'Pluto TV disabled reason',
       description:
         'Reason shown in the UI when Pluto TV is disabled for this instance.',

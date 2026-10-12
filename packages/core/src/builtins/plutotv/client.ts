@@ -535,7 +535,7 @@ export async function resolvePlutoStreamUrl(
   }
   if (!channel?.url) {
     throw Object.assign(
-      new Error('Canal Pluto TV não encontrado na playlist'),
+      new Error('Pluto TV channel not found in the playlist'),
       {
         code: 'not_found' as const,
       }
@@ -581,7 +581,7 @@ export async function resolvePlutoStreamUrlWithRetry(
   const channel = refreshed.byOriginalId.get(originalId.toLowerCase());
   if (!channel?.url) {
     throw Object.assign(
-      new Error('Canal Pluto TV não encontrado após atualizar a playlist'),
+      new Error('Pluto TV channel not found after refreshing the playlist'),
       { code: 'not_found' as const }
     );
   }
@@ -626,20 +626,20 @@ export async function testPlutoTvImport(
     if (!m3u.channels.length) {
       return {
         code: 'error',
-        message: `Nenhum canal ao vivo em ${label}.`,
+        message: `No live channels in ${label}.`,
         ...base,
       };
     }
     if (withEpg === 0) {
       return {
         code: 'partial',
-        message: `Importou ${m3u.channels.length} canal(is) de ${label}, mas nenhum tvg-id bateu com o XMLTV.`,
+        message: `Imported ${m3u.channels.length} channels from ${label}, but none have matching XMLTV programmes.`,
         ...base,
       };
     }
     return {
       code: 'ok',
-      message: `Importação OK · ${label} · ${m3u.channels.length} canais · ${withEpg} (${percent}%) com EPG. Fontes comunitárias (não oficiais).`,
+      message: `Import successful · ${label} · ${m3u.channels.length} channels · ${withEpg} (${percent}%) with EPG. Community sources (unofficial).`,
       ...base,
     };
   } catch (error) {
@@ -649,7 +649,7 @@ export async function testPlutoTvImport(
     return {
       code: 'error',
       message:
-        error instanceof Error ? error.message : 'Falha ao importar Pluto TV',
+        error instanceof Error ? error.message : 'Failed to import Pluto TV',
     };
   }
 }

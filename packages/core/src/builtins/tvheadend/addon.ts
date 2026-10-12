@@ -400,7 +400,7 @@ export class TvheadendAddon {
     const descriptionParts = [`TVHeadend · ${playback.mode}`];
     if (playback.privatePlaybackWarning) {
       descriptionParts.push(
-        'URL de reprodução privada: o dispositivo precisa estar na rede correspondente ou em VPN'
+        'Private playback URL: the device must be on the corresponding network or connected through a VPN'
       );
     }
     if (this.config.profile) {

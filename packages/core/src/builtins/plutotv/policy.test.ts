@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = {
   enabled: true,
-  disabledReason: 'Desabilitado pelo administrador desta instância',
+  disabledReason: 'Disabled by this instance administrator',
 };
 
 vi.mock('../../config/index.js', () => ({
@@ -30,12 +30,12 @@ const {
 describe('Pluto TV instance policy', () => {
   beforeEach(() => {
     state.enabled = true;
-    state.disabledReason = 'Desabilitado pelo administrador desta instância';
+    state.disabledReason = 'Disabled by this instance administrator';
   });
 
-  it('formats admin disable reasons in Portuguese', () => {
+  it('formats admin disable reasons in English', () => {
     expect(formatPlutoTvDisabledReason('LAN only')).toBe(
-      'Desabilitado pelo administrador desta instância. LAN only'
+      'Disabled by this instance administrator. LAN only'
     );
   });
 

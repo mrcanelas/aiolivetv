@@ -89,7 +89,7 @@ vi.mock('../../config/index.js', () => {
     builtins: {
       tvheadend: {
         enabled: true,
-        disabledReason: 'Desabilitado pelo administrador desta instância',
+        disabledReason: 'Disabled by this instance administrator',
         proxyEnabled: true,
       },
     },

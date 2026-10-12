@@ -12,12 +12,10 @@ export type TvheadendInstancePolicy = {
 };
 
 export function getTvheadendInstancePolicy(): TvheadendInstancePolicy {
-  const disabledByFeature = FeatureControl.disabledAddons.has(
-    TVHEADEND_PRESET_ID
-  );
-  const removedByFeature = FeatureControl.removedAddons.has(
-    TVHEADEND_PRESET_ID
-  );
+  const disabledByFeature =
+    FeatureControl.disabledAddons.has(TVHEADEND_PRESET_ID);
+  const removedByFeature =
+    FeatureControl.removedAddons.has(TVHEADEND_PRESET_ID);
   const enabledByConfig = appConfig.builtins.tvheadend.enabled;
 
   if (removedByFeature) {
@@ -25,7 +23,7 @@ export function getTvheadendInstancePolicy(): TvheadendInstancePolicy {
       enabled: false,
       disabledReason:
         FeatureControl.removedAddons.get(TVHEADEND_PRESET_ID) ||
-        'Removido pelo administrador desta instância',
+        'Removed by this instance administrator',
       allowPrivateUrls: appConfig.bootstrap.allowPrivateUrls,
       proxyEnabled: appConfig.builtins.tvheadend.proxyEnabled,
     };
@@ -36,7 +34,7 @@ export function getTvheadendInstancePolicy(): TvheadendInstancePolicy {
       enabled: false,
       disabledReason:
         FeatureControl.disabledAddons.get(TVHEADEND_PRESET_ID) ||
-        'Desabilitado pelo administrador desta instância',
+        'Disabled by this instance administrator',
       allowPrivateUrls: appConfig.bootstrap.allowPrivateUrls,
       proxyEnabled: appConfig.builtins.tvheadend.proxyEnabled,
     };
@@ -47,7 +45,7 @@ export function getTvheadendInstancePolicy(): TvheadendInstancePolicy {
       enabled: false,
       disabledReason:
         appConfig.builtins.tvheadend.disabledReason.trim() ||
-        'Desabilitado pelo administrador desta instância',
+        'Disabled by this instance administrator',
       allowPrivateUrls: appConfig.bootstrap.allowPrivateUrls,
       proxyEnabled: appConfig.builtins.tvheadend.proxyEnabled,
     };
@@ -63,15 +61,15 @@ export function getTvheadendInstancePolicy(): TvheadendInstancePolicy {
 export function formatTvheadendDisabledReason(reason: string): string {
   const trimmed = reason.trim();
   if (!trimmed) {
-    return 'Desabilitado pelo administrador desta instância';
+    return 'Disabled by this instance administrator';
   }
   if (
-    trimmed.startsWith('Desabilitado pelo administrador') ||
-    trimmed.startsWith('Removido pelo administrador')
+    trimmed.startsWith('Disabled by this instance administrator') ||
+    trimmed.startsWith('Removed by this instance administrator')
   ) {
     return trimmed;
   }
-  return `Desabilitado pelo administrador desta instância. ${trimmed}`;
+  return `Disabled by this instance administrator. ${trimmed}`;
 }
 
 export class TvheadendPolicyError extends Error {
@@ -81,10 +79,7 @@ export class TvheadendPolicyError extends Error {
     | 'proxy_disabled'
     | 'invalid_url';
 
-  constructor(
-    code: TvheadendPolicyError['code'],
-    message: string
-  ) {
+  constructor(code: TvheadendPolicyError['code'], message: string) {
     super(message);
     this.name = 'TvheadendPolicyError';
     this.code = code;
@@ -97,27 +92,24 @@ export function assertTvheadendEnabled(): void {
     throw new TvheadendPolicyError(
       'disabled',
       formatTvheadendDisabledReason(
-        policy.disabledReason ||
-          'Desabilitado pelo administrador desta instância'
+        policy.disabledReason || 'Disabled by this instance administrator'
       )
     );
   }
 }
 
-export async function assertTvheadendUrlAllowed(
-  input: string
-): Promise<URL> {
+export async function assertTvheadendUrlAllowed(input: string): Promise<URL> {
   let url: URL;
   try {
     url = new URL(input);
   } catch {
-    throw new TvheadendPolicyError('invalid_url', 'URL inválida');
+    throw new TvheadendPolicyError('invalid_url', 'Invalid URL');
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new TvheadendPolicyError(
       'invalid_url',
-      `Protocolo não suportado: ${url.protocol}`
+      `Unsupported protocol: ${url.protocol}`
     );
   }
 
@@ -132,7 +124,7 @@ export async function assertTvheadendUrlAllowed(
     if (err instanceof SsrfError) {
       throw new TvheadendPolicyError(
         'private_blocked',
-        `Endereço bloqueado pela política da instância: ${err.message}`
+        `Address blocked by this instance policy: ${err.message}`
       );
     }
     throw err;
@@ -144,7 +136,7 @@ export function assertTvheadendProxyAllowed(): void {
   if (!policy.proxyEnabled) {
     throw new TvheadendPolicyError(
       'proxy_disabled',
-      'A reprodução por proxy está desabilitada pelo administrador desta instância'
+      'Proxy playback is disabled by this instance administrator'
     );
   }
 }

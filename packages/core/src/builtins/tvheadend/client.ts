@@ -209,7 +209,12 @@ export function isPrivateHostnameOrIp(hostname: string): boolean {
     return true;
   }
   if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true;
-  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:')) {
+  if (
+    host === '::1' ||
+    host.startsWith('fc') ||
+    host.startsWith('fd') ||
+    host.startsWith('fe80:')
+  ) {
     return true;
   }
   return false;
@@ -242,7 +247,10 @@ async function tvhFetch(
   } catch (err) {
     if (err instanceof TvheadendPolicyError) throw err;
     logger.warn(
-      { url: makeUrlLogSafe(url), err: err instanceof Error ? err.message : String(err) },
+      {
+        url: makeUrlLogSafe(url),
+        err: err instanceof Error ? err.message : String(err),
+      },
       'tvheadend request failed'
     );
     throw err;
@@ -262,13 +270,13 @@ async function readJson<T>(response: Response): Promise<T> {
 
 function mapHttpError(status: number): never {
   if (status === 401) {
-    throw Object.assign(new Error('Credenciais inválidas'), {
+    throw Object.assign(new Error('Invalid credentials'), {
       code: 'unauthorized' as const,
       status,
     });
   }
   if (status === 403) {
-    throw Object.assign(new Error('Conta sem permissão'), {
+    throw Object.assign(new Error('Account does not have permission'), {
       code: 'forbidden' as const,
       status,
     });
@@ -308,12 +316,12 @@ function mapChannel(entry: Record<string, unknown>): TvheadendChannel | null {
   if (!uuid || !name) return null;
   if (entry.enabled === false) return null;
   const tags = Array.isArray(entry.tags)
-    ? entry.tags.map((tag) => asString(tag)).filter((tag): tag is string => !!tag)
+    ? entry.tags
+        .map((tag) => asString(tag))
+        .filter((tag): tag is string => !!tag)
     : [];
   const icon =
-    asString(entry.icon_public_url) ||
-    asString(entry.icon) ||
-    undefined;
+    asString(entry.icon_public_url) || asString(entry.icon) || undefined;
   return {
     uuid,
     name,
@@ -346,7 +354,8 @@ export async function fetchAllChannels(
       body,
     });
     if (!response.ok) mapHttpError(response.status);
-    const data = await readJson<GridResponse<Record<string, unknown>>>(response);
+    const data =
+      await readJson<GridResponse<Record<string, unknown>>>(response);
     const page = (data.entries ?? [])
       .map((entry) => mapChannel(entry))
       .filter((channel): channel is TvheadendChannel => !!channel);
@@ -385,7 +394,8 @@ export async function fetchEpgEventsForChannel(
       body,
     });
     if (!response.ok) mapHttpError(response.status);
-    const data = await readJson<GridResponse<Record<string, unknown>>>(response);
+    const data =
+      await readJson<GridResponse<Record<string, unknown>>>(response);
     const page = data.entries ?? [];
     total = data.totalCount ?? data.total ?? start + page.length;
 
@@ -447,7 +457,11 @@ export async function buildPlaybackUrl(
   config: TvheadendConfig,
   channelUuid: string,
   options?: { mode?: TvheadendPlaybackMode }
-): Promise<{ url: string; mode: TvheadendPlaybackMode; privatePlaybackWarning?: boolean }> {
+): Promise<{
+  url: string;
+  mode: TvheadendPlaybackMode;
+  privatePlaybackWarning?: boolean;
+}> {
   const mode = options?.mode ?? config.playbackMode;
   if (mode === 'proxy') {
     assertTvheadendProxyAllowed();
@@ -482,7 +496,7 @@ export async function fetchTicketStreamUrl(
   const streamUrl = extractStreamUrlFromPlaylist(playlist);
   if (!streamUrl) {
     throw new Error(
-      'Não foi possível obter um ticket de reprodução do TVHeadend. Use o modo proxy se o administrador permitir.'
+      'Could not obtain a TVHeadend playback ticket. Use proxy mode if allowed by the administrator.'
     );
   }
   // Ensure permanent credentials never leak if TVH echoed them.
@@ -542,10 +556,7 @@ export async function openUpstreamStream(
 }
 
 export async function testTvheadendConnection(
-  input: Pick<
-    TvheadendConfig,
-    'url' | 'username' | 'password' | 'timeout'
-  >
+  input: Pick<TvheadendConfig, 'url' | 'username' | 'password' | 'timeout'>
 ): Promise<TvheadendTestResult> {
   try {
     assertTvheadendEnabled();
@@ -570,7 +581,7 @@ export async function testTvheadendConnection(
       timeShiftMinutes: 0,
     };
   } catch {
-    return { code: 'invalid_url', message: 'URL inválida' };
+    return { code: 'invalid_url', message: 'Invalid URL' };
   }
 
   try {
@@ -594,37 +605,38 @@ export async function testTvheadendConnection(
     if (response.status === 401) {
       return {
         code: 'unauthorized',
-        message: 'Credenciais inválidas',
+        message: 'Invalid credentials',
         serverReachable: true,
       };
     }
     if (response.status === 403) {
       return {
         code: 'forbidden',
-        message: 'Conta sem permissão para listar canais',
+        message: 'Account does not have permission to list channels',
         serverReachable: true,
       };
     }
     if (!response.ok) {
       return {
         code: 'error',
-        message: `Servidor respondeu HTTP ${response.status}`,
+        message: `Server returned HTTP ${response.status}`,
         serverReachable: true,
       };
     }
-    const data = await readJson<GridResponse<Record<string, unknown>>>(response);
-    const total = data.total ?? data.totalCount ?? (data.entries?.length ?? 0);
+    const data =
+      await readJson<GridResponse<Record<string, unknown>>>(response);
+    const total = data.total ?? data.totalCount ?? data.entries?.length ?? 0;
     if (!total) {
       return {
         code: 'no_channels',
-        message: 'Conexão bem-sucedida, mas nenhum canal está disponível',
+        message: 'Connection successful, but no channels are available',
         channelCount: 0,
         serverReachable: true,
       };
     }
     return {
       code: 'ok',
-      message: `Conexão bem-sucedida (${total} canal${total === 1 ? '' : 'is'})`,
+      message: `Connection successful (${total} channel${total === 1 ? '' : 's'})`,
       channelCount: total,
       serverReachable: true,
     };
@@ -643,14 +655,17 @@ export async function testTvheadendConnection(
     return {
       code: 'unreachable',
       message: timedOut
-        ? 'Servidor inacessível ou timeout'
-        : `Servidor inacessível: ${message}`,
+        ? 'Server unreachable or request timed out'
+        : `Server unreachable: ${message}`,
       serverReachable: false,
     };
   }
 }
 
-export function classifyStreamFailure(status: number, bodyHint?: string): string {
+export function classifyStreamFailure(
+  status: number,
+  bodyHint?: string
+): string {
   const hint = (bodyHint || '').toLowerCase();
   if (
     status === 503 ||
@@ -659,13 +674,13 @@ export function classifyStreamFailure(status: number, bodyHint?: string): string
     hint.includes('no free tuner') ||
     hint.includes('tuner busy')
   ) {
-    return 'Nenhum sintonizador disponível no TVHeadend';
+    return 'No tuner available on TVHeadend';
   }
   if (status === 404) {
-    return 'Canal indisponível na fonte';
+    return 'Channel unavailable at the source';
   }
   if (status === 401 || status === 403) {
-    return 'Sem permissão para reproduzir este canal';
+    return 'No permission to play this channel';
   }
-  return `Fonte indisponível (HTTP ${status})`;
+  return `Source unavailable (HTTP ${status})`;
 }

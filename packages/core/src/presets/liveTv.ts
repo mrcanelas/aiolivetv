@@ -984,14 +984,13 @@ function generateTvheadendAddon(options: Record<string, any>): Addon {
   if (!policy.enabled) {
     throw new Error(
       formatTvheadendDisabledReason(
-        policy.disabledReason ||
-          'Desabilitado pelo administrador desta instância'
+        policy.disabledReason || 'Disabled by this instance administrator'
       )
     );
   }
   if (options.playbackMode === 'proxy' && !policy.proxyEnabled) {
     throw new Error(
-      'A reprodução por proxy está desabilitada pelo administrador desta instância'
+      'Proxy playback is disabled by this instance administrator'
     );
   }
 
@@ -1029,18 +1028,18 @@ function tvheadendOptions(
   const policy = getTvheadendInstancePolicy();
   const proxyOptionAvailable = policy.proxyEnabled;
   const playbackModes = [
-    { label: 'Direto (ticket temporário)', value: 'direct' },
+    { label: 'Direct (temporary ticket)', value: 'direct' },
     ...(proxyOptionAvailable
-      ? [{ label: 'Proxy (via esta instância)', value: 'proxy' }]
+      ? [{ label: 'Proxy (through this instance)', value: 'proxy' }]
       : []),
   ];
 
   return [
     {
       id: 'accessNotice',
-      name: 'Requer acesso ao seu servidor',
+      name: 'Server Access Required',
       description:
-        'A instância do AIOLiveTV precisa alcançar o TVHeadend para importar canais e EPG. Endereços como `192.168.x.x`, `localhost` ou nomes Docker internos apontam para a **rede desta instância**, não automaticamente para a sua casa. Em instâncias públicas, o acesso a endereços privados fica bloqueado até o administrador permitir (`HTTP_ALLOW_PRIVATE_URLS`).',
+        'This AIOLiveTV instance must be able to reach TVHeadend to import channels and EPG. Addresses such as `192.168.x.x`, `localhost` or internal Docker hostnames refer to **this instance network**, not automatically to your home network. Public instances block private addresses unless the administrator enables `HTTP_ALLOW_PRIVATE_URLS`.',
       type: 'alert',
       intent: 'info',
       required: false,
@@ -1062,49 +1061,50 @@ function tvheadendOptions(
     },
     {
       id: 'name',
-      name: 'Nome da conexão',
-      description: 'Como esta conexão TVHeadend aparece na lista de addons',
+      name: 'Connection Name',
+      description: 'Name shown for this TVHeadend connection in the addon list',
       type: 'string',
       required: true,
       default: 'TVHeadend',
     },
     {
       id: 'url',
-      name: 'URL do servidor',
+      name: 'Server URL',
       description:
-        'Endereço usado pelo AIOLiveTV para consultar canais e programação (por exemplo `http://tvheadend:9981` ou `https://tvh.example.com`).',
+        'Address AIOLiveTV uses to fetch channels and schedules (for example `http://tvheadend:9981` or `https://tvh.example.com`).',
       type: 'url',
       required: true,
     },
     {
       id: 'username',
-      name: 'Usuário',
-      description: 'Usuário do TVHeadend (deixe vazio se o servidor permitir acesso anônimo)',
+      name: 'Username',
+      description:
+        'TVHeadend username (leave blank if the server allows anonymous access)',
       type: 'string',
       required: false,
     },
     {
       id: 'password',
-      name: 'Senha',
+      name: 'Password',
       description:
-        'Senha do TVHeadend. Fica no backend; o navegador de configuração não consulta o TVHeadend diretamente.',
+        'TVHeadend password. Stored on the backend; the configurator does not connect to TVHeadend directly.',
       type: 'password',
       required: false,
     },
     {
       id: 'playbackUrl',
-      name: 'URL de reprodução',
+      name: 'Playback URL',
       description:
-        'Endereço usado pelo player quando for diferente do endereço interno da API (por exemplo URL pública ou VPN). Deixe vazio para reutilizar a URL do servidor.',
+        'Address used by the player when it differs from the internal API address (for example a public or VPN URL). Leave blank to use the server URL.',
       type: 'url',
       required: false,
     },
     {
       id: 'playbackMode',
-      name: 'Modo de reprodução',
+      name: 'Playback Mode',
       description: proxyOptionAvailable
-        ? '**Direto:** o player abre o TVHeadend com um ticket temporário (sem senha permanente na URL). **Proxy:** o vídeo passa pela instância do AIOLiveTV; as credenciais permanecem no backend.'
-        : '**Direto:** o player abre o TVHeadend com um ticket temporário. O modo proxy está desabilitado pelo administrador desta instância.',
+        ? '**Direct:** the player connects to TVHeadend with a temporary ticket (no permanent password in the URL). **Proxy:** video passes through AIOLiveTV; credentials remain on the backend.'
+        : '**Direct:** the player connects to TVHeadend with a temporary ticket. Proxy mode is disabled by this instance administrator.',
       type: 'select',
       required: true,
       default: 'direct',
@@ -1112,9 +1112,9 @@ function tvheadendOptions(
     },
     {
       id: 'profile',
-      name: 'Perfil HTTP',
+      name: 'HTTP Profile',
       description:
-        'Perfil de streaming do TVHeadend (padrão `pass`, sem transcodificação). Clientes Stremio costumam lidar melhor com MPEG-TS/`pass` do que com contentores exóticos.',
+        'TVHeadend streaming profile (default `pass`, without transcoding). Stremio clients generally handle MPEG-TS/`pass` better than less common containers.',
       type: 'string',
       required: false,
       default: 'pass',
@@ -1122,9 +1122,9 @@ function tvheadendOptions(
     },
     {
       id: 'tagIds',
-      name: 'IDs de tags/grupos',
+      name: 'Tag / Group IDs',
       description:
-        'Opcional. Lista separada por vírgulas de UUIDs de channel tags do TVHeadend para importar só esses grupos.',
+        'Optional comma-separated list of TVHeadend channel tag UUIDs. Only these groups will be imported.',
       type: 'string',
       required: false,
       showInSimpleMode: false,
@@ -1145,9 +1145,9 @@ function tvheadendOptions(
     epgTimeShiftOption(),
     {
       id: 'testConnection',
-      name: 'Testar conexão',
+      name: 'Test Connection',
       description:
-        'Consulta leve à API do TVHeadend (lista 1 canal). Não inicia stream nem ocupa sintonizador.',
+        'Lightweight TVHeadend API check (lists one channel). Does not start a stream or occupy a tuner.',
       type: 'action',
       required: false,
       showInSimpleMode: true,
@@ -1177,7 +1177,7 @@ export class TvheadendPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Canais, EPG e streams ao vivo a partir do seu servidor TVHeadend. Requer acesso ao seu servidor.',
+        'Live channels, EPG and streams from your TVHeadend server. Requires access to your server.',
       OPTIONS: tvheadendOptions(resources),
       SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: resources,
@@ -1188,8 +1188,7 @@ export class TvheadendPreset extends Preset {
         : {
             disabled: true,
             reason: formatTvheadendDisabledReason(
-              policy.disabledReason ||
-                'Desabilitado pelo administrador desta instância'
+              policy.disabledReason || 'Disabled by this instance administrator'
             ),
           },
     };
@@ -1208,8 +1207,7 @@ function generatePlutoTvAddon(options: Record<string, any>): Addon {
   if (!policy.enabled) {
     throw new Error(
       formatPlutoTvDisabledReason(
-        policy.disabledReason ||
-          'Desabilitado pelo administrador desta instância'
+        policy.disabledReason || 'Disabled by this instance administrator'
       )
     );
   }
@@ -1271,9 +1269,9 @@ function plutoTvOptions(
     },
     {
       id: 'region',
-      name: 'Catálogo / País',
+      name: 'Catalog / Country',
       description:
-        'Você pode importar catálogos de diferentes países. A reprodução depende da disponibilidade regional dos streams. Adicione uma instância por país. Fontes comunitárias: OwnerPlugins/pluto-tv-m3u + matthuisman/i.mjh.nz (não oficiais).',
+        'Import catalogs from different countries. Playback depends on regional stream availability. Add one instance per country. Community sources: OwnerPlugins/pluto-tv-m3u and matthuisman/i.mjh.nz (unofficial).',
       type: 'select',
       required: true,
       showInSimpleMode: true,
@@ -1299,9 +1297,9 @@ function plutoTvOptions(
     epgTimeShiftOption(),
     {
       id: 'testConnection',
-      name: 'Testar importação',
+      name: 'Test Import',
       description:
-        'Baixa a M3U e o XMLTV regionais e conta canais / associação ao EPG. Não inicia streams.',
+        'Downloads the regional M3U and XMLTV files and counts channels and EPG matches. Does not start streams.',
       type: 'action',
       required: false,
       showInSimpleMode: true,
@@ -1331,7 +1329,7 @@ export class PlutoTvPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'Canais ao vivo, EPG e streams via playlists comunitárias regionais (OwnerPlugins M3U + matthuisman XMLTV). Não é uma API oficial da Pluto TV. A reprodução pode depender da região do player.',
+        'Live channels, EPG and streams from regional community playlists (OwnerPlugins M3U and matthuisman XMLTV). Unofficial Pluto TV integration. Playback may depend on the player region.',
       OPTIONS: plutoTvOptions(resources),
       SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: resources,
@@ -1342,8 +1340,7 @@ export class PlutoTvPreset extends Preset {
         : {
             disabled: true,
             reason: formatPlutoTvDisabledReason(
-              policy.disabledReason ||
-                'Desabilitado pelo administrador desta instância'
+              policy.disabledReason || 'Disabled by this instance administrator'
             ),
           },
     };

@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = {
   enabled: true,
-  disabledReason: 'Desabilitado pelo administrador desta instância',
+  disabledReason: 'Disabled by this instance administrator',
 };
 
 vi.mock('../../config/index.js', () => ({
