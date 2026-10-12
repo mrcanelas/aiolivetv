@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.0](https://github.com/mrcanelas/aiolivetv/compare/v1.0.2...v1.1.0) (2026-10-12)
+
+
+### Features
+
+* **export:** add player exports and refine save/install page ([3e0c85b](https://github.com/mrcanelas/aiolivetv/commit/3e0c85b81c0e35d7b67f68b8e97ca3ef77079488))
+* **plutotv:** add regional live TV builtin ([19282ae](https://github.com/mrcanelas/aiolivetv/commit/19282ae266477260af2cc0d6ed79955d0ee31bdd))
+* **tvheadend:** add builtin logo ([b7bde2e](https://github.com/mrcanelas/aiolivetv/commit/b7bde2e627e1d2b831d492570d45b4110cd9b1a8))
+* **tvheadend:** add live TV builtin with conditional EPG support ([b876a86](https://github.com/mrcanelas/aiolivetv/commit/b876a86efee0c6f17e08ccaa59d2d17d7c35b16c))
+
+
+### Bug Fixes
+
+* **builtins:** translate Pluto TV and TVHeadend text to English ([d94a9f5](https://github.com/mrcanelas/aiolivetv/commit/d94a9f508d35b6d111bb2b15ce6598c174c7a66c))
+* **release:** include direct commits and credit contributors ([#28](https://github.com/mrcanelas/aiolivetv/issues/28)) ([4ec6a9d](https://github.com/mrcanelas/aiolivetv/commit/4ec6a9d4d2a2ca7ae3a99b754f31bfbfa24bbace))
+* **tvheadend:** defer timeout config read until request ([33bb4d9](https://github.com/mrcanelas/aiolivetv/commit/33bb4d9d15165871e5723d5a9346d2509857b23e))
+
 ## [1.0.2](https://github.com/mrcanelas/aiolivetv/compare/v1.0.1...v1.0.2) (2026-10-10)
 
 
