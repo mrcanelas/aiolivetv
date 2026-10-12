@@ -1171,7 +1171,7 @@ export class TvheadendPreset extends Preset {
     return {
       ID: 'tvheadend',
       NAME: 'TVHeadend',
-      LOGO: '',
+      LOGO: '/assets/tvheadend_logo.png',
       URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/tvheadend`],
       TIMEOUT: appConfig.presets.defaultTimeout,
       USER_AGENT: appConfig.http.defaultUserAgent,
