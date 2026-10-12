@@ -64,9 +64,8 @@ jobs:
               return login && !login.endsWith('[bot]') && commit.author.type !== 'Bot' ? [login] : [];
             }))].sort((a, b) => a.localeCompare(b));
             if (!contributors.length) return;
-            const thanks = '### Contributors
-            
-            Thanks to ' + contributors.map(login => '@' + login).join(', ') + ' for the contributions included in this release.';
+            const nl = String.fromCharCode(10);
+            const thanks = '### Contributors' + nl + nl + 'Thanks to ' + contributors.map(login => '@' + login).join(', ') + ' for the contributions included in this release.';
             const pulls = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', base: 'main', per_page: 100 });
             for (const pr of pulls.filter(pr => pr.head.repo?.full_name === owner + '/' + repo && pr.head.ref.startsWith('release-please--') && pr.labels.some(label => label.name === 'autorelease: pending'))) {
               const changelog = await read('CHANGELOG.md', pr.head.ref);
@@ -76,12 +75,7 @@ jobs:
               const next = rest.slice(1).search(/^## /m);
               const end = next < 0 ? changelog.text.length : first + 1 + next;
               const entry = clean(changelog.text.slice(first, end));
-              const updated = changelog.text.slice(0, first) + entry + '
-            
-            ' + marker + '
-            ' + thanks + '
-            
-            ' + changelog.text.slice(end);
+              const updated = changelog.text.slice(0, first) + entry + nl + nl + marker + nl + thanks + nl + nl + changelog.text.slice(end);
               if (updated !== changelog.text) {
                 await github.rest.repos.createOrUpdateFileContents({
                   owner, repo, path: 'CHANGELOG.md', branch: pr.head.ref, sha: changelog.sha,
@@ -89,9 +83,6 @@ jobs:
                   content: Buffer.from(updated).toString('base64')
                 });
               }
-              const body = clean(pr.body || '') + '
-            
-            ' + marker + '
-            ' + thanks;
+              const body = clean(pr.body || '') + nl + nl + marker + nl + thanks;
               if (body !== pr.body) await github.rest.pulls.update({ owner, repo, pull_number: pr.number, body });
             }
