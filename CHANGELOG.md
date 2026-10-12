@@ -17,6 +17,11 @@
 * **release:** include direct commits and credit contributors ([#28](https://github.com/mrcanelas/aiolivetv/issues/28)) ([4ec6a9d](https://github.com/mrcanelas/aiolivetv/commit/4ec6a9d4d2a2ca7ae3a99b754f31bfbfa24bbace))
 * **tvheadend:** defer timeout config read until request ([33bb4d9](https://github.com/mrcanelas/aiolivetv/commit/33bb4d9d15165871e5723d5a9346d2509857b23e))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.0.2](https://github.com/mrcanelas/aiolivetv/compare/v1.0.1...v1.0.2) (2026-10-10)
 
 
