@@ -464,12 +464,19 @@ neither the environment variable nor a stored value is present.
 | `TVHEADEND_DISABLED_REASON` | Tvheadend › Disabled Reason | string | `Desabilitado pelo administrador desta instância` | Reason shown in the UI when TVHeadend is disabled for this instance. |
 | `TVHEADEND_PROXY_ENABLED` | Tvheadend › Proxy Enabled | boolean | `false` | Allow video to be proxied through this AIOLiveTV instance. Keep false on public hosts unless you intentionally accept the bandwidth and trust model. Self-hosted LAN setups may set true. |
 
+#### Plutotv
+
+| Environment Variable | UI Setting | Type | Default | Description |
+| --- | --- | --- | --- | --- |
+| `PLUTOTV_ENABLED` | Plutotv › Enabled | boolean | `true` | Allow users to add the Pluto TV provider (community M3U + XMLTV regional catalogs for live channels, EPG and streams). |
+| `PLUTOTV_DISABLED_REASON` | Plutotv › Disabled Reason | string | `Desabilitado pelo administrador desta instância` | Reason shown in the UI when Pluto TV is disabled for this instance. |
+
 #### Export
 
 | Environment Variable | UI Setting | Type | Default | Description |
 | --- | --- | --- | --- | --- |
 | `EXPORT_ENABLED` | Export › Enabled | boolean | `true` | Allow users to export Live TV playlists (M3U) and guides (XMLTV) for Jellyfin and other players. |
-| `EXPORT_DISABLED_REASON` | Export › Disabled Reason | string | `Desabilitado pelo administrador desta instância` | Reason shown when M3U/XMLTV export is disabled. |
+| `EXPORT_DISABLED_REASON` | Export › Disabled Reason | string | `Disabled by this instance administrator` | Reason shown when M3U/XMLTV export is disabled. |
 | `EXPORT_PROXY_ENABLED` | Export › Proxy Enabled | boolean | `false` | Allow exported playback URLs to proxy video through this instance. Independent from export itself — a public host may allow M3U/XMLTV without carrying video. Self-hosted setups may enable this when Jellyfin cannot reach sources directly. |
 | `EXPORT_EPG_WINDOW_HOURS` | Export › Epg Window Hours | number | `48` | How many hours of future programme data to include in exported XMLTV guides. |
 

@@ -16,6 +16,7 @@ import {
   MiTvAddon,
   XtreamAddon,
   TvheadendAddon,
+  PlutoTvAddon,
   parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
@@ -26,6 +27,7 @@ import {
   type MiTvConfig,
   type XtreamConfig,
   type TvheadendConfig,
+  type PlutoTvConfig,
 } from '@aiolivetv/core';
 import { getEncodedExtras } from '../../utils/stremioExtras.js';
 
@@ -74,6 +76,10 @@ function tvheadendConfig(encodedConfig: string): TvheadendConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
+function plutoTvConfig(encodedConfig: string): PlutoTvConfig {
+  return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
 router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
   try {
     const addon =
@@ -85,6 +91,8 @@ router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
             ? new XtreamAddon(xtreamConfig(req.params.encodedConfig))
           : req.params.source === 'tvheadend'
             ? new TvheadendAddon(tvheadendConfig(req.params.encodedConfig))
+          : req.params.source === 'pluto-tv'
+            ? new PlutoTvAddon(plutoTvConfig(req.params.encodedConfig))
           : req.params.source === 'vivo-tv'
             ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
           : req.params.source === 'movistar-tv'
@@ -275,6 +283,54 @@ router.get(
     try {
       const meta = await new TvheadendAddon(
         tvheadendConfig(req.params.encodedConfig)
+      ).getMeta(req.params.id);
+      res.json({
+        meta,
+        cacheMaxAge: 900,
+        staleRevalidate: 3600,
+        staleError: 604800,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/pluto-tv/:encodedConfig/stream/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const streams = await new PlutoTvAddon(
+        plutoTvConfig(req.params.encodedConfig)
+      ).getStreams(req.params.id);
+      res.json({ streams });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/pluto-tv/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const { skip, date, genre } = parseCatalogExtras(getEncodedExtras(req));
+      const response = await new PlutoTvAddon(
+        plutoTvConfig(req.params.encodedConfig)
+      ).getCatalogResponse(skip, date, genre);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/pluto-tv/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const meta = await new PlutoTvAddon(
+        plutoTvConfig(req.params.encodedConfig)
       ).getMeta(req.params.id);
       res.json({
         meta,

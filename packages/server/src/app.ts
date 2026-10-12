@@ -12,6 +12,7 @@ import {
   authApi,
   dashboardApi,
   tvheadendApi,
+  plutotvApi,
 } from './routes/api/index.js';
 import {
   configure,
@@ -103,6 +104,7 @@ apiRouter.use('/sync', syncApi);
 apiRouter.use('/auth', authApi);
 apiRouter.use('/dashboard', dashboardApi);
 apiRouter.use('/tvheadend', tvheadendApi);
+apiRouter.use('/plutotv', plutotvApi);
 apiRouter.use((req, res) => {
   res.status(404).json(
     createResponse({

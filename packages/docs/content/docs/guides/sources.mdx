@@ -1,5 +1,5 @@
 ---
-title: XMLTV, M3U, Xtream and TVHeadend
+title: XMLTV, M3U, Xtream, TVHeadend and Pluto TV
 description: Configure the Live TV builtins and how AIOLiveTV matches equivalent channels.
 ---
 
@@ -86,6 +86,40 @@ Private literals such as `192.168.x.x`, `localhost` or Docker service names reso
 On public / multi-user hosts keep private URLs and proxy off. On a personal LAN or Docker network set `HTTP_ALLOW_PRIVATE_URLS=true`, and set `TVHEADEND_PROXY_ENABLED=true` only if players cannot reach TVHeadend directly.
 
 Credentials stay on the backend. Direct mode uses TVHeadend playlist tickets (~5 minutes). Proxy mode streams with flow control and closes the upstream when the player disconnects. Prefer the `pass` profile; exotic containers may need `behaviorHints.notWebReady` on some Stremio clients.
+
+## Pluto TV
+
+Pluto TV is wired through **community** playlists and guides (not an official Pluto TV API):
+
+| Role | Source |
+| --- | --- |
+| Live channels + streams (M3U) | [OwnerPlugins/pluto-tv-m3u](https://github.com/OwnerPlugins/pluto-tv-m3u) (`pluto-live-XX.m3u`, refreshed about every 6 hours) |
+| Programme guide (XMLTV) | [matthuisman/i.mjh.nz](https://github.com/matthuisman/i.mjh.nz) (`PlutoTV/xx.xml.gz`) |
+
+Only country codes that have **both** files verified are listed in the UI. VOD playlists (`pluto-vod-*`) are ignored.
+
+| Option | Purpose |
+| --- | --- |
+| Catálogo / País | Regional catalog to import. Add one addon instance per country. |
+| Timeout | Download timeout for M3U/XMLTV |
+| EPG Time Shift | Same as XMLTV |
+| Testar importação | Downloads playlist + guide and reports channel / EPG match counts (does not start streams) |
+| Resources | Catalog, Meta and Stream by default |
+
+### Region and playback
+
+You can import catalogs from different countries. **Playback still depends on regional availability of the streams** (JWT URLs in the M3U often encode a country). Choosing a catalog does not change your player’s IP.
+
+Stream URLs include short-lived JWTs. AIOLiveTV keeps the latest M3U in cache, resolves by stable channel id at tune time, and may refresh the playlist once if the JWT looks expired. It does **not** mint tokens itself.
+
+On Brazil (`pluto-live-BR.m3u` + `PlutoTV/br.xml.gz`) we measured a full `tvg-id` ↔ XMLTV `channel id` match and successful HLS through a media segment without a dedicated proxy.
+
+| Env | Default | Effect |
+| --- | --- | --- |
+| `PLUTOTV_ENABLED` | `true` | Disable the provider for everyone on this instance |
+| `PLUTOTV_DISABLED_REASON` | Portuguese admin message | Shown when Pluto TV is disabled |
+
+Internal ids are `pluto:{region}:{originalId}`. Catalog `tvg-id` keeps the original Pluto id so M3U and XMLTV stay aligned for export.
 
 ## Other live sources
 

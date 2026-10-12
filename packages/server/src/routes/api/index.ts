@@ -10,3 +10,4 @@ export { default as syncApi } from './sync.js';
 export { default as authApi } from './auth.js';
 export { default as dashboardApi } from './dashboard.js';
 export { default as tvheadendApi } from './tvheadend.js';
+export { default as plutotvApi } from './plutotv.js';

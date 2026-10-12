@@ -33,14 +33,14 @@ On **Addons**, install at least one live source. Typical combinations:
 
 | Goal | Add |
 | --- | --- |
-| Guide + streams | XMLTV **and** M3U (or Xtream) |
-| Streams only | M3U, Xtream, or a live Stremio addon |
-| Brazilian EPG | Vivo TV, Claro TV+ or Mi.tv (Brasil), plus an M3U/Xtream for streams |
+| Guide + streams | XMLTV **and** M3U (or Xtream), or **Pluto TV** alone |
+| Streams only | M3U, Xtream, Pluto TV, or a live Stremio addon |
+| Brazilian EPG + streams | Pluto TV (catalog **Brazil**), or Vivo/Claro/Mi.tv guides paired with M3U/Xtream |
 | Latin American EPG | Mi.tv (pick the country), plus an M3U/Xtream for streams |
 
 For each source, leave **Resources** at the defaults unless you only want streams from that source (then select **Stream** so its channels are not listed twice).
 
-XMLTV, Xtream, TVHeadend, Vivo TV, Claro TV+ and Mi.tv can shift programme times with **EPG Time Shift**. Local playlists or a LAN TVHeadend need `HTTP_ALLOW_PRIVATE_URLS=true` on a personal instance — leave it `false` on anything shared. TVHeadend proxy playback also needs `TVHEADEND_PROXY_ENABLED=true` when players cannot reach the TVH HTTP port directly.
+XMLTV, Xtream, TVHeadend, Pluto TV, Vivo TV, Claro TV+ and Mi.tv can shift programme times with **EPG Time Shift**. Local playlists or a LAN TVHeadend need `HTTP_ALLOW_PRIVATE_URLS=true` on a personal instance — leave it `false` on anything shared. TVHeadend proxy playback also needs `TVHEADEND_PROXY_ENABLED=true` when players cannot reach the TVH HTTP port directly. Pluto TV uses community regional M3U/XMLTV catalogs — see [Sources](/guides/sources#pluto-tv).
 
 To feed Jellyfin (or other players) from a saved config, use the **Jellyfin / Outros players** block on **Save / Install** — see [Export to Jellyfin](/guides/jellyfin). Export proxy playback is controlled separately with `EXPORT_PROXY_ENABLED`.
 

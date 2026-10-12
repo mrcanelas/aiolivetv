@@ -18,6 +18,7 @@ import {
   XmltvPreset,
   XtreamPreset,
   TvheadendPreset,
+  PlutoTvPreset,
 } from './liveTv.js';
 
 const PRESETS = {
@@ -25,6 +26,7 @@ const PRESETS = {
   xmltv: XmltvPreset,
   xtream: XtreamPreset,
   tvheadend: TvheadendPreset,
+  'pluto-tv': PlutoTvPreset,
   'vivo-tv': VivoTvPreset,
   'movistar-tv': MovistarTvPreset,
   tvp: TvpPreset,

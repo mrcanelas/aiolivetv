@@ -13,6 +13,13 @@ import {
   getTvheadendInstancePolicy,
   formatTvheadendDisabledReason,
 } from '../builtins/tvheadend/index.js';
+import {
+  PlutoTvConfigSchema,
+  PLUTO_TV_REGIONS,
+  getPlutoTvInstancePolicy,
+  formatPlutoTvDisabledReason,
+  plutoTvRegionLabel,
+} from '../builtins/plutotv/index.js';
 import StreamParser from '../parser/streams.js';
 import { appConfig, constants, toUrlSafeBase64 } from '../utils/index.js';
 import { Preset } from './preset.js';
@@ -1193,5 +1200,159 @@ export class TvheadendPreset extends Preset {
     options: Record<string, any>
   ): Promise<Addon[]> {
     return [generateTvheadendAddon(options)];
+  }
+}
+
+function generatePlutoTvAddon(options: Record<string, any>): Addon {
+  const policy = getPlutoTvInstancePolicy();
+  if (!policy.enabled) {
+    throw new Error(
+      formatPlutoTvDisabledReason(
+        policy.disabledReason ||
+          'Desabilitado pelo administrador desta instância'
+      )
+    );
+  }
+
+  const region = options.region || 'br';
+  const config = PlutoTvConfigSchema.parse({
+    region,
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
+  });
+  const customName =
+    typeof options.name === 'string' ? options.name.trim() : '';
+  const name =
+    customName && customName !== 'Pluto TV'
+      ? customName
+      : `Pluto TV (${plutoTvRegionLabel(config.region)})`;
+
+  return {
+    name,
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/pluto-tv/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    enabled: true,
+    resources: options.resources || [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ],
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: 'pluto-tv', options },
+    headers: { 'User-Agent': appConfig.http.defaultUserAgent },
+  };
+}
+
+function plutoTvOptions(
+  resources: ('catalog' | 'meta' | 'stream')[]
+): Option[] {
+  return [
+    {
+      id: 'resources',
+      name: 'Resources',
+      description:
+        'Choose what to use from this source. Select only Stream to match streams to channels from other providers without listing its channels.',
+      type: 'multi-select',
+      required: false,
+      showInSimpleMode: true,
+      default: resources,
+      options: resources.map((resource) => ({
+        label: constants.RESOURCE_LABELS[resource],
+        value: resource,
+      })),
+    },
+    {
+      id: 'name',
+      name: 'Name',
+      description: 'What to call this addon',
+      type: 'string',
+      required: true,
+      default: 'Pluto TV',
+    },
+    {
+      id: 'region',
+      name: 'Catálogo / País',
+      description:
+        'Você pode importar catálogos de diferentes países. A reprodução depende da disponibilidade regional dos streams. Adicione uma instância por país. Fontes comunitárias: OwnerPlugins/pluto-tv-m3u + matthuisman/i.mjh.nz (não oficiais).',
+      type: 'select',
+      required: true,
+      showInSimpleMode: true,
+      default: 'br',
+      options: PLUTO_TV_REGIONS.map((region) => ({
+        label: region.name,
+        value: region.code,
+      })),
+    },
+    {
+      id: 'timeout',
+      name: 'Timeout (ms)',
+      description: 'Timeout for playlist/guide downloads',
+      type: 'number',
+      required: true,
+      default: appConfig.presets.defaultTimeout,
+      constraints: {
+        min: appConfig.userLimits.timeouts.minTimeout,
+        max: appConfig.userLimits.timeouts.maxTimeout,
+        forceInUi: false,
+      },
+    },
+    epgTimeShiftOption(),
+    {
+      id: 'testConnection',
+      name: 'Testar importação',
+      description:
+        'Baixa a M3U e o XMLTV regionais e conta canais / associação ao EPG. Não inicia streams.',
+      type: 'action',
+      required: false,
+      showInSimpleMode: true,
+      buttonIntent: 'primary-subtle',
+    },
+  ];
+}
+
+export class PlutoTvPreset extends Preset {
+  static override getParser(): typeof StreamParser {
+    return LiveTvStreamParser;
+  }
+
+  static override get METADATA() {
+    const resources = [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ];
+    const policy = getPlutoTvInstancePolicy();
+    return {
+      ID: 'pluto-tv',
+      NAME: 'Pluto TV',
+      LOGO: '/assets/plutotv_logo.webp',
+      URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/pluto-tv`],
+      TIMEOUT: appConfig.presets.defaultTimeout,
+      USER_AGENT: appConfig.http.defaultUserAgent,
+      SUPPORTED_SERVICES: [],
+      DESCRIPTION:
+        'Canais ao vivo, EPG e streams via playlists comunitárias regionais (OwnerPlugins M3U + matthuisman XMLTV). Não é uma API oficial da Pluto TV. A reprodução pode depender da região do player.',
+      OPTIONS: plutoTvOptions(resources),
+      SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
+      SUPPORTED_RESOURCES: resources,
+      BUILTIN: true,
+      CATEGORY: constants.PresetCategory.STREAMS,
+      DISABLED: policy.enabled
+        ? undefined
+        : {
+            disabled: true,
+            reason: formatPlutoTvDisabledReason(
+              policy.disabledReason ||
+                'Desabilitado pelo administrador desta instância'
+            ),
+          },
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    return [generatePlutoTvAddon(options)];
   }
 }

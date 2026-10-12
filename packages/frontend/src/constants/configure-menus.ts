@@ -30,6 +30,8 @@ export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
   'm3u',
   'xmltv',
   'xtream',
+  'pluto-tv',
+  'tvheadend',
   'vivo-tv',
   'movistar-tv',
   'tvp',

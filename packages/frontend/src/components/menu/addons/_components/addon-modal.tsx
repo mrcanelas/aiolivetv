@@ -57,29 +57,48 @@ export function AddonModal({
   });
 
   async function handleTestConnection() {
-    if (presetMetadata?.ID !== 'tvheadend') return;
+    const presetId = presetMetadata?.ID;
+    if (presetId !== 'tvheadend' && presetId !== 'pluto-tv') return;
     const options = values.options || {};
-    if (!options.url) {
+    if (presetId === 'tvheadend' && !options.url) {
       toast.error('Informe a URL do servidor antes de testar');
       return;
     }
     setTestingConnection(true);
     try {
-      const result = await api<{
-        code: string;
-        message: string;
-        channelCount?: number;
-      }>('POST /tvheadend/test', {
-        body: {
-          url: options.url,
-          username: options.username || '',
-          password: options.password || '',
-          timeout: options.timeout,
-        },
-      });
+      const result =
+        presetId === 'pluto-tv'
+          ? await api<{
+              code: string;
+              message: string;
+              channelCount?: number;
+              channelsWithEpg?: number;
+              epgMatchPercent?: number;
+              region?: string;
+            }>('POST /plutotv/test', {
+              body: {
+                region: options.region || 'br',
+                timeout: options.timeout,
+              },
+            })
+          : await api<{
+              code: string;
+              message: string;
+              channelCount?: number;
+            }>('POST /tvheadend/test', {
+              body: {
+                url: options.url,
+                username: options.username || '',
+                password: options.password || '',
+                timeout: options.timeout,
+              },
+            });
       if (result.code === 'ok') {
         toast.success(result.message);
-      } else if (result.code === 'no_channels') {
+      } else if (
+        result.code === 'no_channels' ||
+        result.code === 'partial'
+      ) {
         toast.warning(result.message);
       } else {
         toast.error(result.message);

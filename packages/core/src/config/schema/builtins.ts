@@ -337,6 +337,28 @@ export const builtinsSchema = {
       secret: false,
     },
   },
+  plutotv: {
+    enabled: {
+      schema: z.boolean(),
+      default: true,
+      label: 'Pluto TV enabled',
+      description:
+        'Allow users to add the Pluto TV provider (community M3U + XMLTV regional catalogs for live channels, EPG and streams).',
+      env: 'PLUTOTV_ENABLED',
+      requiresRestart: false,
+      secret: false,
+    },
+    disabledReason: {
+      schema: z.string(),
+      default: 'Desabilitado pelo administrador desta instância',
+      label: 'Pluto TV disabled reason',
+      description:
+        'Reason shown in the UI when Pluto TV is disabled for this instance.',
+      env: 'PLUTOTV_DISABLED_REASON',
+      requiresRestart: false,
+      secret: false,
+    },
+  },
   export: {
     enabled: {
       schema: z.boolean(),
