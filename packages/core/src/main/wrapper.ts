@@ -185,6 +185,20 @@ export class Wrapper {
     timeout?: number;
     bypassCache?: boolean;
   }): Promise<Manifest> {
+    const verifiesEpg = ['orange-tv', 'movistar-plus', 'tdtchannels'].includes(
+      this.addon.preset.type
+    );
+    // Movistar fetches channels before schedules; the other probes run in parallel.
+    const probeBudget =
+      this.addon.timeout *
+        (this.addon.preset.type === 'movistar-plus' ? 2 : 1) +
+      1000;
+    const timeout = verifiesEpg
+      ? Math.max(
+          options?.timeout ?? appConfig.resources.timeouts.manifest,
+          probeBudget
+        )
+      : (options?.timeout ?? appConfig.resources.timeouts.manifest);
     const cacheKey =
       this.preset.getCacheKey({
         resource: 'manifest',
@@ -204,7 +218,9 @@ export class Wrapper {
           appConfig.resources.background.timeout ??
           appConfig.userLimits.timeouts.maxTimeout;
         const res = await makeRequest(this.manifestUrl, {
-          timeout: backgroundTimeout,
+          timeout: verifiesEpg
+            ? Math.max(backgroundTimeout, timeout)
+            : backgroundTimeout,
           headers: this.addon.headers,
           forwardIp: this.addon.ip,
         });
@@ -244,7 +260,7 @@ export class Wrapper {
 
     return this._request({
       requestFn,
-      timeout: options?.timeout ?? appConfig.resources.timeouts.manifest,
+      timeout,
       resourceName: 'manifest',
       cacher: manifestCache,
       cacheKey,
@@ -254,6 +270,9 @@ export class Wrapper {
         this.manifestUrl
       ),
       bypassCache: options?.bypassCache,
+      shouldCache: verifiesEpg
+        ? (manifest) => manifest.behaviorHints?.epgProvider === true
+        : undefined,
     });
   }
 
@@ -563,7 +582,7 @@ export class Wrapper {
 
     if (cacher) {
       cached = await cacher.get(cacheKey);
-      if (cached && !bypassCache) {
+      if (cached && !bypassCache && (!shouldCache || shouldCache(cached))) {
         logger.debug(
           { addon: this.getAddonName(this.addon), resource: resourceName },
           'returning cached resource'
