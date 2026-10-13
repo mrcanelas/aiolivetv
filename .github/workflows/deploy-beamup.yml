@@ -33,10 +33,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Temporary workaround for missing Dockerfile runtime config in Swarm.
-      # Generated files and commit go ONLY to Beamup. They contain secrets;
-      # never push this checkout to GitHub, publish it, cache it, or upload it.
-      - name: Prepare Beamup-only runtime configuration
+      # Requires the server-side Dockerfile config fix from stremio-beamup#121.
+      # Configuration stays on Beamup; never copy secrets into this checkout.
+      - name: Validate Beamup runtime configuration
         env:
           BEAMUP_SSH_PRIVATE_KEY: ${{ secrets.BEAMUP_SSH_PRIVATE_KEY }}
         shell: bash
@@ -49,13 +48,12 @@ jobs:
           printf '%s\n' "$BEAMUP_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/beamup-config-key"
           ssh-keyscan -H "$BEAMUP_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           python3 - <<'PY'
-          import hashlib, json, os, pathlib, re, subprocess, sys
+          import datetime, hashlib, json, os, pathlib, subprocess, sys
           owner = os.environ['GITHUB_REPOSITORY_OWNER'].lower()
           app = hashlib.sha256((owner + '\n').encode()).hexdigest()[:12] + '/' + os.environ['BEAMUP_PROJECT']
           ssh = ['ssh', '-T', '-i', os.environ['RUNNER_TEMP'] + '/beamup-config-key',
                  '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'ConnectTimeout=15',
                  'dokku@' + os.environ['BEAMUP_HOST']]
-          config = {}
           for name in ['BASE_URL', 'SECRET_KEY', 'DATABASE_URI', 'AIOLIVETV_AUTH']:
               result = subprocess.run(ssh + ['config:get', app, name], capture_output=True, timeout=45)
               if result.returncode:
@@ -63,71 +61,34 @@ jobs:
               value = result.stdout.decode('utf-8').removesuffix('\n')
               if not value.strip() or '\x00' in value or value.startswith('ERR '):
                   sys.exit('Missing or invalid ' + name + '; deploy aborted.')
-              mask = value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              print('::add-mask::' + mask, flush=True)
-              config[name] = value
-              print(name + ': retrieved (value hidden)')
-          marker = '[beamup-env] ' + os.environ['GITHUB_RUN_ID'] + '-' + os.environ['GITHUB_RUN_ATTEMPT'] + ' loaded 4 runtime variables'
-          dockerfile = pathlib.Path('Dockerfile')
-          content = dockerfile.read_text()
-          entries = re.findall(r'^ENTRYPOINT\s+(\[.*\])\s*$', content, re.MULTILINE)
-          if not entries:
-              sys.exit('Expected a JSON Node ENTRYPOINT; deploy aborted.')
-          entry = json.loads(entries[-1])
-          if not entry or entry[0] != '/nodejs/bin/node':
-              sys.exit('Unexpected ENTRYPOINT; review the Beamup workaround before deploying.')
-          pathlib.Path('beamup-runtime.json').write_text(json.dumps(config))
-          loader = (
-              "const fs = require('node:fs');\n"
-              "const config = JSON.parse(fs.readFileSync('/app/beamup-runtime.json', 'utf8'));\n"
-              "for (const [name, value] of Object.entries(config)) {\n"
-              "  if (typeof value !== 'string' || !value) throw new Error('Missing Beamup runtime config: ' + name);\n"
-              "  process.env[name] = value;\n"
-              "}\n"
-              'console.log(' + json.dumps(marker) + ');\n'
-          )
-          pathlib.Path('beamup-env.cjs').write_text(loader)
-          content += '\n# Generated only for the private Beamup deployment.\n'
-          content += 'COPY beamup-runtime.json beamup-env.cjs /app/\n'
-          content += 'ENTRYPOINT ' + json.dumps([entry[0], '--require=/app/beamup-env.cjs', *entry[1:]]) + '\nCMD []\n'
-          dockerfile.write_text(content)
+              if '\n' in value or '\r' in value:
+                  sys.exit(name + ' contains a newline, which Beamup does not forward to Dockerfile apps; deploy aborted.')
+              if name == 'BASE_URL' and value.rstrip('/') != os.environ['BEAMUP_URL'].rstrip('/'):
+                  sys.exit('BASE_URL does not match BEAMUP_URL; deploy aborted.')
+              print(name + ': configured (value hidden)')
+          version = json.loads(pathlib.Path('package.json').read_text())['version']
           with open(os.environ['GITHUB_ENV'], 'a') as env:
-              env.write('BEAMUP_APP=' + app + '\nBEAMUP_MARKER=' + marker + '\n')
+              env.write('BEAMUP_EXPECTED_VERSION=' + version + '\n')
+              env.write('BEAMUP_DEPLOY_STARTED_AT=' + datetime.datetime.now(datetime.timezone.utc).isoformat() + '\n')
           PY
-          git config user.name 'GitHub Actions'
-          git config user.email 'actions@github.com'
-          git add -f -- Dockerfile beamup-runtime.json beamup-env.cjs
-          git -c core.hooksPath=/dev/null commit -m 'chore: prepare private Beamup runtime config' --quiet
 
       - name: Deploy to Beamup
         uses: Stremio/beamup-deploy-action@v1.0.1
         with:
           ssh_private_key: ${{ secrets.BEAMUP_SSH_PRIVATE_KEY }}
-          beamup_host: a.baby-beamup.club
+          beamup_host: ${{ env.BEAMUP_HOST }}
           username_github: ${{ github.repository_owner }}
-          project_name: aiolivetv
+          project_name: ${{ env.BEAMUP_PROJECT }}
 
-      - name: Verify runtime configuration and health
+      - name: Verify deployed version and database health
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, os, subprocess, sys, time
-          ssh = ['ssh', '-T', '-i', os.environ['RUNNER_TEMP'] + '/beamup-config-key',
-                 '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'ConnectTimeout=10',
-                 'dokku@' + os.environ['BEAMUP_HOST'], 'logs', os.environ['BEAMUP_APP']]
-          marker = os.environ['BEAMUP_MARKER'].encode()
-          found = False
-          for attempt in range(24):
+          import datetime, json, os, subprocess, sys, time
+
+          def request(endpoint):
               try:
-                  result = subprocess.run(ssh, capture_output=True, timeout=15)
-                  output = result.stdout + result.stderr
-              except subprocess.TimeoutExpired as error:
-                  output = (error.stdout or b'') + (error.stderr or b'')
-              found = found or marker in output
-              healthy = False
-              health_detail = 'request not completed'
-              try:
-                  url = os.environ['BEAMUP_URL'] + '/api/v1/status?deploy=' + os.environ['GITHUB_RUN_ID']
+                  url = os.environ['BEAMUP_URL'] + endpoint + '?deploy=' + os.environ['GITHUB_RUN_ID'] + '-' + os.environ['GITHUB_RUN_ATTEMPT']
                   response = subprocess.run(
                       ['curl', '--silent', '--show-error', '--connect-timeout', '10',
                        '--max-time', '15', '--header', 'Cache-Control: no-cache',
@@ -135,31 +96,49 @@ jobs:
                       capture_output=True, timeout=20)
                   body, _, status = response.stdout.rpartition(b'\n')
                   code = status.decode('ascii', errors='replace')
-                  health_detail = 'curl=' + str(response.returncode) + ', HTTP=' + code
+                  detail = 'curl=' + str(response.returncode) + ', HTTP=' + code
                   if response.returncode == 0 and code == '200':
                       try:
                           payload = json.loads(body)
-                          healthy = isinstance(payload, dict) and payload.get('success') is True
-                          health_detail += ', success=' + str(healthy)
+                          if isinstance(payload, dict) and payload.get('success') is True:
+                              return payload, detail
                       except (ValueError, UnicodeError):
-                          health_detail += ', invalid JSON'
+                          detail += ', invalid JSON'
+                  return None, detail
               except subprocess.TimeoutExpired:
-                  health_detail = 'request timed out'
-              if found and healthy:
-                  print('Verified: this deployment loaded all 4 variables in the Swarm runner; status endpoint returned HTTP 200.')
+                  return None, 'request timed out'
+
+          for attempt in range(24):
+              status, status_detail = request('/api/v1/status')
+              health, health_detail = request('/api/v1/health')
+              data = (status or {}).get('data')
+              fresh = False
+              try:
+                  built = datetime.datetime.fromisoformat(data['buildTime'].replace('Z', '+00:00'))
+                  started = datetime.datetime.fromisoformat(os.environ['BEAMUP_DEPLOY_STARTED_AT'])
+                  fresh = built >= started
+              except (KeyError, TypeError, ValueError, AttributeError):
+                  pass
+              current = (
+                  fresh and isinstance(data, dict)
+                  and data.get('version') == os.environ['BEAMUP_EXPECTED_VERSION']
+                  and isinstance(data.get('settings'), dict)
+                  and isinstance(data['settings'].get('baseUrl'), str)
+                  and data['settings']['baseUrl'].rstrip('/') == os.environ['BEAMUP_URL'].rstrip('/')
+              )
+              if current and health:
+                  print('Verified: expected version and BASE_URL are live; database health returned HTTP 200.')
                   with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-                      summary.write('Beamup deployment verified: all four runtime variables loaded in the runner and /api/v1/status returned HTTP 200.\n')
+                      summary.write('Beamup deployment verified: expected version and BASE_URL are live, and /api/v1/health confirmed database connectivity.\n')
                   break
-              print('Waiting for runner startup and health (' + str(attempt + 1) + '/24); config=' + str(found) + ', health=' + str(healthy) + ' (' + health_detail + ')')
+              print('Waiting for deployment (' + str(attempt + 1) + '/24); expected version/base URL=' + str(current) + '; status: ' + status_detail + '; health: ' + health_detail)
               time.sleep(5)
           else:
-              sys.exit('Beamup runtime verification failed. Raw application logs are withheld to avoid exposing secrets.')
+              sys.exit('Beamup deployment verification failed. Confirm the server has stremio-beamup#121 and the runtime configuration is valid. Response bodies are withheld to avoid exposing secrets.')
           PY
 
-      - name: Remove temporary configuration and key
+      - name: Remove temporary SSH key
         if: always()
         shell: bash
         run: |
-          rm -f "$RUNNER_TEMP/beamup-config-key" beamup-runtime.json beamup-env.cjs
-          git restore -- Dockerfile
-
+          rm -f "$RUNNER_TEMP/beamup-config-key"
