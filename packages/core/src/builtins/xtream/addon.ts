@@ -16,6 +16,7 @@ import {
   guideChannelMeta,
   LIVE_TV_CATALOG_PAGE_SIZE,
   matchesCatalogGenre,
+  mapWithEpgConcurrency,
   programToVideo,
   resolveGuideDate,
   shiftedProgramOverlapsUtcDay,
@@ -324,25 +325,27 @@ export class XtreamAddon {
         matchesCatalogGenre(channelGroup(channel, categoryNames), genre)
       )
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE);
-    return Promise.all(
-      page.map(async (channel) => {
-        const encodedId = encodeChannelId(channel.id);
-        const videos = await videosForGuideDay(
+    const videos = await mapWithEpgConcurrency(
+      page,
+      (channel) =>
+        videosForGuideDay(
           this.config,
-          encodedId,
+          encodeChannelId(channel.id),
           channel.id,
           guideDate
-        );
-        return guideChannelMeta(
-          {
-            id: encodedId,
-            name: channel.name,
-            logo: channel.logo || undefined,
-            genres: channelGenres(channelGroup(channel, categoryNames)),
-          },
-          videos
-        );
-      })
+        ),
+      []
+    );
+    return page.map((channel, index) =>
+      guideChannelMeta(
+        {
+          id: encodeChannelId(channel.id),
+          name: channel.name,
+          logo: channel.logo || undefined,
+          genres: channelGenres(channelGroup(channel, categoryNames)),
+        },
+        videos[index]
+      )
     );
   }
 
@@ -375,7 +378,7 @@ export class XtreamAddon {
       encodedId,
       channel.id,
       guideDate
-    );
+    ).catch(() => []);
     return {
       id: encodedId,
       type: TV_TYPE,

@@ -72,7 +72,9 @@ describe('XtreamAddon', () => {
         hasArchive: false,
       },
     ]);
-    mockGenerateStreamUrl.mockReturnValue('https://example.com/live/generated.m3u8');
+    mockGenerateStreamUrl.mockReturnValue(
+      'https://example.com/live/generated.m3u8'
+    );
   });
 
   it('exposes tv catalog, meta, stream and epgProvider manifest', async () => {
@@ -148,7 +150,9 @@ describe('XtreamAddon', () => {
       categoryId: ' 1339, 513 ,,1339',
     });
     const channels = await addon.getCatalog();
-    const requested = mockGetChannels.mock.calls.map(([args]) => args.categoryId);
+    const requested = mockGetChannels.mock.calls.map(
+      ([args]) => args.categoryId
+    );
     expect(requested).toEqual(['1339', '513']);
     expect(channels).toHaveLength(1);
   });
@@ -169,7 +173,9 @@ describe('XtreamAddon', () => {
       categoryNameRegex: '^(?:CH|DE|AT|TR)\\|.+$',
     });
     await addon.getCatalog();
-    const requested = mockGetChannels.mock.calls.map(([args]) => args.categoryId);
+    const requested = mockGetChannels.mock.calls.map(
+      ([args]) => args.categoryId
+    );
     expect(requested.sort()).toEqual(['1', '2', '99']);
   });
 
@@ -212,5 +218,56 @@ describe('XtreamAddon', () => {
       url: 'https://example.com/live/news.m3u8',
       name: 'News 24',
     });
+  });
+
+  it('limits guide concurrency and preserves channels when one EPG request fails', async () => {
+    const channel = (await mockGetChannels())[0];
+    mockGetChannels.mockResolvedValue(
+      Array.from({ length: 9 }, (_, index) => ({
+        ...channel,
+        id: String(index),
+        name: `Channel ${index}`,
+      }))
+    );
+    const listings = await mockGetFullEpg();
+    let active = 0,
+      peak = 0;
+    mockGetFullEpg.mockImplementation(async ({ channelId }) => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      active--;
+      if (channelId === '0') throw new Error('Service Temporarily Unavailable');
+      return listings;
+    });
+    const addon = new XtreamAddon({
+      url: 'example.com',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+    });
+    const guide = await addon.getCatalogGuide(0, '2026-06-28');
+    expect(peak).toBe(4);
+    expect(guide).toHaveLength(9);
+    expect(guide[0].videos).toEqual([]);
+    expect(guide.slice(1).every((meta) => meta.videos?.length === 1)).toBe(
+      true
+    );
+  });
+
+  it('keeps channel metadata and streams when its EPG is unavailable', async () => {
+    mockGetFullEpg.mockRejectedValue(
+      new Error('Service Temporarily Unavailable')
+    );
+    const addon = new XtreamAddon({
+      url: 'example.com',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+    });
+    const meta = await addon.getMeta(encodeChannelId('101'));
+    expect(meta.name).toBe('News 24');
+    expect(meta.behaviorHints?.hasScheduledVideos).toBe(false);
+    expect(await addon.getStreams(meta.id)).toHaveLength(1);
   });
 });
