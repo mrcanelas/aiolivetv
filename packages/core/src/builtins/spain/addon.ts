@@ -33,6 +33,8 @@ type Videos = NonNullable<Meta['videos']>;
 const ORANGE_API = 'https://pc.orangetv.orange.es/pc/api/rtv/v1';
 const ORANGE_EPG = 'https://epg.orangetv.orange.es/epg/SmartTV_Android/1_PRO';
 const MOVISTAR_API = 'https://ottcache.dof6.com/movistarplus/webplayer';
+const TDT_PLAYLIST = 'https://www.tdtchannels.com/lists/tv.m3u';
+const TDT_EPG = 'https://www.tdtchannels.com/epg/TV.xml.gz';
 const apiCache = Cache.getInstance<string, unknown>('spain-tv-api', 512);
 
 async function cachedJson<T>(
@@ -620,3 +622,122 @@ export class MovistarPlusAddon {
   }
 }
 
+async function tdtData(config: SpainTvConfig) {
+  const [playlist, guide] = await Promise.all([
+    loadM3u({ ...config, sourceUrl: TDT_PLAYLIST }).catch(() => undefined),
+    loadXmltv({ ...config, sourceUrl: TDT_EPG }).catch(() => undefined),
+  ]);
+  if (!playlist && !guide)
+    throw new Error('TDTChannels playlist and guide are unavailable');
+  const channels: MetaPreview[] = guide?.programs.length
+    ? guide.channels.map((channel) => {
+        const entry = playlist?.entriesByChannelId.get(
+          channel.id.toLowerCase()
+        )?.[0];
+        return bareChannelPreview({
+          id: encodeChannelId(channel.id),
+          name: entry?.name || channel.name,
+          poster: entry?.logo || channel.logo,
+          tvgId: channel.id,
+          country: entry?.country || 'ES',
+          language: entry?.language || 'es',
+          genres: entry?.group ? [entry.group] : undefined,
+        });
+      })
+    : playlist?.catalog || [];
+  return {
+    guide,
+    channels: channels
+      .map((channel) => ({
+        ...channel,
+        id: encodeChannelId(`tdtchannels:${decodeChannelId(channel.id)}`),
+      }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es')),
+  };
+}
+
+function tdtVideos(
+  config: SpainTvConfig,
+  channel: MetaPreview,
+  date: string,
+  guide: Awaited<ReturnType<typeof loadXmltv>> | undefined
+): Videos {
+  const rawId = decodeChannelId(channel.id).slice('tdtchannels:'.length);
+  return (guide?.programsByChannelId.get(rawId) || [])
+    .filter((program) =>
+      shiftedProgramOverlapsUtcDay(program, date, config.timeShiftMinutes)
+    )
+    .map((program) =>
+      programToVideo({
+        channelEncodedId: channel.id,
+        title: program.title,
+        subtitle: program.subtitle,
+        description: program.description,
+        thumbnail: program.thumbnail,
+        ...applyEpgTimeShift(
+          program.startTime,
+          program.endTime,
+          config.timeShiftMinutes
+        ),
+        categories: program.categories,
+        cast: program.cast,
+        directors: program.directors,
+        ratings: program.ratings,
+        airedYear: program.released?.slice(0, 4),
+      })
+    );
+}
+
+export class TdtChannelsAddon {
+  private readonly config: SpainTvConfig;
+  constructor(config: z.input<typeof SpainTvConfigSchema>) {
+    this.config = SpainTvConfigSchema.parse(config);
+  }
+  async getManifest(): Promise<Manifest> {
+    let epg = false;
+    try {
+      epg = Boolean((await tdtData(this.config)).guide?.programs.length);
+    } catch {
+      /* A temporary source failure must not advertise Native EPG. */
+    }
+    return manifest('tdtchannels', 'TDTChannels', epg, true);
+  }
+  async getCatalog(skip = 0) {
+    return (await tdtData(this.config)).channels.slice(
+      skip,
+      skip + LIVE_TV_CATALOG_PAGE_SIZE
+    );
+  }
+  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+    const { channels, guide } = await tdtData(this.config);
+    const day = resolveGuideDate(date);
+    return channels
+      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
+      .map((channel) =>
+        channelMeta(channel, tdtVideos(this.config, channel, day, guide))
+      );
+  }
+  async getCatalogResponse(skip = 0, date?: string) {
+    return buildEpgCatalogResponse(
+      (page) => this.getCatalog(page),
+      (page, day) => this.getCatalogGuide(page, day),
+      skip,
+      date
+    );
+  }
+  async getMeta(id: string): Promise<Meta> {
+    const { channels, guide } = await tdtData(this.config);
+    const channel = findChannel(channels, id);
+    return channelMeta(
+      channel,
+      tdtVideos(this.config, channel, resolveGuideDate(), guide)
+    );
+  }
+  async getStreams(id: string): Promise<Stream[]> {
+    const raw = decodeChannelId(id);
+    if (!raw.startsWith('tdtchannels:')) return [];
+    return new M3uAddon({ ...this.config, sourceUrl: TDT_PLAYLIST }).getStreams(
+      encodeChannelId(raw.slice('tdtchannels:'.length))
+    );
+  }
+}

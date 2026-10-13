@@ -1,4 +1,4 @@
-import { PresetMetadata, PresetMinimalMetadata } from '../db/index.js';
+﻿import { PresetMetadata, PresetMinimalMetadata } from '../db/index.js';
 import { CustomPreset } from './custom.js';
 import { DebridioTvPreset } from './debridioTv.js';
 import { FrostViewPreset } from './frostView.js';
@@ -21,6 +21,7 @@ import {
   PlutoTvPreset,
   OrangeTvPreset,
   MovistarPlusPreset,
+  TdtChannelsPreset,
 } from './liveTv.js';
 
 const PRESETS = {
@@ -31,6 +32,7 @@ const PRESETS = {
   'pluto-tv': PlutoTvPreset,
   'orange-tv': OrangeTvPreset,
   'movistar-plus': MovistarPlusPreset,
+  tdtchannels: TdtChannelsPreset,
   'vivo-tv': VivoTvPreset,
   'movistar-tv': MovistarTvPreset,
   tvp: TvpPreset,

@@ -27,7 +27,7 @@ vi.mock('../../streams/web-readiness.js', () => ({
   resolveNotWebReady: async () => false,
 }));
 
-const { OrangeTvAddon, MovistarPlusAddon } =
+const { OrangeTvAddon, MovistarPlusAddon, TdtChannelsAddon } =
   await import('./addon.js');
 const { makeRequest } = await import('../../utils/index.js');
 const { encodeChannelId } = await import('../live-tv/shared.js');
@@ -315,3 +315,60 @@ describe('Spanish metadata providers', () => {
   });
 });
 
+const playlist =
+  '#EXTM3U\n#EXTINF:-1 tvg-id="La1.TV" tvg-name="La 1" tvg-logo="https://example.com/logo.png",La 1\nhttps://example.com/one.m3u8\n#EXTINF:-1 tvg-id="La1.TV" tvg-name="La 1",La 1\nhttps://example.com/two.m3u8\n#EXTINF:-1 tvg-id="extra" tvg-name="Extra",Extra\nhttps://example.com/extra.m3u8';
+const xml =
+  '<tv><channel id="La1.TV"><display-name>La1.TV</display-name></channel><programme channel="La1.TV" start="20261013120000 +0000" stop="20261013130000 +0000"><title>News</title><desc>Latest news</desc><category>News</category></programme></tv>';
+function tdtMock(epg = true) {
+  vi.mocked(makeRequest).mockImplementation(async (url) => {
+    if (String(url).endsWith('.m3u'))
+      return new Response(playlist) as unknown as Awaited<
+        ReturnType<typeof makeRequest>
+      >;
+    if (!epg) throw new Error('Guide unavailable');
+    return new Response(Uint8Array.from(gzipSync(xml))) as unknown as Awaited<
+      ReturnType<typeof makeRequest>
+    >;
+  });
+}
+describe('TDTChannels builtin', () => {
+  it('keeps guide channels when the playlist is unavailable', async () => {
+    tdtMock();
+    const original = vi.mocked(makeRequest).getMockImplementation()!;
+    vi.mocked(makeRequest).mockImplementation(async (url, options) => {
+      if (String(url).endsWith('.m3u')) throw new Error('Playlist unavailable');
+      return original(url, options);
+    });
+    const addon = new TdtChannelsAddon({ timeout: 1000 });
+    expect((await addon.getManifest()).behaviorHints?.epgProvider).toBe(true);
+    expect(await addon.getCatalog()).toHaveLength(1);
+  });
+  it('uses EPG channels, playlist names, and multiple streams for the same ID', async () => {
+    tdtMock();
+    const addon = new TdtChannelsAddon({ timeout: 1000 });
+    expect((await addon.getManifest()).behaviorHints?.epgProvider).toBe(true);
+    const channels = await addon.getCatalog();
+    expect(channels).toHaveLength(1);
+    expect(channels[0]).toMatchObject({ name: 'La 1', tvgId: 'La1.TV' });
+    const meta = await addon.getMeta(channels[0].id);
+    expect(meta.videos?.[0].title).toBe('News');
+    expect(await addon.getStreams(meta.videos![0].id)).toHaveLength(2);
+    expect(await addon.getStreams(encodeChannelId('orange-tv:101'))).toEqual(
+      []
+    );
+  });
+  it('continues with playlist channels and streams when EPG fails', async () => {
+    tdtMock(false);
+    const addon = new TdtChannelsAddon({ timeout: 1000 });
+    expect(
+      (await addon.getManifest()).behaviorHints?.epgProvider
+    ).toBeUndefined();
+    const channels = await addon.getCatalog();
+    expect(channels).toHaveLength(2);
+    const channel = channels.find((item) => item.name === 'La 1')!;
+    expect(
+      (await addon.getMeta(channel.id)).behaviorHints?.hasScheduledVideos
+    ).toBe(false);
+    expect(await addon.getStreams(channel.id)).toHaveLength(2);
+  });
+});

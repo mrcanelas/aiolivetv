@@ -19,6 +19,7 @@ import {
   PlutoTvAddon,
   OrangeTvAddon,
   MovistarPlusAddon,
+  TdtChannelsAddon,
   SpainTvConfigSchema,
   parseCatalogExtras,
   type LiveTvSourceConfig,
@@ -110,7 +111,13 @@ router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
                             config(req.params.encodedConfig)
                           )
                         )
-                      : req.params.source === 'movistar-tv'
+                      : req.params.source === 'tdtchannels'
+                        ? new TdtChannelsAddon(
+                            SpainTvConfigSchema.parse(
+                              config(req.params.encodedConfig)
+                            )
+                          )
+                        : req.params.source === 'movistar-tv'
                           ? new MovistarTvAddon(
                               movistarConfig(req.params.encodedConfig)
                             )
@@ -574,6 +581,7 @@ router.get(
 for (const [source, Addon] of [
   ['orange-tv', OrangeTvAddon],
   ['movistar-plus', MovistarPlusAddon],
+  ['tdtchannels', TdtChannelsAddon],
 ] as const) {
   router.get(
     `/${source}/:encodedConfig/catalog/:type/:id{/:extras}.json`,
@@ -608,5 +616,19 @@ for (const [source, Addon] of [
     }
   );
 }
+
+router.get(
+  '/tdtchannels/:encodedConfig/stream/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      const addon = new TdtChannelsAddon(
+        SpainTvConfigSchema.parse(config(req.params.encodedConfig))
+      );
+      res.json({ streams: await addon.getStreams(req.params.id) });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export default router;

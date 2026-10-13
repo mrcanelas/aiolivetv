@@ -26,6 +26,7 @@ export {
   PlutoTvAddon,
   OrangeTvAddon,
   MovistarPlusAddon,
+  TdtChannelsAddon,
   SpainTvConfigSchema,
   type SpainTvConfig,
   type LiveTvSourceConfig,

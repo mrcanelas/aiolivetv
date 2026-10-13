@@ -1480,3 +1480,22 @@ export class MovistarPlusPreset extends Preset {
   }
 }
 
+export class TdtChannelsPreset extends Preset {
+  static override getParser(): typeof StreamParser {
+    return LiveTvStreamParser;
+  }
+  static override get METADATA() {
+    return spainTvMetadata(
+      'tdtchannels',
+      'TDTChannels',
+      'tdtchannels_logo.webp',
+      true
+    );
+  }
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ) {
+    return [generateSpainTvAddon(this.METADATA, options)];
+  }
+}
