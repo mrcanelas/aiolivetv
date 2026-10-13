@@ -25,7 +25,6 @@ export const errorMiddleware = (
   if (!(err instanceof APIError) && !(err instanceof ZodError)) {
     // log unexpected errors
     logger.error(err);
-    logger.error(err.stack);
     error = new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR);
   } else {
     error = err;
