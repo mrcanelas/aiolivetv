@@ -28,7 +28,7 @@ export function compileCategoryNameRegex(pattern?: string): RegExp | undefined {
 
 export const XtreamConfigSchema = z
   .object({
-    url: z.string().min(1),
+    url: z.string().trim().min(1),
     username: z.string().min(1),
     password: z.string().min(1),
     timeout: z.number().int().positive(),
@@ -38,6 +38,32 @@ export const XtreamConfigSchema = z
     timeShiftMinutes: z.number().int().default(0),
   })
   .superRefine((config, ctx) => {
+    try {
+      const url = new URL(
+        config.url.includes('://') ? config.url : `http://${config.url}`
+      );
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['url'],
+          message: 'Xtream server URL must use HTTP or HTTPS',
+        });
+      }
+      if (url.username || url.password) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['url'],
+          message:
+            'Use the Username and Password fields instead of credentials in the Xtream server URL',
+        });
+      }
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['url'],
+        message: 'Invalid Xtream server URL',
+      });
+    }
     try {
       compileCategoryNameRegex(config.categoryNameRegex);
     } catch (err) {
