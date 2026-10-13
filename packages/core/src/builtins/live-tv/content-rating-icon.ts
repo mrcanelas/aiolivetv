@@ -38,5 +38,11 @@ export function getContentRatingIconUrl(
     /\/+$/,
     ''
   );
+  if (normalizedKey(system) === 'cnmc') {
+    const key = normalizedKey(value)?.replace(/^\+/, '');
+    if (key && ['eri', 'tp', '7', '12', '16', '18', 'x'].includes(key)) {
+      return `${baseUrl || 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons'}/cnmc/${key}.svg`;
+    }
+  }
   return getIconUrl(system, value, baseUrl ? { baseUrl } : undefined);
 }

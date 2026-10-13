@@ -6,6 +6,7 @@ import type {
   UserData,
 } from '../db/index.js';
 import { MI_TV_COUNTRIES } from '../builtins/mitv/index.js';
+import { SpainTvConfigSchema } from '../builtins/spain/addon.js';
 import { MOVISTAR_COUNTRIES } from '../builtins/movistartv/index.js';
 import { XtreamConfigSchema } from '../builtins/xtream/config.js';
 import {
@@ -1353,3 +1354,101 @@ export class PlutoTvPreset extends Preset {
     return [generatePlutoTvAddon(options)];
   }
 }
+
+function spainTvMetadata(
+  id: string,
+  name: string,
+  logo: string,
+  streams = false
+) {
+  const resources = streams
+    ? [
+        constants.CATALOG_RESOURCE,
+        constants.META_RESOURCE,
+        constants.STREAM_RESOURCE,
+      ]
+    : [constants.CATALOG_RESOURCE, constants.META_RESOURCE];
+  return {
+    ID: id,
+    NAME: name,
+    LOGO: `/assets/${logo}`,
+    URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/${id}`],
+    TIMEOUT: appConfig.presets.defaultTimeout,
+    USER_AGENT: appConfig.http.defaultUserAgent,
+    SUPPORTED_SERVICES: [],
+    DESCRIPTION: streams
+      ? 'Live channels, XMLTV guide and streams from TDTChannels. Sources: LaQuay/TDTChannels.'
+      : `Spanish channel catalog and detailed programme metadata from ${name}.`,
+    OPTIONS: [
+      {
+        id: 'resources',
+        name: 'Resources',
+        type: 'multi-select' as const,
+        description: 'Choose which resources to use from this provider.',
+        default: resources,
+        showInSimpleMode: true,
+        options: resources.map((resource) => ({
+          label: constants.RESOURCE_LABELS[resource],
+          value: resource,
+        })),
+      },
+      {
+        id: 'name',
+        name: 'Name',
+        type: 'string' as const,
+        description: 'What to call this addon',
+        required: true,
+        default: name,
+      },
+      {
+        id: 'timeout',
+        name: 'Timeout (ms)',
+        type: 'number' as const,
+        description: 'Timeout for provider requests',
+        required: true,
+        default: appConfig.presets.defaultTimeout,
+        constraints: {
+          min: appConfig.userLimits.timeouts.minTimeout,
+          max: appConfig.userLimits.timeouts.maxTimeout,
+          forceInUi: false,
+        },
+      },
+      epgTimeShiftOption(),
+    ],
+    SUPPORTED_STREAM_TYPES: streams ? [constants.LIVE_STREAM_TYPE] : [],
+    SUPPORTED_RESOURCES: resources,
+    BUILTIN: true,
+    CATEGORY: streams
+      ? constants.PresetCategory.STREAMS
+      : constants.PresetCategory.META_CATALOGS,
+  };
+}
+
+function generateSpainTvAddon(
+  metadata: ReturnType<typeof spainTvMetadata>,
+  options: Record<string, any>
+): Addon {
+  const config = SpainTvConfigSchema.parse({
+    timeout: options.timeout || appConfig.presets.defaultTimeout,
+    timeShiftMinutes: options.timeShiftMinutes ?? 0,
+  });
+  const resources = options.resources || metadata.SUPPORTED_RESOURCES;
+  const supported = new Set<string>(metadata.SUPPORTED_RESOURCES);
+  if (
+    !Array.isArray(resources) ||
+    resources.some((resource) => !supported.has(resource))
+  ) {
+    throw new Error(`${metadata.NAME} does not support the selected resources`);
+  }
+  return {
+    name: options.name || metadata.NAME,
+    enabled: true,
+    manifestUrl: `${appConfig.bootstrap.internalUrl}/builtins/live-tv/${metadata.ID}/${toUrlSafeBase64(JSON.stringify(config))}/manifest.json`,
+    resources,
+    timeout: config.timeout,
+    resultPassthrough: true,
+    preset: { id: '', type: metadata.ID, options },
+    headers: { 'User-Agent': metadata.USER_AGENT },
+  };
+}
+

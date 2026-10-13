@@ -83,7 +83,7 @@ function prepareM3u(entries: M3uEntry[]): M3uData {
   };
 }
 
-async function loadM3u(config: LiveTvSourceConfig): Promise<M3uData> {
+export async function loadM3u(config: LiveTvSourceConfig): Promise<M3uData> {
   trimSourceCache(parsedSources);
   const cacheKey = config.sourceUrl;
   const cached = parsedSources.get(cacheKey);

@@ -52,7 +52,7 @@ export function clearXmltvSourceCache() {
   inflightSources.clear();
 }
 
-async function loadXmltv(config: LiveTvSourceConfig): Promise<XmltvData> {
+export async function loadXmltv(config: LiveTvSourceConfig): Promise<XmltvData> {
   trimSourceCache(parsedSources);
   const cacheKey = config.sourceUrl;
   const cached = parsedSources.get(cacheKey);

@@ -47,6 +47,9 @@ export interface EpgProgramVideoInput {
   subtitle?: string;
   description?: string;
   thumbnail?: string;
+  background?: string;
+  season?: number;
+  episode?: number;
   startTime: string;
   endTime: string;
   airedYear?: string;
@@ -216,6 +219,9 @@ export function programToVideo(
     subtitle: input.subtitle,
     overview: input.description,
     thumbnail: input.thumbnail,
+    background: input.background,
+    season: input.season,
+    episode: input.episode,
     genres: input.categories,
     cast: input.cast,
     directors: input.directors,
