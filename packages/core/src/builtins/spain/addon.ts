@@ -30,6 +30,8 @@ export const SpainTvConfigSchema = z.object({
 export type SpainTvConfig = z.infer<typeof SpainTvConfigSchema>;
 type Videos = NonNullable<Meta['videos']>;
 
+const ORANGE_API = 'https://pc.orangetv.orange.es/pc/api/rtv/v1';
+const ORANGE_EPG = 'https://epg.orangetv.orange.es/epg/SmartTV_Android/1_PRO';
 const apiCache = Cache.getInstance<string, unknown>('spain-tv-api', 512);
 
 async function cachedJson<T>(
@@ -174,5 +176,254 @@ function times(
     endDate.toISOString(),
     config.timeShiftMinutes
   );
+}
+
+interface Attachment {
+  name: string;
+  value: string;
+}
+interface OrangeChannel {
+  externalChannelId: string;
+  name: string;
+  attachments?: Attachment[];
+  category?: string;
+}
+interface OrangeProgram {
+  id: number;
+  name: string;
+  startDate: number;
+  endDate: number;
+  description?: string;
+  seriesName?: string;
+  seriesSeason?: string;
+  episodeId?: string;
+  genres?: Array<{ name: string }>;
+  attachments?: Attachment[];
+  prLevel?: number;
+}
+interface OrangeDetail extends OrangeProgram {
+  prName?: string;
+  year?: string;
+  genreEntityList?: Array<{ name: string }>;
+  contributors?: Array<{ firstName?: string; lastName?: string; role: string }>;
+}
+interface OrangeSegment {
+  channelExternalId: string;
+  programs: OrangeProgram[];
+}
+
+function orangeImage(attachments: Attachment[] | undefined, name: string) {
+  const path = attachments?.find((item) => item.name === name)?.value;
+  return path?.startsWith('/') ? `${ORANGE_API}/images${path}` : undefined;
+}
+
+async function orangeChannels(config: SpainTvConfig): Promise<MetaPreview[]> {
+  const data = await cachedJson<{ response: OrangeChannel[] }>(
+    `${ORANGE_API}/GetChannelList?bouquet_external_id=1_PRO&model_external_id=PC&filter_unsupported_channels=true&max_pr_level=8&client=json`,
+    config
+  );
+  if (!Array.isArray(data.response))
+    throw new Error('Orange TV returned an invalid channel list');
+  return data.response
+    .filter((item) => item.externalChannelId && item.name)
+    .map((item) => ({
+      ...bareChannelPreview({
+        id: encodeChannelId(`orange-tv:${item.externalChannelId}`),
+        name: item.name,
+        poster: orangeImage(item.attachments, 'LOGO'),
+        tvgId: item.name,
+        country: 'ES',
+        language: 'es',
+        genres: item.category ? [item.category] : undefined,
+      }),
+      logo: orangeImage(item.attachments, 'LOGO'),
+    }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+}
+
+async function orangeSchedule(
+  config: SpainTvConfig,
+  date: string
+): Promise<OrangeSegment[]> {
+  // Orange partitions its guide by Madrid dates; a UTC day spans two files.
+  const center =
+    Date.parse(`${date}T00:00:00Z`) - config.timeShiftMinutes * 60_000;
+  const dates = [...new Set([center, center + 86_400_000 - 1].map(madridDate))];
+  const urls = dates.flatMap((day) =>
+    [1, 2, 3].map((segment) => `${ORANGE_EPG}/${day}_8h_${segment}.json`)
+  );
+  const segments = await mapWithEpgConcurrency(
+    urls,
+    async (url) => {
+      const data = await cachedJson<OrangeSegment[]>(url, config);
+      if (!Array.isArray(data))
+        throw new Error('Orange TV returned an invalid schedule');
+      return data;
+    },
+    []
+  );
+  return segments.flat();
+}
+
+async function orangeVideos(
+  config: SpainTvConfig,
+  channel: MetaPreview,
+  date: string,
+  segments: OrangeSegment[],
+  fullDetails = true
+): Promise<Videos> {
+  const channelId = decodeChannelId(channel.id).slice('orange-tv:'.length);
+  const programs = [
+    ...new Map(
+      segments
+        .filter((item) => String(item.channelExternalId) === channelId)
+        .flatMap((item) => item.programs || [])
+        .map((item) => [item.id, item])
+    ).values(),
+  ].filter((item) => {
+    const timing = times(item.startDate, item.endDate, config);
+    return item.name && timing && shiftedProgramOverlapsUtcDay(timing, date, 0);
+  });
+  const ratings = await cachedJson<{
+    response: Array<{ level: number; name: string }>;
+  }>(`${ORANGE_API}/GetParentalRatingList?client=json`, config, 86_400).catch(
+    () => ({ response: [] })
+  );
+  const details = await mapWithEpgConcurrency(
+    programs,
+    async (item) => {
+      const timing = times(item.startDate, item.endDate, config)!;
+      const now = new Date().toISOString();
+      if (!fullDetails && !(timing.startTime <= now && timing.endTime > now))
+        return undefined;
+      return cachedJson<{ response: OrangeDetail }>(
+        `${ORANGE_API}/GetExtendedProgram?program_id=${item.id}&client=json`,
+        config
+      );
+    },
+    undefined
+  );
+  return programs
+    .map((item, index) => {
+      const detail = details[index]?.response;
+      const contributors = detail?.contributors || [];
+      const people = (role: string) =>
+        contributors
+          .filter((person) => person.role === role)
+          .map((person) =>
+            [person.firstName, person.lastName].filter(Boolean).join(' ')
+          )
+          .filter(Boolean);
+      return programToVideo({
+        channelEncodedId: channel.id,
+        title: item.name,
+        subtitle: item.seriesName,
+        description: detail?.description || item.description,
+        ...times(item.startDate, item.endDate, config)!,
+        thumbnail: orangeImage(
+          detail?.attachments || item.attachments,
+          'COVER'
+        ),
+        background: orangeImage(detail?.attachments, 'BACKGROUND'),
+        categories: (detail?.genreEntityList || item.genres || []).map(
+          (genre) => genre.name
+        ),
+        cast: people('ACT'),
+        directors: people('DIR'),
+        airedYear: detail?.year || undefined,
+        season: positiveNumber(item.seriesSeason),
+        episode: positiveNumber(item.episodeId),
+        ratings: rating(
+          detail?.prName ||
+            ratings.response?.find((r) => r.level === item.prLevel)?.name
+        ),
+      });
+    })
+    .sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
+}
+
+export class OrangeTvAddon {
+  private readonly config: SpainTvConfig;
+  constructor(config: z.input<typeof SpainTvConfigSchema>) {
+    this.config = SpainTvConfigSchema.parse(config);
+  }
+  async getManifest(): Promise<Manifest> {
+    let epg = false;
+    try {
+      const [channels, blocks] = await Promise.all([
+        orangeChannels(this.config),
+        mapWithEpgConcurrency(
+          [1, 2, 3],
+          async (segment) => {
+            const data = await cachedJson<OrangeSegment[]>(
+              `${ORANGE_EPG}/${madridDate(Date.now())}_8h_${segment}.json`,
+              this.config
+            );
+            return Array.isArray(data) ? data : [];
+          },
+          []
+        ),
+      ]);
+      const segments = blocks.flat();
+      const ids = new Set(
+        channels.map((channel) =>
+          decodeChannelId(channel.id).slice('orange-tv:'.length)
+        )
+      );
+      epg =
+        Array.isArray(segments) &&
+        segments.some(
+          (segment) =>
+            ids.has(String(segment.channelExternalId)) &&
+            segment.programs?.some((item) =>
+              Boolean(
+                item.name && times(item.startDate, item.endDate, this.config)
+              )
+            )
+        );
+    } catch {
+      /* Catalog remains usable when the guide is unavailable. */
+    }
+    return manifest('orange-tv', 'Orange TV', epg);
+  }
+  async getCatalog(skip = 0) {
+    return (await orangeChannels(this.config)).slice(
+      skip,
+      skip + LIVE_TV_CATALOG_PAGE_SIZE
+    );
+  }
+  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+    const guideDate = resolveGuideDate(date);
+    const channels = await this.getCatalog(skip);
+    const segments = await orangeSchedule(this.config, guideDate).catch(
+      () => []
+    );
+    const videos = await mapWithEpgConcurrency(
+      channels,
+      (channel) =>
+        orangeVideos(this.config, channel, guideDate, segments, false),
+      []
+    );
+    return channels.map((channel, index) =>
+      channelMeta(channel, videos[index])
+    );
+  }
+  async getCatalogResponse(skip = 0, date?: string) {
+    return buildEpgCatalogResponse(
+      (page) => this.getCatalog(page),
+      (page, day) => this.getCatalogGuide(page, day),
+      skip,
+      date
+    );
+  }
+  async getMeta(id: string): Promise<Meta> {
+    const channel = findChannel(await orangeChannels(this.config), id);
+    const date = resolveGuideDate();
+    const segments = await orangeSchedule(this.config, date).catch(() => []);
+    return channelMeta(
+      channel,
+      await orangeVideos(this.config, channel, date, segments).catch(() => [])
+    );
+  }
 }
 

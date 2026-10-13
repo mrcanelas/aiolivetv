@@ -1452,3 +1452,15 @@ function generateSpainTvAddon(
   };
 }
 
+export class OrangeTvPreset extends Preset {
+  static override get METADATA() {
+    return spainTvMetadata('orange-tv', 'Orange TV', 'orangetv_logo.png');
+  }
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ) {
+    return [generateSpainTvAddon(this.METADATA, options)];
+  }
+}
+

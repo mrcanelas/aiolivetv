@@ -24,6 +24,7 @@ export {
   XtreamAddon,
   TvheadendAddon,
   PlutoTvAddon,
+  OrangeTvAddon,
   SpainTvConfigSchema,
   type SpainTvConfig,
   type LiveTvSourceConfig,

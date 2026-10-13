@@ -123,6 +123,22 @@ Internal ids are `pluto:{region}:{originalId}`. Catalog `tvg-id` keeps the origi
 
 ## Other live sources
 
+### Spain
+
+Orange TV is available on the Addons page:
+
+| Builtin | Resources | Metadata |
+| --- | --- | --- |
+| Orange TV | Catalog + Meta | Guide, synopsis, genres, classification, artwork, cast and directors when available |
+
+Orange TV is a guide provider. Bind its channels to TDTChannels, M3U, Xtream or another stream addon on Channels. Adding this provider does not grant access to Orange subscription streams.
+
+It uses the existing timeout, resource selection and EPG Time Shift options. Spanish age classifications use [CNMC icons from age-rating-kit](https://mrcanelas.github.io/age-rating-kit/#cnmc). Extra programme details are optional: the basic schedule remains available if a detail request fails.
+
+Native EPG is advertised only after programme data has been verified. Configuration and channel mappings remain in the draft until Save.
+
+### Other providers
+
 - **Vivo TV** and **Claro TV+** — Brazilian guide metadata (Claro needs `CITY,STATE`). Pair them with M3U or Xtream for playback.
 - **Mi.tv** — Latin American guide metadata. Choose the country when adding the addon; add one instance per country.
 - **USA TV, Argentina TV, FrostView, Debridio TV** — community live addons with the usual URL / timeout options.

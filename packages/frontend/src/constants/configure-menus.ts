@@ -34,6 +34,7 @@ export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
   'tvheadend',
   'vivo-tv',
   'movistar-tv',
+  'orange-tv',
   'tvp',
   'directv',
   'claro-tv',

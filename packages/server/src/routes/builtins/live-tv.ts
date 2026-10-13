@@ -17,6 +17,8 @@ import {
   XtreamAddon,
   TvheadendAddon,
   PlutoTvAddon,
+  OrangeTvAddon,
+  SpainTvConfigSchema,
   parseCatalogExtras,
   type LiveTvSourceConfig,
   type VivoTvConfig,
@@ -89,23 +91,37 @@ router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
           ? new M3uAddon(config(req.params.encodedConfig))
           : req.params.source === 'xtream'
             ? new XtreamAddon(xtreamConfig(req.params.encodedConfig))
-          : req.params.source === 'tvheadend'
-            ? new TvheadendAddon(tvheadendConfig(req.params.encodedConfig))
-          : req.params.source === 'pluto-tv'
-            ? new PlutoTvAddon(plutoTvConfig(req.params.encodedConfig))
-          : req.params.source === 'vivo-tv'
-            ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
-          : req.params.source === 'movistar-tv'
-            ? new MovistarTvAddon(movistarConfig(req.params.encodedConfig))
-            : req.params.source === 'tvp'
-              ? new TvpAddon(tvpConfig(req.params.encodedConfig))
-            : req.params.source === 'directv'
-              ? new DirectvAddon(directvConfig(req.params.encodedConfig))
-            : req.params.source === 'claro-tv'
-              ? new ClaroTvAddon(claroConfig(req.params.encodedConfig))
-              : req.params.source === 'mi-tv'
-                ? new MiTvAddon(miTvConfig(req.params.encodedConfig))
-                : undefined;
+            : req.params.source === 'tvheadend'
+              ? new TvheadendAddon(tvheadendConfig(req.params.encodedConfig))
+              : req.params.source === 'pluto-tv'
+                ? new PlutoTvAddon(plutoTvConfig(req.params.encodedConfig))
+                : req.params.source === 'vivo-tv'
+                  ? new VivoTvAddon(vivoConfig(req.params.encodedConfig))
+                  : req.params.source === 'orange-tv'
+                    ? new OrangeTvAddon(
+                        SpainTvConfigSchema.parse(
+                          config(req.params.encodedConfig)
+                        )
+                      )
+                    : req.params.source === 'movistar-tv'
+                          ? new MovistarTvAddon(
+                              movistarConfig(req.params.encodedConfig)
+                            )
+                          : req.params.source === 'tvp'
+                            ? new TvpAddon(tvpConfig(req.params.encodedConfig))
+                            : req.params.source === 'directv'
+                              ? new DirectvAddon(
+                                  directvConfig(req.params.encodedConfig)
+                                )
+                              : req.params.source === 'claro-tv'
+                                ? new ClaroTvAddon(
+                                    claroConfig(req.params.encodedConfig)
+                                  )
+                                : req.params.source === 'mi-tv'
+                                  ? new MiTvAddon(
+                                      miTvConfig(req.params.encodedConfig)
+                                    )
+                                  : undefined;
     if (!addon) throw new Error(`Unsupported source: ${req.params.source}`);
     res.json(await Promise.resolve(addon.getManifest()));
   } catch (error) {
@@ -547,5 +563,42 @@ router.get(
     }
   }
 );
+
+for (const [source, Addon] of [
+  ['orange-tv', OrangeTvAddon],
+] as const) {
+  router.get(
+    `/${source}/:encodedConfig/catalog/:type/:id{/:extras}.json`,
+    async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+      try {
+        const { skip, date } = parseCatalogExtras(getEncodedExtras(req));
+        const addon = new Addon(
+          SpainTvConfigSchema.parse(config(req.params.encodedConfig))
+        );
+        res.json(await addon.getCatalogResponse(skip, date));
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.get(
+    `/${source}/:encodedConfig/meta/:type/:id.json`,
+    async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+      try {
+        const addon = new Addon(
+          SpainTvConfigSchema.parse(config(req.params.encodedConfig))
+        );
+        res.json({
+          meta: await addon.getMeta(req.params.id),
+          cacheMaxAge: 300,
+          staleRevalidate: 1800,
+          staleError: 604800,
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+}
 
 export default router;
