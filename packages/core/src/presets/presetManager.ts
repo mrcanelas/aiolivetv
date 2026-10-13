@@ -20,6 +20,7 @@ import {
   TvheadendPreset,
   PlutoTvPreset,
   OrangeTvPreset,
+  MovistarPlusPreset,
 } from './liveTv.js';
 
 const PRESETS = {
@@ -29,6 +30,7 @@ const PRESETS = {
   tvheadend: TvheadendPreset,
   'pluto-tv': PlutoTvPreset,
   'orange-tv': OrangeTvPreset,
+  'movistar-plus': MovistarPlusPreset,
   'vivo-tv': VivoTvPreset,
   'movistar-tv': MovistarTvPreset,
   tvp: TvpPreset,

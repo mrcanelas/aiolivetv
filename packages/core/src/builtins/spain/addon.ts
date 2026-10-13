@@ -32,6 +32,7 @@ type Videos = NonNullable<Meta['videos']>;
 
 const ORANGE_API = 'https://pc.orangetv.orange.es/pc/api/rtv/v1';
 const ORANGE_EPG = 'https://epg.orangetv.orange.es/epg/SmartTV_Android/1_PRO';
+const MOVISTAR_API = 'https://ottcache.dof6.com/movistarplus/webplayer';
 const apiCache = Cache.getInstance<string, unknown>('spain-tv-api', 512);
 
 async function cachedJson<T>(
@@ -424,6 +425,198 @@ export class OrangeTvAddon {
       channel,
       await orangeVideos(this.config, channel, date, segments).catch(() => [])
     );
+  }
+}
+
+interface MovistarChannel {
+  CodCadenaTv: string;
+  Nombre: string;
+  Logo?: string;
+}
+interface MovistarProgram {
+  Id: number;
+  Titulo: string;
+  TituloEpisodio?: string;
+  FechaHoraInicio: string;
+  FechaHoraFin: string;
+  Ficha?: string;
+  Resena?: string;
+  Imagen?: string;
+  Imagenes?: Array<{ id: string; uri: string }>;
+  NivelMoral?: { Id?: string };
+  GeneroComAntena?: string;
+}
+interface MovistarDetail {
+  Descripcion?: string;
+  Sinopsis?: string;
+  Actores?: string;
+  Directores?: string;
+  Anno?: string;
+  NumeroEpisodio?: string | number;
+  Temporada?: string | number;
+  NivelMoral?: { Id?: string };
+  Genero?: { ComAntena?: string };
+  Imagen?: string;
+  Imagenes?: Array<{ id: string; uri: string }>;
+}
+
+async function movistarChannels(config: SpainTvConfig): Promise<MetaPreview[]> {
+  const data = await cachedJson<MovistarChannel[]>(
+    `${MOVISTAR_API}/OTT/contents/channels?mdrm=true&tlsstream=true&demarcation=18&version=8`,
+    config
+  );
+  if (!Array.isArray(data))
+    throw new Error('Movistar Plus+ returned an invalid channel list');
+  return data
+    .filter((item) => item.CodCadenaTv && item.Nombre)
+    .map((item) => ({
+      ...bareChannelPreview({
+        id: encodeChannelId(`movistar-plus:${item.CodCadenaTv}`),
+        name: item.Nombre,
+        poster: item.Logo,
+        tvgId: item.Nombre,
+        country: 'ES',
+        language: 'es',
+      }),
+      logo: item.Logo,
+    }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+}
+
+async function movistarSchedule(
+  config: SpainTvConfig,
+  channel: MetaPreview,
+  date: string
+) {
+  const code = decodeChannelId(channel.id)
+    .slice('movistar-plus:'.length)
+    .toUpperCase();
+  const from = new Date(
+    Date.parse(`${date}T00:00:00Z`) - config.timeShiftMinutes * 60_000
+  )
+    .toISOString()
+    .slice(0, 19);
+  const url = `${MOVISTAR_API}/OTT/epg?from=${from}&span=1&channel=${encodeURIComponent(code)}&version=8&mdrm=true&tlsstream=true&demarcation=18`;
+  const data = await cachedJson<MovistarProgram[]>(url, config);
+  if (!Array.isArray(data))
+    throw new Error('Movistar Plus+ returned an invalid schedule');
+  return data.filter((item) => {
+    const timing = times(item.FechaHoraInicio, item.FechaHoraFin, config);
+    return (
+      timing && item.Titulo && shiftedProgramOverlapsUtcDay(timing, date, 0)
+    );
+  });
+}
+
+async function movistarVideos(
+  config: SpainTvConfig,
+  channel: MetaPreview,
+  date: string,
+  fullDetails = true
+): Promise<Videos> {
+  const programs = await movistarSchedule(config, channel, date);
+  const details = await mapWithEpgConcurrency(
+    programs,
+    async (item) => {
+      const timing = times(item.FechaHoraInicio, item.FechaHoraFin, config)!;
+      const now = new Date().toISOString();
+      if (!fullDetails && !(timing.startTime <= now && timing.endTime > now))
+        return undefined;
+      if (
+        !item.Ficha ||
+        new URL(item.Ficha).origin !== new URL(MOVISTAR_API).origin
+      )
+        return undefined;
+      return cachedJson<MovistarDetail>(item.Ficha, config);
+    },
+    undefined
+  );
+  return programs
+    .map((item, index) => {
+      const detail = details[index];
+      const images = detail?.Imagenes || item.Imagenes || [];
+      const image = (id: string) =>
+        images.find((image) => image.id === id)?.uri;
+      return programToVideo({
+        channelEncodedId: channel.id,
+        title: item.Titulo,
+        subtitle: item.TituloEpisodio,
+        description: detail?.Descripcion || detail?.Sinopsis || item.Resena,
+        ...times(item.FechaHoraInicio, item.FechaHoraFin, config)!,
+        thumbnail:
+          image('watch2tgr-start') ||
+          image('horizontal') ||
+          detail?.Imagen ||
+          item.Imagen,
+        background: image('watch2tgr-end') || image('horizontal'),
+        categories: [detail?.Genero?.ComAntena || item.GeneroComAntena].filter(
+          (value): value is string => Boolean(value)
+        ),
+        cast: names(detail?.Actores),
+        directors: names(detail?.Directores),
+        airedYear: detail?.Anno,
+        ratings: rating(detail?.NivelMoral?.Id || item.NivelMoral?.Id),
+        season: positiveNumber(detail?.Temporada),
+        episode: positiveNumber(detail?.NumeroEpisodio),
+      });
+    })
+    .sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
+}
+
+export class MovistarPlusAddon {
+  private readonly config: SpainTvConfig;
+  constructor(config: z.input<typeof SpainTvConfigSchema>) {
+    this.config = SpainTvConfigSchema.parse(config);
+  }
+  async getManifest(): Promise<Manifest> {
+    let epg = false;
+    try {
+      const channels = (await movistarChannels(this.config)).slice(0, 4);
+      const schedules = await mapWithEpgConcurrency(
+        channels,
+        (channel) => movistarSchedule(this.config, channel, resolveGuideDate()),
+        []
+      );
+      epg = schedules.some((programs) => programs.length > 0);
+    } catch {
+      /* Catalog remains usable when the guide is unavailable. */
+    }
+    return manifest('movistar-plus', 'Movistar Plus+ Spain', epg);
+  }
+  async getCatalog(skip = 0) {
+    return (await movistarChannels(this.config)).slice(
+      skip,
+      skip + LIVE_TV_CATALOG_PAGE_SIZE
+    );
+  }
+  async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
+    const channels = await this.getCatalog(skip);
+    const guideDate = resolveGuideDate(date);
+    const videos = await mapWithEpgConcurrency(
+      channels,
+      (channel) => movistarVideos(this.config, channel, guideDate, false),
+      []
+    );
+    return channels.map((channel, index) =>
+      channelMeta(channel, videos[index])
+    );
+  }
+  async getCatalogResponse(skip = 0, date?: string) {
+    return buildEpgCatalogResponse(
+      (page) => this.getCatalog(page),
+      (page, day) => this.getCatalogGuide(page, day),
+      skip,
+      date
+    );
+  }
+  async getMeta(id: string): Promise<Meta> {
+    const channel = findChannel(await movistarChannels(this.config), id);
+    const videos = await movistarVideos(
+      this.config,
+      channel,
+      resolveGuideDate()
+    ).catch(() => []);
+    return channelMeta(channel, videos);
   }
 }
 

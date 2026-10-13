@@ -27,7 +27,7 @@ vi.mock('../../streams/web-readiness.js', () => ({
   resolveNotWebReady: async () => false,
 }));
 
-const { OrangeTvAddon } =
+const { OrangeTvAddon, MovistarPlusAddon } =
   await import('./addon.js');
 const { makeRequest } = await import('../../utils/index.js');
 const { encodeChannelId } = await import('../live-tv/shared.js');
@@ -53,6 +53,17 @@ const orangeProgram = {
   episodeId: '3',
   attachments: [{ name: 'COVER', value: '/epg/film.jpg' }],
 };
+const movistarProgram = {
+  Id: 99,
+  Titulo: 'Film',
+  FechaHoraInicio: String(start),
+  FechaHoraFin: String(end),
+  Ficha: 'https://ottcache.dof6.com/film',
+  Resena: 'Basic synopsis',
+  NivelMoral: { Id: '+12' },
+  GeneroComAntena: 'Drama',
+};
+
 beforeEach(() => {
   stores.clear();
   clearM3uSourceCache();
@@ -103,6 +114,38 @@ function orangeMock(
   });
 }
 
+function movistarMock(
+  programs: (typeof movistarProgram)[] = [movistarProgram],
+  failDetails = false
+) {
+  vi.mocked(makeRequest).mockImplementation(async (url) => {
+    const source = String(url);
+    if (source.includes('contents/channels'))
+      return response([
+        {
+          CodCadenaTv: 'TVE',
+          Nombre: 'La 1',
+          Logo: 'https://example.com/logo.png',
+        },
+      ]);
+    if (source.includes('/OTT/epg')) return response(programs);
+    if (failDetails) throw new Error('Details unavailable');
+    return response({
+      Descripcion: 'Full synopsis',
+      Actores: 'Actor One, Actor Two',
+      Directores: 'Director One',
+      Anno: '2020',
+      Genero: { ComAntena: 'Drama' },
+      NivelMoral: { Id: '+12' },
+      NumeroEpisodio: '3',
+      Temporada: '2',
+      Imagenes: [
+        { id: 'horizontal', uri: 'https://example.com/background.jpg' },
+      ],
+    });
+  });
+}
+
 describe('Spanish metadata providers', () => {
   it('verifies Orange EPG from another block when the first block fails', async () => {
     orangeMock();
@@ -142,15 +185,15 @@ describe('Spanish metadata providers', () => {
     ).toBeUndefined();
     expect(await addon.getCatalog()).toHaveLength(1);
   });
-  it.each(['orange'])(
+  it.each(['orange', 'movistar'])(
     'exposes only catalog/meta and validates real EPG: %s',
     async (provider) => {
       const addon =
         provider === 'orange'
           ? new OrangeTvAddon({ timeout: 1000 })
-          : new OrangeTvAddon({ timeout: 1000 });
+          : new MovistarPlusAddon({ timeout: 1000 });
       if (provider === 'orange') orangeMock();
-      else orangeMock();
+      else movistarMock();
       const manifest = await addon.getManifest();
       expect(
         manifest.resources.map((resource) =>
@@ -166,15 +209,15 @@ describe('Spanish metadata providers', () => {
     }
   );
 
-  it.each(['orange'])(
+  it.each(['orange', 'movistar'])(
     'does not advertise EPG for empty schedules: %s',
     async (provider) => {
       if (provider === 'orange') orangeMock([]);
-      else orangeMock([]);
+      else movistarMock([]);
       const addon =
         provider === 'orange'
           ? new OrangeTvAddon({ timeout: 1000 })
-          : new OrangeTvAddon({ timeout: 1000 });
+          : new MovistarPlusAddon({ timeout: 1000 });
       expect(
         (await addon.getManifest()).behaviorHints?.epgProvider
       ).toBeUndefined();
@@ -186,15 +229,15 @@ describe('Spanish metadata providers', () => {
     }
   );
 
-  it.each(['orange'])(
+  it.each(['orange', 'movistar'])(
     'preserves rich metadata and CNMC icons: %s',
     async (provider) => {
       if (provider === 'orange') orangeMock();
-      else orangeMock();
+      else movistarMock();
       const addon =
         provider === 'orange'
           ? new OrangeTvAddon({ timeout: 1000 })
-          : new OrangeTvAddon({ timeout: 1000 });
+          : new MovistarPlusAddon({ timeout: 1000 });
       const channel = (await addon.getCatalog())[0];
       const meta = await addon.getMeta(channel.id);
       expect(meta.background).toContain('background');
@@ -226,15 +269,15 @@ describe('Spanish metadata providers', () => {
     }
   );
 
-  it.each(['orange'])(
+  it.each(['orange', 'movistar'])(
     'keeps basic programme data when details fail: %s',
     async (provider) => {
       if (provider === 'orange') orangeMock([orangeProgram], true);
-      else orangeMock([orangeProgram], true);
+      else movistarMock([movistarProgram], true);
       const addon =
         provider === 'orange'
           ? new OrangeTvAddon({ timeout: 1000 })
-          : new OrangeTvAddon({ timeout: 1000 });
+          : new MovistarPlusAddon({ timeout: 1000 });
       const channel = (await addon.getCatalog())[0];
       expect((await addon.getMeta(channel.id)).videos?.[0]).toMatchObject({
         title: 'Film',
@@ -259,6 +302,16 @@ describe('Spanish metadata providers', () => {
     );
   });
 
-
+  it('shifts programme IDs and times without changing channel identity', async () => {
+    movistarMock();
+    const addon = new MovistarPlusAddon({
+      timeout: 1000,
+      timeShiftMinutes: 30,
+    });
+    const channel = (await addon.getCatalog())[0];
+    const video = (await addon.getMeta(channel.id)).videos?.[0];
+    expect(video?.startTime).toBe('2026-10-13T12:30:00.000Z');
+    expect(video?.id).toBe(`${channel.id}:epg:2026-10-13T12:30:00.000Z`);
+  });
 });
 

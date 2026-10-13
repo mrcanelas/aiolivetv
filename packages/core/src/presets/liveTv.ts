@@ -1464,3 +1464,19 @@ export class OrangeTvPreset extends Preset {
   }
 }
 
+export class MovistarPlusPreset extends Preset {
+  static override get METADATA() {
+    return spainTvMetadata(
+      'movistar-plus',
+      'Movistar Plus+ Spain',
+      'moviestarplus_logo.jpg'
+    );
+  }
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ) {
+    return [generateSpainTvAddon(this.METADATA, options)];
+  }
+}
+

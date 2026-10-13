@@ -18,6 +18,7 @@ import {
   TvheadendAddon,
   PlutoTvAddon,
   OrangeTvAddon,
+  MovistarPlusAddon,
   SpainTvConfigSchema,
   parseCatalogExtras,
   type LiveTvSourceConfig,
@@ -103,7 +104,13 @@ router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
                           config(req.params.encodedConfig)
                         )
                       )
-                    : req.params.source === 'movistar-tv'
+                    : req.params.source === 'movistar-plus'
+                      ? new MovistarPlusAddon(
+                          SpainTvConfigSchema.parse(
+                            config(req.params.encodedConfig)
+                          )
+                        )
+                      : req.params.source === 'movistar-tv'
                           ? new MovistarTvAddon(
                               movistarConfig(req.params.encodedConfig)
                             )
@@ -566,6 +573,7 @@ router.get(
 
 for (const [source, Addon] of [
   ['orange-tv', OrangeTvAddon],
+  ['movistar-plus', MovistarPlusAddon],
 ] as const) {
   router.get(
     `/${source}/:encodedConfig/catalog/:type/:id{/:extras}.json`,

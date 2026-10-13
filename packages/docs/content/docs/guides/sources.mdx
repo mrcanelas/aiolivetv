@@ -125,15 +125,16 @@ Internal ids are `pluto:{region}:{originalId}`. Catalog `tvg-id` keeps the origi
 
 ### Spain
 
-Orange TV is available on the Addons page:
+Two independent builtins are available on the Addons page:
 
 | Builtin | Resources | Metadata |
 | --- | --- | --- |
 | Orange TV | Catalog + Meta | Guide, synopsis, genres, classification, artwork, cast and directors when available |
+| Movistar Plus+ Spain | Catalog + Meta | Guide and detailed programme information from Movistar Plus+ Spain |
 
-Orange TV is a guide provider. Bind its channels to TDTChannels, M3U, Xtream or another stream addon on Channels. Adding this provider does not grant access to Orange subscription streams.
+Orange TV and Movistar Plus+ Spain are guide providers. Bind their channels to TDTChannels, M3U, Xtream or another stream addon on Channels. Adding these providers does not grant access to Orange or Movistar subscription streams.
 
-It uses the existing timeout, resource selection and EPG Time Shift options. Spanish age classifications use [CNMC icons from age-rating-kit](https://mrcanelas.github.io/age-rating-kit/#cnmc). Extra programme details are optional: the basic schedule remains available if a detail request fails.
+Both use the existing timeout, resource selection and EPG Time Shift options. Spanish age classifications use [CNMC icons from age-rating-kit](https://mrcanelas.github.io/age-rating-kit/#cnmc). Extra programme details are optional: the basic schedule remains available if a detail request fails.
 
 Native EPG is advertised only after programme data has been verified. Configuration and channel mappings remain in the draft until Save.
 
