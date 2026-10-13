@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib';
 import { z } from 'zod';
 import {
   fromUrlSafeBase64,
@@ -102,8 +103,7 @@ export async function fetchSourceText(
   }
   if (!response.body) return '';
   const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  const parts: string[] = [];
+  const parts: Uint8Array[] = [];
   let bytes = 0;
   try {
     while (true) {
@@ -114,10 +114,14 @@ export async function fetchSourceText(
         await reader.cancel();
         throw new Error(`Source exceeds maximum size of ${maxBytes} bytes`);
       }
-      parts.push(decoder.decode(value, { stream: true }));
+      parts.push(value);
     }
-    parts.push(decoder.decode());
-    return parts.join('');
+    const source = Buffer.concat(parts, bytes);
+    const decoded =
+      source[0] === 0x1f && source[1] === 0x8b
+        ? gunzipSync(source, { maxOutputLength: maxBytes })
+        : source;
+    return new TextDecoder().decode(decoded);
   } finally {
     reader.releaseLock();
   }

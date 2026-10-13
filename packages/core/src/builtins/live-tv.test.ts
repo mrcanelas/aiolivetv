@@ -1,3 +1,4 @@
+import { gzipSync } from 'node:zlib';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserData } from '../db/index.js';
 
@@ -38,7 +39,7 @@ const {
   isChannelMappingSuggestion,
 } = await import('../main/channelMappings.js');
 const { makeRequest } = await import('../utils/index.js');
-function sourceResponse(text: string) {
+function sourceResponse(text: string | Uint8Array<ArrayBuffer>) {
   return new Response(text) as unknown as Awaited<
     ReturnType<typeof makeRequest>
   >;
@@ -243,6 +244,30 @@ describe('live TV sources', () => {
     });
     expect(data.programsByChannelId.get('rtp1')?.[0]?.title).toBe('Jornal');
   });
+
+  it.each([true, false])(
+    'reads XMLTV .gz with compressed body: %s',
+    async (compressed) => {
+      const xml =
+        '<tv><channel id="bbc.one"><display-name>BBC One</display-name></channel><programme channel="bbc.one" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>';
+      vi.mocked(makeRequest).mockResolvedValueOnce(
+        sourceResponse(compressed ? Uint8Array.from(gzipSync(xml)) : xml)
+      );
+      const addon = new XmltvAddon({
+        sourceUrl: 'https://example.com/guide.xml.gz',
+        timeout: 1000,
+      });
+      expect(await addon.getCatalog()).toMatchObject([{ name: 'BBC One' }]);
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-28T12:00:00.000Z'));
+      try {
+        const meta = await addon.getMeta(encodeChannelId('bbc.one'));
+        expect(meta.videos?.[0]?.title).toBe('News');
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
 
   it('returns XMLTV programs only from channel meta', async () => {
     vi.mocked(makeRequest).mockResolvedValueOnce(
@@ -652,6 +677,23 @@ describe('channel mappings', () => {
         timeShiftMinutes: 0,
       })
     ).rejects.toThrow(/maximum size/);
+  });
+
+  it('bounds the decompressed size of gzip sources', async () => {
+    const { fetchSourceText } = await import('./live-tv/shared.js');
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(Uint8Array.from(gzipSync('x'.repeat(1000))))
+    );
+    await expect(
+      fetchSourceText(
+        {
+          sourceUrl: 'https://example.com/guide.xml.gz',
+          timeout: 1000,
+          timeShiftMinutes: 0,
+        },
+        { maxBytes: 100 }
+      )
+    ).rejects.toThrow();
   });
 
   it('cancels oversized chunked downloads before reading the rest', async () => {
