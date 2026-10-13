@@ -13,6 +13,7 @@ import {
   channelGenreCatalogExtra,
   channelGenres,
   EPG_GUIDE_CATALOG_EXTRAS,
+  EPG_FETCH_CONCURRENCY,
   guideChannelMeta,
   LIVE_TV_CATALOG_PAGE_SIZE,
   matchesCatalogGenre,
@@ -250,12 +251,29 @@ export class XtreamAddon {
 
   async getManifest(): Promise<Manifest> {
     let groups: Array<string | undefined> = [];
+    let epg = false;
     try {
       const [channels, categoryNames] = await Promise.all([
         loadChannels(this.config),
         loadCategoryNames(this.config),
       ]);
       groups = channels.map((channel) => channelGroup(channel, categoryNames));
+      const schedules = await mapWithEpgConcurrency(
+        channels.slice(0, EPG_FETCH_CONCURRENCY),
+        (channel) => loadChannelEpg(this.config, channel.id),
+        []
+      );
+      epg = schedules.some((listings) =>
+        listings.some((listing) =>
+          Boolean(
+            listing.title?.trim() &&
+            listing.start instanceof Date &&
+            listing.end instanceof Date &&
+            Number.isFinite(listing.start.getTime()) &&
+            listing.end.getTime() > listing.start.getTime()
+          )
+        )
+      );
     } catch {
       groups = [];
     }
@@ -285,7 +303,7 @@ export class XtreamAddon {
           ],
         },
       ],
-      behaviorHints: { epgProvider: true },
+      ...(epg ? { behaviorHints: { epgProvider: true } } : {}),
     };
   }
 

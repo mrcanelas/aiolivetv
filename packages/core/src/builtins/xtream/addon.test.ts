@@ -121,6 +121,63 @@ describe('XtreamAddon', () => {
     });
   });
 
+  it.each(['empty', 'failure', 'invalid-time', 'empty-title'])(
+    'keeps catalog and stream resources without advertising unverified EPG: %s',
+    async (failure) => {
+      const listings = await mockGetFullEpg();
+      if (failure === 'failure')
+        mockGetFullEpg.mockRejectedValue(new Error('Unavailable'));
+      else
+        mockGetFullEpg.mockResolvedValue(
+          failure === 'empty'
+            ? []
+            : [
+                {
+                  ...listings[0],
+                  ...(failure === 'invalid-time'
+                    ? { end: listings[0].start }
+                    : { title: '' }),
+                },
+              ]
+        );
+      const addon = new XtreamAddon({
+        url: 'example.com',
+        username: 'user',
+        password: 'pass',
+        timeout: 5000,
+      });
+      expect(
+        (await addon.getManifest()).behaviorHints?.epgProvider
+      ).toBeUndefined();
+      expect(await addon.getCatalog()).toHaveLength(1);
+      expect(await addon.getStreams(encodeChannelId('101'))).toHaveLength(1);
+    }
+  );
+
+  it('verifies EPG using a bounded sample and tolerates another channel failing', async () => {
+    const channel = (await mockGetChannels())[0];
+    const listings = await mockGetFullEpg();
+    mockGetChannels.mockResolvedValue(
+      Array.from({ length: 9 }, (_, index) => ({
+        ...channel,
+        id: String(index),
+      }))
+    );
+    mockGetFullEpg.mockImplementation(async ({ channelId }) => {
+      if (channelId === '0') throw new Error('Unavailable');
+      return listings;
+    });
+    mockGetFullEpg.mockClear();
+    const addon = new XtreamAddon({
+      url: 'example.com',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+    });
+    expect((await addon.getManifest()).behaviorHints?.epgProvider).toBe(true);
+    expect(mockGetFullEpg).toHaveBeenCalledTimes(4);
+  });
+
   it('returns meta with programs for the current UTC day', async () => {
     const addon = new XtreamAddon({
       url: 'http://example.com:8080',

@@ -75,7 +75,7 @@ afterEach(() => {
 });
 
 describe('EPG manifest requests', () => {
-  it.each(['orange-tv', 'movistar-plus', 'tdtchannels'])(
+  it.each(['orange-tv', 'movistar-plus', 'tdtchannels', 'xtream'])(
     'waits beyond the global 3s timeout for a verified guide: %s',
     async (type) => {
       vi.mocked(makeRequest).mockImplementation(async () => {
@@ -99,19 +99,24 @@ describe('EPG manifest requests', () => {
     expect(makeRequest).toHaveBeenCalledOnce();
   });
 
-  it('retries a temporary no-EPG response without claiming EPG prematurely', async () => {
-    vi.mocked(makeRequest)
-      .mockResolvedValueOnce(
-        response({ ...manifest, behaviorHints: undefined })
-      )
-      .mockResolvedValueOnce(response(manifest));
-    const wrapper = new Wrapper(addon());
-    expect(
-      (await wrapper.getManifest()).behaviorHints?.epgProvider
-    ).toBeUndefined();
-    expect((await wrapper.getManifest()).behaviorHints?.epgProvider).toBe(true);
-    expect(makeRequest).toHaveBeenCalledTimes(2);
-  });
+  it.each(['orange-tv', 'xtream'])(
+    'retries a temporary no-EPG response without claiming EPG prematurely: %s',
+    async (type) => {
+      vi.mocked(makeRequest)
+        .mockResolvedValueOnce(
+          response({ ...manifest, behaviorHints: undefined })
+        )
+        .mockResolvedValueOnce(response(manifest));
+      const wrapper = new Wrapper(addon(type));
+      expect(
+        (await wrapper.getManifest()).behaviorHints?.epgProvider
+      ).toBeUndefined();
+      expect((await wrapper.getManifest()).behaviorHints?.epgProvider).toBe(
+        true
+      );
+      expect(makeRequest).toHaveBeenCalledTimes(2);
+    }
+  );
 
   it('keeps the normal timeout for external addons', async () => {
     vi.mocked(makeRequest).mockImplementation(async () => {
