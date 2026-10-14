@@ -82,7 +82,7 @@ function createPayload(kind, env, release = {}) {
     throw new Error(`Unknown notification kind: ${kind}`);
   }
   embed.footer = { text: 'AIOLiveTV CI' };
-  embed.thumbnail = { url: LOGO_URL };
+  embed.author = { name: 'AIOLiveTV', icon_url: LOGO_URL };
   return {
     embeds: [embed],
     components: linkButtons(links),

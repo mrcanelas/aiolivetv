@@ -11,11 +11,13 @@ const env = {
 };
 const channel = '1557042471077285968';
 
-test('release and build cards include the logo and native link buttons', () => {
+test('release and build cards use the author logo without a thumbnail and retain native link buttons', () => {
   const release = createPayload('release', env, { tag_name: 'v0.7.0' });
   const build = createPayload('build', env);
   for (const payload of [release, build]) {
-    assert.match(payload.embeds[0].thumbnail.url, /favicon\.png$/);
+    assert.equal(payload.embeds[0].author.name, 'AIOLiveTV');
+    assert.match(payload.embeds[0].author.icon_url, /favicon\.png$/);
+    assert.equal(payload.embeds[0].thumbnail, undefined);
     assert.equal(payload.flags, undefined);
     assert.equal(payload.components[0].type, 1);
     for (const button of payload.components[0].components) {
@@ -69,8 +71,12 @@ test('release notes are bounded, JSON-safe and cannot ping members', () => {
 });
 
 test('test posts explicitly identify themselves as tests', () => {
+  const embed = createPayload('test', env).embeds[0];
+  assert.equal(embed.author.name, 'AIOLiveTV');
+  assert.match(embed.author.icon_url, /favicon\.png$/);
+  assert.equal(embed.thumbnail, undefined);
   assert.match(
-    createPayload('test', env).embeds[0].description,
+    embed.description,
     /not a release or deployment/
   );
 });
