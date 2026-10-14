@@ -37,6 +37,7 @@ export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
   'orange-tv',
   'movistar-plus',
   'tdtchannels',
+  'rtve',
   'tvp',
   'directv',
   'claro-tv',

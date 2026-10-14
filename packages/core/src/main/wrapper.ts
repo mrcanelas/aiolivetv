@@ -258,7 +258,7 @@ export class Wrapper {
       }
     };
 
-    return this._request({
+    const response = await this._request({
       requestFn,
       timeout,
       resourceName: 'manifest',
@@ -274,6 +274,16 @@ export class Wrapper {
         ? (manifest) => manifest.behaviorHints?.epgProvider === true
         : undefined,
     });
+    if (this.addon.preset.type !== 'rtve') return response;
+    // RTVE advertises "TV" catalogs alongside radio and on-demand content.
+    return {
+      ...response,
+      types: ['tv'],
+      idPrefixes: ['tve:'],
+      catalogs: response.catalogs
+        .filter((catalog) => catalog.type.toLowerCase() === 'tv')
+        .map((catalog) => ({ ...catalog, type: 'tv' })),
+    };
   }
 
   async getStreams(type: string, id: string): Promise<ParsedStream[]> {

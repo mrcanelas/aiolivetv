@@ -75,6 +75,36 @@ afterEach(() => {
 });
 
 describe('EPG manifest requests', () => {
+  it('normalizes RTVE TV catalogs without importing radio or on-demand catalogs, including cached responses', async () => {
+    const upstream = {
+      ...manifest,
+      types: ['tv', 'movie', 'series'],
+      idPrefixes: ['tve:', 'rne:', 'rtvep:'],
+      catalogs: [
+        {
+          id: 'tv',
+          type: 'TV',
+          name: 'Live channels',
+          extra: [{ name: 'date' }],
+        },
+        { id: 'radio', type: 'Radio', name: 'Live radio' },
+        { id: 'search', type: 'search results', name: 'RTVE Play' },
+      ],
+    };
+    vi.mocked(makeRequest).mockResolvedValue(response(upstream));
+    const wrapper = new Wrapper(addon('rtve'));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await wrapper.getManifest();
+      expect(result.types).toEqual(['tv']);
+      expect(result.idPrefixes).toEqual(['tve:']);
+      expect(result.catalogs).toEqual([
+        { ...upstream.catalogs[0], type: 'tv' },
+      ]);
+      expect(result.behaviorHints?.epgProvider).toBe(true);
+    }
+    expect(makeRequest).toHaveBeenCalledOnce();
+    expect(upstream.catalogs[0].type).toBe('TV');
+  });
   it.each(['orange-tv', 'movistar-plus', 'tdtchannels', 'xtream'])(
     'waits beyond the global 3s timeout for a verified guide: %s',
     async (type) => {

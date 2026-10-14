@@ -22,6 +22,7 @@ import {
   OrangeTvPreset,
   MovistarPlusPreset,
   TdtChannelsPreset,
+  RtvePreset,
 } from './liveTv.js';
 
 const PRESETS = {
@@ -33,6 +34,7 @@ const PRESETS = {
   'orange-tv': OrangeTvPreset,
   'movistar-plus': MovistarPlusPreset,
   tdtchannels: TdtChannelsPreset,
+  rtve: RtvePreset,
   'vivo-tv': VivoTvPreset,
   'movistar-tv': MovistarTvPreset,
   tvp: TvpPreset,

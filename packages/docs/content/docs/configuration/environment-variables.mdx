@@ -381,6 +381,14 @@ neither the environment variable nor a stored value is present.
 | `DEFAULT_ARGENTINA_TV_TIMEOUT` | Argentina Tv › Default Timeout | number | — | Default timeout for the Argentina TV addon (milliseconds). Falls back to the global default when unset. |
 | `DEFAULT_ARGENTINA_TV_USER_AGENT` | Argentina Tv › Default User Agent | string | — | Default User-Agent for the Argentina TV addon. Supports `{version}`/`{random}` placeholders. |
 
+#### Rtve
+
+| Environment Variable | UI Setting | Type | Default | Description |
+| --- | --- | --- | --- | --- |
+| `RTVE_URL` | Rtve › URL | list | `["https://rtve-stremio-addon.vercel.app"]` | Upstream URL(s) for the RTVE addon. |
+| `DEFAULT_RTVE_TIMEOUT` | Rtve › Default Timeout | number | — | Default timeout for the RTVE addon (milliseconds). Falls back to the global default when unset. |
+| `DEFAULT_RTVE_USER_AGENT` | Rtve › Default User Agent | string | — | Default User-Agent for the RTVE addon. Supports `{version}`/`{random}` placeholders. |
+
 #### Frost View
 
 | Environment Variable | UI Setting | Type | Default | Description |

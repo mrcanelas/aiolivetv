@@ -120,6 +120,13 @@ export const presetsSchema = {
     timeoutEnv: 'DEFAULT_ARGENTINA_TV_TIMEOUT',
     userAgentEnv: 'DEFAULT_ARGENTINA_TV_USER_AGENT',
   }),
+  rtve: basicPreset({
+    label: 'RTVE',
+    default: ['https://rtve-stremio-addon.vercel.app'],
+    envBase: 'RTVE_URL',
+    timeoutEnv: 'DEFAULT_RTVE_TIMEOUT',
+    userAgentEnv: 'DEFAULT_RTVE_USER_AGENT',
+  }),
   frostView: basicPreset({
     label: 'FrostView TV',
     default: ['https://frostview.cloutteam.com'],

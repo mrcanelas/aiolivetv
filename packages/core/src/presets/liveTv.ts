@@ -23,7 +23,7 @@ import {
 } from '../builtins/plutotv/index.js';
 import StreamParser from '../parser/streams.js';
 import { appConfig, constants, toUrlSafeBase64 } from '../utils/index.js';
-import { Preset } from './preset.js';
+import { Preset, baseOptions } from './preset.js';
 
 class LiveTvStreamParser extends StreamParser {
   protected override getStreamType(
@@ -32,6 +32,63 @@ class LiveTvStreamParser extends StreamParser {
     _currentParsedStream: ParsedStream
   ): ParsedStream['type'] {
     return constants.LIVE_STREAM_TYPE;
+  }
+}
+
+export class RtvePreset extends Preset {
+  static override getParser(): typeof StreamParser {
+    return LiveTvStreamParser;
+  }
+
+  static override get METADATA() {
+    const resources = [
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
+    ];
+    const timeout =
+      appConfig.presets.rtve.defaultTimeout ?? appConfig.presets.defaultTimeout;
+    return {
+      ID: 'rtve',
+      NAME: 'RTVE',
+      LOGO: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Logo_RTVE.svg/330px-Logo_RTVE.svg.png',
+      URL: appConfig.presets.rtve.url,
+      TIMEOUT: timeout,
+      USER_AGENT:
+        appConfig.presets.rtve.defaultUserAgent ?? appConfig.http.defaultUserAgent,
+      DESCRIPTION:
+        'Spanish live TV channels, programme metadata and streams from the community RTVE addon. Some streams are restricted to Spain.',
+      SUPPORTED_SERVICES: [],
+      SUPPORTED_RESOURCES: resources,
+      SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
+      CATEGORY: constants.PresetCategory.STREAMS,
+      OPTIONS: baseOptions('RTVE', resources, timeout, appConfig.presets.rtve.url).map(
+        (option) =>
+          option.id === 'resources' ? { ...option, showInSimpleMode: true } : option
+      ),
+    };
+  }
+
+  static override async generateAddons(
+    _userData: UserData,
+    options: Record<string, any>
+  ): Promise<Addon[]> {
+    const source = (options.url?.trim() || this.DEFAULT_URL).replace(/\/$/, '');
+    return [
+      {
+        name: options.name || this.METADATA.NAME,
+        enabled: true,
+        library: false,
+        manifestUrl: source.endsWith('/manifest.json')
+          ? source
+          : `${source}/manifest.json`,
+        resources: options.resources || this.METADATA.SUPPORTED_RESOURCES,
+        timeout: options.timeout || this.METADATA.TIMEOUT,
+        resultPassthrough: true,
+        preset: { id: '', type: this.METADATA.ID, options },
+        headers: { 'User-Agent': this.METADATA.USER_AGENT },
+      },
+    ];
   }
 }
 
