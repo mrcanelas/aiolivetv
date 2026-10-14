@@ -22,6 +22,11 @@
 * **xtream:** isolate EPG failures and limit concurrency ([77eb068](https://github.com/mrcanelas/aiolivetv/commit/77eb0685f0732675d5c7b038a0191783daba5f3b))
 * **xtream:** validate server URLs before fetching ([d76fb1e](https://github.com/mrcanelas/aiolivetv/commit/d76fb1e60995138524ad336cc5c17a5272eca8ab))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.1.0](https://github.com/mrcanelas/aiolivetv/compare/v1.0.2...v1.1.0) (2026-10-12)
 
 
