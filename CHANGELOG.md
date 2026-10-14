@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.2.0](https://github.com/mrcanelas/aiolivetv/compare/v1.1.0...v1.2.0) (2026-10-14)
+
+
+### Features
+
+* **epg:** add shared Spanish provider infrastructure ([ee28e4a](https://github.com/mrcanelas/aiolivetv/commit/ee28e4ac2de10cf7128fb505d974899312bc12f3))
+* **movistar-plus:** add Spanish guide provider ([92f68b3](https://github.com/mrcanelas/aiolivetv/commit/92f68b3e0d3f5b72b548ea28747dc05021d708f0))
+* **orange-tv:** add Spanish guide provider ([bebb7ff](https://github.com/mrcanelas/aiolivetv/commit/bebb7ff6a394e2ca12e50a8804fe0070ef5ae819))
+* **rtve:** add external Live TV addon preset ([56661aa](https://github.com/mrcanelas/aiolivetv/commit/56661aaff884fdb497037a575ae8885027bd6617)), closes [#29](https://github.com/mrcanelas/aiolivetv/issues/29)
+* **tdtchannels:** add channels, guide and streams ([0ae502e](https://github.com/mrcanelas/aiolivetv/commit/0ae502e2cd407ee93581b090b3f974876887193f))
+
+
+### Bug Fixes
+
+* **beamup:** use native Dockerfile runtime configuration ([0ef426e](https://github.com/mrcanelas/aiolivetv/commit/0ef426e5b32d25175ec7b60a8522d161dd2674e5))
+* **epg:** respect provider timeouts and revalidate manifests ([d49949e](https://github.com/mrcanelas/aiolivetv/commit/d49949ecc605ad4ff3c91a5f047f2f0f15105446))
+* **logging:** avoid duplicate unexpected error entries ([eb5581d](https://github.com/mrcanelas/aiolivetv/commit/eb5581d61e74534f1509db4494d08248c25e67d2))
+* **xmltv:** support gzip-compressed sources ([1f7d638](https://github.com/mrcanelas/aiolivetv/commit/1f7d638dac319810acab98248cf0a42439cf23c6)), closes [#30](https://github.com/mrcanelas/aiolivetv/issues/30)
+* **xtream:** advertise Native EPG only after verification ([e3f467c](https://github.com/mrcanelas/aiolivetv/commit/e3f467ca18c5110513e82dbfbb2c35d629fa4315))
+* **xtream:** isolate EPG failures and limit concurrency ([77eb068](https://github.com/mrcanelas/aiolivetv/commit/77eb0685f0732675d5c7b038a0191783daba5f3b))
+* **xtream:** validate server URLs before fetching ([d76fb1e](https://github.com/mrcanelas/aiolivetv/commit/d76fb1e60995138524ad336cc5c17a5272eca8ab))
+
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.1.0](https://github.com/mrcanelas/aiolivetv/compare/v1.0.2...v1.1.0) (2026-10-12)
 
 
