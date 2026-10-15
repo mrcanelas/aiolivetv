@@ -39,6 +39,9 @@ const MAX_CHANNELS_PER_CATALOG = 10_000;
 const MAX_STREAM_ONLY_CANDIDATES = 2_000;
 const MAX_CATALOG_PAGES = 100;
 const MAX_AUTO_MATCH_PAIRS = 5_000_000;
+const PAGE_OVERLAP = 10;
+const ONE_OFF_CATALOG =
+  /(?:^|[^a-z])(?:events?|replays?|highlights?)(?:$|[^a-z])/i;
 
 type Candidate = {
   id: string;
@@ -216,14 +219,19 @@ router.post(
     try {
       const scanStartedAt = Date.now();
       const scanBudgetMs = channelScanBudgetMs();
-      const scanDeadline =
+      const autoMatch = req.body.autoMatch === true;
+      const requestDeadline =
         scanBudgetMs > 0
           ? scanStartedAt + scanBudgetMs
           : Number.POSITIVE_INFINITY;
+      const sourceScanDeadline =
+        autoMatch && scanBudgetMs > 0
+          ? scanStartedAt + Math.floor(scanBudgetMs * 0.8)
+          : requestDeadline;
       const withinScanBudget = async <T>(
         request: () => Promise<T>
       ): Promise<T | 'deadline'> => {
-        const remaining = scanDeadline - Date.now();
+        const remaining = sourceScanDeadline - Date.now();
         if (remaining <= 0) return 'deadline';
         if (!Number.isFinite(remaining)) return request();
         let timer: NodeJS.Timeout | undefined;
@@ -238,7 +246,6 @@ router.post(
           clearTimeout(timer);
         }
       };
-      const autoMatch = req.body.autoMatch === true;
       const alternativesFor =
         typeof req.body.alternativesFor === 'string'
           ? req.body.alternativesFor
@@ -248,7 +255,7 @@ router.post(
           lenientAddons: true,
           bypassManifestCache: !alternativesFor,
         });
-        if (Date.now() >= scanDeadline) return 'deadline' as const;
+        if (Date.now() >= sourceScanDeadline) return 'deadline' as const;
         const configuredMappings = validatedUserData.channelMappings ?? [];
         validatedUserData.channelMappings = undefined;
         const aio = await new AIOStreams(validatedUserData).initialise();
@@ -335,6 +342,7 @@ router.post(
       const sources = new Map<string, SourceDiagnostic>();
       const todayUtc = new Date().toISOString().slice(0, 10);
       let scanTruncated = false;
+      let matchingTruncated = false;
       let matchingPairs = 0;
       const matchingCheckpoint = async (yieldToRequests = false) => {
         if (yieldToRequests) {
@@ -342,10 +350,10 @@ router.post(
         }
         if (
           matchingPairs >= MAX_AUTO_MATCH_PAIRS ||
-          Date.now() >= scanDeadline ||
+          Date.now() >= requestDeadline ||
           res.destroyed
         ) {
-          scanTruncated = true;
+          matchingTruncated = true;
           return false;
         }
         return true;
@@ -441,6 +449,14 @@ router.post(
           isLiveChannelType(item.type)
         )) {
           const addonId = instanceId;
+          if (
+            canStream &&
+            !contributesChannels &&
+            ONE_OFF_CATALOG.test(`${catalog.id} ${catalog.name ?? ''}`)
+          ) {
+            skippedCatalogs.push(`${catalog.id} (one-off events)`);
+            continue;
+          }
           const catalogId = `${addonId}.${catalog.id}`;
           const paginated = catalogSupportsSkip(catalog.extra);
           const catalogHasDate = catalog.extra?.some(
@@ -466,6 +482,7 @@ router.post(
           let skip = 0;
           let page = 0;
           let addonCandidateCount = 0;
+          let nextPageBoundary: number | undefined;
           const seenCatalogItems = new Set<string>();
           while (true) {
             if (res.destroyed) {
@@ -553,8 +570,23 @@ router.post(
               );
               break;
             }
-            if (!paginated || items.length === 0 || added === 0) break;
-            skip += items.length;
+            if (!paginated || items.length === 0) break;
+            if (added === 0) {
+              // Some providers round an overlapping offset down to a page boundary.
+              if (nextPageBoundary !== undefined) {
+                skip = nextPageBoundary;
+                nextPageBoundary = undefined;
+                continue;
+              }
+              break;
+            }
+            // Limit overhead on small pages to roughly 10%, up to ten items.
+            const overlap =
+              items.length > 20
+                ? Math.min(PAGE_OVERLAP, Math.floor(items.length / 10))
+                : 0;
+            nextPageBoundary = overlap ? skip + items.length : undefined;
+            skip += items.length - overlap;
           }
           if (stopped) break;
         }
@@ -605,7 +637,10 @@ router.post(
         scanned.every(
           (result) =>
             !result ||
-            (result.diagnostic.ok && !result.diagnostic.skippedCatalogs?.length)
+            (result.diagnostic.ok &&
+              (result.diagnostic.skippedCatalogs ?? []).every((catalog) =>
+                catalog.endsWith(' (one-off events)')
+              ))
         ) &&
         Buffer.byteLength(JSON.stringify(scanned)) <= 4 * 1024 * 1024
       ) {
@@ -1136,6 +1171,7 @@ router.post(
               durationMs: Date.now() - scanStartedAt,
               budgetMs: scanBudgetMs || null,
               truncated: scanTruncated,
+              matchingTruncated,
               matchingPairs,
             },
           },

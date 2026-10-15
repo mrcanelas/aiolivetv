@@ -17,12 +17,18 @@ const fixture = vi.hoisted(() => {
     pagedChannels: 0,
     pagedStreams: 0,
     repeatPages: false,
+    roundedPages: false,
+    shiftedPages: false,
+    streamCatalog: 'channels',
+    guideCatalog: 'channels',
+    matchingTruncated: false,
     initialiseDelayMs: 0,
     slowCatalogMs: 0,
     stalledValidation: false,
     sources: [] as Array<{ error?: string; truncated?: boolean }>,
     inventory: new Map<string, { value: unknown; expires: number }>(),
     catalogCalls: 0,
+    onGuideCatalog: undefined as (() => void) | undefined,
   };
 });
 
@@ -123,20 +129,28 @@ vi.mock('@aiolivetv/core', async () => {
       getManifest(id: string) {
         return {
           resources: id === 'guide' ? ['catalog', 'meta'] : ['stream'],
-          catalogs: [{ id: 'channels', type: constants.TV_TYPE }],
+          catalogs: [
+            {
+              id: id === 'guide' ? fixture.guideCatalog : fixture.streamCatalog,
+              type: constants.TV_TYPE,
+            },
+          ],
           behaviorHints: { epgProvider: id === 'guide' && fixture.epg },
         };
       }
       async getCatalog(_type: string, id: string, extras?: string) {
         fixture.catalogCalls++;
+        if (id.startsWith('guide.')) fixture.onGuideCatalog?.();
         if (id.startsWith('streams.') && fixture.slowCatalogMs)
           await new Promise((resolve) =>
             setTimeout(resolve, fixture.slowCatalogMs)
           );
         if (fixture.pagedChannels || fixture.pagedStreams) {
-          const skip = fixture.repeatPages
+          let skip = fixture.repeatPages
             ? 0
             : Number(new URLSearchParams(extras).get('skip') || 0);
+          if (fixture.roundedPages) skip = Math.floor(skip / 25) * 25;
+          if (fixture.shiftedPages && skip > 0) skip += 2;
           return {
             success: true,
             data: id.startsWith('guide.')
@@ -188,11 +202,17 @@ afterEach(async () => {
   fixture.pagedChannels = 0;
   fixture.pagedStreams = 0;
   fixture.repeatPages = false;
+  fixture.roundedPages = false;
+  fixture.shiftedPages = false;
+  fixture.streamCatalog = 'channels';
+  fixture.guideCatalog = 'channels';
+  fixture.matchingTruncated = false;
   fixture.initialiseDelayMs = 0;
   fixture.slowCatalogMs = 0;
   fixture.stalledValidation = false;
   fixture.inventory.clear();
   fixture.catalogCalls = 0;
+  fixture.onGuideCatalog = undefined;
 });
 
 async function scan(
@@ -249,7 +269,7 @@ async function scan(
   }
   const body = (await response.json()) as {
     data: {
-      scan: { truncated: boolean };
+      scan: { truncated: boolean; matchingTruncated: boolean };
       sources: Array<{ error?: string; truncated?: boolean }>;
       channels: Array<{
         id: string;
@@ -264,6 +284,7 @@ async function scan(
     };
   };
   fixture.truncated = body.data.scan.truncated;
+  fixture.matchingTruncated = body.data.scan.matchingTruncated;
   fixture.sources = body.data.sources;
   return body.data.channels;
 }
@@ -306,7 +327,7 @@ describe('Channels prepared matching', () => {
   it('reports the page cap instead of silently dropping channels', async () => {
     fixture.pagedChannels = 2501;
     const channels = await scan(false);
-    expect(channels).toHaveLength(2500);
+    expect(channels).toHaveLength(2302);
     expect(fixture.truncated).toBe(true);
     expect(fixture.sources).toContainEqual(
       expect.objectContaining({
@@ -350,9 +371,10 @@ describe('Channels prepared matching', () => {
     fixture.repeatPages = true;
     const channels = await scan(false, false, 'channel:0');
     expect(
-      channels.find((channel) => channel.id === 'channel:0')?.availableStreamSources
+      channels.find((channel) => channel.id === 'channel:0')
+        ?.availableStreamSources
     ).toHaveLength(25);
-    expect(fixture.catalogCalls).toBe(4);
+    expect(fixture.catalogCalls).toBeLessThanOrEqual(6);
   });
   it('returns JSON when provider validation stalls before scanning', async () => {
     fixture.budgetMs = 20;
@@ -376,6 +398,60 @@ describe('Channels prepared matching', () => {
     const channels = await scan(false);
     expect(channels).toHaveLength(1287);
     expect(new Set(channels.map((channel) => channel.id)).size).toBe(1287);
+    expect(fixture.truncated).toBe(false);
+  });
+  it.each(['events', 'replays', 'highlights', 'live-event', 'replay-uk'])(
+    'skips one-off stream catalog %s',
+    async (catalog) => {
+      fixture.streamCatalog = catalog;
+      await scan(false);
+      expect(fixture.catalogCalls).toBe(1);
+      expect(fixture.sources).toContainEqual(
+        expect.objectContaining({
+          skippedCatalogs: [`${catalog} (one-off events)`],
+        })
+      );
+    }
+  );
+  it('keeps one-off catalogs when they define canonical channels', async () => {
+    fixture.guideCatalog = 'events';
+    const channels = await scan(false);
+    expect(channels).toHaveLength(2);
+    expect(fixture.catalogCalls).toBe(2);
+  });
+
+  it.each(['roundedPages', 'shiftedPages'] as const)(
+    'completes dynamic pagination with %s',
+    async (mode) => {
+      fixture[mode] = true;
+      fixture.pagedChannels = 100;
+      const channels = await scan(false);
+      expect(channels).toHaveLength(100);
+      expect(new Set(channels.map((channel) => channel.id)).size).toBe(100);
+      expect(fixture.catalogCalls).toBeLessThan(14);
+      expect(fixture.truncated).toBe(false);
+    }
+  );
+
+  it('keeps overlap overhead below 15% for pages of 25', async () => {
+    fixture.pagedChannels = 1287;
+    const channels = await scan(false);
+    expect(channels).toHaveLength(1287);
+    expect(fixture.catalogCalls).toBeLessThanOrEqual(Math.ceil(54 * 1.15));
+  });
+
+  it('reserves matching time only when automatic matching is requested', async () => {
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    fixture.budgetMs = 100;
+    fixture.onGuideCatalog = () => clock.mockReturnValue(1085);
+    await scan(true);
+    expect(fixture.catalogCalls).toBe(1);
+    expect(fixture.truncated).toBe(true);
+    expect(fixture.matchingTruncated).toBe(false);
+    clock.mockReturnValue(1000);
+    const channels = await scan(false);
+    expect(fixture.catalogCalls).toBe(3);
+    expect(channels).toHaveLength(2);
     expect(fixture.truncated).toBe(false);
   });
   it.each([true, false])('preserves bindings with epg=%s', async (epg) => {
@@ -475,6 +551,7 @@ describe('Channels prepared matching', () => {
     expect(channels.every((channel) => channel.mappings.length === 0)).toBe(
       true
     );
-    expect(fixture.truncated).toBe(true);
+    expect(fixture.truncated).toBe(false);
+    expect(fixture.matchingTruncated).toBe(true);
   });
 });

@@ -157,7 +157,7 @@ try {
       else if (url.pathname.endsWith('/catalogs/channels')) {
         const body = route.request().postDataJSON();
         scans.push(body);
-        if (body.autoMatch)
+        if (body.autoMatch && scans.length > 1)
           await new Promise((resolve) => {
             releaseRefresh = resolve;
           });

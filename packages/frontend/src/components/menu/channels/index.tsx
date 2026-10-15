@@ -1041,6 +1041,7 @@ export function ChannelsMenu() {
 
             {!isInitialLoading &&
             (channelsResponse.scan?.truncated ||
+              channelsResponse.scan?.matchingTruncated ||
               sourceProblems.length > 0 ||
               sourcesWithSkippedCatalogs.length > 0 ||
               unavailableBySource.length > 0) ? (
@@ -1050,6 +1051,12 @@ export function ChannelsMenu() {
                     The scan reached a safety limit and returned partial results
                     after {Math.round(channelsResponse.scan.durationMs / 1000)}
                     s.
+                  </p>
+                ) : null}
+                {channelsResponse.scan?.matchingTruncated ? (
+                  <p className="text-amber-400">
+                    Automatic matching reached a safety limit. Some channels
+                    still need review; you can link their streams manually.
                   </p>
                 ) : null}
                 {sourceProblems.map((source) => {
