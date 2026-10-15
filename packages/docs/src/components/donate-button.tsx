@@ -2,7 +2,7 @@
 
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { SiGithubsponsors } from 'react-icons/si';
+import { SiGithubsponsors, SiKofi } from 'react-icons/si';
 import { FaHeart, FaTimes } from 'react-icons/fa';
 import { FiGithub } from 'react-icons/fi';
 
@@ -42,6 +42,15 @@ function DonateDialogContent() {
             >
               <SiGithubsponsors className="size-4 text-[#EA4AAA]" />
               GitHub Sponsors
+            </a>
+            <a
+              href="https://ko-fi.com/mrcanelas"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-fd-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-fd-muted"
+            >
+              <SiKofi className="size-4" />
+              Ko-fi
             </a>
             <a
               href={GITHUB_URL}
