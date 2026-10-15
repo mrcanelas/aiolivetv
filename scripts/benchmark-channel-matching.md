@@ -1,5 +1,9 @@
 # Channel matching benchmark
 
+For the before/after comparison of the October 15 fork fixes, see
+[Recent fork changes](#recent-fork-changes-2026-10-15) below. The original
+tables compare an older normalization optimization, not those fixes.
+
 ## Scope
 
 The scripts compare a frozen copy of the pre-optimization scorer with
@@ -196,3 +200,122 @@ verify the implemented scorer; timings vary with host load and warmup.
 
 These numbers are still not a wall-clock for the Channels page: they exclude
 network, manifests, auth and React rendering of a multi-megabyte payload.
+
+## Recent fork changes (2026-10-15)
+
+Compared the actual implementations from `41bbdfa7370ed38eb8525aae17fb25194b2b8519`
+(before all three fork-fix commits) with the working implementation after
+`1a70fff2`, including the pagination refinement found during this benchmark.
+No merge, checkout, provider configuration or production data was changed.
+
+The dedicated runner is `scripts/benchmark-fork-improvements.ts`. It reads the
+historical source with `git show`, imports isolated temporary copies of the
+before/after scorers, Express handlers and fetchers, and removes those copies
+after the run. Shared dependencies are unchanged between these revisions.
+
+### Method and limits
+
+- Windows, Intel Core i5-1235U, Node v24.15.0; five measured repetitions.
+- Before/after order alternates within each repetition. Small matching warmups
+  precede kernel measurements; each HTTP/fetch scenario has an untimed warmup.
+- Matching includes candidate preparation on every pass and examines every
+  pair. Names include brands, alphabetic station labels, aliases, quality
+  markers and metadata. Three distributions exercise distinct channel numbers,
+  no numbers, and the same number on every channel.
+- HTTP results use the real `/catalogs/channels` handler through local Express
+  requests, including assembly, response serialization and client JSON parsing.
+  Validation/auth, inventory cache and provider I/O are fixtures. Budgets are
+  disabled so both versions can complete the same amount of matching.
+- Paged fixtures simulate 10 ms of provider latency per call. Windows timer
+  granularity means the measured delay can exceed 10 ms. Calls are counted
+  independently of latency.
+- Fetch results run the actual fetcher with simulated 10 ms provider calls,
+  identity filter/deduplication and no precomputation. They do not time actual
+  provider parsing or the rest of the playback pipeline.
+- Existing user development processes were left running. Samples show
+  substantial variation; these medians are observations, not confidence
+  intervals or production SLAs. The JSON contains every measured sample.
+- This is not a concurrent-user load test. It does not measure live addon
+  latency/rate limits, memory growth, frontend rendering or hosted deployments.
+- Score equality is deliberately not asserted: the changes fix false matches.
+  Assertions instead check completed requests, channel counts, no scan
+  truncation and the expected number of returned playback entries.
+
+### Matching kernel, including preparation
+
+| Distribution     | Channels × streams |      Before |       After | Time change |
+| ---------------- | -----------------: | ----------: | ----------: | ----------: |
+| Distinct numbers |          128 × 200 |     98.8 ms |     29.9 ms |      -69.8% |
+| Distinct numbers |          512 × 800 |  2,475.7 ms |    462.3 ms |      -81.3% |
+| Distinct numbers |      1,287 × 2,000 | 15,751.7 ms |  3,390.2 ms |      -78.5% |
+| No numbers       |          128 × 200 |    101.5 ms |    116.8 ms |      +15.0% |
+| No numbers       |          512 × 800 |  1,917.8 ms |  1,564.0 ms |      -18.4% |
+| No numbers       |      1,287 × 2,000 |  9,797.2 ms | 11,429.8 ms |      +16.7% |
+| Same number      |          128 × 200 |     95.6 ms |     97.1 ms |       +1.6% |
+| Same number      |          512 × 800 |  1,615.3 ms |  2,137.8 ms |      +32.3% |
+| Same number      |      1,287 × 2,000 | 11,396.3 ms | 10,426.8 ms |       -8.5% |
+
+Distinct numbers allow early rejection before Dice comparison, giving a large
+and consistent gain on those fixtures. That gain cannot be generalized to
+unnumbered catalogs. The other distributions remain quadratic and had mixed
+results, including slower medians. At the largest unnumbered size, sample
+ranges were 8.85–11.16 s before and 9.94–13.91 s after.
+
+### Local HTTP handler
+
+| Scenario                                          |     Before |      After | Time change | Provider calls, before → after |
+| ------------------------------------------------- | ---------: | ---------: | ----------: | -----------------------------: |
+| 1,287 channels, pages of 25                       |   954.4 ms | 1,012.6 ms |       +6.1% |                        54 → 58 |
+| 1,287 channels, pages of 100                      |   328.6 ms |   362.8 ms |      +10.4% |                        15 → 17 |
+| Provider rounds skip to pages of 100              |   334.9 ms |   346.5 ms |       +3.5% |                        15 → 16 |
+| 128 channels, 200 streams, 1,800 one-off events   | 1,773.2 ms |   189.2 ms |      -89.3% |                         25 → 7 |
+| 512 channels × 800 numbered streams, auto-match   | 3,078.8 ms | 1,395.3 ms |      -54.7% |                        16 → 17 |
+| 512 channels × 800 unnumbered streams, auto-match | 2,042.0 ms | 2,660.6 ms |      +30.3% |                        16 → 17 |
+
+These are cold inventory scans. The two pagination-only scenarios retain a
+small extra request cost in exchange for overlap protection. Requests to the
+empty stream source are included in the counts. The unnumbered HTTP scenario
+also regressed in this run; its sample ranges overlap substantially
+(1.96–3.60 s before, 2.17–3.84 s after), so the exact percentage is not stable.
+Sources contributing both catalog and stream resources bind their own channel
+IDs and skip the expensive stream-only matching pass.
+
+### Pagination regression found and fixed
+
+The initial three-repeat probe found that rounded offsets retried overlap on
+every page: 28 provider calls compared with 15 before the fork changes. The
+scanner now disables overlap for that catalog after detecting the first
+rounded-page repeat, and avoids overlapping a shorter final page. In the final
+fixture this required 16 calls. Ordinary overlap still works, and all 1,287
+channels are returned. A regression test asserts only one extra rounded-page
+retry across the complete scan.
+
+### Playback fetch
+
+| Configured IDs from one addon |   Before |    After | Calls before → after | Returned entries before → after |
+| ----------------------------- | -------: | -------: | -------------------: | ------------------------------: |
+| 1                             | 15.43 ms | 15.60 ms |                1 → 1 |                           1 → 1 |
+| 3                             | 15.40 ms | 15.65 ms |                1 → 3 |                           1 → 3 |
+| 20                            | 15.47 ms | 15.67 ms |               1 → 20 |                          1 → 20 |
+
+The extra requests run concurrently, so this fixture shows little elapsed-time
+change. The old code silently skipped all but one ID; its smaller request count
+was incorrect behavior. The corrected fetcher does increase provider load:
+20 configured IDs produced 20 simultaneous requests. Provider throttling or
+connection limits can make real latency worse than this fixture.
+
+### Reproduce
+
+```powershell
+pnpm exec tsx scripts/benchmark-fork-improvements.ts
+```
+
+The default baseline is the commit above. Override `BENCH_BASE_REF`,
+`BENCH_REPEATS` (minimum three), `BENCH_SIZES` (for example `512x800`) or
+`BENCH_OUTPUT` when needed. The default output is the ignored local file
+`testing/fork-performance.json`; `testing/fork-performance-smoke.json` records
+the initial three-repeat probe before the pagination refinement.
+
+Conclusion: the fixes have measurable benefits and costs. They cannot be
+described as universally faster or regression-free. Unnumbered matching and
+actual provider concurrency remain the areas to monitor or optimize next.
