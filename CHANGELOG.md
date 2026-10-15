@@ -20,6 +20,11 @@
 
 * **channels:** reduce catalog pagination overhead ([1b76452](https://github.com/mrcanelas/aiolivetv/commit/1b7645260d5b63a1a314c6e1bcb730bcf660a922))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.2.0](https://github.com/mrcanelas/aiolivetv/compare/v1.1.0...v1.2.0) (2026-10-14)
 
 
