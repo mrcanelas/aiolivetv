@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.3.0](https://github.com/mrcanelas/aiolivetv/compare/v1.2.0...v1.3.0) (2026-10-15)
+
+
+### Features
+
+* **donations:** add Ko-fi support links ([0db1865](https://github.com/mrcanelas/aiolivetv/commit/0db1865f0602ca4d30bc403316e9805e0e4a8df3))
+
+
+### Bug Fixes
+
+* **channels:** improve scan pagination and matching budgets ([1a70fff](https://github.com/mrcanelas/aiolivetv/commit/1a70fff27655b1ef7659d010d45a9927cc5a6a3b))
+* **channels:** prevent unsafe automatic channel matches ([4a5642b](https://github.com/mrcanelas/aiolivetv/commit/4a5642b5125de62f90791e342345a056111b3dc3))
+* **discord:** move notification logo to embed author ([41bbdfa](https://github.com/mrcanelas/aiolivetv/commit/41bbdfa7370ed38eb8525aae17fb25194b2b8519))
+* **streams:** fetch every linked channel from each addon ([1f5e05d](https://github.com/mrcanelas/aiolivetv/commit/1f5e05d73aa7c47fbccc4029a422380e59be1108))
+
+
+### Performance Improvements
+
+* **channels:** reduce catalog pagination overhead ([1b76452](https://github.com/mrcanelas/aiolivetv/commit/1b7645260d5b63a1a314c6e1bcb730bcf660a922))
+
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.2.0](https://github.com/mrcanelas/aiolivetv/compare/v1.1.0...v1.2.0) (2026-10-14)
 
 
