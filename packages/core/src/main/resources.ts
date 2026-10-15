@@ -905,7 +905,7 @@ async function resolveLiveStreamFetchPlan(
   channelId: string
 ): Promise<{
   addons: Addon[];
-  channelIds: Map<string, string>;
+  channelIds: Map<string, string[]>;
   streamTypes: Map<string, string>;
   canonical: ChannelMatchCandidate & {
     program?: ReturnType<typeof currentProgramMetadata>;
@@ -924,11 +924,10 @@ async function resolveLiveStreamFetchPlan(
     ) ?? [];
 
   const addons: Addon[] = [];
-  const channelIds = new Map<string, string>();
-  const seen = new Set<string>();
+  const channelIds = new Map<string, string[]>();
 
   const addAddon = (addon: Addon, mappedChannelId: string) => {
-    if (!addon.instanceId || seen.has(addon.instanceId)) return;
+    if (!addon.instanceId) return;
     if (
       channelMapping?.streams?.length &&
       !isChannelAddonEnabled(
@@ -940,9 +939,13 @@ async function resolveLiveStreamFetchPlan(
     ) {
       return;
     }
-    seen.add(addon.instanceId);
-    addons.push(addon);
-    channelIds.set(addon.instanceId, mappedChannelId);
+    const ids = channelIds.get(addon.instanceId);
+    if (ids) {
+      if (!ids.includes(mappedChannelId)) ids.push(mappedChannelId);
+    } else {
+      addons.push(addon);
+      channelIds.set(addon.instanceId, [mappedChannelId]);
+    }
   };
 
   for (const source of explicitSources) {
@@ -980,10 +983,10 @@ async function resolveLiveStreamFetchPlan(
     addons.sort(
       (left, right) =>
         (priority.get(
-          `${left.instanceId}\0${channelIds.get(left.instanceId!)}`
+          `${left.instanceId}\0${channelIds.get(left.instanceId!)?.[0]}`
         ) ?? Number.MAX_SAFE_INTEGER) -
         (priority.get(
-          `${right.instanceId}\0${channelIds.get(right.instanceId!)}`
+          `${right.instanceId}\0${channelIds.get(right.instanceId!)?.[0]}`
         ) ?? Number.MAX_SAFE_INTEGER)
     );
   }
@@ -1071,8 +1074,7 @@ export async function getStreams(
             ...stream,
             live: {
               ...stream.live,
-              sourceChannelId:
-                channelAddonIds?.get(stream.addon.instanceId!) ?? channelId,
+              sourceChannelId: stream.live?.sourceChannelId ?? channelId,
             },
           })),
           buildManualParsedStreams(ctx.userData, channelId),

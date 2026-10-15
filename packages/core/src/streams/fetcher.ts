@@ -64,7 +64,7 @@ class StreamFetcher {
   public async fetch(
     addons: Addon[],
     context: StreamContext,
-    addonIds?: Map<string, string>,
+    addonIds?: Map<string, string[]>,
     addonStreamTypes?: Map<string, string>
   ): Promise<{
     streams: ParsedStream[];
@@ -136,25 +136,60 @@ class StreamFetcher {
       const start = Date.now();
 
       try {
-        const streamType =
-          addonStreamTypes?.get(addon.instanceId!) ?? type;
-        const streams = await new Wrapper(addon).getStreams(
-          streamType,
-          addonIds?.get(addon.instanceId!) ?? id
+        const streamType = addonStreamTypes?.get(addon.instanceId!) ?? type;
+        const requestIds = addonIds?.get(addon.instanceId!) ?? [id];
+        const wrapper = new Wrapper(addon);
+        const results = await Promise.allSettled(
+          requestIds.map(async (requestId) => {
+            const streams = await wrapper.getStreams(streamType, requestId);
+            return addonIds
+              ? streams.map((stream) => ({
+                  ...stream,
+                  // Parsers restart their stream counter for each channel request.
+                  id:
+                    requestIds.length > 1
+                      ? `${stream.id}:${encodeURIComponent(requestId)}`
+                      : stream.id,
+                  live: { ...stream.live, sourceChannelId: requestId },
+                }))
+              : streams;
+          })
+        );
+        if (
+          results.length &&
+          results.every((result) => result.status === 'rejected')
+        ) {
+          throw (results[0] as PromiseRejectedResult).reason;
+        }
+        const streams = results.flatMap((result) =>
+          result.status === 'fulfilled' ? result.value : []
+        );
+        const requestErrors = results.flatMap((result, index) =>
+          result.status === 'rejected'
+            ? [
+                {
+                  title: `[❌] ${getAddonName(addon)}`,
+                  description: `${requestIds[index]}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+                },
+              ]
+            : []
         );
         const errorStreams = streams.filter(
           (s) => s.type === constants.ERROR_STREAM_TYPE
         );
-        const addonErrors = errorStreams.map((s) => ({
-          title: `[❌] ${s.error?.title || getAddonName(addon)}`,
-          description: s.error?.description || 'Unknown error',
-        }));
+        const addonErrors = [
+          ...requestErrors,
+          ...errorStreams.map((s) => ({
+            title: `[❌] ${s.error?.title || getAddonName(addon)}`,
+            description: s.error?.description || 'Unknown error',
+          })),
+        ];
         const usableStreams = streams.filter(
           (s) => s.type !== constants.ERROR_STREAM_TYPE
         );
         const latencyMs = Date.now() - start;
         const status: AnalyticsStatus =
-          errorStreams.length > 0 && usableStreams.length === 0
+          addonErrors.length > 0 && usableStreams.length === 0
             ? 'error'
             : usableStreams.length === 0
               ? 'empty'
@@ -170,24 +205,24 @@ class StreamFetcher {
           status,
         });
 
-        if (errorStreams.length > 0) {
+        if (addonErrors.length > 0) {
           logger.warn(
             {
               addon: getAddonName(addon),
-              count: errorStreams.length,
-              errors: errorStreams.map((s) => s.error?.description),
+              count: addonErrors.length,
+              errors: addonErrors.map((error) => error.description),
             },
             'addon returned error streams'
           );
         }
 
         const statisticStream = {
-          title: `${errorStreams.length > 0 ? '🟠' : '🟢'} [${getAddonName(addon)}] Scrape Summary`,
-          description: `✔ Status      : ${errorStreams.length > 0 ? 'PARTIAL SUCCESS' : 'SUCCESS'}
+          title: `${addonErrors.length > 0 ? '🟠' : '🟢'} [${getAddonName(addon)}] Scrape Summary`,
+          description: `✔ Status      : ${addonErrors.length > 0 ? 'PARTIAL SUCCESS' : 'SUCCESS'}
 📦 Streams    : ${streams.length}
 📋 Details    : ${
-            errorStreams.length > 0
-              ? `Fetched streams with errors:\n${errorStreams.map((s) => `    • ${s.error?.title || 'Unknown error'}: ${s.error?.description || 'No description'}`).join('\n')}`
+            addonErrors.length > 0
+              ? `Fetched streams with errors:\n${addonErrors.map((error) => `    • ${error.title}: ${error.description}`).join('\n')}`
               : 'Successfully fetched streams.'
           }
 ⏱️ Time       : ${getTimeTakenSincePoint(start)}
@@ -198,7 +233,7 @@ class StreamFetcher {
           {
             addon: getAddonName(addon),
             streams: usableStreams.length,
-            errors: errorStreams.length,
+            errors: addonErrors.length,
             took: latencyMs,
           },
           'addon fetch complete'

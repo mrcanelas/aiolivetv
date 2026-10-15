@@ -646,7 +646,7 @@ async function validateParallelStreamResolution(core: CoreModule) {
           streams: [
             {
               name: 'Provider ' + provider,
-              url: 'https://example.com/parallel-' + provider + '.m3u8',
+              url: `https://example.com/parallel-${provider}-${encodeURIComponent(path)}.m3u8`,
               behaviorHints: { notWebReady: true },
             },
           ],
@@ -699,6 +699,65 @@ async function validateParallelStreamResolution(core: CoreModule) {
     assert(
       streamIds.every((id) => id.includes(':bbc')),
       'expected resolved provider channel IDs'
+    );
+    for (const includeSecondAddon of [false, true]) {
+      const sources = [
+        {
+          addonId: addonInstanceId(aio, 'provider-0'),
+          channelId: 'provider-0:hd',
+        },
+        ...(includeSecondAddon
+          ? [
+              {
+                addonId: addonInstanceId(aio, 'provider-1'),
+                channelId: 'provider-1:other',
+              },
+            ]
+          : []),
+        {
+          addonId: addonInstanceId(aio, 'provider-0'),
+          channelId: 'provider-0:base',
+        },
+        {
+          addonId: addonInstanceId(aio, 'provider-0'),
+          channelId: 'provider-0:eng',
+        },
+        {
+          addonId: addonInstanceId(aio, 'provider-0'),
+          channelId: 'provider-0:disabled',
+          enabled: false,
+        },
+      ];
+      const linked = await new core.AIOStreams(
+        liveTvUserData(presets, [
+          {
+            id: 'linked-bbc',
+            name: 'BBC News',
+            streams: sources,
+          },
+        ])
+      ).initialise();
+      const result = await linked.getStreams(
+        'linked-bbc',
+        core.constants.TV_TYPE
+      );
+      const expected = sources
+        .filter((source) => source.enabled !== false)
+        .map((source) => source.channelId);
+      assert(
+        JSON.stringify(
+          result.data.streams.map((stream) => stream.live?.sourceChannelId)
+        ) === JSON.stringify(expected),
+        `expected every linked ID in configured order: ${JSON.stringify(result.data.streams.map((stream) => stream.live))}`
+      );
+      assert(
+        result.errors.length === 0,
+        'linked playback must not report errors'
+      );
+    }
+    assert(
+      !streamIds.some((id) => id.includes(':disabled')),
+      'disabled links must not be fetched'
     );
     const hidden = await new core.AIOStreams(
       liveTvUserData(presets, [
