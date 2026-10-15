@@ -483,6 +483,8 @@ router.post(
           let page = 0;
           let addonCandidateCount = 0;
           let nextPageBoundary: number | undefined;
+          let supportsOverlap = true;
+          let largestPageSize = 0;
           const seenCatalogItems = new Set<string>();
           while (true) {
             if (res.destroyed) {
@@ -576,13 +578,17 @@ router.post(
               if (nextPageBoundary !== undefined) {
                 skip = nextPageBoundary;
                 nextPageBoundary = undefined;
+                supportsOverlap = false;
                 continue;
               }
               break;
             }
             // Limit overhead on small pages to roughly 10%, up to ten items.
+            largestPageSize = Math.max(largestPageSize, items.length);
             const overlap =
-              items.length > 20
+              supportsOverlap &&
+              items.length > 20 &&
+              items.length === largestPageSize
                 ? Math.min(PAGE_OVERLAP, Math.floor(items.length / 10))
                 : 0;
             nextPageBoundary = overlap ? skip + items.length : undefined;

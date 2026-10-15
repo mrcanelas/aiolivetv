@@ -439,6 +439,14 @@ describe('Channels prepared matching', () => {
     expect(channels).toHaveLength(1287);
     expect(fixture.catalogCalls).toBeLessThanOrEqual(Math.ceil(54 * 1.15));
   });
+  it('disables overlap after detecting a provider that rounds offsets', async () => {
+    fixture.roundedPages = true;
+    fixture.pagedChannels = 1287;
+    const channels = await scan(false);
+    expect(channels).toHaveLength(1287);
+    // 53 guide requests, one stream request, and a single rounded-offset retry.
+    expect(fixture.catalogCalls).toBe(55);
+  });
 
   it('reserves matching time only when automatic matching is requested', async () => {
     const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
