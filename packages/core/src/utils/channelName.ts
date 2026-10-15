@@ -8,6 +8,9 @@ export function normalizeChannelName(name: string): string {
   if (!name) return '';
 
   let normalized = decodeHtmlEntities(name).trim().toLowerCase();
+  normalized = normalized.replace(/\.[a-z]{2}$/, '');
+  // Keep timeshift channels distinct when punctuation and spaces are removed.
+  normalized = normalized.replace(/\s*\+\s*(\d+)\b/g, ' timeshift$1 ');
   normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   normalized = normalized.replace(/²/g, '2');
 
@@ -59,8 +62,7 @@ export function compactChannelName(name: string): string {
   return normalizeChannelName(name).replace(/\s+/g, '');
 }
 
-const DISPLAY_QUALITY =
-  /(?:fhd|uhd|hd|sd|4k|1080p|720p|2160p)/i;
+const DISPLAY_QUALITY = /(?:fhd|uhd|hd|sd|4k|1080p|720p|2160p)/i;
 
 /**
  * Display name with quality markers removed. Keeps casing and identifiers

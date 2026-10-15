@@ -166,7 +166,13 @@ export function prepareChannelMatchCandidate(candidate: ChannelMatchCandidate) {
       ...(candidate.aliases ?? []).map((value) => ({ value, alias: true })),
     ].map(({ value, alias }) => {
       const normalized = normalizeChannelName(value);
-      return { normalized, compact: normalized.replace(/\s+/g, ''), alias };
+      return {
+        normalized,
+        compact: normalized.replace(/\s+/g, ''),
+        numbers: (normalized.match(/\d+/g) ?? []).map(Number).sort().join(','),
+        timeshift: normalized.match(/\btimeshift\d+\b/g)?.join(',') ?? '',
+        alias,
+      };
     }),
   };
 }
@@ -195,6 +201,8 @@ export function getPreparedChannelMatchConfidence(
   for (const a of left.names) {
     for (const b of right.names) {
       if (!a.normalized || !b.normalized) continue;
+      if (a.timeshift !== b.timeshift) continue;
+      if (a.numbers && b.numbers && a.numbers !== b.numbers) continue;
       const alias = a.alias || b.alias;
       let score: number;
       if (
@@ -227,10 +235,13 @@ export function getPreparedChannelMatchConfidence(
         }
         if (alias) score = Math.min(score, 0.88);
       }
+      if (Boolean(a.numbers) !== Boolean(b.numbers))
+        score = Math.min(score, 0.8);
       best = Math.max(best, score);
     }
   }
   if (!best) return 0;
+  const strongName = isHighConfidenceChannelMatch(best);
   if (equalPreparedId(left.country, right.country)) best += 0.03;
   if (equalPreparedId(left.language, right.language)) best += 0.03;
   for (const category of right.categories) {
@@ -240,7 +251,7 @@ export function getPreparedChannelMatchConfidence(
     }
   }
   if (equalPreparedId(left.logo, right.logo)) best += 0.02;
-  return Math.min(best, 0.99);
+  return Math.min(best, strongName ? 0.99 : 0.89);
 }
 
 export function getChannelMatchConfidence(
@@ -287,10 +298,10 @@ export function isChannelAddonEnabled(
   streamChannelId?: string
 ) {
   return (
-    getChannelMapping(userData, channelId)?.streams?.find((stream) =>
-      streamChannelId
-        ? stream.channelId === streamChannelId
-        : stream.addonId === addonId
+    getChannelMapping(userData, channelId)?.streams?.find(
+      (stream) =>
+        stream.addonId === addonId &&
+        (!streamChannelId || stream.channelId === streamChannelId)
     )?.enabled !== false
   );
 }

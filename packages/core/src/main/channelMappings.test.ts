@@ -8,8 +8,10 @@ import {
   findPossibleDuplicateChannels,
   getEffectiveChannelGroup,
   getPreparedChannelMatchConfidence,
+  getChannelMatchConfidence,
   prepareChannelMatchCandidate,
   isLiveChannelVisible,
+  isChannelAddonEnabled,
   MANUAL_STREAM_ADDON_ID,
   sortLiveCatalogItems,
 } from './channelMappings.js';
@@ -19,6 +21,42 @@ import { ChannelMapping } from '../db/channelMapping.js';
 const baseUserData = { uuid: 'test' } as UserData;
 
 describe('prepared channel matching', () => {
+  it.each([
+    ['CHANNEL 4', 'Channel 4.uk', 0.9],
+    ['5', '5.uk', 0.9],
+    ['Sky Sports+', 'Sky Sports+.uk', 0.9],
+    ['PREMIER SPORTS 1', 'Premier Sports 2', 0],
+    ['TNT SPORTS 1', 'TNT Sports 10', 0],
+    ['Channel 44', 'Channel 4', 0],
+    ['CHANNEL 4+1', 'Channel 4', 0],
+    ['CHANNEL 4', 'Channel 4 +1', 0],
+    ['CHANNEL 4+1', 'Channel 4 +1', 0.9],
+    ['Channel 4+1', 'Channel 41', 0],
+    ['ITV +1', 'ITV1', 0],
+  ])('compares %s with %s safely', (name, other, expected) => {
+    expect(
+      getChannelMatchConfidence(
+        { id: 'left', name },
+        { id: 'right', name: other }
+      )
+    ).toBe(expected);
+  });
+
+  it('keeps metadata bonuses from promoting weak names to auto-match', () => {
+    const metadata = {
+      country: 'GB',
+      language: 'en',
+      categories: ['Sports'],
+      logo: 'same',
+    };
+    expect(
+      getChannelMatchConfidence(
+        { id: 'left', name: 'Premier Sports', ...metadata },
+        { id: 'right', name: 'Premier Sports Extra', ...metadata }
+      )
+    ).toBeLessThan(0.9);
+  });
+
   it('reuses candidates without changing scores or mutating prepared data', () => {
     const canonical = prepareChannelMatchCandidate({
       id: 'catalog:bbc',
@@ -30,7 +68,7 @@ describe('prepared channel matching', () => {
     });
     const cases = [
       { name: 'BBC News HD', expected: 0.98 },
-      { name: 'World News', expected: 0.96 },
+      { name: 'World News', expected: 0.89 },
       { name: 'Unrelated Cinema', expected: undefined },
     ];
     const streams = cases.map(({ name }) =>
@@ -159,6 +197,22 @@ describe('channel group overlay', () => {
 });
 
 describe('isLiveChannelVisible', () => {
+  it('scopes disabled stream IDs to their addon', () => {
+    const userData = {
+      ...baseUserData,
+      channelMappings: [
+        {
+          id: 'bbc',
+          streams: [
+            { addonId: 'A', channelId: 'shared', enabled: false },
+            { addonId: 'B', channelId: 'shared', enabled: true },
+          ],
+        },
+      ],
+    } as UserData;
+    expect(isChannelAddonEnabled(userData, 'bbc', 'A', 'shared')).toBe(false);
+    expect(isChannelAddonEnabled(userData, 'bbc', 'B', 'shared')).toBe(true);
+  });
   it('returns true when no mapping exists', () => {
     expect(isLiveChannelVisible(baseUserData, 'aiolivetv:abc')).toBe(true);
   });
