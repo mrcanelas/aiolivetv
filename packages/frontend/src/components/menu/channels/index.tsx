@@ -1,5 +1,5 @@
 import React from 'react';
-import { BiRefresh, BiUndo } from 'react-icons/bi';
+import { BiRefresh, BiReset, BiUndo } from 'react-icons/bi';
 import {
   LuArrowDownAZ,
   LuLayers,
@@ -13,6 +13,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageControls } from '@/components/shared/page-controls';
 import { PageWrapper } from '@/components/shared/page-wrapper';
 import { SettingsCard } from '@/components/shared/settings-card';
+import {
+  ConfirmationDialog,
+  useConfirmationDialog,
+} from '@/components/shared/confirmation-dialog';
 import { Button, IconButton } from '@/components/ui/button';
 import { LoadingSpinner, Spinner } from '@/components/ui/loading-spinner';
 import { TextInput } from '@/components/ui/text-input';
@@ -42,6 +46,7 @@ import {
   countSuggestions,
   asChannelsResponse,
   buildVisibleChannelMappings,
+  clearAutomaticChannelMappings,
   type ChannelMappingProjectionCache,
   filterChannelsByReview,
   findDuplicateGroups,
@@ -112,26 +117,6 @@ export function ChannelsMenu() {
   const queryKey = queryOptions.queryKey;
   const query = useQuery(queryOptions);
   const [refreshError, setRefreshError] = React.useState<string | null>(null);
-  const refreshStreamMappings = React.useCallback(async () => {
-    setIsMatchingStreams(true);
-    setRefreshError(null);
-    try {
-      const data = await fetchChannels(userDataRef.current, {
-        autoMatch: true,
-      });
-      queryClient.setQueryData(queryKey, data);
-      await queryClient.invalidateQueries({
-        queryKey: ['channel-alternatives'],
-      });
-    } catch (error) {
-      // Keep the channels already on screen; just say why the refresh failed.
-      setRefreshError(
-        error instanceof Error ? error.message : 'Channel refresh failed'
-      );
-    } finally {
-      setIsMatchingStreams(false);
-    }
-  }, [queryClient, queryKey]);
   const channelsResponse = React.useMemo(
     () => asChannelsResponse(query.data),
     [query.data]
@@ -263,6 +248,69 @@ export function ChannelsMenu() {
     },
     [buildVisibleMappings, setUserData]
   );
+
+  const refreshStreamMappings = React.useCallback(
+    async (reset = false) => {
+      setIsMatchingStreams(true);
+      setRefreshError(null);
+      try {
+        await queryClient.cancelQueries({ queryKey });
+        const current = userDataRef.current;
+        const draft = reset
+          ? {
+              ...current,
+              channelMappings: clearAutomaticChannelMappings(
+                current.channelMappings
+              ),
+            }
+          : current;
+        const data = await fetchChannels(draft, { autoMatch: true });
+        if (reset) {
+          if (userDataRef.current !== current) {
+            throw new Error(
+              'Configuration changed during the scan. Please try clearing and matching again.'
+            );
+          }
+          const visibleMappings = buildVisibleMappings(
+            data.channels,
+            draft.channelMappings
+          );
+          const visibleIds = new Set(
+            visibleMappings.map((mapping) => mapping.id)
+          );
+          const hidden = (draft.channelMappings ?? []).filter(
+            (mapping) => mapping.hidden && !visibleIds.has(mapping.id)
+          );
+          setUserData((latest) => ({
+            ...latest,
+            channelMappings: [...visibleMappings, ...hidden],
+          }));
+          setSelectedIds(new Set());
+          setLinkStreamTargets({});
+        }
+        queryClient.setQueryData(queryKey, data);
+        await queryClient.invalidateQueries({
+          queryKey: ['channel-alternatives'],
+        });
+      } catch (error) {
+        // Keep the channels already on screen; just say why the refresh failed.
+        setRefreshError(
+          error instanceof Error ? error.message : 'Channel refresh failed'
+        );
+      } finally {
+        setIsMatchingStreams(false);
+      }
+    },
+    [buildVisibleMappings, queryClient, queryKey, setUserData]
+  );
+
+  const resetMappingsConfirm = useConfirmationDialog({
+    title: 'Clear mappings and rematch?',
+    description:
+      'Clear automatic mappings (including accepted suggestions) and previous rejections, then run matching again. Manual links, manual streams, channel customizations and removed channels are preserved. Changes stay in your draft until you click Save.',
+    actionText: 'Clear and rematch',
+    onConfirm: () => void refreshStreamMappings(true),
+  });
 
   const setChannels = (
     update: (channels: ChannelInfo[]) => ChannelInfo[],
@@ -911,6 +959,16 @@ export function ChannelsMenu() {
                 disabled={isMatchingStreams || isInitialLoading}
                 title="Scan stream sources and match channels"
               />
+              <IconButton
+                className="h-8 w-8 sm:h-10 sm:w-10"
+                rounded
+                intent="alert-subtle"
+                icon={<BiReset className="h-5 w-5" />}
+                onClick={resetMappingsConfirm.open}
+                disabled={isMatchingStreams || isInitialLoading}
+                title="Clear mappings and rematch"
+                aria-label="Clear mappings and rematch"
+              />
             </div>
           )
         }
@@ -1128,6 +1186,7 @@ export function ChannelsMenu() {
         )}
       </SettingsCard>
 
+      <ConfirmationDialog {...resetMappingsConfirm} />
       <ChannelMappingModal
         channel={mappingChannel}
         loadingSources={alternativesQuery.isFetching}

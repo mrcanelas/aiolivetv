@@ -3,6 +3,7 @@ import type { ChannelInfo } from '@/lib/api';
 import {
   asChannelsResponse,
   buildVisibleChannelMappings,
+  clearAutomaticChannelMappings,
   type ChannelMappingProjectionCache,
   channelHasPlayableStream,
   channelHasSchedule,
@@ -16,6 +17,118 @@ import {
   isVisibleChannelSuggestion,
   normalizeChannelGroup,
 } from '../utils';
+
+describe('clearAutomaticChannelMappings', () => {
+  it('keeps a catalog channel playable through its own provider', () => {
+    const ownStream = { addonId: 'm3u', channelId: 'bbc', confidence: 1 };
+    const [cleared] = clearAutomaticChannelMappings([
+      {
+        id: 'bbc',
+        canonicalAddonId: 'm3u',
+        name: 'Custom name',
+        streams: [
+          ownStream,
+          { addonId: 'other', channelId: 'bbc', confidence: 1 },
+        ],
+      },
+    ]);
+    expect(cleared.streams).toEqual([ownStream]);
+  });
+
+  it.each([true, false])(
+    'persists rebuilt mappings in the draft with epg=%s',
+    (epgProvider) => {
+      const saved = [
+        {
+          id: 'bbc',
+          canonicalAddonId: 'guide',
+          enabled: false,
+          streams: [
+            { addonId: 'streams', channelId: 'old', confidence: 1 },
+            { addonId: 'streams', channelId: 'manual', confidence: 0 },
+          ],
+          rejectedStreams: [{ addonId: 'streams', channelId: 'new' }],
+        },
+      ];
+      const cleared = clearAutomaticChannelMappings(saved);
+      const rebuilt = buildVisibleChannelMappings(
+        [
+          channel({
+            id: 'bbc',
+            name: 'BBC',
+            canonicalAddonId: 'guide',
+            enabled: false,
+            epgProvider,
+            mappings: ['manual', 'new'].map((channelId) => ({
+              id: channelId,
+              channelId,
+              addonId: 'streams',
+              addonName: 'Streams',
+              name: 'BBC',
+              confidence: channelId === 'manual' ? 0 : 1,
+              enabled: true,
+              canStream: true,
+              epgProvider: false,
+            })),
+          }),
+        ],
+        cleared,
+        new Set(),
+        new WeakMap()
+      );
+      expect(rebuilt[0].enabled).toBe(false);
+      expect(rebuilt[0].rejectedStreams).toBeUndefined();
+      expect(rebuilt[0].streams?.map((stream) => stream.channelId)).toEqual([
+        'manual',
+        'new',
+      ]);
+      expect(saved[0].streams.map((stream) => stream.channelId)).toEqual([
+        'old',
+        'manual',
+      ]);
+    }
+  );
+
+  it('clears automatic bindings and rejections while preserving manual links and channel edits', () => {
+    const manual = [
+      { addonId: 'streams', channelId: 'linked', confidence: 0 },
+      { addonId: 'streams', channelId: 'unscored' },
+      {
+        addonId: 'manual',
+        channelId: 'hls',
+        confidence: 1,
+        url: 'https://example.com/live.m3u8',
+      },
+    ];
+    const saved = [
+      {
+        id: 'bbc',
+        canonicalAddonId: 'xmltv',
+        name: 'Custom BBC',
+        poster: 'https://example.com/logo.png',
+        group: 'News',
+        enabled: false,
+        streams: [
+          ...manual,
+          { addonId: 'streams', channelId: 'auto', confidence: 1 },
+          { addonId: 'streams', channelId: 'suggested', confidence: 0.85 },
+        ],
+        rejectedStreams: [{ addonId: 'streams', channelId: 'rejected' }],
+      },
+      { id: 'removed', hidden: true },
+    ];
+    const original = structuredClone(saved);
+    const cleared = clearAutomaticChannelMappings(saved);
+    expect(cleared[0]).toEqual({
+      ...saved[0],
+      streams: manual,
+      rejectedStreams: undefined,
+    });
+    expect(cleared[1].hidden).toBe(true);
+    expect(saved).toEqual(original);
+    expect(clearAutomaticChannelMappings(undefined)).toEqual([]);
+  });
+});
 
 describe('shared channel group normalization', () => {
   it('decodes HTML entities consistently with delivery', () => {

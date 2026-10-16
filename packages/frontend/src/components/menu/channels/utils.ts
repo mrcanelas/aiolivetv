@@ -7,6 +7,24 @@ import type { UserData } from '@aiolivetv/core';
 import equal from 'fast-deep-equal';
 
 type ChannelMapping = NonNullable<UserData['channelMappings']>[number];
+
+export function clearAutomaticChannelMappings(
+  mappings: UserData['channelMappings']
+): ChannelMapping[] {
+  return (mappings ?? []).map((mapping) => ({
+    ...mapping,
+    rejectedStreams: undefined,
+    streams: mapping.streams?.filter(
+      (stream) =>
+        isManualStreamMapping(stream) ||
+        (stream.confidence ?? 0) === 0 ||
+        // A catalog's own playback binding is not a match to another channel.
+        (stream.addonId === mapping.canonicalAddonId &&
+          stream.channelId === mapping.id)
+    ),
+  }));
+}
+
 export type ChannelMappingProjectionCache = WeakMap<
   ChannelInfo,
   { customized: boolean; mapping: ChannelMapping | undefined }
