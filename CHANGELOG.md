@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/mrcanelas/aiolivetv/compare/v1.3.0...v1.4.0) (2026-10-16)
+
+
+### Features
+
+* **channels:** add automatic mapping reset and rematch ([62380d8](https://github.com/mrcanelas/aiolivetv/commit/62380d8afef1b6b940e974cbe2e441e8299bace4))
+
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.3.0](https://github.com/mrcanelas/aiolivetv/compare/v1.2.0...v1.3.0) (2026-10-15)
 
 
