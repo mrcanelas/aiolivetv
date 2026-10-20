@@ -76,8 +76,8 @@ describe('Vivo TV builtin', () => {
       country: 'BR',
       language: 'pt',
     });
-    expect(catalog[0]?.poster).toContain(
-      'spotlight-br.cdn.telefonica.com/customer/v1/source'
+    expect(catalog[0]?.poster).toBe(
+      'https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=https%3A%2F%2Fcdn.example%2Ficon.png&format=WEBP'
     );
   });
 

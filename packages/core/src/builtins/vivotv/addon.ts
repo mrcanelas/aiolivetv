@@ -100,7 +100,7 @@ function normalizeChannelTitle(title: string): string {
 }
 
 function channelLogoUrl(iconUrl: string): string {
-  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(iconUrl)}&height=60&resize=RATIO&format=WEBP`;
+  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(iconUrl)}&format=WEBP`;
 }
 
 function programThumbnailUrl(url: string): string {
