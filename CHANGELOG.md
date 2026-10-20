@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/mrcanelas/aiolivetv/compare/v1.3.0...v1.4.0) (2026-10-20)
+
+
+### Features
+
+* **channels:** add automatic mapping reset and rematch ([62380d8](https://github.com/mrcanelas/aiolivetv/commit/62380d8afef1b6b940e974cbe2e441e8299bace4))
+* **database:** support custom PostgreSQL certificate authorities ([b62958a](https://github.com/mrcanelas/aiolivetv/commit/b62958a4081f8e0955817ba9d344a8cb2c4c53f1))
+
+
+### Bug Fixes
+
+* **vivotv:** preserve original channel logo dimensions ([8b0c9ce](https://github.com/mrcanelas/aiolivetv/commit/8b0c9ce1134d544e1f9e4d1369ccbe30580d2c55))
+* **xtream:** handle provider schemas and large catalogs ([4b654ea](https://github.com/mrcanelas/aiolivetv/commit/4b654eaab2525dcf46735372352412903e2ade10))
+
 ## [1.3.0](https://github.com/mrcanelas/aiolivetv/compare/v1.2.0...v1.3.0) (2026-10-15)
 
 
