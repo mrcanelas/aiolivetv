@@ -508,7 +508,7 @@ neither the environment variable nor a stored value is present.
 | `MANIFEST_INCREASED_TIMEOUT` | Timeouts › Manifest Increased | number | `10000` | Extended timeout used during slower manifest operations (milliseconds). |
 | `META_TIMEOUT` | Timeouts › Meta | number | `30000` | Timeout for `/meta` requests (milliseconds). |
 | `CATALOG_TIMEOUT` | Timeouts › Catalog | number | `30000` | Timeout for `/catalog/*` fetches (milliseconds). |
-| `CHANNEL_SCAN_BUDGET_MS` | Timeouts › Channel Scan | number | `45000` | Wall-clock budget for one Channels page scan, including provider initialisation. When reached, the scan returns the channels found so far and lists unfinished sources. Defaults to 45000, or 240000 on Vercel. Keep this below your reverse-proxy request limit. Set 0 to remove the limit. |
+| `CHANNEL_SCAN_BUDGET_MS` | Timeouts › Channel Scan | number | `0` | Optional wall-clock budget for one Channels page scan, including provider initialisation. When reached, the scan returns the channels found so far and lists unfinished sources. Defaults to 0 (no limit). Hosting platforms may still enforce their own request limits. |
 
 #### Precache
 

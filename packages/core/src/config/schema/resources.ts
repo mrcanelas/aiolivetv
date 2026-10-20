@@ -6,7 +6,6 @@ import {
   seconds,
 } from './helpers.js';
 import type { RuntimeConfigSection } from '../types.js';
-import { isEphemeralRuntime } from '../../utils/runtime.js';
 
 const optionalPositiveInt = z.union([z.number().int().positive(), z.null()]);
 const ttlField = cacheTtlMap;
@@ -121,10 +120,10 @@ export const resourcesSchema = {
     },
     channelScan: {
       schema: nonNegativeInt,
-      default: isEphemeralRuntime() ? 240_000 : 45_000,
+      default: 0,
       label: 'Channel scan budget (ms)',
       description:
-        'Wall-clock budget for one Channels page scan, including provider initialisation. When reached, the scan returns the channels found so far and lists unfinished sources. Defaults to 45000, or 240000 on Vercel. Keep this below your reverse-proxy request limit. Set 0 to remove the limit.',
+        'Optional wall-clock budget for one Channels page scan, including provider initialisation. When reached, the scan returns the channels found so far and lists unfinished sources. Defaults to 0 (no limit). Hosting platforms may still enforce their own request limits.',
       env: 'CHANNEL_SCAN_BUDGET_MS',
       requiresRestart: false,
       secret: false,

@@ -560,17 +560,6 @@ export async function fetchCatalogs(userData: UserData) {
   });
 }
 
-/**
- * The server stops a channel scan after its own time budget (Dashboard →
- * Settings → Resources, or CHANNEL_SCAN_BUDGET_MS; 240s default on Vercel)
- * and returns partial results, and
- * the hosting platform ends requests at its own limit. This is only a
- * backstop so the page can never wait forever if a connection hangs; it sits
- * above Vercel's largest standard limit (800s) so it never cuts off a scan
- * that was deliberately allowed to run longer.
- */
-export const CHANNEL_SCAN_CLIENT_TIMEOUT_MS = 840_000;
-
 export async function fetchChannels(
   userData: UserData,
   options?: {
@@ -579,10 +568,6 @@ export async function fetchChannels(
     alternativesFor?: string;
   }
 ) {
-  const timeout = AbortSignal.timeout(CHANNEL_SCAN_CLIENT_TIMEOUT_MS);
-  const signal = options?.signal
-    ? AbortSignal.any([options.signal, timeout])
-    : timeout;
   try {
     return await api<ChannelsResponse>('POST /catalogs/channels', {
       body: {
@@ -590,16 +575,9 @@ export async function fetchChannels(
         autoMatch: options?.autoMatch ?? false,
         alternativesFor: options?.alternativesFor,
       },
-      signal,
+      signal: options?.signal,
     });
   } catch (error) {
-    if (timeout.aborted) {
-      throw new Error(
-        `The channel scan did not finish within ${Math.round(
-          CHANNEL_SCAN_CLIENT_TIMEOUT_MS / 1000
-        )} seconds. A source is probably very slow; check the server logs for "channel scan".`
-      );
-    }
     if (error instanceof Error && / response of 50[24]\b/.test(error.message)) {
       throw new Error(
         `The hosting platform stopped the channel scan before AIOLiveTV answered (${error.message}). This is a request time limit, not a broken addon.`

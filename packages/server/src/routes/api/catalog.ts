@@ -82,8 +82,8 @@ const channelInventoryCache = Cache.getInstance<
 
 /**
  * Wall-clock budget for one Channels scan (`resources.timeouts.channelScan` /
- * `CHANNEL_SCAN_BUDGET_MS`). On hosts with a hard request limit the scan
- * stops early and returns what it has. `0` disables the limit.
+ * `CHANNEL_SCAN_BUDGET_MS`). When configured, the scan stops early and
+ * returns what it has. Defaults to `0` (no limit).
  */
 function channelScanBudgetMs(): number {
   const budget = appConfig.resources.timeouts.channelScan;
@@ -216,6 +216,27 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post(
   '/channels',
   async (req: Request, res: Response, next: NextFunction) => {
+    // JSON whitespace keeps idle proxies alive without changing the API payload.
+    const heartbeat = setInterval(() => {
+      if (res.destroyed || res.writableEnded) return;
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-transform');
+        res.setHeader('X-Accel-Buffering', 'no');
+      }
+      res.write('\n');
+    }, 5_000);
+    const stopHeartbeat = () => clearInterval(heartbeat);
+    res.once('close', stopHeartbeat);
+    const respond = (
+      status: number,
+      body: ReturnType<typeof createResponse>
+    ) => {
+      stopHeartbeat();
+      if (res.destroyed) return;
+      if (res.headersSent) res.end(JSON.stringify(body));
+      else res.status(status).json(body);
+    };
     try {
       const scanStartedAt = Date.now();
       const scanBudgetMs = channelScanBudgetMs();
@@ -262,7 +283,8 @@ router.post(
         return { validatedUserData, configuredMappings, aio };
       });
       if (prepared === 'deadline') {
-        res.status(503).json(
+        respond(
+          503,
           createResponse({
             success: false,
             error: {
@@ -1162,7 +1184,8 @@ router.post(
       ).sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       );
-      res.status(200).json(
+      respond(
+        200,
         createResponse({
           success: true,
           data: {
@@ -1185,11 +1208,24 @@ router.post(
         })
       );
     } catch (error) {
-      next(
+      const apiError =
         error instanceof APIError
           ? error
-          : new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR)
-      );
+          : new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR);
+      if (res.headersSent) {
+        respond(
+          apiError.statusCode,
+          createResponse({
+            success: false,
+            error: { code: apiError.code, message: apiError.message },
+          })
+        );
+      } else {
+        next(apiError);
+      }
+    } finally {
+      stopHeartbeat();
+      res.off('close', stopHeartbeat);
     }
   }
 );

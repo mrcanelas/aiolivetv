@@ -23,6 +23,7 @@ const fixture = vi.hoisted(() => {
     guideCatalog: 'channels',
     matchingTruncated: false,
     initialiseDelayMs: 0,
+    initialiseFailure: false,
     slowCatalogMs: 0,
     stalledValidation: false,
     sources: [] as Array<{ error?: string; truncated?: boolean }>,
@@ -64,6 +65,7 @@ vi.mock('@aiolivetv/core', async () => {
   return {
     ...matching,
     constants,
+    APIError: constants.APIError,
     normalizeChannelGroup,
     decodeHtmlEntities,
     parseDeclaredStreamInfo,
@@ -115,6 +117,7 @@ vi.mock('@aiolivetv/core', async () => {
           await new Promise((resolve) =>
             setTimeout(resolve, fixture.initialiseDelayMs)
           );
+        if (fixture.initialiseFailure) throw new Error('Initialisation failed');
         return this;
       }
       getAddons() {
@@ -208,6 +211,7 @@ afterEach(async () => {
   fixture.guideCatalog = 'channels';
   fixture.matchingTruncated = false;
   fixture.initialiseDelayMs = 0;
+  fixture.initialiseFailure = false;
   fixture.slowCatalogMs = 0;
   fixture.stalledValidation = false;
   fixture.inventory.clear();
@@ -221,7 +225,8 @@ async function scan(
   alternativesFor?: string,
   expectedStatus = 200,
   sourceConfig = 'default',
-  enabled = true
+  enabled = true,
+  expectHeartbeat = false
 ) {
   const app = express();
   app.use(express.json());
@@ -260,14 +265,26 @@ async function scan(
   );
   expect(response.status).toBe(expectedStatus);
   expect(response.headers.get('content-type')).toContain('application/json');
-  if (expectedStatus !== 200) {
-    expect(await response.json()).toMatchObject({
+  const text = await response.text();
+  if (expectHeartbeat) {
+    expect(text).toMatch(/^\n/);
+    expect(response.headers.get('x-accel-buffering')).toBe('no');
+    expect(response.headers.get('cache-control')).toBe(
+      'no-store, no-transform'
+    );
+  }
+  if (fixture.stalledValidation || fixture.initialiseFailure) {
+    expect(JSON.parse(text)).toMatchObject({
       success: false,
-      error: { message: expect.stringContaining('initialising providers') },
+      error: {
+        message: fixture.stalledValidation
+          ? expect.stringContaining('initialising providers')
+          : expect.any(String),
+      },
     });
     return [];
   }
-  const body = (await response.json()) as {
+  const body = JSON.parse(text) as {
     data: {
       scan: { truncated: boolean; matchingTruncated: boolean };
       sources: Array<{ error?: string; truncated?: boolean }>;
@@ -290,6 +307,45 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('keeps slow scans alive and returns valid JSON after heartbeats', async () => {
+    const interval = globalThis.setInterval;
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((callback) =>
+      interval(callback, 5)
+    );
+    fixture.slowCatalogMs = 40;
+    const channels = await scan(
+      false,
+      false,
+      undefined,
+      200,
+      'default',
+      true,
+      true
+    );
+    expect(channels.map((channel) => channel.id)).toEqual(['bbc', 'hbo']);
+    expect(fixture.truncated).toBe(false);
+  });
+
+  it('returns a JSON error when the configured budget expires after heartbeats', async () => {
+    const interval = globalThis.setInterval;
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((callback) =>
+      interval(callback, 5)
+    );
+    fixture.budgetMs = 40;
+    fixture.stalledValidation = true;
+    await scan(false, false, undefined, 200, 'default', true, true);
+  });
+
+  it('returns a JSON error when initialisation fails after heartbeats', async () => {
+    const interval = globalThis.setInterval;
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((callback) =>
+      interval(callback, 5)
+    );
+    fixture.initialiseDelayMs = 40;
+    fixture.initialiseFailure = true;
+    await scan(false, false, undefined, 200, 'default', true, true);
+  });
+
   it('reuses a complete inventory for different channels and applies the current draft', async () => {
     await scan(false);
     const calls = fixture.catalogCalls;
