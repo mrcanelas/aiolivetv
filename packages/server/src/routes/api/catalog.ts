@@ -35,9 +35,9 @@ import {
 const router: Router = Router();
 
 const logger = createLogger('server');
-const MAX_CHANNELS_PER_CATALOG = 10_000;
+const MAX_CHANNELS_PER_CATALOG = 50_000;
 const MAX_STREAM_ONLY_CANDIDATES = 2_000;
-const MAX_CATALOG_PAGES = 100;
+const MAX_CATALOG_PAGES = 2_500;
 const MAX_AUTO_MATCH_PAIRS = 5_000_000;
 const PAGE_OVERLAP = 10;
 const ONE_OFF_CATALOG =
@@ -501,6 +501,7 @@ router.post(
             }
             const extras = [
               paginated ? `skip=${skip}` : undefined,
+              addon.preset.type === 'xtream' ? 'limit=500' : undefined,
               includeGuide && catalogHasDate ? `date=${todayUtc}` : undefined,
             ]
               .filter(Boolean)

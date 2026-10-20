@@ -128,11 +128,11 @@ export async function withTimeout<T>(
     return fallback;
   }
 
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
     // Create a promise that rejects after timeout
     const timeoutPromise = new Promise<never>((_, reject) => {
-      const id = setTimeout(() => {
-        clearTimeout(id);
+      timeoutId = setTimeout(() => {
         reject(new Error(`Operation timed out after ${timeout}ms`));
       }, timeout);
     });
@@ -143,6 +143,8 @@ export async function withTimeout<T>(
     const context = getContext ? ` for ${getContext()}` : '';
     logger.error(`Operation failed${context}: ${err}`);
     return fallback;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

@@ -215,6 +215,68 @@ describe('merged Live TV pagination', () => {
     );
   });
 
+  it('serves late genres, manual groups and guide pages from a 33k Xtream inventory', async () => {
+    const ctx = context();
+    ctx.addons[0].preset = {
+      type: 'xtream',
+    } as (typeof ctx.addons)[0]['preset'];
+    const items = provideChannels(32920, true);
+    items.forEach((item, index) => {
+      item.genres = [index >= 32898 ? 'USA Kids' : 'Other'];
+    });
+    ctx.userData.channelMappings = items.map((item) => ({
+      id: item.id,
+      streams: [{ addonId: 'fixture', channelId: item.id }],
+      ...(item.id === 'channel:32897'
+        ? { group: 'USA Kids', name: 'A manual channel' }
+        : {}),
+    }));
+    fixture.fetch.mockImplementation(async (_type, _id, extras) => {
+      const params = new URLSearchParams(extras);
+      const skip = Number(params.get('skip') || 0);
+      const limit = params.has('date') ? 25 : Number(params.get('limit') || 25);
+      expect(params.has('genre')).toBe(false);
+      return {
+        [params.has('date') ? 'metasDetailed' : 'metas']: items.slice(
+          skip,
+          skip + limit
+        ),
+      };
+    });
+    const first = await getMergedCatalog(ctx, 'tv', LIVE_TV_MERGED_CATALOG_ID);
+    expect(first.data).toHaveLength(25);
+    expect(fixture.fetch).toHaveBeenCalledTimes(67);
+    const filtered = await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'genre=USA%20Kids'
+    );
+    expect(filtered.data).toHaveLength(23);
+    expect(filtered.data[0].id).toBe('channel:32897');
+    expect(fixture.fetch).toHaveBeenCalledTimes(67);
+    const guide = await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'genre=USA%20Kids&date=2026-10-07'
+    );
+    expect(guide.cacheable).toBe(true);
+    expect(guide.metasDetailed).toHaveLength(23);
+    expect(
+      guide.metasDetailed?.every((item) => item.videos?.length === 1)
+    ).toBe(true);
+    expect(fixture.fetch).toHaveBeenCalledTimes(69);
+    const page = await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'skip=32900'
+    );
+    expect(page.data).toHaveLength(20);
+    expect(fixture.fetch).toHaveBeenCalledTimes(69);
+  }, 30000);
+
   it('keeps dates, searches and configuration changes isolated in the cache', async () => {
     const ctx = context();
     provideChannels(30);
@@ -373,9 +435,45 @@ describe('merged Live TV pagination', () => {
     const ctx = context();
     provideChannels(30);
     await getMergedCatalog(ctx, 'tv', LIVE_TV_MERGED_CATALOG_ID);
+    expect(vi.getTimerCount()).toBe(0);
     vi.advanceTimersByTime(300001);
     await getMergedCatalog(ctx, 'tv', LIVE_TV_MERGED_CATALOG_ID, 'skip=25');
     expect(fixture.fetch).toHaveBeenCalledTimes(6);
+  });
+
+  it('reports partial discovery and does not cache a catalog cut off at 50k items', async () => {
+    const ctx = context();
+    const items = provideChannels(50001);
+    fixture.fetch.mockImplementation(async (_type, _id, extras) => {
+      const skip = Number(new URLSearchParams(extras).get('skip') || 0);
+      return { metas: items.slice(skip, skip + 1000) };
+    });
+    const result = await getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'genre=Missing'
+    );
+    expect(result.data).toEqual([]);
+    expect(result.cacheable).toBe(false);
+    expect(result.errors[0].description).toContain('discovery limit');
+    expect(fixture.cache.size).toBe(0);
+  });
+
+  it('bounds stalled discovery and reports partial results', async () => {
+    vi.useFakeTimers();
+    const ctx = context();
+    const items = provideChannels(30);
+    fixture.fetch.mockResolvedValueOnce({ metas: items.slice(0, 25) });
+    fixture.fetch.mockImplementation(() => new Promise(() => {}));
+    const pending = getMergedCatalog(ctx, 'tv', LIVE_TV_MERGED_CATALOG_ID);
+    await vi.advanceTimersByTimeAsync(45000);
+    const result = await pending;
+    expect(result.data).toHaveLength(25);
+    expect(result.cacheable).toBe(false);
+    expect(result.errors[0].description).toContain('45s discovery budget');
+    expect(fixture.cache.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('does not cache upstream failures or partial scans', async () => {

@@ -43,6 +43,17 @@ export class ExtrasParser {
     return 'genre' in this.extras ? this.extras.genre : undefined;
   }
 
+  get limit(): number | undefined {
+    const value = Number(this.extras.limit);
+    return Number.isInteger(value) && value > 0
+      ? Math.min(value, 500)
+      : undefined;
+  }
+
+  set limit(value: number | undefined) {
+    this.extras = { ...this.extras, limit: value };
+  }
+
   set genre(value: string | undefined) {
     this.extras = { ...this.extras, genre: value };
   }

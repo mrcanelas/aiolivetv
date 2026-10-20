@@ -11,13 +11,31 @@ export function normalizeXtreamUrl(url: string): string {
   return `http://${trimmed}`;
 }
 
-export function createXtreamClient(config: XtreamConfig): Xtream<typeof standardizedSerializer.serializers> {
+export function createXtreamClient(
+  config: XtreamConfig
+): Xtream<typeof standardizedSerializer.serializers> {
   return new Xtream({
     url: normalizeXtreamUrl(config.url),
     username: config.username,
     password: config.password,
     preferredFormat: config.preferredFormat,
-    serializer: standardizedSerializer,
+    serializer: {
+      ...standardizedSerializer,
+      serializers: {
+        ...standardizedSerializer.serializers,
+        channels: (channels) =>
+          standardizedSerializer.serializers.channels(
+            channels.map((channel) => ({
+              ...channel,
+              category_ids: (Array.isArray(channel.category_ids)
+                ? channel.category_ids
+                : channel.category_id != null
+                  ? [channel.category_id]
+                  : []) as typeof channel.category_ids,
+            }))
+          ),
+      },
+    },
   });
 }
 
@@ -27,20 +45,8 @@ async function loadCategoryChannels(
   client: Xtream<typeof standardizedSerializer.serializers>,
   categoryId?: string
 ): Promise<StandardXtreamChannel[]> {
-  const channels: StandardXtreamChannel[] = [];
-  let page = 1;
-  while (true) {
-    const batch = await client.getChannels({
-      categoryId,
-      page,
-      limit: 500,
-    });
-    if (!batch.length) break;
-    channels.push(...batch);
-    if (batch.length < 500) break;
-    page += 1;
-  }
-  return channels;
+  // The API returns the entire category; the SDK's page/limit only slice locally.
+  return client.getChannels({ categoryId });
 }
 
 // Xtream's get_live_streams accepts a single category_id, so fetch per category and merge.

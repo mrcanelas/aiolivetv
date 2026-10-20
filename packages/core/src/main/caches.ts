@@ -8,6 +8,7 @@ export const shuffleCache = Cache.getInstance<string, MetaPreview[]>('shuffle');
 export type MergedCatalogSkipState = {
   sourceSkips: Record<string, number>; // What skip to send to each upstream source
   catalog?: AIOStreamsCatalogResponse;
+  sourcePages?: Array<{ skip: number; ids: string[] }>;
 };
 export const mergedCatalogCache = Cache.getInstance<
   string,

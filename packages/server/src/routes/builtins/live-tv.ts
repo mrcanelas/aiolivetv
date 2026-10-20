@@ -22,6 +22,7 @@ import {
   TdtChannelsAddon,
   SpainTvConfigSchema,
   parseCatalogExtras,
+  ExtrasParser,
   type LiveTvSourceConfig,
   type VivoTvConfig,
   type MovistarTvConfig,
@@ -248,10 +249,12 @@ router.get(
   '/xtream/:encodedConfig/catalog/:type/:id{/:extras}.json',
   async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
     try {
-      const { skip, date, genre } = parseCatalogExtras(getEncodedExtras(req));
+      const extras = getEncodedExtras(req);
+      const { skip, date, genre } = parseCatalogExtras(extras);
+      const { limit } = new ExtrasParser(extras);
       const response = await new XtreamAddon(
         xtreamConfig(req.params.encodedConfig)
-      ).getCatalogResponse(skip, date, genre);
+      ).getCatalogResponse(skip, date, genre, limit);
       res.json(response);
     } catch (error) {
       next(error);

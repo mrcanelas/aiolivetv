@@ -151,17 +151,17 @@ vi.mock('@aiolivetv/core', async () => {
             : Number(new URLSearchParams(extras).get('skip') || 0);
           if (fixture.roundedPages) skip = Math.floor(skip / 25) * 25;
           if (fixture.shiftedPages && skip > 0) skip += 2;
+          const guide = id.startsWith('guide.');
+          const total = guide ? fixture.pagedChannels : fixture.pagedStreams;
           return {
             success: true,
-            data: id.startsWith('guide.')
-              ? Array.from({ length: fixture.pagedChannels }, (_, index) => ({
-                  id: `channel:${index}`,
-                  name: `Channel ${index}`,
-                })).slice(skip, skip + 25)
-              : Array.from({ length: fixture.pagedStreams }, (_, index) => ({
-                  id: `stream:${index}`,
-                  name: `Stream ${index}`,
-                })).slice(skip, skip + 25),
+            data: Array.from(
+              { length: Math.max(0, Math.min(25, total - skip)) },
+              (_, offset) => ({
+                id: `${guide ? 'channel' : 'stream'}:${skip + offset}`,
+                name: `${guide ? 'Channel' : 'Stream'} ${skip + offset}`,
+              })
+            ),
           };
         }
         return {
@@ -324,18 +324,25 @@ describe('Channels prepared matching', () => {
     await scan(false, false, 'bbc');
     expect(fixture.catalogCalls).toBeGreaterThan(calls);
   });
-  it('reports the page cap instead of silently dropping channels', async () => {
-    fixture.pagedChannels = 2501;
+  it('discovers a 33k catalog without the old page or channel cap', async () => {
+    fixture.pagedChannels = 32920;
     const channels = await scan(false);
-    expect(channels).toHaveLength(2302);
+    expect(channels).toHaveLength(32920);
+    expect(fixture.truncated).toBe(false);
+  }, 30000);
+
+  it('reports the channel cap instead of silently dropping channels', async () => {
+    fixture.pagedChannels = 60000;
+    const channels = await scan(false);
+    expect(channels).toHaveLength(50000);
     expect(fixture.truncated).toBe(true);
     expect(fixture.sources).toContainEqual(
       expect.objectContaining({
         truncated: true,
-        error: expect.stringContaining('100 page scan limit'),
+        error: expect.stringContaining('50000 candidate scan limit'),
       })
     );
-  });
+  }, 30000);
 
   it('reports the stream candidate cap', async () => {
     fixture.extraStreams = 2001;

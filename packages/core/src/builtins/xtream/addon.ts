@@ -3,7 +3,7 @@ import type { StandardXtreamChannel } from '@iptv/xtream-api/standardized';
 import type { StandardXtreamFullEPGListing } from '@iptv/xtream-api/standardized';
 import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
-import { Cache } from '../../utils/index.js';
+import { Cache, getSimpleTextHash } from '../../utils/index.js';
 import { normalizeChannelGroup } from '../../utils/channelName.js';
 import { resolveNotWebReady } from '../../streams/web-readiness.js';
 import {
@@ -39,6 +39,7 @@ import { XtreamConfigSchema } from './config.js';
 
 const CHANNELS_CACHE_TTL = 300;
 const EPG_CACHE_TTL = 300;
+const pendingChannels = new Map<string, Promise<StandardXtreamChannel[]>>();
 
 const channelsCache = Cache.getInstance<string, StandardXtreamChannel[]>(
   'xtream-channels'
@@ -46,9 +47,10 @@ const channelsCache = Cache.getInstance<string, StandardXtreamChannel[]>(
 const epgCache = Cache.getInstance<string, StandardXtreamFullEPGListing[]>(
   'xtream-epg'
 );
-const categoriesCache = Cache.getInstance<string, Array<{ id: string; name: string }>>(
-  'xtream-categories'
-);
+const categoriesCache = Cache.getInstance<
+  string,
+  Array<{ id: string; name: string }>
+>('xtream-categories');
 
 function channelsCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
   const categoryIds = parseCategoryIds(config.categoryId);
@@ -56,11 +58,24 @@ function channelsCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
     ? [...categoryIds].sort().join(',')
     : 'all';
   const regexKey = config.categoryNameRegex?.trim() ?? '';
-  return `${config.url}:${config.username}:${categoryKey}:${regexKey}`;
+  return getSimpleTextHash(
+    JSON.stringify([
+      config.url,
+      config.username,
+      config.password,
+      config.preferredFormat,
+      categoryKey,
+      regexKey,
+    ])
+  );
 }
 
-function categoriesCacheKey(config: z.infer<typeof XtreamConfigSchema>): string {
-  return `${config.url}:${config.username}`;
+function categoriesCacheKey(
+  config: z.infer<typeof XtreamConfigSchema>
+): string {
+  return getSimpleTextHash(
+    JSON.stringify([config.url, config.username, config.password])
+  );
 }
 
 async function resolveCategoryIds(
@@ -93,13 +108,22 @@ async function loadChannels(
   const cacheKey = channelsCacheKey(config);
   const cached = await channelsCache.get(cacheKey);
   if (cached) return cached;
-  const client = createXtreamClient(config);
-  const channels = await loadXtreamChannels(
-    client,
-    await resolveCategoryIds(config)
-  );
-  await channelsCache.set(cacheKey, channels, CHANNELS_CACHE_TTL);
-  return channels;
+  const pending = pendingChannels.get(cacheKey);
+  if (pending) return pending;
+  const request = (async () => {
+    const client = createXtreamClient(config);
+    const channels = sortedChannels(
+      await loadXtreamChannels(client, await resolveCategoryIds(config))
+    );
+    await channelsCache.set(cacheKey, channels, CHANNELS_CACHE_TTL);
+    return channels;
+  })();
+  pendingChannels.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    pendingChannels.delete(cacheKey);
+  }
 }
 
 async function fetchCategories(
@@ -158,7 +182,9 @@ function channelTvgId(channel: StandardXtreamChannel): string {
   return channel.epgId || channel.id;
 }
 
-function sortedChannels(channels: StandardXtreamChannel[]): StandardXtreamChannel[] {
+function sortedChannels(
+  channels: StandardXtreamChannel[]
+): StandardXtreamChannel[] {
   return [...channels].sort((a, b) =>
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
   );
@@ -215,7 +241,9 @@ async function videosForGuideDay(
         config.timeShiftMinutes
       )
     )
-    .map((listing) => listingToVideo(encodedId, listing, config.timeShiftMinutes));
+    .map((listing) =>
+      listingToVideo(encodedId, listing, config.timeShiftMinutes)
+    );
 }
 
 async function mapStream(
@@ -230,7 +258,8 @@ async function mapStream(
       streamId: channel.id,
       extension: streamExtension(config.preferredFormat),
     });
-  if (!url) throw new Error(`Unable to build stream URL for channel ${channel.id}`);
+  if (!url)
+    throw new Error(`Unable to build stream URL for channel ${channel.id}`);
   const stream: Stream = {
     url,
     name: channel.name,
@@ -281,7 +310,8 @@ export class XtreamAddon {
       id: 'org.aiolivetv.xtream',
       name: 'Xtream Codes',
       version: '1.0.0',
-      description: 'Live TV channels, EPG and streams from an Xtream Codes provider',
+      description:
+        'Live TV channels, EPG and streams from an Xtream Codes provider',
       types: [TV_TYPE],
       resources: [
         {
@@ -307,16 +337,27 @@ export class XtreamAddon {
     };
   }
 
-  async getCatalog(skip = 0, genre?: string): Promise<MetaPreview[]> {
+  async getCatalog(
+    skip = 0,
+    genre?: string,
+    limit = LIVE_TV_CATALOG_PAGE_SIZE
+  ): Promise<MetaPreview[]> {
     const [channels, categoryNames] = await Promise.all([
       loadChannels(this.config),
       loadCategoryNames(this.config),
     ]);
-    return sortedChannels(channels)
+    return channels
       .filter((channel) =>
         matchesCatalogGenre(channelGroup(channel, categoryNames), genre)
       )
-      .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
+      .slice(
+        skip,
+        skip +
+          Math.max(
+            1,
+            Math.min(500, Math.trunc(limit) || LIVE_TV_CATALOG_PAGE_SIZE)
+          )
+      )
       .map((channel) =>
         bareChannelPreview({
           id: encodeChannelId(channel.id),
@@ -338,7 +379,7 @@ export class XtreamAddon {
       loadChannels(this.config),
       loadCategoryNames(this.config),
     ]);
-    const page = sortedChannels(channels)
+    const page = channels
       .filter((channel) =>
         matchesCatalogGenre(channelGroup(channel, categoryNames), genre)
       )
@@ -370,12 +411,12 @@ export class XtreamAddon {
   async getCatalogResponse(
     skip = 0,
     date?: string,
-    genre?: string
+    genre?: string,
+    limit?: number
   ): Promise<CatalogHandlerResponse> {
     return buildEpgCatalogResponse(
-      (pageSkip) => this.getCatalog(pageSkip, genre),
-      (pageSkip, guideDate) =>
-        this.getCatalogGuide(pageSkip, guideDate, genre),
+      (pageSkip) => this.getCatalog(pageSkip, genre, limit),
+      (pageSkip, guideDate) => this.getCatalogGuide(pageSkip, guideDate, genre),
       skip,
       date
     );

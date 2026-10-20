@@ -19,6 +19,7 @@ vi.mock('@iptv/xtream-api/standardized', () => ({
 }));
 
 vi.mock('../../utils/index.js', () => ({
+  getSimpleTextHash: (value: string) => value,
   Cache: {
     getInstance: () => ({
       get: vi.fn().mockResolvedValue(undefined),
@@ -119,6 +120,53 @@ describe('XtreamAddon', () => {
       tvgId: 'news24',
       genres: ['News'],
     });
+  });
+
+  it('coalesces large inventory loads and bounds preview and guide page sizes', async () => {
+    const channel = (await mockGetChannels())[0];
+    mockGetChannels.mockClear();
+    mockGetChannels.mockResolvedValue(
+      Array.from({ length: 32920 }, (_, index) => ({
+        ...channel,
+        id: String(index),
+        name: `Channel ${String(index).padStart(5, '0')}`,
+      }))
+    );
+    const addon = new XtreamAddon({
+      url: 'http://example.com:8080',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+    });
+    const [first, second] = await Promise.all([
+      addon.getCatalogResponse(0, undefined, undefined, 500),
+      addon.getCatalogResponse(500, undefined, undefined, 500),
+    ]);
+    expect(mockGetChannels).toHaveBeenCalledTimes(1);
+    expect(first.metas).toHaveLength(500);
+    expect(second.metas?.[0].id).toBe(encodeChannelId('500'));
+    expect(
+      (await addon.getCatalogResponse(0, undefined, undefined, 99999)).metas
+    ).toHaveLength(500);
+    expect(
+      (await addon.getCatalogResponse(32875, '2026-06-28', undefined, 500))
+        .metasDetailed
+    ).toHaveLength(25);
+    expect(mockGetFullEpg).toHaveBeenCalledTimes(25);
+  });
+
+  it('retries after a coalesced channel load fails', async () => {
+    const channel = (await mockGetChannels())[0];
+    mockGetChannels.mockRejectedValueOnce(new Error('Unavailable'));
+    const addon = new XtreamAddon({
+      url: 'http://example.com:8080',
+      username: 'user',
+      password: 'pass',
+      timeout: 5000,
+    });
+    await expect(addon.getCatalog()).rejects.toThrow('Unavailable');
+    mockGetChannels.mockResolvedValue([channel]);
+    expect(await addon.getCatalog()).toHaveLength(1);
   });
 
   it.each(['empty', 'failure', 'invalid-time', 'empty-title'])(

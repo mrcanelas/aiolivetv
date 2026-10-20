@@ -46,8 +46,8 @@ export {
 } from './liveTvMergedCatalog.js';
 
 const logger = createLogger('core');
-const MAX_LIVE_TV_SOURCE_PAGES = 100;
-const MAX_LIVE_TV_SOURCE_ITEMS = 10_000;
+const MAX_LIVE_TV_SOURCE_PAGES = 2_500;
+const MAX_LIVE_TV_SOURCE_ITEMS = 50_000;
 const LIVE_TV_GUIDE_BUDGET_MS = 6000;
 
 async function fetchSelectedGuidePages(
@@ -68,58 +68,61 @@ async function fetchSelectedGuidePages(
     return { items: [], cacheable: true };
   }
   const supportsSkip = catalogSupportsSkip(supported);
-  const requests: ReturnType<typeof fetchRawCatalogItems>[] = [];
-  const remaining = new Set(selectedIds);
-  let skip = 0;
-  let complete = false;
-  let cacheable = true;
-
-  // Scan cheap channel previews, never the full schedule, to locate source pages.
-  for (let page = 0; page < MAX_LIVE_TV_SOURCE_PAGES; page++) {
-    if (Date.now() >= deadline || skip >= MAX_LIVE_TV_SOURCE_ITEMS) break;
-    const previewsExtras = new ExtrasParser(extras.toString());
-    previewsExtras.date = undefined;
-    previewsExtras.genre = undefined;
-    previewsExtras.skip = supportsSkip && skip > 0 ? skip : undefined;
-    const previews = await fetchRawCatalogItems(
-      ctx,
-      instanceId,
-      catalogId,
-      type,
-      previewsExtras
-    );
-    if (Date.now() >= deadline) break;
-    if (!previews.success) {
-      cacheable = false;
-      break;
-    }
-    const batch = previews.metasDetailed ?? previews.items;
-    if (!batch.length) {
-      complete = true;
-      break;
-    }
-    if (batch.some((item) => selectedIds.has(item.id))) {
+  const inventory = await fetchAllLiveCatalogPages(
+    ctx,
+    instanceId,
+    catalogId,
+    type,
+    extras
+  );
+  if (!inventory.success || !inventory.sourcePages)
+    return { items: [], cacheable: false };
+  const xtream = ctx.addons.some(
+    (addon) =>
+      addon.instanceId === instanceId && addon.preset?.type === 'xtream'
+  );
+  const offsets = new Set<number>();
+  for (const page of inventory.sourcePages) {
+    page.ids.forEach((id, index) => {
+      if (!selectedIds.has(id)) return;
+      // Xtream discovery uses larger previews; schedules remain limited to 25 channels.
+      offsets.add(
+        xtream
+          ? Math.floor((page.skip + index) / LIVE_TV_CATALOG_PAGE_SIZE) *
+              LIVE_TV_CATALOG_PAGE_SIZE
+          : page.skip
+      );
+    });
+  }
+  if (!supportsSkip && offsets.size) {
+    offsets.clear();
+    offsets.add(0);
+  }
+  const results = await Promise.all(
+    [...offsets].map((skip) => {
+      if (Date.now() >= deadline) return { success: false, items: [] };
       const guideExtras = new ExtrasParser(extras.toString());
       guideExtras.genre = undefined;
-      guideExtras.skip = previewsExtras.skip;
-      requests.push(
-        fetchRawCatalogItems(ctx, instanceId, catalogId, type, guideExtras)
+      guideExtras.limit = undefined;
+      guideExtras.skip = skip || undefined;
+      return fetchRawCatalogItems(
+        ctx,
+        instanceId,
+        catalogId,
+        type,
+        guideExtras
       );
-      for (const item of batch) remaining.delete(item.id);
-    }
-    skip += batch.length;
-    if (!supportsSkip || !remaining.size) {
-      complete = true;
-      break;
-    }
-  }
-  const results = await Promise.all(requests);
+    })
+  );
   return {
     items: results.flatMap((result) =>
-      (result.metasDetailed ?? []).filter((item) => selectedIds.has(item.id))
+      ('metasDetailed' in result ? (result.metasDetailed ?? []) : []).filter(
+        (item) => selectedIds.has(item.id)
+      )
     ),
     cacheable:
-      complete && cacheable && results.every((result) => result.success),
+      inventory.cacheable !== false &&
+      results.every((result) => result.success),
   };
 }
 
@@ -250,27 +253,58 @@ async function fetchAllLiveCatalogPages(
   metasDetailed?: Meta[];
   error?: { title: string; description: string };
   cacheable?: boolean;
+  sourcePages?: NonNullable<MergedCatalogSkipState['sourcePages']>;
 }> {
+  const sourceExtras = new ExtrasParser(extras.toString());
+  sourceExtras.date = undefined;
+  sourceExtras.genre = undefined;
+  sourceExtras.skip = undefined;
+  sourceExtras.limit = undefined;
+  const addon = ctx.addons.find(
+    (addon) => addon.instanceId === addonInstanceId
+  );
+  const sourceKey = `live-source-v1-${getSimpleTextHash(JSON.stringify({ addon, manifest: ctx.manifests[addonInstanceId], userData: ctx.userData, catalogId, type, extras: sourceExtras.toString() }))}`;
+  const cached = await mergedCatalogCache.get(sourceKey);
+  if (cached?.catalog)
+    return {
+      success: true,
+      items: cached.catalog.data,
+      metasDetailed: cached.catalog.metasDetailed,
+      sourcePages: cached.sourcePages,
+      cacheable: true,
+    };
+  if (addon?.preset?.type === 'xtream') sourceExtras.limit = 500;
+  const sourcePages: NonNullable<MergedCatalogSkipState['sourcePages']> = [];
   const items: MetaPreview[] = [];
   const metasDetailed: Meta[] = [];
   let skip = 0;
   let page = 0;
   let firstError: { title: string; description: string } | undefined;
   let exhausted = false;
+  const deadline = Date.now() + 45_000;
 
   while (
     page < MAX_LIVE_TV_SOURCE_PAGES &&
     items.length + metasDetailed.length < MAX_LIVE_TV_SOURCE_ITEMS
   ) {
     page += 1;
-    const pageExtras = new ExtrasParser(extras.toString());
+    const pageExtras = new ExtrasParser(sourceExtras.toString());
     pageExtras.skip = skip > 0 ? skip : undefined;
-    const result = await fetchRawCatalogItems(
-      ctx,
-      addonInstanceId,
-      catalogId,
-      type,
-      pageExtras
+    const result = await withTimeout(
+      () =>
+        fetchRawCatalogItems(ctx, addonInstanceId, catalogId, type, pageExtras),
+      {
+        success: false,
+        items: [] as MetaPreview[],
+        error: {
+          title: 'Live TV discovery timed out',
+          description: `Source ${catalogId} exceeded the 45s discovery budget; results are partial.`,
+        },
+      },
+      {
+        timeout: Math.max(1, deadline - Date.now()),
+        getContext: () => 'Live TV channel discovery',
+      }
     );
     if (!result.success) {
       firstError = result.error;
@@ -289,18 +323,53 @@ async function fetchAllLiveCatalogPages(
     } else {
       items.push(...result.items);
     }
+    sourcePages.push({ skip, ids: batch.map((item) => item.id) });
     skip += batch.length;
+    if (
+      !catalogSupportsSkip(
+        getCatalogExtras(ctx, addonInstanceId, catalogId, type)
+      )
+    ) {
+      exhausted = true;
+      break;
+    }
   }
 
   if (page === 1 && firstError && items.length + metasDetailed.length === 0) {
     return { success: false, items: [], error: firstError };
   }
 
+  const cacheable = exhausted && !firstError;
+  if (cacheable)
+    await mergedCatalogCache.set(
+      sourceKey,
+      {
+        sourceSkips: {},
+        sourcePages,
+        catalog: {
+          success: true,
+          data: items,
+          metasDetailed: metasDetailed.length ? metasDetailed : undefined,
+          errors: [],
+        },
+      },
+      300,
+      true
+    );
   return {
     success: true,
     items,
     metasDetailed: metasDetailed.length ? metasDetailed : undefined,
-    cacheable: exhausted && !firstError,
+    sourcePages,
+    cacheable,
+    ...(!cacheable
+      ? {
+          error: firstError ?? {
+            title: 'Partial Live TV catalog',
+            description: `Source ${catalogId} reached its discovery limit; more channels may be available.`,
+          },
+        }
+      : {}),
   };
 }
 
@@ -674,7 +743,9 @@ export async function getMergedCatalog(
         if (!detailed.has(item.id)) detailed.set(item.id, item);
       }
     }
-    const cacheable = sources.every((source) => source.cacheable);
+    const cacheable =
+      previews.cacheable !== false &&
+      sources.every((source) => source.cacheable);
     const catalog: AIOStreamsCatalogResponse = {
       success: true,
       data: [],
@@ -683,7 +754,18 @@ export async function getMergedCatalog(
         ...item,
         videos: detailed.get(item.id)?.videos ?? [],
       })),
-      errors: [],
+      errors: [
+        ...previews.errors,
+        ...(!cacheable
+          ? [
+              {
+                title: 'Incomplete Live TV guide',
+                description:
+                  'Some schedules could not be loaded before the source limits or guide timeout. Please retry.',
+              },
+            ]
+          : []),
+      ],
       cacheable,
     };
     if (cacheable)
@@ -928,6 +1010,7 @@ export async function getMergedCatalog(
         success: true,
         skipped: false,
         cacheable: !('cacheable' in result) || result.cacheable !== false,
+        error: result.error,
       };
     }
   );
@@ -968,12 +1051,7 @@ export async function getMergedCatalog(
   }
 
   const itemsBySource: MetaPreview[][] = [];
-  for (const {
-    encodedCatalogId,
-    items,
-    fetched,
-    skipped,
-  } of fetchResults) {
+  for (const { encodedCatalogId, items, fetched, skipped } of fetchResults) {
     if (skipped) continue;
     nextSourceSkips[encodedCatalogId] =
       (skipState.sourceSkips[encodedCatalogId] || 0) + fetched;
@@ -1023,7 +1101,14 @@ export async function getMergedCatalog(
       !modification?.shuffle && !modification?.reverse
     );
     if (isLiveMerged) {
-      const catalog = { success: true, data: allItems, errors: [] };
+      const catalog = {
+        success: true,
+        data: allItems,
+        errors: fetchResults.flatMap((result) =>
+          result.error ? [result.error] : []
+        ),
+        cacheable,
+      };
       if (cacheable)
         await mergedCatalogCache.set(
           liveCatalogCacheKey,

@@ -67,11 +67,30 @@ export function deduplicateLiveTvItems<
 >(userData: UserData, items: T[]): T[] {
   const kept: T[] = [];
   const seenMappingIds = new Set<string>();
+  const direct = new Map<
+    string,
+    NonNullable<UserData['channelMappings']>[number]
+  >();
+  const bound = new Map<
+    string,
+    NonNullable<UserData['channelMappings']>[number]
+  >();
+  for (const mapping of userData.channelMappings ?? []) {
+    if (!direct.has(mapping.id)) direct.set(mapping.id, mapping);
+    for (const id of [
+      mapping.id,
+      ...(mapping.streams ?? []).map((stream) => stream.channelId),
+    ]) {
+      if (!bound.has(id)) bound.set(id, mapping);
+    }
+  }
 
   for (const item of items) {
-    if (!isLiveChannelVisible(userData, item.id)) continue;
+    const id = getCanonicalChannelId(item.id);
+    const own = direct.get(id);
+    if (own?.hidden || own?.enabled === false) continue;
 
-    const mapping = findChannelMappingForId(userData, item.id);
+    const mapping = bound.get(id);
     if (mapping) {
       if (mapping.id !== getCanonicalChannelId(item.id)) continue;
       if (seenMappingIds.has(mapping.id)) continue;
@@ -114,13 +133,20 @@ export function applyLiveChannelGroupOverlay<
     genres?: string[] | null;
   },
 >(userData: UserData, items: T[]): T[] {
+  const byId = new Map<
+    string,
+    NonNullable<UserData['channelMappings']>[number]
+  >();
+  for (const mapping of userData.channelMappings ?? []) {
+    if (!byId.has(mapping.id)) byId.set(mapping.id, mapping);
+  }
   return items.map((item) => {
-    const mapping = getChannelMapping(userData, item.id);
-    const group = getEffectiveChannelGroup(
-      userData,
-      item.id,
-      Array.isArray(item.genres) ? item.genres[0] : undefined
-    );
+    const mapping = byId.get(getCanonicalChannelId(item.id));
+    const group =
+      normalizeChannelGroup(mapping?.group) ||
+      normalizeChannelGroup(
+        Array.isArray(item.genres) ? item.genres[0] : undefined
+      );
     const name = mapping?.name?.trim();
     const poster = mapping?.poster?.trim();
     return {

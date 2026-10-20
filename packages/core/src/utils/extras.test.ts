@@ -11,6 +11,19 @@ import { describe, expect, it } from 'vitest';
 const { ExtrasParser } = await import('./extras.js');
 
 describe('ExtrasParser', () => {
+  it.each([
+    ['limit=500', 500],
+    ['limit=99999', 500],
+    ['limit=25', 25],
+    ['limit=-1', undefined],
+    ['limit=0', undefined],
+    ['limit=abc', undefined],
+    ['limit=1.5', undefined],
+    ['', undefined],
+  ])('bounds discovery page sizes: %s', (extras, expected) => {
+    expect(new ExtrasParser(extras).limit).toBe(expected);
+  });
+
   it.each(['News & Sports', 'a=b=c', 'C++', '%26', 'News/Sports'])(
     'preserves %s through parsing and repeated serialization',
     (value) => {
