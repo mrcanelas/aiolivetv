@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.1](https://github.com/mrcanelas/aiolivetv/compare/v1.4.0...v1.4.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **channels:** remove default scan timeouts and keep connections alive ([d9df97e](https://github.com/mrcanelas/aiolivetv/commit/d9df97eba1295ed76d92249eb7b1d4271fc5910e))
+
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.4.0](https://github.com/mrcanelas/aiolivetv/compare/v1.3.0...v1.4.0) (2026-10-20)
 
 
