@@ -48,7 +48,7 @@ jobs:
           printf '%s\n' "$BEAMUP_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/beamup-config-key"
           ssh-keyscan -H "$BEAMUP_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           python3 - <<'PY'
-          import datetime, hashlib, json, os, pathlib, subprocess, sys
+          import hashlib, json, os, pathlib, subprocess, sys
           owner = os.environ['GITHUB_REPOSITORY_OWNER'].lower()
           app = hashlib.sha256((owner + '\n').encode()).hexdigest()[:12] + '/' + os.environ['BEAMUP_PROJECT']
           ssh = ['ssh', '-T', '-i', os.environ['RUNNER_TEMP'] + '/beamup-config-key',
@@ -69,7 +69,7 @@ jobs:
           version = json.loads(pathlib.Path('package.json').read_text())['version']
           with open(os.environ['GITHUB_ENV'], 'a') as env:
               env.write('BEAMUP_EXPECTED_VERSION=' + version + '\n')
-              env.write('BEAMUP_DEPLOY_STARTED_AT=' + datetime.datetime.now(datetime.timezone.utc).isoformat() + '\n')
+              env.write('BEAMUP_EXPECTED_COMMIT_TIME=' + subprocess.check_output(['git', 'show', '-s', '--format=%ct', 'HEAD'], text=True).strip() + '\n')
           PY
 
       - name: Deploy to Beamup
@@ -115,8 +115,9 @@ jobs:
               fresh = False
               try:
                   built = datetime.datetime.fromisoformat(data['buildTime'].replace('Z', '+00:00'))
-                  started = datetime.datetime.fromisoformat(os.environ['BEAMUP_DEPLOY_STARTED_AT'])
-                  fresh = built >= started
+                  # Cached images can predate this deployment attempt.
+                  committed = datetime.datetime.fromtimestamp(int(os.environ['BEAMUP_EXPECTED_COMMIT_TIME']), datetime.timezone.utc)
+                  fresh = built >= committed
               except (KeyError, TypeError, ValueError, AttributeError):
                   pass
               current = (
