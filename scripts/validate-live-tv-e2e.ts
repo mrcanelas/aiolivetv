@@ -590,6 +590,7 @@ async function validateParallelStreamResolution(core: CoreModule) {
   let maxActive = 0;
   let catalogRequests = 0;
   const streamIds: string[] = [];
+  const metaIds: string[] = [];
   const server = createServer(async (req, res) => {
     const match = req.url?.match(/^\/provider\/(\d+)\/(.*)$/);
     if (!match) {
@@ -607,6 +608,11 @@ async function validateParallelStreamResolution(core: CoreModule) {
           types: ['tv'],
           resources: [
             {
+              name: 'meta',
+              types: ['tv'],
+              idPrefixes: ['provider-' + provider + ':'],
+            },
+            {
               name: 'stream',
               types: ['tv'],
               idPrefixes: ['provider-' + provider + ':'],
@@ -623,6 +629,10 @@ async function validateParallelStreamResolution(core: CoreModule) {
         })
       );
     } else if (path.startsWith('catalog/')) {
+      if (provider === '6') {
+        res.writeHead(502).end();
+        return;
+      }
       active++;
       catalogRequests++;
       maxActive = Math.max(maxActive, active);
@@ -638,6 +648,16 @@ async function validateParallelStreamResolution(core: CoreModule) {
             },
           ],
         })
+      );
+    } else if (path.startsWith('meta/')) {
+      const id = decodeURIComponent(path.split('/')[2].replace(/\.json$/, ''));
+      metaIds.push(id);
+      if (id !== 'provider-' + provider + ':bbc') {
+        res.writeHead(404).end();
+        return;
+      }
+      res.end(
+        JSON.stringify({ meta: { id, type: 'tv', name: 'BBC News HD' } })
       );
     } else if (path.startsWith('stream/')) {
       streamIds.push(decodeURIComponent(path));
@@ -670,7 +690,7 @@ async function validateParallelStreamResolution(core: CoreModule) {
         options: {
           name: 'Provider ' + index,
           manifestUrl: `http://127.0.0.1:${address.port}/provider/${index}/manifest.json`,
-          resources: ['stream'],
+          resources: ['meta', 'stream'],
           timeout: 1000,
         },
       })
@@ -699,6 +719,80 @@ async function validateParallelStreamResolution(core: CoreModule) {
     assert(
       streamIds.every((id) => id.includes(':bbc')),
       'expected resolved provider channel IDs'
+    );
+    const mapped = await new core.AIOStreams(
+      liveTvUserData(presets, [
+        {
+          id: 'canonical-bbc',
+          name: 'BBC News',
+          streams: [
+            {
+              addonId: addonInstanceId(aio, 'provider-0'),
+              channelId: 'provider-0:bbc',
+              enabled: true,
+            },
+          ],
+        },
+      ])
+    ).initialise();
+    metaIds.length = 0;
+    await mapped.getStreams('canonical-bbc', core.constants.TV_TYPE);
+    assert(
+      metaIds.includes('provider-0:bbc'),
+      'stream resolution must use the mapped provider ID for metadata'
+    );
+    const mappedMeta = await mapped.getMeta(
+      core.constants.TV_TYPE,
+      'canonical-bbc'
+    );
+    assert(
+      mappedMeta.success && mappedMeta.data?.id === 'canonical-bbc',
+      'mapped metadata must retain the canonical ID'
+    );
+    const fallback = await new core.AIOStreams(
+      liveTvUserData(presets, [
+        {
+          id: 'unavailable-channel',
+          name: 'Saved channel',
+          enabled: true,
+        },
+      ])
+    ).initialise();
+    const fallbackMeta = await fallback.getMeta(
+      core.constants.TV_TYPE,
+      'unavailable-channel'
+    );
+    assert(
+      fallbackMeta.success &&
+        fallbackMeta.data?.name === 'Saved channel' &&
+        !fallbackMeta.data?.behaviorHints?.hasScheduledVideos,
+      'saved channel metadata must remain available without claiming a schedule'
+    );
+    const failedMeta = await new core.AIOStreams(
+      liveTvUserData(presets, [
+        {
+          id: 'saved-channel',
+          name: 'Saved channel',
+          enabled: true,
+          streams: [
+            {
+              addonId: addonInstanceId(aio, 'provider-0'),
+              channelId: 'provider-0:missing',
+              enabled: true,
+            },
+          ],
+        },
+      ])
+    ).initialise();
+    const recoveredMeta = await failedMeta.getMeta(
+      core.constants.TV_TYPE,
+      'saved-channel'
+    );
+    assert(
+      recoveredMeta.success &&
+        recoveredMeta.data?.name === 'Saved channel' &&
+        recoveredMeta.errors.length === 0,
+      'a failed provider must not turn saved metadata into an error card'
     );
     for (const includeSecondAddon of [false, true]) {
       const sources = [
@@ -773,8 +867,52 @@ async function validateParallelStreamResolution(core: CoreModule) {
       catalogRequests === 6,
       'disabled channels must not resolve provider catalogs'
     );
+    const unmatched = await new core.AIOStreams(
+      liveTvUserData(presets, [
+        {
+          id: 'unmatched-channel',
+          name: 'Completely different station',
+          enabled: true,
+        },
+      ])
+    ).initialise();
+    const beforeUnmatched = streamIds.length;
+    const unmatchedStreams = await unmatched.getStreams(
+      'unmatched-channel',
+      core.constants.TV_TYPE
+    );
+    assert(
+      unmatchedStreams.data.streams.length === 0 &&
+        streamIds.length === beforeUnmatched,
+      'an unmatched channel must not be sent to providers that reject its ID prefix'
+    );
+    const withOffline = await new core.AIOStreams(
+      liveTvUserData(
+        [
+          ...presets,
+          {
+            ...presets[0],
+            instanceId: 'provider-6',
+            options: {
+              ...presets[0].options,
+              name: 'Offline provider',
+              manifestUrl: `http://127.0.0.1:${address.port}/provider/6/manifest.json`,
+            },
+          },
+        ],
+        [{ id: 'offline-bbc', name: 'BBC News', enabled: true }]
+      )
+    ).initialise();
+    const availableStreams = await withOffline.getStreams(
+      'offline-bbc',
+      core.constants.TV_TYPE
+    );
+    assert(
+      availableStreams.data.streams.length === 6,
+      'one failed catalog must not prevent playback from healthy providers'
+    );
     console.log(
-      '  [ok] parallel stream resolution: six providers, concurrency four, disabled channel skipped'
+      '  [ok] stream resolution: mapped IDs, metadata fallback, unsupported IDs skipped, offline sources isolated, concurrency four'
     );
   } finally {
     await new Promise<void>((resolve, reject) =>

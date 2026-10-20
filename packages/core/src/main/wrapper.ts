@@ -703,6 +703,14 @@ export class Wrapper {
       });
 
       if (!res.ok) {
+        if (this.addon.manifestUrl.includes('/builtins/live-tv/')) {
+          const failure = (await res.json().catch(() => undefined)) as
+            | { error?: { message?: unknown } }
+            | undefined;
+          if (typeof failure?.error?.message === 'string') {
+            throw new Error(`${res.status} - ${failure.error.message}`);
+          }
+        }
         throw new Error(`${res.status} - ${res.statusText}`);
       }
 

@@ -284,6 +284,7 @@ type MetaCandidate = {
   instanceId: string;
   reason: 'matching id prefix' | 'general type support';
   metaType: string;
+  metaId: string;
 };
 
 function resolveAddonMetaType(
@@ -313,16 +314,23 @@ function collectLiveChannelMetaCandidates(
           existing.metaType === constants.CHANNEL_TYPE &&
           metaType === constants.TV_TYPE
         ) {
-          candidates.set(candidate.instanceId, { ...candidate, metaType });
+          candidates.set(candidate.instanceId, {
+            ...candidate,
+            metaType,
+            metaId,
+          });
           continue;
         }
         if (existing) continue;
-        candidates.set(candidate.instanceId, { ...candidate, metaType });
+        candidates.set(candidate.instanceId, {
+          ...candidate,
+          metaType,
+          metaId,
+        });
       }
     }
   };
 
-  addCandidates(channelId);
   if (channelMapping?.canonicalAddonId) {
     addCandidates(channelId, channelMapping.canonicalAddonId);
   }
@@ -330,6 +338,7 @@ function collectLiveChannelMetaCandidates(
     if (isManualStreamSource(source)) continue;
     addCandidates(source.channelId ?? channelId, source.addonId);
   }
+  addCandidates(channelId);
 
   return [...candidates.values()].sort((left, right) =>
     left.instanceId === channelMapping?.canonicalAddonId
@@ -809,7 +818,7 @@ async function loadCanonicalChannelCandidate(
         candidate.metaType;
       const meta = await new Wrapper(candidate.addon).getMeta(
         metaType,
-        channelId
+        candidate.metaId
       );
       const group = getEffectiveChannelGroup(
         ctx.userData,
@@ -846,10 +855,13 @@ async function resolveStreamChannelIdForAddon(
   channelId: string,
   addon: Addon,
   canonical: PreparedChannelMatchCandidate
-): Promise<string> {
+): Promise<string | undefined> {
   const streamResource = ctx.supportedResources[addon.instanceId!]?.find(
     (resource) => resource.name === 'stream'
   );
+  const acceptsChannelId =
+    !streamResource?.idPrefixes?.length ||
+    streamResource.idPrefixes.some((prefix) => channelId.startsWith(prefix));
   if (
     streamResource?.idPrefixes?.length &&
     streamResource.idPrefixes.some((prefix) => channelId.startsWith(prefix))
@@ -857,14 +869,17 @@ async function resolveStreamChannelIdForAddon(
     return channelId;
   }
 
-  if (addonProvidesResource(addon, constants.CATALOG_RESOURCE)) {
+  if (
+    addonProvidesResource(addon, constants.CATALOG_RESOURCE) &&
+    acceptsChannelId
+  ) {
     return channelId;
   }
 
   const catalog = ctx.manifests[addon.instanceId!]?.catalogs.find((entry) =>
     isLiveChannelType(entry.type)
   );
-  if (!catalog) return channelId;
+  if (!catalog) return acceptsChannelId ? channelId : undefined;
 
   const response = await new Wrapper(addon).getCatalog(
     catalog.type,
@@ -896,7 +911,7 @@ async function resolveStreamChannelIdForAddon(
     }
   }
 
-  return best?.id ?? channelId;
+  return best?.id ?? (acceptsChannelId ? channelId : undefined);
 }
 
 async function resolveLiveStreamFetchPlan(
@@ -959,18 +974,31 @@ async function resolveLiveStreamFetchPlan(
     const limit = pLimit(LIVE_STREAM_RESOLUTION_CONCURRENCY);
     const resolved = await Promise.all(
       getAllLiveStreamAddons(ctx, type).map((addon) =>
-        limit(async () => ({
-          addon,
-          id: await resolveStreamChannelIdForAddon(
-            ctx,
-            channelId,
-            addon,
-            preparedCanonical
-          ),
-        }))
+        limit(async () => {
+          try {
+            return {
+              addon,
+              id: await resolveStreamChannelIdForAddon(
+                ctx,
+                channelId,
+                addon,
+                preparedCanonical
+              ),
+            };
+          } catch (error) {
+            logger.warn(
+              {
+                addon: addon.name,
+                err: error instanceof Error ? error.message : String(error),
+              },
+              'failed to resolve Live TV channel from source'
+            );
+            return { addon, id: undefined };
+          }
+        })
       )
     );
-    for (const { addon, id } of resolved) addAddon(addon, id);
+    for (const { addon, id } of resolved) if (id) addAddon(addon, id);
   }
 
   if (channelMapping?.streams?.length) {
@@ -1350,11 +1378,12 @@ export async function getMeta(
     : getMetaCandidates(ctx, type, id).map((candidate) => ({
         ...candidate,
         metaType: type,
+        metaId: id,
       }));
 
   if (candidates.length === 0) {
     logger.warn({ type, id }, 'no supported addon found for meta request');
-    return { success: false, data: null, errors: [] };
+    if (!isLiveChannel) return { success: false, data: null, errors: [] };
   }
 
   const errors: Array<{ title: string; description: string }> = [];
@@ -1370,16 +1399,12 @@ export async function getMeta(
       'trying addon for meta resource'
     );
     try {
-      const mappedId =
-        channelMapping?.streams?.find(
-          (stream) => stream.addonId === candidate.instanceId
-        )?.channelId ?? channelId;
       const metaType =
         resolveAddonMetaType(ctx, candidate.instanceId, candidate.metaType) ??
         candidate.metaType;
       const meta = await new Wrapper(candidate.addon).getMeta(
         metaType,
-        mappedId
+        candidate.metaId
       );
       if (isLiveChannel) {
         meta.id = channelId;
@@ -1443,6 +1468,23 @@ export async function getMeta(
         description: errorMessage,
       });
     }
+  }
+
+  if (isLiveChannel && channelMapping?.name?.trim()) {
+    const group = getEffectiveChannelGroup(ctx.userData, channelId);
+    return {
+      success: true,
+      data: {
+        id: channelId,
+        type,
+        name: channelMapping.name.trim(),
+        poster: channelMapping.poster,
+        genres: group ? [group] : undefined,
+        videos: [],
+        behaviorHints: { defaultVideoId: channelId, hasScheduledVideos: false },
+      },
+      errors: [],
+    };
   }
 
   logger.error(

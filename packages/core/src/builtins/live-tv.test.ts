@@ -53,6 +53,33 @@ beforeEach(() => {
 });
 
 describe('live TV sources', () => {
+  it('honors the administrator source size limit for downloads and gzip expansion', async () => {
+    const { fetchSourceText } = await import('./live-tv/shared.js');
+    const config = {
+      sourceUrl: 'https://example.com/guide.xml',
+      timeout: 1000,
+      maxBytes: 100,
+      timeShiftMinutes: 0,
+    };
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse('x'.repeat(101))
+    );
+    await expect(fetchSourceText(config)).rejects.toThrow(
+      'LIVE_TV_SOURCE_MAX_BYTES'
+    );
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(Uint8Array.from(gzipSync('x'.repeat(101))))
+    );
+    await expect(fetchSourceText(config)).rejects.toThrow(
+      'LIVE_TV_SOURCE_MAX_BYTES'
+    );
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse('x'.repeat(101))
+    );
+    expect(await fetchSourceText({ ...config, maxBytes: 200 })).toHaveLength(
+      101
+    );
+  });
   it('prunes all expired sources and bounds retained input bytes', async () => {
     const { trimSourceCache } = await import('./live-tv/shared.js');
     const entries = new Map([
@@ -459,7 +486,9 @@ describe('live TV sources', () => {
     };
     const addon = new M3uAddon(config);
     vi.mocked(makeRequest).mockRejectedValueOnce(new Error('offline'));
-    await expect(addon.getCatalog()).rejects.toThrow('offline');
+    await expect(addon.getCatalog()).rejects.toThrow(
+      'Could not fetch source from example.com'
+    );
     vi.mocked(makeRequest).mockResolvedValue(
       sourceResponse(
         '#EXTM3U\n#EXTINF:-1 tvg-id="bbc",BBC One\nhttps://example.com/bbc.m3u8'

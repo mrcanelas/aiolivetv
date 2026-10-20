@@ -9,7 +9,7 @@ vi.mock('../presets/index.js', () => ({
 }));
 vi.mock('../analytics/index.js', () => ({
   track: vi.fn(),
-  classifyAddonError: vi.fn(),
+  classifyAddonError: vi.fn(() => ({})),
   hmac: vi.fn(),
 }));
 vi.mock('../utils/index.js', () => ({
@@ -24,9 +24,12 @@ vi.mock('../utils/index.js', () => ({
   },
   appConfig: {
     resources: {
-      timeouts: { manifest: 3000 },
+      timeouts: { manifest: 3000, catalog: 30000 },
       background: { enabled: true, timeout: 15000 },
-      cache: { manifest: { ttl: { '*': 21600 } } },
+      cache: {
+        manifest: { ttl: { '*': 21600 } },
+        catalog: { ttl: { '*': -1 } },
+      },
     },
   },
   makeRequest: vi.fn(),
@@ -72,6 +75,25 @@ beforeEach(() => {
 afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
+});
+
+it('preserves safe builtin source diagnostics in catalog errors', async () => {
+  const source = {
+    ...addon(),
+    manifestUrl: 'http://localhost/builtins/live-tv/xmltv/config/manifest.json',
+  };
+  vi.mocked(makeRequest).mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        success: false,
+        error: { message: 'Source exceeds maximum size. Use a smaller guide.' },
+      }),
+      { status: 413, headers: { 'Content-Type': 'application/json' } }
+    ) as never
+  );
+  await expect(
+    new Wrapper(source).getCatalogResponse('tv', 'channels')
+  ).rejects.toThrow('Source exceeds maximum size');
 });
 
 describe('EPG manifest requests', () => {

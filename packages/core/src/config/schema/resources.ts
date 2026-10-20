@@ -69,6 +69,16 @@ const streamUrlMappings = z.union([
  * caches, and incoming stream-URL rewrites.
  */
 export const resourcesSchema = {
+  liveTvSourceMaxBytes: {
+    schema: positiveInt,
+    default: 50 * 1024 * 1024,
+    label: 'Live TV source maximum size (bytes)',
+    description:
+      'Maximum downloaded and decompressed M3U/XMLTV source size. Increase only when the instance has enough memory to parse larger guides.',
+    env: 'LIVE_TV_SOURCE_MAX_BYTES',
+    requiresRestart: false,
+    secret: false,
+  },
   streamUrlMappings: {
     schema: streamUrlMappings,
     default: {} as Record<string, string>,

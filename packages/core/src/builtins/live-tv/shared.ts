@@ -1,5 +1,6 @@
 import { gunzipSync } from 'node:zlib';
 import { z } from 'zod';
+import { APIError, ErrorCode } from '../../utils/constants.js';
 import {
   fromUrlSafeBase64,
   makeRequest,
@@ -33,6 +34,7 @@ export function trimSourceCache<
 export const LiveTvSourceConfigSchema = z.object({
   sourceUrl: z.url(),
   timeout: z.number().int().positive(),
+  maxBytes: z.number().int().positive().optional(),
   /** Shift program start/end times by this many minutes (positive = later). */
   timeShiftMinutes: z.number().int().default(0),
 });
@@ -87,19 +89,34 @@ export async function fetchSourceText(
 ): Promise<string> {
   const response = await makeRequest(config.sourceUrl, {
     timeout: config.timeout,
+  }).catch((error: unknown) => {
+    if (error instanceof APIError) throw error;
+    const hostname = new URL(config.sourceUrl).hostname;
+    throw new APIError(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      502,
+      `Could not fetch source from ${hostname}. Check that the source is available, its hostname resolves, and the instance can reach it.`
+    );
   });
   if (!response.ok) {
-    throw new Error(
-      `Source returned ${response.status} ${response.statusText}`
+    throw new APIError(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      502,
+      `Source returned HTTP ${response.status}. Check the source URL and access requirements.`
     );
   }
-  const maxBytes = options?.maxBytes ?? MAX_LIVE_TV_SOURCE_BYTES;
+  const maxBytes =
+    options?.maxBytes ?? config.maxBytes ?? MAX_LIVE_TV_SOURCE_BYTES;
+  const sizeError = () =>
+    new APIError(
+      ErrorCode.BAD_REQUEST,
+      413,
+      `Source exceeds maximum size of ${maxBytes} bytes. Use a smaller regional guide or ask the instance administrator to adjust LIVE_TV_SOURCE_MAX_BYTES in Dashboard settings.`
+    );
   const contentLength = Number(response.headers?.get?.('content-length'));
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     await response.body?.cancel();
-    throw new Error(
-      `Source exceeds maximum size of ${maxBytes} bytes (${contentLength})`
-    );
+    throw sizeError();
   }
   if (!response.body) return '';
   const reader = response.body.getReader();
@@ -112,15 +129,22 @@ export async function fetchSourceText(
       bytes += value.byteLength;
       if (bytes > maxBytes) {
         await reader.cancel();
-        throw new Error(`Source exceeds maximum size of ${maxBytes} bytes`);
+        throw sizeError();
       }
       parts.push(value);
     }
     const source = Buffer.concat(parts, bytes);
-    const decoded =
-      source[0] === 0x1f && source[1] === 0x8b
-        ? gunzipSync(source, { maxOutputLength: maxBytes })
-        : source;
+    let decoded: Buffer;
+    try {
+      decoded =
+        source[0] === 0x1f && source[1] === 0x8b
+          ? gunzipSync(source, { maxOutputLength: maxBytes })
+          : source;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ERR_BUFFER_TOO_LARGE')
+        throw sizeError();
+      throw error;
+    }
     return new TextDecoder().decode(decoded);
   } finally {
     reader.releaseLock();

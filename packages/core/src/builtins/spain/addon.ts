@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview, Stream } from '../../db/index.js';
 import { Cache } from '../../utils/index.js';
 import { TV_TYPE } from '../../utils/constants.js';
+import { APIError, ErrorCode } from '../../utils/constants.js';
 import {
   applyEpgTimeShift,
   bareChannelPreview,
@@ -43,8 +44,25 @@ async function cachedJson<T>(
   ttl = 300
 ): Promise<T> {
   return apiCache.wrap(
-    async () =>
-      JSON.parse(await fetchSourceText({ ...config, sourceUrl: url })) as T,
+    async () => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const text = await fetchSourceText({ ...config, sourceUrl: url });
+        try {
+          if (!text.trim()) throw new SyntaxError('Empty response');
+          return JSON.parse(text) as T;
+        } catch (error) {
+          if (!(error instanceof SyntaxError)) throw error;
+          if (attempt === 1) {
+            throw new APIError(
+              ErrorCode.INTERNAL_SERVER_ERROR,
+              502,
+              `The TV provider returned empty or invalid JSON (${new URL(url).hostname}). Please retry later or check the instance HTTP proxy settings.`
+            );
+          }
+        }
+      }
+      throw new Error('Unreachable JSON retry state');
+    },
     url,
     ttl
   );

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AIOStreamsContext } from './types.js';
 import type { MetaPreview } from '../db/schemas.js';
+vi.mock('../config/index.js', () => ({
+  config: { resources: { timeouts: { catalog: 30000 } } },
+}));
 
 const fixture = vi.hoisted(() => {
   process.env.BASE_URL = 'http://127.0.0.1:3000';
@@ -396,6 +399,29 @@ describe('merged Live TV pagination', () => {
     ).toBe(true);
   });
 
+  it('waits beyond six seconds when the configured catalog timeout allows it', async () => {
+    vi.useFakeTimers();
+    const ctx = context();
+    provideChannels(30, true);
+    const healthy = fixture.fetch.getMockImplementation()!;
+    fixture.fetch.mockImplementation(async (...args) => {
+      if (new URLSearchParams(args[2]).has('date')) {
+        await new Promise((resolve) => setTimeout(resolve, 7000));
+      }
+      return healthy(...args);
+    });
+    const pending = getMergedCatalog(
+      ctx,
+      'tv',
+      LIVE_TV_MERGED_CATALOG_ID,
+      'date=2026-10-07'
+    );
+    await vi.advanceTimersByTimeAsync(7000);
+    expect((await pending).metasDetailed?.[0].videos?.[0].id).toBe(
+      'programme:0'
+    );
+  });
+
   it('bounds stalled guide requests and retries without caching missing schedules', async () => {
     vi.useFakeTimers();
     const ctx = context();
@@ -412,7 +438,7 @@ describe('merged Live TV pagination', () => {
       LIVE_TV_MERGED_CATALOG_ID,
       'date=2026-10-07'
     );
-    await vi.advanceTimersByTimeAsync(6000);
+    await vi.advanceTimersByTimeAsync(30000);
     const response = await pending;
     expect(response.cacheable).toBe(false);
     expect(response.metasDetailed).toHaveLength(25);

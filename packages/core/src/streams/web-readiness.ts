@@ -4,6 +4,7 @@ import { makeRequest } from '../utils/index.js';
 import { canRunFfprobe } from '../utils/runtime.js';
 import { runFfprobe } from './ffprobe-runner.js';
 import { parseFfprobeJson } from './probed.js';
+import { SsrfError } from '../utils/ssrf.js';
 
 export interface StreamProxyHints {
   requestHeaders?: Record<string, string> | null;
@@ -65,7 +66,8 @@ export async function probeWebPlayable(
     if (contentType.includes('mp2t') || contentType.includes('mpegts')) {
       return false;
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof SsrfError) return false;
     // fall through to ffprobe when a binary is available
   }
 

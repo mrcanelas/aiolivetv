@@ -5,6 +5,11 @@ vi.mock('../utils/index.js', () => ({
 }));
 
 import type { ParsedStream } from '../db/schemas.js';
+import { makeRequest } from '../utils/index.js';
+import { SsrfError } from '../utils/ssrf.js';
+import { runFfprobe } from './ffprobe-runner.js';
+vi.mock('./ffprobe-runner.js', () => ({ runFfprobe: vi.fn() }));
+vi.mock('../utils/runtime.js', () => ({ canRunFfprobe: () => true }));
 import {
   applyLiveStreamWebHints,
   hasStreamProxyHeaders,
@@ -27,6 +32,18 @@ const passthroughStream = {
 } satisfies ParsedStream;
 
 describe('web-readiness', () => {
+  it('does not send an SSRF-blocked URL to ffprobe', async () => {
+    vi.mocked(makeRequest).mockRejectedValueOnce(
+      new SsrfError('Blocked IP address: 127.0.0.1')
+    );
+    await expect(
+      resolveNotWebReady(
+        { url: 'http://127.0.0.1:6878/ace/id' },
+        { probe: true }
+      )
+    ).resolves.toBe(true);
+    expect(runFfprobe).not.toHaveBeenCalled();
+  });
   it('does not infer notWebReady from provider proxy headers alone', async () => {
     expect(
       hasStreamProxyHeaders({

@@ -165,6 +165,7 @@ function generateAddon(
   const config = {
     sourceUrl: options.sourceUrl,
     timeout: options.timeout || appConfig.presets.defaultTimeout,
+    maxBytes: appConfig.resources.liveTvSourceMaxBytes,
     timeShiftMinutes: options.timeShiftMinutes ?? 0,
   };
   return {

@@ -38,6 +38,7 @@ import {
 
 import { isMergedCatalogId } from './liveTvMergedCatalog.js';
 import { LIVE_TV_CATALOG_PAGE_SIZE } from '../builtins/live-tv/epg.js';
+import { config as appConfig } from '../config/index.js';
 
 export {
   LIVE_TV_MERGED_CATALOG_ID,
@@ -48,7 +49,6 @@ export {
 const logger = createLogger('core');
 const MAX_LIVE_TV_SOURCE_PAGES = 2_500;
 const MAX_LIVE_TV_SOURCE_ITEMS = 50_000;
-const LIVE_TV_GUIDE_BUDGET_MS = 6000;
 
 async function fetchSelectedGuidePages(
   ctx: AIOStreamsContext,
@@ -715,7 +715,8 @@ export async function getMergedCatalog(
     );
     if (!previews.success) return previews;
     const selectedIds = new Set(previews.data.map((item) => item.id));
-    const deadline = Date.now() + LIVE_TV_GUIDE_BUDGET_MS;
+    const guideBudgetMs = appConfig.resources.timeouts.catalog;
+    const deadline = Date.now() + guideBudgetMs;
     const sources = selectedIds.size
       ? await Promise.all(
           mergedCatalog.catalogIds.map((source) =>
@@ -730,7 +731,7 @@ export async function getMergedCatalog(
                 ),
               { items: [] as Meta[], cacheable: false },
               {
-                timeout: LIVE_TV_GUIDE_BUDGET_MS,
+                timeout: guideBudgetMs,
                 getContext: () => 'selected Live TV guide page',
               }
             )

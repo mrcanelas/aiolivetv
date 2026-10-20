@@ -72,6 +72,31 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-13T12:30:00Z'));
 });
+
+it('retries an empty Orange response without caching it', async () => {
+  orangeMock();
+  const healthy = vi.mocked(makeRequest).getMockImplementation()!;
+  vi.mocked(makeRequest)
+    .mockResolvedValueOnce(new Response('') as never)
+    .mockImplementation(healthy);
+  const channels = await new OrangeTvAddon({ timeout: 1000 }).getCatalog();
+  expect(channels).toHaveLength(1);
+  expect(
+    vi
+      .mocked(makeRequest)
+      .mock.calls.filter(([url]) => String(url).includes('GetChannelList'))
+  ).toHaveLength(2);
+});
+
+it('reports invalid provider JSON without exposing source credentials', async () => {
+  vi.mocked(makeRequest).mockImplementation(
+    async () => new Response('not JSON') as never
+  );
+  await expect(
+    new OrangeTvAddon({ timeout: 1000 }).getCatalog()
+  ).rejects.toThrow('empty or invalid JSON (pc.orangetv.orange.es)');
+  expect(makeRequest).toHaveBeenCalledTimes(2);
+});
 afterEach(() => vi.useRealTimers());
 
 function orangeMock(
