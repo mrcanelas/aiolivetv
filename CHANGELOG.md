@@ -14,6 +14,11 @@
 * **vivotv:** preserve original channel logo dimensions ([8b0c9ce](https://github.com/mrcanelas/aiolivetv/commit/8b0c9ce1134d544e1f9e4d1369ccbe30580d2c55))
 * **xtream:** handle provider schemas and large catalogs ([4b654ea](https://github.com/mrcanelas/aiolivetv/commit/4b654eaab2525dcf46735372352412903e2ade10))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.3.0](https://github.com/mrcanelas/aiolivetv/compare/v1.2.0...v1.3.0) (2026-10-15)
 
 
