@@ -46,12 +46,16 @@ interface PgExecutor {
 async function runQuery<T>(
   exec: PgExecutor,
   text: string,
-  params: unknown[]
+  params: unknown[],
+  retryConnection = false
 ): Promise<{ rows: T[]; rowCount: number }> {
   try {
     const r = await exec.query(text, params);
     return { rows: r.rows as T[], rowCount: r.rowCount ?? 0 };
   } catch (err) {
+    if (retryConnection && classifyPgError(err) === 'connection') {
+      return runQuery<T>(exec, text, params);
+    }
     throw new DbError(classifyPgError(err), (err as Error).message, err);
   }
 }
@@ -85,7 +89,8 @@ export class PostgresDriver implements DbDriver {
     params?: readonly unknown[]
   ): Promise<T[]> {
     const { text, params: p } = normalize(s, params);
-    const r = await runQuery<T>(this.pool, text, p);
+    // Only retry reads outside transactions; replaying writes can duplicate data.
+    const r = await runQuery<T>(this.pool, text, p, /^\s*SELECT\b/i.test(text));
     return r.rows;
   }
 
@@ -139,7 +144,7 @@ export class PostgresDriver implements DbDriver {
   }
 
   async ping(): Promise<void> {
-    await this.pool.query('SELECT 1');
+    await this.query('SELECT 1');
   }
 }
 

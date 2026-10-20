@@ -24,7 +24,12 @@ export function classifyPgError(err: unknown): DbErrorKind {
   if (
     code === 'ECONNREFUSED' ||
     code === 'ECONNRESET' ||
-    code === 'ETIMEDOUT'
+    code === 'ETIMEDOUT' ||
+    code === 'EHOSTUNREACH' ||
+    code?.startsWith('08') ||
+    /^(Connection terminated|timeout exceeded when trying to connect|Client has encountered a connection error)/i.test(
+      (err as Error | undefined)?.message ?? ''
+    )
   ) {
     return 'connection';
   }
