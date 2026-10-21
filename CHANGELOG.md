@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.5.0](https://github.com/mrcanelas/aiolivetv/compare/v1.4.1...v1.5.0) (2026-10-21)
+
+
+### Features
+
+* **frontend:** add social sharing preview image ([dfb25cc](https://github.com/mrcanelas/aiolivetv/commit/dfb25cc9c9e515c0d9a6651f8ee4dfe90b89a3d8))
+
+
+### Bug Fixes
+
+* **beamup:** accept cached builds during deployment verification ([606fed2](https://github.com/mrcanelas/aiolivetv/commit/606fed266f232a7d73ccf2b991ec44f845645fef))
+* **catalog:** include channels from detailed metadata responses ([d8ae9bd](https://github.com/mrcanelas/aiolivetv/commit/d8ae9bdfe20f0f2bd8094bbcac2fcc132c0062e1))
+* **database:** retry transient read connection failures ([9cb2057](https://github.com/mrcanelas/aiolivetv/commit/9cb20570223e318324a1342a400be41f2e0071b8))
+* **livetv:** recover from provider failures and resolve mapped channels ([38111a4](https://github.com/mrcanelas/aiolivetv/commit/38111a416cce469f6a9949eca6d4637db20bbd3d))
+
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.4.1](https://github.com/mrcanelas/aiolivetv/compare/v1.4.0...v1.4.1) (2026-10-20)
 
 
