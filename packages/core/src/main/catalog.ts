@@ -699,9 +699,9 @@ export async function getMergedCatalog(
   );
   const baseCacheKey = `${id}-${ctx.userData.uuid}-${configHash}${extrasCacheKeyPart ? `-${extrasCacheKeyPart}` : ''}`;
   const skipCacheKey = `${baseCacheKey}-skip=${requestedSkip}`;
-  const liveCatalogCacheKey = `${baseCacheKey}-live-page-v1`;
+  const liveCatalogCacheKey = `${baseCacheKey}-live-page-v2`;
   if (isLiveMerged && parsedExtras.date) {
-    const guideCacheKey = `${baseCacheKey}-guide-page-v2-skip=${requestedSkip}`;
+    const guideCacheKey = `${baseCacheKey}-guide-page-v3-skip=${requestedSkip}`;
     const cached = await mergedCatalogCache.get(guideCacheKey);
     if (cached?.catalog) return cached.catalog;
 
@@ -1052,11 +1052,17 @@ export async function getMergedCatalog(
   }
 
   const itemsBySource: MetaPreview[][] = [];
-  for (const { encodedCatalogId, items, fetched, skipped } of fetchResults) {
+  for (const {
+    encodedCatalogId,
+    items,
+    metasDetailed,
+    fetched,
+    skipped,
+  } of fetchResults) {
     if (skipped) continue;
     nextSourceSkips[encodedCatalogId] =
       (skipState.sourceSkips[encodedCatalogId] || 0) + fetched;
-    itemsBySource.push(items);
+    itemsBySource.push(isLiveMerged ? (metasDetailed ?? items) : items);
   }
 
   let allItems: MetaPreview[] = applyMergeMethod(

@@ -111,6 +111,54 @@ beforeEach(() => {
 });
 
 describe('merged Live TV pagination', () => {
+  it.each([true, false])(
+    'includes detailed-only channels without stream mappings (skip support: %s)',
+    async (supportsSkip) => {
+      const ctx = context();
+      if (!supportsSkip) ctx.manifests.fixture!.catalogs[0].extra = [];
+      const items = provideChannels(60, true);
+      ctx.userData.channelMappings = [
+        { id: 'channel:0', streams: [] },
+        { id: 'channel:1', enabled: false },
+        {
+          id: 'channel:2',
+          streams: [{ addonId: 'fixture', channelId: 'channel:2' }],
+        },
+      ];
+      fixture.fetch.mockImplementation(async (_type, _id, extras) => {
+        const skip = Number(new URLSearchParams(extras).get('skip') || 0);
+        return {
+          metasDetailed: supportsSkip ? items.slice(skip, skip + 25) : items,
+        };
+      });
+      const collected: MetaPreview[] = [];
+      for (const skip of [0, 25, 50, 75]) {
+        const response = await getMergedCatalog(
+          ctx,
+          'tv',
+          LIVE_TV_MERGED_CATALOG_ID,
+          `skip=${skip}`
+        );
+        expect(response.success).toBe(true);
+        collected.push(...response.data);
+      }
+      expect(collected.map((item) => item.id)).toEqual(
+        items.filter((item) => item.id !== 'channel:1').map((item) => item.id)
+      );
+      if (supportsSkip) {
+        const guide = await getMergedCatalog(
+          ctx,
+          'tv',
+          LIVE_TV_MERGED_CATALOG_ID,
+          'date=2026-10-20&skip=25'
+        );
+        expect(guide.metasDetailed?.map((item) => item.id)).toEqual(
+          collected.slice(25, 50).map((item) => item.id)
+        );
+      }
+    }
+  );
+
   it('paginates sources that do not expose skip themselves', async () => {
     const ctx = context();
     ctx.manifests.fixture!.catalogs[0].extra = [];
