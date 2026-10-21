@@ -73,6 +73,7 @@ interface ClaroScheduleItem {
 }
 
 interface ClaroLiveChannelsResponse {
+  status?: string;
   response?: {
     liveChannels?: Array<{
       id?: string | number;
@@ -137,17 +138,23 @@ function buildEpgUrl(
   return `${API_BASE}?types=&channelIds=${channelIds}&startTime=${startTime}&endTime=${endTime}&location=${location}&channel=PCTV`;
 }
 
-async function fetchJson<T>(
+async function fetchJson(
   url: string,
   timeout: number
-): Promise<T | undefined> {
-  try {
-    const response = await makeRequest(url, { timeout });
-    if (!response.ok) return undefined;
-    return (await response.json()) as T;
-  } catch {
-    return undefined;
+): Promise<ClaroLiveChannelsResponse> {
+  const response = await makeRequest(url, { timeout });
+  if (!response.ok) {
+    throw new Error(`Claro TV+ API returned HTTP ${response.status}`);
   }
+  const body = (await response.json()) as ClaroLiveChannelsResponse | null;
+  if (
+    !body ||
+    (body.status !== undefined && body.status !== 'OK') ||
+    !Array.isArray(body.response?.liveChannels)
+  ) {
+    throw new Error('Claro TV+ API returned an invalid liveChannels response');
+  }
+  return body;
 }
 
 function parseSchedules(body: ClaroLiveChannelsResponse | undefined) {
@@ -164,12 +171,9 @@ function parseSchedules(body: ClaroLiveChannelsResponse | undefined) {
 async function loadChannels(config: ClaroTvConfig): Promise<ClaroChannel[]> {
   const cacheKey = config.location ?? DEFAULT_LOCATION;
   const cached = await sourceCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached?.length) return cached;
 
-  const body = await fetchJson<ClaroLiveChannelsResponse>(
-    buildEpgUrl(config, {}),
-    config.timeout
-  );
+  const body = await fetchJson(buildEpgUrl(config, {}), config.timeout);
   const channels = [
     ...new Map(
       (body?.response?.liveChannels ?? [])
@@ -195,6 +199,9 @@ async function loadChannels(config: ClaroTvConfig): Promise<ClaroChannel[]> {
     ).values(),
   ].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
+  if (!channels.length) {
+    throw new Error(`Claro TV+ returned no channels for ${cacheKey}`);
+  }
   await sourceCache.set(cacheKey, channels, SOURCE_CACHE_TTL);
   return channels;
 }
@@ -208,7 +215,7 @@ async function loadSchedulesForUtcDay(
   if (!channelIds.length) return byChannel;
 
   const { start, end } = utcDayUnixBounds(date);
-  const body = await fetchJson<ClaroLiveChannelsResponse>(
+  const body = await fetchJson(
     buildEpgUrl(config, {
       channelIds: channelIds.join(','),
       startTime: start,
@@ -315,7 +322,7 @@ export class ClaroTvAddon {
           ],
         },
       ],
-      behaviorHints: { epgProvider: true },
+      behaviorHints: { epgProvider: groups.length > 0 },
     };
   }
 

@@ -1,11 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const sourceCache = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn() }));
 
 vi.mock('../../utils/index.js', () => ({
   Cache: {
-    getInstance: () => ({
-      get: vi.fn(),
-      set: vi.fn(),
-    }),
+    getInstance: () => sourceCache,
   },
   decodeHtmlEntities: (value: string) => value,
   fromUrlSafeBase64: (value: string) =>
@@ -18,7 +17,20 @@ const { ClaroTvAddon } = await import('./addon.js');
 const { makeRequest } = await import('../../utils/index.js');
 
 describe('Claro TV+ builtin', () => {
+  beforeEach(() => vi.resetAllMocks());
+
   it('exposes catalog and EPG metadata', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: 'OK',
+        response: {
+          liveChannels: [
+            { id: 316, name: 'Globo', logo: 'https://cdn.example/globo.png' },
+          ],
+        },
+      }),
+    } as never);
     const addon = new ClaroTvAddon({ timeout: 1000 });
     const manifest = await addon.getManifest();
     expect(manifest.behaviorHints?.epgProvider).toBe(true);
@@ -27,6 +39,65 @@ describe('Claro TV+ builtin', () => {
       { name: 'date' },
       { name: 'genre', isRequired: false },
     ]);
+  });
+
+  it.each([
+    ['HTTP failure', { ok: false, status: 403 }, 'HTTP 403'],
+    [
+      'API failure',
+      { ok: true, json: async () => ({ status: 'ERROR' }) },
+      'invalid liveChannels',
+    ],
+    [
+      'missing channels',
+      { ok: true, json: async () => ({ response: {} }) },
+      'invalid liveChannels',
+    ],
+    [
+      'empty channels',
+      { ok: true, json: async () => ({ response: { liveChannels: [] } }) },
+      'no channels for TERESINA,PIAUI',
+    ],
+  ])(
+    'reports %s without caching an empty catalog',
+    async (_name, response, message) => {
+      vi.mocked(makeRequest).mockResolvedValue(response as never);
+      const addon = new ClaroTvAddon({
+        timeout: 1000,
+        location: 'TERESINA,PIAUI',
+      });
+      await expect(addon.getCatalog()).rejects.toThrow(message);
+      expect(sourceCache.set).not.toHaveBeenCalled();
+      expect((await addon.getManifest()).behaviorHints?.epgProvider).toBe(
+        false
+      );
+    }
+  );
+
+  it('propagates network and JSON failures without caching them', async () => {
+    const addon = new ClaroTvAddon({ timeout: 1000 });
+    vi.mocked(makeRequest).mockRejectedValueOnce(new Error('fetch failed'));
+    await expect(addon.getCatalog()).rejects.toThrow('fetch failed');
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError('Invalid JSON');
+      },
+    } as never);
+    await expect(addon.getCatalog()).rejects.toThrow('Invalid JSON');
+    expect(sourceCache.set).not.toHaveBeenCalled();
+  });
+
+  it('retries an empty catalog cached by an earlier failed request', async () => {
+    sourceCache.get.mockResolvedValueOnce([]);
+    vi.mocked(makeRequest).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+    } as never);
+    await expect(
+      new ClaroTvAddon({ timeout: 1000 }).getCatalog()
+    ).rejects.toThrow('HTTP 503');
+    expect(makeRequest).toHaveBeenCalledOnce();
   });
 
   it('maps channels from the Claro TV+ API', async () => {
