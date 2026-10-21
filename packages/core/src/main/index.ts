@@ -5,7 +5,13 @@ import {
   StrictManifestResource,
   UserData,
 } from '../db/index.js';
-import { Cache, createLogger, IdParser } from '../utils/index.js';
+import {
+  Cache,
+  createLogger,
+  IdParser,
+  constants,
+  ExtrasParser,
+} from '../utils/index.js';
 import Proxifier from '../streams/proxifier.js';
 import StreamLimiter from '../streams/limiter.js';
 import {
@@ -26,6 +32,7 @@ import {
 import {
   getCatalog as _getCatalog,
   type GetCatalogOptions,
+  applyPreferredChannelGuides,
 } from './catalog.js';
 import { configurationProvidesNativeEpg } from './epgProvider.js';
 import {
@@ -96,7 +103,20 @@ export class AIOStreams {
     extras?: string,
     options?: GetCatalogOptions
   ) {
-    return _getCatalog(this.ctx, type, id, extras, options);
+    const result = await _getCatalog(this.ctx, type, id, extras, options);
+    if (type === constants.TV_TYPE && result.metasDetailed?.length) {
+      const date = new ExtrasParser(extras).date;
+      if (date) {
+        const preferred = await applyPreferredChannelGuides(
+          this.ctx,
+          result.metasDetailed,
+          date
+        );
+        result.metasDetailed = preferred.items;
+        if (!preferred.cacheable) result.cacheable = false;
+      }
+    }
+    return result;
   }
 
   public async getMeta(type: string, id: string) {

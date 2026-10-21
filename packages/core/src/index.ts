@@ -15,6 +15,8 @@ export * from './proxy/index.js';
 export {
   M3uAddon,
   XmltvAddon,
+  clearM3uSourceCache,
+  clearXmltvSourceCache,
   VivoTvAddon,
   MovistarTvAddon,
   TvpAddon,

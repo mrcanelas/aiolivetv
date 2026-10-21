@@ -8,6 +8,75 @@ import equal from 'fast-deep-equal';
 
 type ChannelMapping = NonNullable<UserData['channelMappings']>[number];
 
+export function compareChannelScans(
+  previous: ChannelsResponse,
+  next: ChannelsResponse
+) {
+  const before = new Map(
+    previous.channels.map((channel) => [channel.id, channel])
+  );
+  const after = new Map(next.channels.map((channel) => [channel.id, channel]));
+  const skippedInventory = (source: ChannelsResponse['sources'][number]) =>
+    source.skippedCatalogs?.some(
+      (catalog) => !catalog.endsWith(' (one-off events)')
+    );
+  const complete = (scan: ChannelsResponse, addonId: string) =>
+    !scan.scan?.truncated &&
+    scan.sources.some(
+      (source) =>
+        source.instanceId === addonId &&
+        source.ok &&
+        !source.truncated &&
+        !skippedInventory(source)
+    );
+  const changed = next.channels.filter((channel) => {
+    const old = before.get(channel.id);
+    return (
+      old &&
+      complete(previous, old.canonicalAddonId) &&
+      complete(next, channel.canonicalAddonId) &&
+      !equal(
+        [old.name, old.poster, old.sourceGroup, old.country, old.language],
+        [
+          channel.name,
+          channel.poster,
+          channel.sourceGroup,
+          channel.country,
+          channel.language,
+        ]
+      )
+    );
+  });
+  return {
+    added: next.channels.filter(
+      (channel) =>
+        !before.has(channel.id) && complete(previous, channel.canonicalAddonId)
+    ),
+    removed: previous.channels.filter(
+      (channel) =>
+        !after.has(channel.id) && complete(next, channel.canonicalAddonId)
+    ),
+    changed,
+    incomplete: Boolean(
+      next.scan?.truncated ||
+      next.sources.some(
+        (source) => !source.ok || source.truncated || skippedInventory(source)
+      )
+    ),
+  };
+}
+
+export function matchesChannelFilters(
+  channel: ChannelInfo,
+  filters: { group: string; country: string; language: string }
+) {
+  return (
+    (!filters.group || channel.group === filters.group) &&
+    (!filters.country || channel.country === filters.country) &&
+    (!filters.language || channel.language === filters.language)
+  );
+}
+
 export function clearAutomaticChannelMappings(
   mappings: UserData['channelMappings']
 ): ChannelMapping[] {
@@ -70,11 +139,13 @@ export function buildVisibleChannelMappings(
           channel.enabled &&
           streams.length === 0 &&
           !rejectedStreams &&
+          !channel.epgSource &&
           !customized
             ? undefined
             : {
                 id: channel.id,
                 canonicalAddonId: channel.canonicalAddonId,
+                ...(channel.epgSource ? { epgSource: channel.epgSource } : {}),
                 enabled: channel.enabled,
                 ...(customized
                   ? {

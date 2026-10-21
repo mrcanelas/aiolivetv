@@ -39,6 +39,7 @@ import {
 import { isMergedCatalogId } from './liveTvMergedCatalog.js';
 import { LIVE_TV_CATALOG_PAGE_SIZE } from '../builtins/live-tv/epg.js';
 import { config as appConfig } from '../config/index.js';
+import { addonProvidesNativeEpg } from './epgProvider.js';
 
 export {
   LIVE_TV_MERGED_CATALOG_ID,
@@ -49,6 +50,101 @@ export {
 const logger = createLogger('core');
 const MAX_LIVE_TV_SOURCE_PAGES = 2_500;
 const MAX_LIVE_TV_SOURCE_ITEMS = 50_000;
+
+/** Resolve explicit guide choices without changing channel or playback identities. */
+export async function applyPreferredChannelGuides(
+  ctx: AIOStreamsContext,
+  items: Meta[],
+  date: string
+): Promise<{ items: Meta[]; cacheable: boolean }> {
+  const selected = new Map(
+    (ctx.userData.channelMappings ?? [])
+      .filter(
+        (mapping) =>
+          mapping.epgSource && items.some((item) => item.id === mapping.id)
+      )
+      .map((mapping) => [mapping.id, mapping.epgSource!])
+  );
+  if (!selected.size) return { items, cacheable: true };
+  const guides = new Map<string, Meta>();
+  let cacheable = true;
+  const deadline = Date.now() + appConfig.resources.timeouts.catalog;
+  await Promise.all(
+    [...new Set([...selected.values()].map((source) => source.addonId))].map(
+      async (addonId) => {
+        const addon = ctx.addons.find(
+          (candidate) => candidate.instanceId === addonId
+        );
+        const manifest = ctx.manifests[addonId];
+        if (
+          !addon ||
+          !manifest ||
+          !addonProvidesNativeEpg(manifest, addon.resources)
+        ) {
+          cacheable = false;
+          return;
+        }
+        const targetIds = new Set(
+          [...selected.values()]
+            .filter((source) => source.addonId === addonId)
+            .map((source) => source.channelId)
+        );
+        const catalogs = manifest.catalogs.filter(
+          (catalog) =>
+            catalog.type === constants.TV_TYPE &&
+            catalog.extra?.some((extra) => extra.name === 'date')
+        );
+        const results = await Promise.all(
+          catalogs.map((catalog) =>
+            withTimeout(
+              () =>
+                fetchSelectedGuidePages(
+                  ctx,
+                  `id=${encodeURIComponent(`${addonId}.${catalog.id}`)}&type=${constants.TV_TYPE}`,
+                  new ExtrasParser(`date=${encodeURIComponent(date)}`),
+                  targetIds,
+                  deadline
+                ),
+              { items: [] as Meta[], cacheable: false },
+              {
+                timeout: Math.max(1, deadline - Date.now()),
+                getContext: () => 'preferred EPG guide',
+              }
+            )
+          )
+        );
+        for (const result of results) {
+          if (!result.cacheable) cacheable = false;
+          for (const item of result.items)
+            guides.set(`${addonId}\0${item.id}`, item);
+        }
+      }
+    )
+  );
+  return {
+    cacheable,
+    items: items.map((item) => {
+      const source = selected.get(item.id);
+      if (!source) return item;
+      const guide = guides.get(`${source.addonId}\0${source.channelId}`);
+      const videos = (guide?.videos ?? []).map((video) => ({
+        ...video,
+        id:
+          typeof video.startTime === 'string'
+            ? `${item.id}:epg:${video.startTime}`
+            : video.id,
+      }));
+      return {
+        ...item,
+        videos,
+        behaviorHints: {
+          ...item.behaviorHints,
+          hasScheduledVideos: videos.length > 0,
+        },
+      };
+    }),
+  };
+}
 
 async function fetchSelectedGuidePages(
   ctx: AIOStreamsContext,
@@ -213,7 +309,8 @@ export async function fetchRawCatalogItems(
     const catalog = await new Wrapper(addon).getCatalogResponse(
       actualType,
       catalogId,
-      extrasString
+      extrasString,
+      { bypassCache: ctx.options?.bypassCatalogCache }
     );
     logger.debug(
       {

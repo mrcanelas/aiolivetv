@@ -46,7 +46,7 @@ vi.mock('../utils/index.js', async () => ({
   maskSensitiveInfo: (value: string) => value,
   withTimeout: (await import('../utils/general.js')).withTimeout,
 }));
-import { getMergedCatalog } from './catalog.js';
+import { getMergedCatalog, applyPreferredChannelGuides } from './catalog.js';
 import {
   addLiveTvChannelMappingGenreOptions,
   buildLiveTvMergedCatalog,
@@ -108,6 +108,65 @@ beforeEach(() => {
   fixture.fetch.mockReset();
   fixture.cache.clear();
   vi.useRealTimers();
+});
+
+describe('explicit EPG guide selection', () => {
+  it('uses the selected guide and remaps programme ids while preserving the canonical channel', async () => {
+    const ctx = context();
+    ctx.manifests.fixture!.behaviorHints = { epgProvider: true };
+    ctx.userData.channelMappings = [
+      {
+        id: 'canonical',
+        canonicalAddonId: 'playlist',
+        epgSource: { addonId: 'fixture', channelId: 'channel:0' },
+      },
+    ];
+    provideChannels(1, true);
+    const source = {
+      id: 'canonical',
+      name: 'My channel',
+      type: 'tv',
+      videos: [{ id: 'old', title: 'Old guide' }],
+    };
+    const result = await applyPreferredChannelGuides(
+      ctx,
+      [source],
+      '2026-10-21'
+    );
+    expect(result.items[0]).toMatchObject({
+      id: 'canonical',
+      name: 'My channel',
+      videos: [{ title: 'News' }],
+    });
+    expect(source.videos[0].title).toBe('Old guide');
+    expect(result.cacheable).toBe(true);
+  });
+
+  it('does not silently use another schedule when the selected guide is unavailable', async () => {
+    const ctx = context();
+    ctx.userData.channelMappings = [
+      {
+        id: 'canonical',
+        epgSource: { addonId: 'missing', channelId: 'other' },
+      },
+    ];
+    const result = await applyPreferredChannelGuides(
+      ctx,
+      [
+        {
+          id: 'canonical',
+          type: 'tv',
+          name: 'My channel',
+          videos: [{ id: 'old', title: 'Wrong schedule' }],
+        },
+      ],
+      '2026-10-21'
+    );
+    expect(result.items[0].videos).toEqual([]);
+    expect(result.items[0].behaviorHints?.hasScheduledVideos).toBe(false);
+    expect(result.cacheable).toBe(false);
+    expect(fixture.fetch).not.toHaveBeenCalled();
+  });
 });
 
 describe('merged Live TV pagination', () => {

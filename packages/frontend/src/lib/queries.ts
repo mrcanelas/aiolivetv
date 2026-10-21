@@ -45,6 +45,9 @@ export function channelAlternativesQuery(
         (source) => !source.ok || source.truncated
       );
       return {
+        epgSources:
+          response.channels.find((channel) => channel.id === channelId)
+            ?.availableEpgSources ?? [],
         sources:
           response.channels.find((channel) => channel.id === channelId)
             ?.availableStreamSources ?? [],

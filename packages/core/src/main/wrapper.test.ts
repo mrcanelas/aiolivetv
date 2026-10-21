@@ -40,7 +40,7 @@ vi.mock('../utils/index.js', () => ({
 }));
 
 const { Wrapper } = await import('./wrapper.js');
-const { makeRequest } = await import('../utils/index.js');
+const { makeRequest, appConfig } = await import('../utils/index.js');
 const manifest: Manifest = {
   id: 'org.aiolivetv.orange-tv',
   name: 'Orange TV',
@@ -97,6 +97,42 @@ it('preserves safe builtin source diagnostics in catalog errors', async () => {
 });
 
 describe('EPG manifest requests', () => {
+  it('refreshes a cached catalog and surfaces failures instead of returning stale channels', async () => {
+    const ttl = appConfig.resources.cache.catalog.ttl['*'];
+    appConfig.resources.cache.catalog.ttl['*'] = 300;
+    const source = addon();
+    const url = 'http://localhost/orange-tv/catalog/tv/channels.json';
+    stores.set(
+      'catalog',
+      new Map([[url, { metas: [{ id: 'old', type: 'tv', name: 'Old' }] }]])
+    );
+    try {
+      vi.mocked(makeRequest).mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ metas: [{ id: 'new', type: 'tv', name: 'New' }] })
+        ) as never
+      );
+      const wrapper = new Wrapper(source);
+      expect(
+        (await wrapper.getCatalogResponse('tv', 'channels')).metas?.[0].id
+      ).toBe('old');
+      expect(
+        (
+          await wrapper.getCatalogResponse('tv', 'channels', undefined, {
+            bypassCache: true,
+          })
+        ).metas?.[0].id
+      ).toBe('new');
+      vi.mocked(makeRequest).mockRejectedValueOnce(new Error('offline'));
+      await expect(
+        wrapper.getCatalogResponse('tv', 'channels', undefined, {
+          bypassCache: true,
+        })
+      ).rejects.toThrow('offline');
+    } finally {
+      appConfig.resources.cache.catalog.ttl['*'] = ttl;
+    }
+  });
   it('normalizes RTVE TV catalogs without importing radio or on-demand catalogs, including cached responses', async () => {
     const upstream = {
       ...manifest,

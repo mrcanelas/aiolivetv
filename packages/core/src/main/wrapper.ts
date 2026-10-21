@@ -390,10 +390,12 @@ export class Wrapper {
   async getCatalogResponse(
     type: string,
     id: string,
-    extras?: string
+    extras?: string,
+    options?: { bypassCache?: boolean }
   ): Promise<CatalogResponse> {
     const guideDate = extras
-      ? new URLSearchParams(extras.replace(/^\//, '')).get('date') ?? undefined
+      ? (new URLSearchParams(extras.replace(/^\//, '')).get('date') ??
+        undefined)
       : undefined;
     const isGuide = Boolean(guideDate);
 
@@ -439,7 +441,8 @@ export class Wrapper {
         options: this.addon.preset.options,
         headers: this.addon.headers,
         extras,
-      })
+      }),
+      options?.bypassCache
     );
   }
 
@@ -589,6 +592,7 @@ export class Wrapper {
 
     let doBackground =
       appConfig.resources.background.enabled &&
+      !bypassCache &&
       !!cacher &&
       !isEphemeralRuntime();
 
@@ -674,13 +678,15 @@ export class Wrapper {
     validator: (data: unknown) => T,
     cacher: Cache<string, T> | undefined,
     cacheTtl: number,
-    cacheKey?: string
+    cacheKey?: string,
+    bypassCache?: boolean
   ) {
     const { type, id, extras } = params;
     const url = this.buildResourceUrl(resource, type, id, extras);
     const effectiveCacheKey = cacheKey || url;
     let doBackground =
       appConfig.resources.background.enabled &&
+      !bypassCache &&
       !!cacher &&
       !isEphemeralRuntime();
 
@@ -728,6 +734,7 @@ export class Wrapper {
         requestFn,
         timeout,
         resourceName: resource,
+        bypassCache,
         cacher,
         cacheKey: effectiveCacheKey,
         cacheTtl,

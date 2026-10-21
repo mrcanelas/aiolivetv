@@ -261,7 +261,28 @@ async function scan(
             {
               id: 'bbc',
               canonicalAddonId: 'guide',
-              streams: [],
+              streams:
+                sourceConfig === 'saved-bindings'
+                  ? [
+                      {
+                        addonId: 'streams',
+                        channelId: 'gone',
+                        confidence: 0,
+                        enabled: false,
+                      },
+                      {
+                        addonId: 'manual',
+                        channelId: 'manual:one',
+                        url: 'https://example.com/live.m3u8',
+                        confidence: 0,
+                      },
+                      {
+                        addonId: 'streams',
+                        channelId: 'bbc-stream',
+                        confidence: 0,
+                      },
+                    ]
+                  : [],
               enabled,
               rejectedStreams: rejectAlternative
                 ? [{ addonId: 'streams', channelId: 'bbc-alt' }]
@@ -344,6 +365,25 @@ describe('Channels prepared matching', () => {
     expect(fixture.m3uConfig).toMatchObject({
       sourceUrl: 'https://example.com/list.m3u',
       timeout: 5000,
+    });
+  });
+
+  it('keeps unavailable bindings and interleaved manual streams in saved priority order', async () => {
+    const channels = await scan(false, false, undefined, 200, 'saved-bindings');
+    const bbc = channels.find((channel) => channel.id === 'bbc')!;
+    expect(bbc.mappings.map((mapping) => mapping.channelId)).toEqual([
+      'gone',
+      'manual:one',
+      'bbc-stream',
+    ]);
+    expect(bbc.mappings[0]).toMatchObject({
+      enabled: false,
+      canStream: false,
+      confidence: 0,
+    });
+    expect(bbc.mappings[1]).toMatchObject({
+      canStream: true,
+      url: 'https://example.com/live.m3u8',
     });
   });
 

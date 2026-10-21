@@ -43,6 +43,7 @@ export interface AIOStreamsOptions {
   skipFailedAddons?: boolean;
   increasedManifestTimeout?: boolean;
   bypassManifestCache?: boolean;
+  bypassCatalogCache?: boolean;
 }
 
 export type StatEntry = {

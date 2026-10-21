@@ -3,25 +3,37 @@ import { Modal } from '../../../ui/modal';
 import { Button } from '../../../ui/button';
 import { TextInput } from '../../../ui/text-input';
 import { Select } from '../../../ui/select';
+import { Combobox } from '../../../ui/combobox';
 import type { ChannelInfo } from '@/lib/api';
-import { normalizeChannelGroup } from '../utils';
+import {
+  normalizeChannelGroup,
+  streamSourceKey,
+  parseStreamSourceKey,
+} from '../utils';
 
 type ChannelEditModalProps = {
   channel: ChannelInfo | null;
   groups: string[];
+  epgSources?: ChannelInfo['availableEpgSources'];
+  loadingEpgSources?: boolean;
+  epgSourcesError?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (
     channelId: string,
     name: string,
     poster: string,
-    group: string
+    group: string,
+    epgSource?: ChannelInfo['epgSource']
   ) => void;
 };
 
 export function ChannelEditModal({
   channel,
   groups,
+  epgSources = [],
+  loadingEpgSources = false,
+  epgSourcesError,
   open,
   onOpenChange,
   onSave,
@@ -29,21 +41,34 @@ export function ChannelEditModal({
   const [name, setName] = React.useState('');
   const [poster, setPoster] = React.useState('');
   const [group, setGroup] = React.useState('');
+  const [epgSource, setEpgSource] = React.useState('');
 
   React.useEffect(() => {
     if (!channel) return;
     setName(channel.name);
     setPoster(channel.poster ?? '');
     setGroup(channel.group ?? '');
+    setEpgSource(
+      channel.epgSource
+        ? streamSourceKey(
+            channel.epgSource.addonId,
+            channel.epgSource.channelId
+          )
+        : ''
+    );
   }, [channel, open]);
 
   const handleSave = () => {
     if (!channel || !name.trim()) return;
+    const source = epgSource ? parseStreamSourceKey(epgSource) : undefined;
     onSave(
       channel.id,
       name.trim(),
       poster.trim(),
-      normalizeChannelGroup(group) ?? ''
+      normalizeChannelGroup(group) ?? '',
+      source
+        ? { addonId: source.addonId, channelId: source.streamChannelId }
+        : undefined
     );
     onOpenChange(false);
   };
@@ -112,6 +137,52 @@ export function ChannelEditModal({
           }
           placeholder="Or type a new group"
         />
+        <Combobox
+          label="EPG guide"
+          virtualized
+          placeholder={
+            loadingEpgSources
+              ? 'Loading guide channels…'
+              : 'Automatic — search to choose a guide channel'
+          }
+          value={epgSource ? [epgSource] : []}
+          onValueChange={(value) => setEpgSource(value[value.length - 1] ?? '')}
+          options={[
+            ...(epgSource &&
+            !epgSources.some(
+              (source) =>
+                streamSourceKey(source.addonId, source.channelId) === epgSource
+            )
+              ? [
+                  {
+                    value: epgSource,
+                    label: 'Saved guide (currently unavailable)',
+                    textValue: 'Saved guide (currently unavailable)',
+                  },
+                ]
+              : []),
+            ...epgSources.map((source) => ({
+              value: streamSourceKey(source.addonId, source.channelId),
+              label: `${source.addonName} — ${source.name}`,
+              textValue: `${source.addonName} — ${source.name}`,
+            })),
+          ]}
+          emptyMessage="No guide channels found"
+          keepOpenOnSelect={false}
+        />
+        {epgSource ? (
+          <Button intent="primary-subtle" onClick={() => setEpgSource('')}>
+            Use automatic EPG selection
+          </Button>
+        ) : null}
+        {epgSourcesError ? (
+          <p className="text-sm text-red-400">{epgSourcesError}</p>
+        ) : null}
+        <p className="text-xs text-[--muted]">
+          A selected guide supplies the schedule. Stream bindings and priorities
+          are preserved. If it becomes unavailable, the channel has no schedule
+          until the guide recovers or you change this selection.
+        </p>
         <div className="flex justify-end gap-2">
           <Button intent="primary-outline" onClick={() => onOpenChange(false)}>
             Cancel

@@ -16,6 +16,8 @@ import {
   streamSourceKey,
   isVisibleChannelSuggestion,
   normalizeChannelGroup,
+  compareChannelScans,
+  matchesChannelFilters,
 } from '../utils';
 
 describe('clearAutomaticChannelMappings', () => {
@@ -165,6 +167,13 @@ function channel(
 }
 
 describe('buildVisibleChannelMappings', () => {
+  it('preserves a guide choice even when the channel has no streams or custom name', () => {
+    const epgSource = { addonId: 'other-guide', channelId: 'different-id' };
+    const item = channel({ id: 'bbc', name: 'BBC', epgSource });
+    expect(
+      buildVisibleChannelMappings([item], [], new Set(), new WeakMap())[0]
+    ).toMatchObject({ id: 'bbc', epgSource });
+  });
   it.each([false, true])(
     'preserves saved edits and bindings when a source channel is absent (empty=%s)',
     (empty) => {
@@ -453,6 +462,79 @@ describe('asChannelsResponse', () => {
     expect(
       asChannelsResponse([channel({ id: 'a', name: 'A' })]).channels
     ).toHaveLength(1);
+  });
+});
+
+describe('refresh summaries and bulk filters', () => {
+  const source = {
+    instanceId: 'xmltv',
+    name: 'Guide',
+    contributesChannels: true,
+    canStream: false,
+    epgProvider: true,
+    ok: true,
+    durationMs: 10,
+    fetchedAt: '2026-10-21T12:00:00Z',
+    channelCount: 2,
+    streamCount: 0,
+  };
+  const before = {
+    ...asChannelsResponse([]),
+    sources: [source],
+    channels: [
+      channel({ id: 'a', name: 'A' }),
+      channel({ id: 'b', name: 'B' }),
+    ],
+  };
+  const after = {
+    ...before,
+    channels: [
+      channel({ id: 'a', name: 'Updated A' }),
+      channel({ id: 'c', name: 'C' }),
+    ],
+  };
+
+  it('reports additions, missing channels and changed metadata after a complete scan', () => {
+    const changes = compareChannelScans(before, after);
+    expect(changes.added.map((item) => item.id)).toEqual(['c']);
+    expect(changes.removed.map((item) => item.id)).toEqual(['b']);
+    expect(changes.changed.map((item) => item.id)).toEqual(['a']);
+    expect(changes.incomplete).toBe(false);
+  });
+
+  it.each([
+    { sources: [{ ...source, ok: false }] },
+    { sources: [{ ...source, truncated: true }] },
+    { scan: { truncated: true, durationMs: 10, budgetMs: 10 } },
+  ])('does not report removals from incomplete sources', (overrides) => {
+    const changes = compareChannelScans(before, { ...after, ...overrides });
+    expect(changes.removed).toEqual([]);
+    expect(changes.changed).toEqual([]);
+    expect(changes.incomplete).toBe(true);
+  });
+
+  it('combines country, language and group filters without requiring EPG', () => {
+    const item = channel({
+      id: 'a',
+      name: 'A',
+      country: 'BR',
+      language: 'pt',
+      group: 'News',
+      epgProvider: false,
+    });
+    expect(
+      matchesChannelFilters(item, {
+        country: 'BR',
+        language: 'pt',
+        group: 'News',
+      })
+    ).toBe(true);
+    expect(
+      matchesChannelFilters(item, { country: 'BR', language: 'en', group: '' })
+    ).toBe(false);
+    expect(
+      matchesChannelFilters(item, { country: '', language: '', group: '' })
+    ).toBe(true);
   });
 });
 

@@ -64,12 +64,19 @@ import {
   MANUAL_STREAM_ADDON_ID,
   normalizeChannelGroup,
   parseStreamSourceKey,
+  compareChannelScans,
+  matchesChannelFilters,
 } from './utils';
 
 export function ChannelsMenu() {
   const { userData, setUserData } = useUserData();
   const [search, setSearch] = React.useState('');
   const [groupFilter, setGroupFilter] = React.useState('');
+  const [countryFilter, setCountryFilter] = React.useState('');
+  const [languageFilter, setLanguageFilter] = React.useState('');
+  const [scanChanges, setScanChanges] = React.useState<ReturnType<
+    typeof compareChannelScans
+  > | null>(null);
   const [sortMode, setSortMode] =
     React.useState<ChannelSortMode>('alphabetical');
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
@@ -255,6 +262,7 @@ export function ChannelsMenu() {
       setRefreshError(null);
       try {
         await queryClient.cancelQueries({ queryKey });
+        const previous = queryClient.getQueryData<ChannelsResponse>(queryKey);
         const current = userDataRef.current;
         const draft = reset
           ? {
@@ -264,13 +272,17 @@ export function ChannelsMenu() {
               ),
             }
           : current;
-        const data = await fetchChannels(draft, { autoMatch: true });
+        const data = await fetchChannels(draft, {
+          autoMatch: true,
+          refresh: true,
+        });
+        if (userDataRef.current !== current) {
+          throw new Error(
+            'Configuration changed during the scan. Refresh again to apply the latest draft.'
+          );
+        }
+        if (previous) setScanChanges(compareChannelScans(previous, data));
         if (reset) {
-          if (userDataRef.current !== current) {
-            throw new Error(
-              'Configuration changed during the scan. Please try clearing and matching again.'
-            );
-          }
           const visibleMappings = buildVisibleMappings(
             data.channels,
             draft.channelMappings
@@ -721,7 +733,8 @@ export function ChannelsMenu() {
     channelId: string,
     name: string,
     poster: string,
-    group: string
+    group: string,
+    epgSource?: ChannelInfo['epgSource']
   ) => {
     setCustomizedIds((current) => new Set(current).add(channelId));
     updateChannel(
@@ -731,6 +744,7 @@ export function ChannelsMenu() {
         name,
         poster: poster || null,
         group: normalizeChannelGroup(group) || channel.sourceGroup,
+        epgSource,
       }),
       [channelId]
     );
@@ -750,6 +764,28 @@ export function ChannelsMenu() {
     );
   }, [channels]);
   const searchQuery = React.useDeferredValue(search.trim().toLowerCase());
+  const knownCountries = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          channels.flatMap((channel) =>
+            channel.country ? [channel.country] : []
+          )
+        ),
+      ].sort(),
+    [channels]
+  );
+  const knownLanguages = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          channels.flatMap((channel) =>
+            channel.language ? [channel.language] : []
+          )
+        ),
+      ].sort(),
+    [channels]
+  );
   const filteredChannels = React.useMemo(
     () =>
       sortChannels(
@@ -760,12 +796,22 @@ export function ChannelsMenu() {
           ) {
             return false;
           }
-          if (groupFilter && channel.group !== groupFilter) return false;
-          return true;
+          return matchesChannelFilters(channel, {
+            group: groupFilter,
+            country: countryFilter,
+            language: languageFilter,
+          });
         }),
         sortMode
       ),
-    [reviewedChannels, searchQuery, groupFilter, sortMode]
+    [
+      reviewedChannels,
+      searchQuery,
+      groupFilter,
+      countryFilter,
+      languageFilter,
+      sortMode,
+    ]
   );
   const groupedChannels = React.useMemo(
     () =>
@@ -813,6 +859,15 @@ export function ChannelsMenu() {
   }, [selectedMappingChannel, alternativesQuery.data]);
   const editChannel =
     channels.find((channel) => channel.id === editChannelId) ?? null;
+  const editAlternativesQuery = useQuery({
+    ...channelAlternativesQuery(
+      channelsConfigKey,
+      editChannelId,
+      editChannel?.canonicalAddonId,
+      () => userDataRef.current
+    ),
+    enabled: Boolean(editChannel && editModal.isOpen),
+  });
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
@@ -1042,6 +1097,42 @@ export function ChannelsMenu() {
                       />
                     </div>
                   ) : null}
+                  {[
+                    {
+                      label: 'country',
+                      values: knownCountries,
+                      value: countryFilter,
+                      setValue: setCountryFilter,
+                    },
+                    {
+                      label: 'language',
+                      values: knownLanguages,
+                      value: languageFilter,
+                      setValue: setLanguageFilter,
+                    },
+                  ]
+                    .filter((filter) => filter.values.length > 0)
+                    .map((filter) => (
+                      <div key={filter.label} className="w-full sm:w-44">
+                        <Select
+                          options={[
+                            {
+                              value: '__all__',
+                              label: `All ${filter.label === 'country' ? 'countries' : 'languages'}`,
+                            },
+                            ...filter.values.map((value) => ({
+                              value,
+                              label: value,
+                            })),
+                          ]}
+                          value={filter.value || '__all__'}
+                          onValueChange={(value) =>
+                            filter.setValue(value === '__all__' ? '' : value)
+                          }
+                          aria-label={`Filter by ${filter.label}`}
+                        />
+                      </div>
+                    ))}
                   {hasSelection ? (
                     <div className="flex animate-in fade-in items-center gap-1.5 duration-150">
                       <span className="whitespace-nowrap text-xs font-semibold text-[--brand]">
@@ -1091,6 +1182,42 @@ export function ChannelsMenu() {
               </div>
             ) : null}
 
+            {scanChanges ? (
+              <details className="mb-4 rounded-md border border-[--border] px-3 py-2 text-sm">
+                <summary>
+                  Last refresh: {scanChanges.added.length} added,{' '}
+                  {scanChanges.removed.length} missing,{' '}
+                  {scanChanges.changed.length} changed
+                </summary>
+                {scanChanges.incomplete ? (
+                  <p className="mt-2 text-[--muted]">
+                    Some sources were incomplete. Missing channels from those
+                    sources are not counted.
+                  </p>
+                ) : null}
+                <p className="mt-2 text-[--muted]">
+                  Your mappings and customizations are preserved. Changes stay
+                  in the draft until Save.
+                </p>
+                {(['added', 'removed', 'changed'] as const).map((kind) =>
+                  scanChanges[kind].length ? (
+                    <p key={kind} className="mt-2 break-words">
+                      {kind === 'removed'
+                        ? 'Missing'
+                        : kind === 'added'
+                          ? 'Added'
+                          : 'Changed'}
+                      :{' '}
+                      {scanChanges[kind]
+                        .slice(0, 50)
+                        .map((channel) => channel.name)
+                        .join(', ')}
+                      {scanChanges[kind].length > 50 ? '…' : ''}
+                    </p>
+                  ) : null
+                )}
+              </details>
+            ) : null}
             {refreshError ? (
               <p className="rounded-md border border-red-500/40 px-3 py-2 text-sm text-red-400">
                 Refresh failed: {refreshError}
@@ -1287,6 +1414,9 @@ export function ChannelsMenu() {
       <ChannelEditModal
         channel={editChannel}
         groups={knownGroups}
+        epgSources={editAlternativesQuery.data?.epgSources}
+        loadingEpgSources={editAlternativesQuery.isFetching}
+        epgSourcesError={editAlternativesQuery.error?.message}
         open={editModal.isOpen}
         onOpenChange={(open) => {
           if (open) editModal.open();

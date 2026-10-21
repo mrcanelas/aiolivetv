@@ -19,6 +19,12 @@ export const ChannelStreamSource = z.object({
 export const ChannelMapping = z.object({
   id: z.string().min(1),
   canonicalAddonId: z.string().min(1).optional(),
+  epgSource: z
+    .object({
+      addonId: z.string().min(1),
+      channelId: z.string().min(1),
+    })
+    .optional(),
   enabled: z.boolean().optional(),
   name: z.string().min(1).optional(),
   poster: z.string().optional(),

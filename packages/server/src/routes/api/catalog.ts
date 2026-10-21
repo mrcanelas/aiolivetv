@@ -32,6 +32,8 @@ import {
   Cache,
   getSimpleTextHash,
   M3uAddon,
+  clearM3uSourceCache,
+  clearXmltvSourceCache,
 } from '@aiolivetv/core';
 
 const router: Router = Router();
@@ -300,6 +302,18 @@ router.post(
         typeof req.body.alternativesFor === 'string'
           ? req.body.alternativesFor
           : undefined;
+      if (req.body.refresh === true && !alternativesFor) {
+        const { presets } = UserDataSchema.pick({ presets: true }).parse(
+          req.body.userData
+        );
+        for (const preset of presets) {
+          if (typeof preset.options.sourceUrl !== 'string') continue;
+          if (preset.type === 'm3u')
+            clearM3uSourceCache(preset.options.sourceUrl);
+          if (preset.type === 'xmltv')
+            clearXmltvSourceCache(preset.options.sourceUrl);
+        }
+      }
       const prepared = await withinScanBudget(async () => {
         const validatedUserData = await validateDraft(req, req.body.userData, {
           lenientAddons: true,
@@ -308,7 +322,10 @@ router.post(
         if (Date.now() >= sourceScanDeadline) return 'deadline' as const;
         const configuredMappings = validatedUserData.channelMappings ?? [];
         validatedUserData.channelMappings = undefined;
-        const aio = await new AIOStreams(validatedUserData).initialise();
+        const aio = await new AIOStreams(validatedUserData, {
+          bypassCatalogCache: req.body.refresh === true,
+          bypassManifestCache: !alternativesFor,
+        }).initialise();
         return { validatedUserData, configuredMappings, aio };
       });
       if (prepared === 'deadline') {
@@ -917,7 +934,7 @@ router.post(
           name: source.name ?? source.channelId,
           poster: null,
           epgProvider: false,
-          canStream: true,
+          canStream: false,
           contributesChannels: false,
           confidence: source.confidence ?? 1,
           enabled: source.enabled !== false,
@@ -1016,25 +1033,17 @@ router.post(
           mappings: [],
           availableStreamSources: [],
         };
-        for (const source of manualSources) {
-          if (!source.url || !source.channelId) continue;
-          addManualStreamSource(channel, {
-            channelId: source.channelId,
-            url: source.url,
-            name: source.name,
-            confidence: source.confidence,
-            enabled: source.enabled,
-            headers: source.headers,
-            resolution: source.resolution,
-            encode: source.encode,
-            quality: source.quality,
-            languages: source.languages,
-            audioChannels: source.audioChannels,
-            visualTags: source.visualTags,
-          });
-        }
-        for (const { candidate, source } of streamSources) {
-          addConfiguredStreamSource(channel, source, candidate);
+        for (const source of configured.streams ?? []) {
+          if (isManualStreamSource(source)) {
+            if (source.url)
+              addManualStreamSource(channel, { ...source, url: source.url });
+          } else {
+            addConfiguredStreamSource(
+              channel,
+              source,
+              candidates.get(candidateKey(source.addonId, source.channelId))
+            );
+          }
         }
         markChannelAssigned(
           canonical ?? {
@@ -1195,15 +1204,44 @@ router.post(
               );
               return {
                 ...channel,
+                epgSource: configured?.epgSource,
+                availableEpgSources: alternativesFor
+                  ? [...candidates.values()]
+                      .filter(
+                        (candidate) =>
+                          candidate.epgProvider && candidate.contributesChannels
+                      )
+                      .map((candidate) => ({
+                        addonId: candidate.addonId,
+                        addonName: candidate.addonName,
+                        channelId: candidate.id,
+                        name: candidate.name,
+                      }))
+                  : [],
                 sourceName:
                   canonical.addonName ||
                   sources.get(channel.canonicalAddonId)?.name ||
                   undefined,
                 sourceGroup,
+                country:
+                  canonical.country ??
+                  channel.mappings.find((mapping) => mapping.country)?.country,
+                language:
+                  canonical.language ??
+                  channel.mappings.find((mapping) => mapping.language)
+                    ?.language,
                 group: normalizeChannelGroup(configured?.group) ?? sourceGroup,
-                epgProvider:
-                  canonical.epgProvider ||
-                  channel.mappings.some((mapping) => mapping.epgProvider),
+                epgProvider: configured?.epgSource
+                  ? Boolean(
+                      candidates.get(
+                        candidateKey(
+                          configured.epgSource.addonId,
+                          configured.epgSource.channelId
+                        )
+                      )?.epgProvider
+                    )
+                  : canonical.epgProvider ||
+                    channel.mappings.some((mapping) => mapping.epgProvider),
                 availableStreamSources: alternativesFor
                   ? await buildAvailableStreamSources(channel)
                   : [],

@@ -331,6 +331,12 @@ function collectLiveChannelMetaCandidates(
     }
   };
 
+  if (channelMapping?.epgSource) {
+    addCandidates(
+      channelMapping.epgSource.channelId,
+      channelMapping.epgSource.addonId
+    );
+  }
   if (channelMapping?.canonicalAddonId) {
     addCandidates(channelId, channelMapping.canonicalAddonId);
   }
@@ -340,6 +346,7 @@ function collectLiveChannelMetaCandidates(
   }
   addCandidates(channelId);
 
+  if (channelMapping?.epgSource) return [...candidates.values()];
   return [...candidates.values()].sort((left, right) =>
     left.instanceId === channelMapping?.canonicalAddonId
       ? -1
@@ -820,6 +827,9 @@ async function loadCanonicalChannelCandidate(
         metaType,
         candidate.metaId
       );
+      const useSchedule =
+        !channelMapping?.epgSource ||
+        candidate.instanceId === channelMapping.epgSource.addonId;
       const group = getEffectiveChannelGroup(
         ctx.userData,
         channelId,
@@ -836,11 +846,15 @@ async function loadCanonicalChannelCandidate(
         language: typeof meta.language === 'string' ? meta.language : undefined,
         categories: group ? [group] : undefined,
         logo: mapped?.logo ?? meta.poster ?? undefined,
-        hasSchedule: Boolean(
-          meta.behaviorHints?.hasScheduledVideos ||
-          (Array.isArray(meta.videos) && meta.videos.length > 0)
-        ),
-        program: currentProgramMetadata(meta.videos ?? []),
+        hasSchedule:
+          useSchedule &&
+          Boolean(
+            meta.behaviorHints?.hasScheduledVideos ||
+            (Array.isArray(meta.videos) && meta.videos.length > 0)
+          ),
+        program: useSchedule
+          ? currentProgramMetadata(meta.videos ?? [])
+          : undefined,
       };
     } catch {
       continue;
@@ -1053,6 +1067,26 @@ export async function getStreams(
       data: { streams: [], statistics: [] },
       errors: [],
     };
+  }
+  if (isLiveChannel && id !== channelId) {
+    const meta = await getMeta(ctx, type, channelId);
+    const program = meta.data?.videos?.find((video) => video.id === id);
+    const now = Date.now();
+    if (
+      !program ||
+      typeof program.startTime !== 'string' ||
+      typeof program.endTime !== 'string' ||
+      !(
+        Date.parse(program.startTime) <= now &&
+        now < Date.parse(program.endTime)
+      )
+    ) {
+      return {
+        success: true,
+        data: { streams: [], statistics: [] },
+        errors: [],
+      };
+    }
   }
   const liveStreamPlan = isLiveChannel
     ? await resolveLiveStreamFetchPlan(ctx, type, channelId)
@@ -1408,6 +1442,16 @@ export async function getMeta(
       );
       if (isLiveChannel) {
         meta.id = channelId;
+        if (
+          channelMapping?.epgSource &&
+          candidate.instanceId !== channelMapping.epgSource.addonId
+        ) {
+          meta.videos = [];
+          meta.behaviorHints = {
+            ...meta.behaviorHints,
+            hasScheduledVideos: false,
+          };
+        }
         meta.videos = meta.videos?.map((video) =>
           video.startTime
             ? { ...video, id: `${channelId}:epg:${video.startTime}` }

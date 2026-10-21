@@ -278,10 +278,19 @@ export interface ChannelInfo {
   poster?: string | null;
   canonicalAddonId: string;
   sourceName?: string;
+  epgSource?: { addonId: string; channelId: string };
+  availableEpgSources?: Array<{
+    addonId: string;
+    addonName: string;
+    channelId: string;
+    name: string;
+  }>;
   enabled: boolean;
   epgProvider?: boolean;
   group?: string;
   sourceGroup?: string;
+  country?: string;
+  language?: string;
   rejectedStreams?: Array<{ addonId: string; channelId: string }>;
   availableStreamSources?: ChannelStreamSource[];
   mappings: Array<{
@@ -570,6 +579,7 @@ export async function fetchChannels(
   userData: UserData,
   options?: {
     autoMatch?: boolean;
+    refresh?: boolean;
     signal?: AbortSignal;
     alternativesFor?: string;
   }
@@ -579,6 +589,7 @@ export async function fetchChannels(
       body: {
         userData,
         autoMatch: options?.autoMatch ?? false,
+        refresh: options?.refresh ?? false,
         alternativesFor: options?.alternativesFor,
       },
       signal: options?.signal,
