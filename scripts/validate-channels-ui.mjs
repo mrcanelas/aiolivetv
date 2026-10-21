@@ -61,7 +61,54 @@ try {
       addonName: 'AIOLiveTV',
       protected: false,
       alternateDesign: false,
-      presets: [],
+      presets: [
+        {
+          ID: 'm3u',
+          NAME: 'M3U',
+          DESCRIPTION: 'Live channels from a playlist.',
+          CATEGORY: 'streams',
+          SUPPORTED_SERVICES: [],
+          OPTIONS: [
+            {
+              id: 'name',
+              name: 'Name',
+              description: 'Playlist name',
+              type: 'string',
+              required: true,
+              default: 'M3U',
+            },
+            {
+              id: 'sourceUrl',
+              name: 'M3U URL',
+              description: 'Playlist URL',
+              type: 'url',
+              required: true,
+            },
+            {
+              id: 'timeout',
+              name: 'Timeout',
+              description: 'Fetch timeout',
+              type: 'number',
+              required: true,
+              default: 5000,
+            },
+            {
+              id: 'discoverEpg',
+              name: 'Find EPG guides',
+              description: 'Find XMLTV guides.',
+              type: 'action',
+            },
+          ],
+        },
+        {
+          ID: 'xmltv',
+          NAME: 'XMLTV',
+          DESCRIPTION: 'Guide metadata.',
+          CATEGORY: 'meta_catalogs',
+          SUPPORTED_SERVICES: [],
+          OPTIONS: [],
+        },
+      ],
       services: {},
       limits: {},
       forced: { proxy: { ...proxy, disableProxiedAddons: false } },
@@ -83,6 +130,8 @@ try {
     poster: '/favicon.png',
     enabled: true,
     epgProvider: true,
+    country: index % 2 ? 'PT' : 'BR',
+    language: index % 2 ? 'pt-PT' : 'pt-BR',
     mappings:
       index === 0
         ? [
@@ -148,12 +197,16 @@ try {
       const url = new URL(route.request().url());
       if (
         route.request().method() !== 'GET' &&
-        !url.pathname.endsWith('/catalogs/channels')
+        !url.pathname.endsWith('/catalogs') &&
+        !url.pathname.endsWith('/catalogs/channels') &&
+        !url.pathname.endsWith('/catalogs/m3u/epg')
       ) {
         writes.push(url.pathname);
       }
       let data = null;
       if (url.pathname.endsWith('/status')) data = status;
+      else if (url.pathname.endsWith('/catalogs/m3u/epg'))
+        data = { urls: ['https://example.com/guide.xml'] };
       else if (url.pathname.endsWith('/catalogs/channels')) {
         const body = route.request().postDataJSON();
         scans.push(body);
@@ -168,6 +221,14 @@ try {
                   ...channels.find(
                     (channel) => channel.id === body.alternativesFor
                   ),
+                  availableEpgSources: [
+                    {
+                      addonId: 'other-guide',
+                      addonName: 'Other guide',
+                      channelId: 'different-channel-id',
+                      name: 'BBC',
+                    },
+                  ],
                   availableStreamSources: [
                     {
                       addonId: 'streams',
@@ -486,6 +547,55 @@ try {
     assert(scans.some((scan) => scan.alternativesFor === 'channel:0'));
     await dialog.locator('.UI-Modal__close').click();
     await dialog.waitFor({ state: 'hidden' });
+    if (viewport.width < 640) {
+      await list
+        .getByRole('button', { name: 'Actions for Channel 0000', exact: true })
+        .click();
+      await page
+        .getByRole('menuitem', { name: 'Edit channel', exact: true })
+        .click();
+    } else {
+      await list.getByTitle('Edit name, logo or group').first().click();
+    }
+    const edit = page.getByRole('dialog');
+    await edit.getByRole('combobox', { name: 'EPG guide' }).click();
+    await page.locator('[cmdk-input]').fill('BBC');
+    await page
+      .locator('[cmdk-item]')
+      .filter({ hasText: 'Other guide — BBC' })
+      .click();
+    await edit.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.waitForFunction(() =>
+      JSON.parse(
+        localStorage.getItem('aiolivetv-user-data')
+      ).channelMappings.some(
+        (mapping) =>
+          mapping.id === 'channel:0' &&
+          mapping.epgSource?.channelId === 'different-channel-id'
+      )
+    );
+    await page.getByRole('combobox', { name: 'Filter by country' }).click();
+    await page.getByRole('option', { name: 'BR', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Filter by language' }).click();
+    await page.getByRole('option', { name: 'pt-BR', exact: true }).click();
+    await page.getByTitle('Select all', { exact: true }).click();
+    await page.getByTitle('Disable selected', { exact: true }).click();
+    await page.waitForFunction(() =>
+      JSON.parse(
+        localStorage.getItem('aiolivetv-user-data')
+      ).channelMappings.some(
+        (mapping) => mapping.id === 'channel:2' && mapping.enabled === false
+      )
+    );
+    await page.getByTitle('Enable selected', { exact: true }).click();
+    await page.getByTitle('Deselect all', { exact: true }).click();
+    for (const [label, option] of [
+      ['country', 'All countries'],
+      ['language', 'All languages'],
+    ]) {
+      await page.getByRole('combobox', { name: `Filter by ${label}` }).click();
+      await page.getByRole('option', { name: option, exact: true }).click();
+    }
     const search = page.getByPlaceholder('Search channels...');
     await search.fill('1286');
     await list.getByText('Channel 1286', { exact: true }).waitFor();
@@ -520,10 +630,79 @@ try {
     });
     releaseRefresh();
     await spinner.waitFor({ state: 'hidden' });
+    await page.getByText(/^Last refresh:/).waitFor();
     await page.getByText('Removed (1000)', { exact: true }).click();
     await list.locator('li[data-index]').first().waitFor();
     assert((await list.locator('li[data-index]').count()) < 60);
     assert.deepEqual(errors, [], 'Browser errors');
+    await page.goto(base + '/stremio/configure?menu=addons');
+    await page.getByText('Marketplace', { exact: true }).click();
+    await page
+      .getByRole('switch', {
+        name: 'Enrich EPG programmes with TMDB',
+        exact: true,
+      })
+      .click();
+    await page.waitForFunction(
+      () =>
+        JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+          .enrichEpgWithTmdb === true
+    );
+    await page.screenshot({
+      path: resolve(output, name + '-metadata.png'),
+      fullPage: true,
+    });
+    await page.getByRole('combobox', { name: /Metadata language/ }).click();
+    await page
+      .getByRole('option', { name: 'Português (Brasil)', exact: true })
+      .click();
+    await page.waitForFunction(
+      () =>
+        JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+          .epgMetadataLanguage === 'pt-BR'
+    );
+    await page
+      .getByRole('button', { name: 'Configure', exact: true })
+      .first()
+      .click();
+    const addonDialog = page.getByRole('dialog');
+    await addonDialog
+      .getByLabel(/M3U URL/)
+      .fill('https://example.com/list.m3u');
+    await addonDialog
+      .getByRole('button', { name: 'Find EPG guides', exact: true })
+      .click();
+    await addonDialog
+      .getByRole('switch', {
+        name: 'Add XMLTV: example.com/guide.xml',
+        exact: true,
+      })
+      .click();
+    assert.equal(
+      await page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem('aiolivetv-user-data')).presets.length
+      ),
+      0
+    );
+    await addonDialog
+      .getByRole('button', { name: 'Install', exact: true })
+      .click();
+    await page.waitForFunction(() => {
+      const presets = JSON.parse(
+        localStorage.getItem('aiolivetv-user-data')
+      ).presets;
+      return (
+        presets.length === 2 &&
+        presets.some(
+          (preset) =>
+            preset.type === 'xmltv' &&
+            preset.options.sourceUrl === 'https://example.com/guide.xml'
+        )
+      );
+    });
+    assert.deepEqual(writes, [], 'New configuration must remain in the draft');
+    assert.deepEqual(errors, [], 'Browser errors after addon configuration');
     console.log(
       JSON.stringify({
         viewport: name,
@@ -535,6 +714,10 @@ try {
         groups: true,
         removedVirtualized: true,
         draftPersistence: true,
+        epgChoice: true,
+        countryLanguageBulkActions: true,
+        m3uEpgDiscovery: true,
+        tmdbSettings: true,
         mobileActions: viewport.width < 640,
         refreshCentered: true,
         streamOptions: streamCount + 2,

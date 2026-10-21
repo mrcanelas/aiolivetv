@@ -86,9 +86,21 @@ async function startFixtureServer(): Promise<{
       res.end(XMLTV_FIXTURE);
       return;
     }
+    if (req.url === '/alternate-guide.xml' || req.url === '/empty-guide.xml') {
+      res.writeHead(200, { 'content-type': 'application/xml' });
+      res.end(
+        `<tv><channel id="bbc.alternate"><display-name>BBC Alternate</display-name></channel>${req.url === '/alternate-guide.xml' ? `<programme channel="bbc.alternate" start="${xmltvTimestamp(EPG_START)}" stop="${xmltvTimestamp(EPG_STOP)}"><title>Alternate programme</title></programme>` : ''}</tv>`
+      );
+      return;
+    }
     if (req.url === '/list.m3u') {
       res.writeHead(200, { 'content-type': 'audio/x-mpegurl' });
-      res.end(M3U_FIXTURE);
+      res.end(
+        M3U_FIXTURE.replace(
+          '#EXTM3U',
+          `#EXTM3U url-tvg="http://${req.headers.host}/guide.xml"`
+        )
+      );
       return;
     }
     res.writeHead(404);
@@ -142,7 +154,16 @@ function createBuiltinHandler(core: CoreModule) {
         const addon =
           source === 'xmltv' ? new XmltvAddon(config) : new M3uAddon(config);
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ metas: await addon.getCatalog(skip) }));
+        res.end(
+          JSON.stringify(
+            addon instanceof XmltvAddon
+              ? await addon.getCatalogResponse(
+                  skip,
+                  new URLSearchParams(extras ?? '').get('date') ?? undefined
+                )
+              : { metas: await addon.getCatalog(skip) }
+          )
+        );
         return;
       }
 
@@ -184,6 +205,7 @@ function createBuiltinHandler(core: CoreModule) {
         res.end(error instanceof Error ? error.message : String(error));
       } else {
         console.error('builtin handler error:', req.url, error);
+        res.end();
       }
     }
   };
@@ -921,6 +943,172 @@ async function validateParallelStreamResolution(core: CoreModule) {
   }
 }
 
+async function validateGuideChoicesAndPersistence(
+  sourceBase: string,
+  core: CoreModule
+) {
+  const playlist = new core.M3uAddon({
+    sourceUrl: `${sourceBase}/list.m3u`,
+    timeout: 5000,
+  });
+  assert(
+    (await playlist.getEpgUrls())[0] === `${sourceBase}/guide.xml`,
+    'expected guide discovery from the M3U header'
+  );
+  const bbcId = (await playlist.getCatalog()).find(
+    (channel) => channel.name === 'BBC One'
+  )!.id;
+  const alternate = new core.XmltvAddon({
+    sourceUrl: `${sourceBase}/alternate-guide.xml`,
+    timeout: 5000,
+  });
+  const alternateId = (await alternate.getCatalog())[0].id;
+  assert(
+    !(
+      await new core.XmltvAddon({
+        sourceUrl: `${sourceBase}/empty-guide.xml`,
+        timeout: 5000,
+      }).getManifest()
+    ).behaviorHints?.epgProvider,
+    'empty guide must not enable Native EPG'
+  );
+  const draft = core.UserDataSchema.parse({
+    ...liveTvUserData(
+      [
+        {
+          ...xmltvPreset,
+          options: {
+            ...xmltvPreset.options,
+            sourceUrl: `${sourceBase}/guide.xml`,
+          },
+        },
+        {
+          ...m3uPreset,
+          options: {
+            ...m3uPreset.options,
+            sourceUrl: `${sourceBase}/list.m3u`,
+          },
+        },
+        {
+          ...xmltvPreset,
+          instanceId: 'alternate',
+          options: {
+            ...xmltvPreset.options,
+            name: 'Alternate guide',
+            sourceUrl: `${sourceBase}/alternate-guide.xml`,
+          },
+        },
+      ],
+      [
+        {
+          id: bbcId,
+          canonicalAddonId: 'xmltv-1',
+          name: 'My BBC',
+          epgSource: { addonId: 'alternate', channelId: alternateId },
+          streams: [
+            {
+              addonId: 'm3u-1',
+              channelId: bbcId,
+              confidence: 0,
+              enabled: true,
+            },
+          ],
+        },
+      ]
+    ),
+    enrichEpgWithTmdb: true,
+    epgMetadataLanguage: 'pt-BR',
+  });
+  const inventory = await new core.AIOStreams({
+    ...draft,
+    channelMappings: [],
+  }).initialise();
+  const mapping = draft.channelMappings![0];
+  mapping.canonicalAddonId = addonInstanceId(inventory, 'xmltv-1');
+  mapping.epgSource!.addonId = addonInstanceId(inventory, 'alternate');
+  mapping.streams![0].addonId = addonInstanceId(inventory, 'm3u-1');
+  const aio = await new core.AIOStreams(draft).initialise();
+  const meta = (await aio.getMeta(core.constants.TV_TYPE, bbcId)).data;
+  assert(
+    meta?.name === 'My BBC' &&
+      meta.videos?.[0]?.title === 'Alternate programme',
+    'selected guide must supply the schedule while preserving channel edits'
+  );
+  assert(
+    meta.videos[0].id === `${bbcId}:epg:${EPG_START_ISO}`,
+    'selected guide programme id must use the canonical channel'
+  );
+  const catalog = liveTvCatalog(
+    aio,
+    core.constants.TV_TYPE,
+    core.LIVE_TV_MERGED_CATALOG_ID
+  );
+  const guide = await aio.getCatalog(
+    core.constants.TV_TYPE,
+    catalog.id,
+    `date=${EPG_START_ISO.slice(0, 10)}`
+  );
+  assert(
+    guide.metasDetailed?.find((channel) => channel.id === bbcId)?.videos?.[0]
+      ?.title === 'Alternate programme',
+    'catalog and meta must use the same guide'
+  );
+  const current = await aio.getStreams(
+    meta.videos[0].id,
+    core.constants.TV_TYPE
+  );
+  assert(
+    current.data.streams.some(
+      (stream) => stream.url === 'https://example.com/bbc.m3u8'
+    ),
+    'guide choice must preserve live playback'
+  );
+  for (const offset of [-24, 24]) {
+    const id = `${bbcId}:epg:${new Date(Date.now() + offset * 3600_000).toISOString()}`;
+    assert(
+      (await aio.getStreams(id, core.constants.TV_TYPE)).data.streams.length ===
+        0,
+      'past/future programme ids must not resolve to the current live stream'
+    );
+  }
+  const unavailable = await new core.AIOStreams({
+    ...draft,
+    channelMappings: draft.channelMappings!.map((mapping) => ({
+      ...mapping,
+      epgSource: { addonId: 'missing', channelId: alternateId },
+    })),
+  }).initialise();
+  assert(
+    (await unavailable.getMeta(core.constants.TV_TYPE, bbcId)).data?.videos
+      ?.length === 0,
+    'missing preferred guide must not silently switch schedules'
+  );
+  const password = 'live-tv-validation-only';
+  const saved = await core.UserRepository.createUser(draft, password);
+  try {
+    const restored = await core.UserRepository.getRawUser(saved.uuid, password);
+    assert(
+      restored?.channelMappings?.[0].epgSource?.channelId === alternateId,
+      'guide choice must survive UserData persistence'
+    );
+    assert(
+      restored.enrichEpgWithTmdb && restored.epgMetadataLanguage === 'pt-BR',
+      'metadata settings must survive UserData persistence'
+    );
+    assert(
+      restored.presets.length === 3 &&
+        restored.channelMappings[0].streams?.[0].addonId ===
+          mapping.streams![0].addonId,
+      'presets and stream order must survive persistence'
+    );
+  } finally {
+    await core.UserRepository.deleteUser(saved.uuid, password);
+  }
+  console.log(
+    '  [ok] M3U guide discovery, empty guides, explicit EPG choice, catalog/meta consistency, scheduled stream safety and UserData persistence'
+  );
+}
+
 async function main() {
   console.log('Validando Live TV E2E...');
   const { server: fixtureServer, sourceBase } = await startFixtureServer();
@@ -947,6 +1135,7 @@ async function main() {
     await validateWithoutEpg(sourceBase, deps);
     await validateChannelMappings(sourceBase, deps);
     await validateParallelStreamResolution(core);
+    await validateGuideChoicesAndPersistence(sourceBase, core);
     console.log('Live TV E2E: todos os checks passaram.');
   } finally {
     await Promise.all([
