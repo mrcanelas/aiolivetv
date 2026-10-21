@@ -25,6 +25,19 @@ import { getSystemMetrics } from '../../utils/system-metrics.js';
 const router: Router = Router();
 const logger = createLogger('dashboard');
 
+// Beamup applies a four-hour cache default when these headers are absent.
+router.use((_req, res, next) => {
+  res.set({
+    'Cache-Control': 'private, no-store, no-cache, must-revalidate',
+    'CDN-Cache-Control': 'no-store',
+    'Vercel-CDN-Cache-Control': 'no-store',
+    'Surrogate-Control': 'no-store',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
+  next();
+});
+
 // Every /dashboard/* route is admin-only.
 router.use(requireAdmin);
 

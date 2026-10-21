@@ -1,0 +1,57 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../api';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe('dashboard API caching', () => {
+  it('uses fresh URLs for dashboard reads and preserves query parameters', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        Response.json({ success: true, data: { keys: [] } })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValueOnce(1000).mockReturnValueOnce(2000);
+
+    await api('/dashboard/settings');
+    await api('/dashboard/logs?limit=10');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/v1/dashboard/settings?_=1000',
+      expect.objectContaining({ cache: 'no-store', credentials: 'include' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/v1/dashboard/logs?limit=10&_=2000',
+      expect.objectContaining({ cache: 'no-store' })
+    );
+  });
+
+  it('preserves mutation URLs and other API caching options', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        Response.json({ success: true, data: {} })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api('PATCH /dashboard/settings', { body: { key: 'value' } });
+    await api('/status', { cache: 'force-cache' });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/v1/dashboard/settings',
+      expect.objectContaining({ method: 'PATCH', body: '{"key":"value"}' })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/v1/status',
+      expect.objectContaining({ cache: 'force-cache' })
+    );
+  });
+});

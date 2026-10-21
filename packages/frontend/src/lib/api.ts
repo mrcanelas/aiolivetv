@@ -116,7 +116,7 @@ export async function api<T>(
     ? (endpoint.split(' /') as [Method, string])
     : (['GET', endpoint.slice(1)] as [Method, string]);
 
-  const url = `/api/v1/${path}`;
+  let url = `/api/v1/${path}`;
 
   // Build request
   const headers = new Headers(fetchOptions.headers);
@@ -127,6 +127,12 @@ export async function api<T>(
     ...fetchOptions,
     headers,
   };
+
+  if (method === 'GET' && path.startsWith('dashboard/')) {
+    // Bypass dashboard responses already cached by the CDN before no-store.
+    url += `${path.includes('?') ? '&' : '?'}_=${Date.now()}`;
+    request.cache = 'no-store';
+  }
 
   // Handle body
   if (body !== undefined) {
