@@ -204,6 +204,8 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   proxy: { label: 'Proxy', group: 'proxy', type: 'scalar', menu: 'proxy' },
 
   tmdbApiKey: { label: 'TMDB API Key', group: 'metadata', type: 'scalar', menu: 'services', subTab: 'metadata', sectionId: 'tmdb' },
+  enrichEpgWithTmdb: { label: 'Enrich EPG with TMDB', group: 'metadata', type: 'scalar', menu: 'addons', sectionId: 'epgMetadata' },
+  epgMetadataLanguage: { label: 'EPG metadata language', group: 'metadata', type: 'scalar', menu: 'addons', sectionId: 'epgMetadata' },
   tmdbAccessToken: { label: 'TMDB Access Token', group: 'metadata', type: 'scalar', menu: 'services', subTab: 'metadata', sectionId : 'tmdb' },
   tvdbApiKey: { label: 'TVDB API Key', group: 'metadata', type: 'scalar', menu: 'services', subTab: 'metadata' },
   rpdbApiKey: { label: 'RPDB API Key', group: 'metadata', type: 'scalar', menu: 'services', subTab: 'posters' },

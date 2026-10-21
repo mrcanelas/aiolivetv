@@ -112,20 +112,30 @@ function mapProgramToVideo(
     program.endTime,
     timeShiftMinutes
   );
-  return programToVideo({
-    channelEncodedId: encodedId,
-    title: program.title,
-    subtitle: program.subtitle,
-    description: program.description,
-    thumbnail: program.thumbnail,
-    startTime,
-    endTime,
-    airedYear: program.released?.slice(0, 4),
-    categories: program.categories,
-    cast: program.cast,
-    directors: program.directors,
-    ratings: program.ratings,
-  });
+  return {
+    ...programToVideo({
+      channelEncodedId: encodedId,
+      title: program.title,
+      subtitle: program.subtitle,
+      description: program.description,
+      thumbnail: program.thumbnail,
+      startTime,
+      endTime,
+      airedYear: program.released?.slice(0, 4),
+      categories: program.categories,
+      cast: program.cast,
+      directors: program.directors,
+      ratings: program.ratings,
+    }),
+    productionYear: program.released
+      ? Number(program.released.slice(0, 4))
+      : undefined,
+    season: program.season,
+    episode: program.episode,
+    tmdbId: program.tmdbId,
+    imdbId: program.imdbId,
+    mediaType: program.mediaType,
+  };
 }
 
 export class XmltvAddon {

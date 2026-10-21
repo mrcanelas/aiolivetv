@@ -722,6 +722,11 @@ export const UserDataSchema = z.object({
     .optional(),
   tmdbAccessToken: z.string().optional(),
   tmdbApiKey: z.string().optional(),
+  enrichEpgWithTmdb: z.boolean().optional(),
+  epgMetadataLanguage: z
+    .string()
+    .regex(/^[a-z]{2}(?:-[A-Z]{2})?$/)
+    .optional(),
   tvdbApiKey: z.string().optional(),
   yearMatching: z
     .object({

@@ -54,6 +54,27 @@ beforeEach(() => {
 });
 
 describe('live TV sources', () => {
+  it('preserves XMLTV content identifiers, production year and zero-based episode numbers', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="bbc"><display-name>BBC</display-name></channel><programme channel="bbc" start="20261021120000 +0000" stop="20261021130000 +0000"><title>A Series</title><date>1999</date><episode-num system="xmltv_ns">0.1.</episode-num><url>https://www.themoviedb.org/tv/123</url><url>https://www.imdb.com/title/tt123456/</url></programme></tv>'
+      )
+    );
+    const addon = new XmltvAddon({
+      sourceUrl: 'https://example.com/guide.xml',
+      timeout: 1000,
+    });
+    expect(
+      (await addon.getCatalogGuide(0, '2026-10-21'))[0].videos?.[0]
+    ).toMatchObject({
+      productionYear: 1999,
+      season: 1,
+      episode: 2,
+      mediaType: 'tv',
+      tmdbId: 123,
+      imdbId: 'tt123456',
+    });
+  });
   it('discovers only valid, unique HTTP guide URLs from the playlist header', () => {
     expect(
       parseM3uEpgUrls(

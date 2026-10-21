@@ -26,6 +26,11 @@ interface XmltvProgram {
   cast?: string[];
   directors?: string[];
   ratings?: ContentRating[];
+  season?: number;
+  episode?: number;
+  tmdbId?: number;
+  imdbId?: string;
+  mediaType?: 'movie' | 'tv';
 }
 
 export interface XmltvData {
@@ -182,9 +187,40 @@ export async function parseXmltvData(xml: string): Promise<XmltvData> {
         endTime <= startTime
       )
         return undefined;
+      const episodeNumber = (program?.['episode-num'] ?? []).find(
+        (entry: any) => entry?.$?.system === 'xmltv_ns'
+      );
+      const episodeParts = value(episodeNumber)?.match(
+        /^(\d+)(?:\/\d+)?\.(\d+)(?:\/\d+)?\./
+      );
+      const urls = values(program?.url);
+      const tmdb = urls
+        .map((url) =>
+          url.match(
+            /^https?:\/\/(?:www\.)?themoviedb\.org\/(movie|tv)\/(\d+)(?:[/?#-]|$)/i
+          )
+        )
+        .find(Boolean);
+      const imdb = urls
+        .map((url) =>
+          url.match(
+            /^https?:\/\/(?:www\.)?imdb\.com\/title\/(tt\d+)(?:[/?#]|$)/i
+          )
+        )
+        .find(Boolean);
       return {
         channelId,
         title,
+        season: episodeParts ? Number(episodeParts[1]) + 1 : undefined,
+        episode: episodeParts ? Number(episodeParts[2]) + 1 : undefined,
+        tmdbId: tmdb ? Number(tmdb[2]) : undefined,
+        imdbId: imdb?.[1],
+        mediaType:
+          tmdb?.[1] === 'movie'
+            ? 'movie'
+            : tmdb?.[1] === 'tv'
+              ? 'tv'
+              : undefined,
         subtitle: value(
           program?.['sub-title']?.[0]?._ ?? program?.['sub-title']?.[0]
         ),

@@ -5,12 +5,199 @@ import {
   makeRequest,
   ParsedId,
   IdType,
+  withTimeout,
 } from '../utils/index.js';
 import { deduplicateTitles, Metadata, MetadataTitle } from './utils.js';
 import { iso31661ToIso6391 } from '../utils/languages.js';
 import { z } from 'zod';
+import pLimit from 'p-limit';
+import type { Meta, UserData } from '../db/index.js';
+import { normaliseTitle } from '../parser/utils.js';
 
 export type TMDBIdType = 'imdb_id' | 'tmdb_id' | 'tvdb_id';
+
+export interface EpgTmdbQuery {
+  title: string;
+  mediaType: 'movie' | 'tv';
+  year?: number;
+  tmdbId?: number;
+  imdbId?: string;
+  season?: number;
+  episode?: number;
+  language: string;
+}
+
+interface EpgTmdbMetadata {
+  overview?: string;
+  thumbnail?: string;
+  background?: string;
+  genres?: string[];
+  cast?: string[];
+  directors?: string[];
+  subtitle?: string;
+}
+
+const EpgTitleSchema = z.object({
+  id: z.number().int().positive(),
+  title: z.string().optional(),
+  original_title: z.string().optional(),
+  name: z.string().optional(),
+  original_name: z.string().optional(),
+  release_date: z.string().optional(),
+  first_air_date: z.string().optional(),
+});
+const EpgDetailsSchema = EpgTitleSchema.extend({
+  overview: z.string().nullish(),
+  poster_path: z.string().nullish(),
+  backdrop_path: z.string().nullish(),
+  genres: z.array(z.object({ name: z.string() })).optional(),
+  credits: z
+    .object({
+      cast: z.array(z.object({ name: z.string() })).optional(),
+      crew: z.array(z.object({ name: z.string(), job: z.string() })).optional(),
+    })
+    .optional(),
+});
+
+export function matchesEpgTmdbTitle(
+  candidate: z.infer<typeof EpgTitleSchema>,
+  query: EpgTmdbQuery
+) {
+  const titleMatches = [
+    candidate.title,
+    candidate.original_title,
+    candidate.name,
+    candidate.original_name,
+  ].some(
+    (title) => title && normaliseTitle(title) === normaliseTitle(query.title)
+  );
+  const year = Number(
+    (candidate.release_date ?? candidate.first_air_date)?.slice(0, 4)
+  );
+  return Boolean(titleMatches && (!query.year || year === query.year));
+}
+
+const epgLookupLimit = pLimit(4);
+const pendingEpgLookups = new Map<string, Promise<EpgTmdbMetadata | null>>();
+
+export async function enrichEpgVideos<
+  T extends NonNullable<Meta['videos']>[number],
+>(videos: T[], userData: UserData): Promise<T[]> {
+  if (!userData.enrichEpgWithTmdb || !videos.length) return videos;
+  let client: TMDBMetadata;
+  try {
+    client = new TMDBMetadata({
+      apiKey: userData.tmdbApiKey,
+      accessToken: userData.tmdbAccessToken,
+    });
+  } catch {
+    return videos;
+  }
+  // Bound work per page; large guides should never enqueue a whole country's schedule.
+  const targets = new Set(
+    videos
+      .filter(
+        (video) =>
+          typeof video.startTime === 'string' &&
+          typeof video.endTime === 'string' &&
+          Number.isFinite(Date.parse(video.startTime)) &&
+          Date.parse(video.endTime) > Date.parse(video.startTime)
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(Date.parse(String(a.startTime)) - Date.now()) -
+          Math.abs(Date.parse(String(b.startTime)) - Date.now())
+      )
+      .slice(0, 24)
+  );
+  return withTimeout(
+    async () =>
+      Promise.all(
+        videos.map(async (video) => {
+          if (!targets.has(video) || typeof video.title !== 'string')
+            return video;
+          const categories = Array.isArray(video.genres)
+            ? video.genres
+                .filter((genre): genre is string => typeof genre === 'string')
+                .map(normaliseTitle)
+            : [];
+          const mediaType =
+            video.mediaType === 'movie' ||
+            categories.some((genre) =>
+              ['movie', 'film', 'filme', 'pelicula'].includes(genre)
+            )
+              ? 'movie'
+              : video.mediaType === 'tv' ||
+                  (typeof video.season === 'number' &&
+                    typeof video.episode === 'number')
+                ? 'tv'
+                : undefined;
+          if (!mediaType) return video;
+          const year = Number(video.productionYear);
+          const tmdbId = Number(video.tmdbId);
+          const query: EpgTmdbQuery = {
+            title: video.title.replace(/\s*\((?:19|20)\d{2}\)\s*$/, '').trim(),
+            mediaType,
+            year:
+              mediaType === 'movie' &&
+              Number.isInteger(year) &&
+              year >= 1800 &&
+              year <= 2200
+                ? year
+                : undefined,
+            tmdbId: Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : undefined,
+            imdbId:
+              typeof video.imdbId === 'string' && /^tt\d+$/.test(video.imdbId)
+                ? video.imdbId
+                : undefined,
+            season: video.season ?? undefined,
+            episode: video.episode ?? undefined,
+            language: userData.epgMetadataLanguage ?? 'en-US',
+          };
+          try {
+            const metadata = await client.getEpgMetadata(query);
+            if (!metadata) return video;
+            const result = { ...video };
+            for (const [field, value] of Object.entries(metadata)) {
+              const existing = result[field];
+              if (
+                (existing === undefined ||
+                  existing === null ||
+                  existing === '' ||
+                  (Array.isArray(existing) && !existing.length)) &&
+                value !== undefined
+              ) {
+                (result as Record<string, unknown>)[field] = value;
+              }
+            }
+            return result;
+          } catch {
+            return video;
+          }
+        })
+      ),
+    videos,
+    { timeout: 1500, getContext: () => 'optional TMDB EPG enrichment' }
+  );
+}
+
+export async function enrichEpgMetas<T extends Meta>(
+  metas: T[],
+  userData: UserData
+): Promise<T[]> {
+  if (!userData.enrichEpgWithTmdb) return metas;
+  const videos = metas.flatMap((meta) => meta.videos ?? []);
+  const enriched = await enrichEpgVideos(videos, userData);
+  let offset = 0;
+  return metas.map((meta) => {
+    const count = meta.videos?.length ?? 0;
+    const result = count
+      ? { ...meta, videos: enriched.slice(offset, offset + count) }
+      : meta;
+    offset += count;
+    return result;
+  });
+}
 
 // interface ExternalId {
 //   type: ExternalIdType;
@@ -147,6 +334,10 @@ const IdTypeMap: Partial<Record<IdType, TMDBIdType>> = {
 };
 
 export class TMDBMetadata {
+  private static readonly epgCache = Cache.getInstance<
+    string,
+    { metadata: EpgTmdbMetadata | null }
+  >('tmdb_epg_metadata');
   private readonly TMDB_ID_REGEX = /^(?:tmdb)[-:](\d+)(?::\d+:\d+)?$/;
   private readonly TVDB_ID_REGEX = /^(?:tvdb)[-:](\d+)(?::\d+:\d+)?$/;
   private readonly IMDB_ID_REGEX = /^(?:tt)(\d+)(?::\d+:\d+)?$/;
@@ -184,6 +375,128 @@ export class TMDBMetadata {
     }
     headers.set('Content-Type', 'application/json');
     return headers;
+  }
+
+  public async getEpgMetadata(
+    query: EpgTmdbQuery
+  ): Promise<EpgTmdbMetadata | null> {
+    const cacheKey = JSON.stringify(query);
+    const cached = await TMDBMetadata.epgCache.get(cacheKey);
+    if (cached) return cached.metadata;
+    const pending = pendingEpgLookups.get(cacheKey);
+    if (pending) return pending;
+    const lookup = epgLookupLimit(async () => {
+      const metadata = await this.fetchEpgMetadata(query);
+      await TMDBMetadata.epgCache.set(
+        cacheKey,
+        { metadata },
+        metadata ? TITLE_CACHE_TTL : 6 * 60 * 60
+      );
+      return metadata;
+    });
+    pendingEpgLookups.set(cacheKey, lookup);
+    try {
+      return await lookup;
+    } finally {
+      pendingEpgLookups.delete(cacheKey);
+    }
+  }
+
+  private async fetchEpgJson(
+    path: string,
+    language: string,
+    params: Record<string, string> = {}
+  ): Promise<unknown> {
+    const url = new URL(API_BASE_URL + path);
+    this.addSearchParams(url);
+    url.searchParams.set('language', language);
+    for (const [key, value] of Object.entries(params))
+      url.searchParams.set(key, value);
+    const response = await makeRequest(url.toString(), {
+      timeout: 1000,
+      headers: this.getHeaders(),
+    });
+    if (!response.ok)
+      throw new Error(`TMDB EPG request failed: ${response.status}`);
+    return response.json();
+  }
+
+  private async fetchEpgMetadata(
+    query: EpgTmdbQuery
+  ): Promise<EpgTmdbMetadata | null> {
+    let id = query.tmdbId;
+    if (!id && query.imdbId) {
+      const found = FindResultsSchema.parse(
+        await this.fetchEpgJson(`/find/${query.imdbId}`, query.language, {
+          external_source: 'imdb_id',
+        })
+      );
+      const results =
+        query.mediaType === 'movie' ? found.movie_results : found.tv_results;
+      if (results.length === 1) id = results[0].id;
+    }
+    if (!id) {
+      // Broadcast years are not premiere years; only search with explicit content evidence.
+      if (
+        !query.year &&
+        !(query.season !== undefined && query.episode !== undefined)
+      )
+        return null;
+      const response = z
+        .object({ results: z.array(EpgTitleSchema) })
+        .parse(
+          await this.fetchEpgJson(
+            `/search/${query.mediaType}`,
+            query.language,
+            { query: query.title }
+          )
+        );
+      const matches = response.results.filter((candidate) =>
+        matchesEpgTmdbTitle(candidate, query)
+      );
+      if (matches.length !== 1) return null;
+      id = matches[0].id;
+    }
+    const details = EpgDetailsSchema.parse(
+      await this.fetchEpgJson(`/${query.mediaType}/${id}`, query.language, {
+        append_to_response: 'credits',
+      })
+    );
+    if (!matchesEpgTmdbTitle(details, query)) return null;
+    const image = (path: string | null | undefined) =>
+      path?.startsWith('/')
+        ? `https://image.tmdb.org/t/p/w780${path}`
+        : undefined;
+    const metadata: EpgTmdbMetadata = {
+      overview: details.overview || undefined,
+      thumbnail: image(details.poster_path),
+      background: image(details.backdrop_path),
+      genres: details.genres?.map((genre) => genre.name),
+      cast: details.credits?.cast?.slice(0, 10).map((person) => person.name),
+      directors: details.credits?.crew
+        ?.filter((person) => person.job === 'Director')
+        .map((person) => person.name),
+    };
+    if (
+      query.mediaType === 'tv' &&
+      query.season !== undefined &&
+      query.episode !== undefined
+    ) {
+      try {
+        const episode = TVEpisodeDetailsSchema.parse(
+          await this.fetchEpgJson(
+            `/tv/${id}/season/${query.season}/episode/${query.episode}`,
+            query.language
+          )
+        );
+        metadata.subtitle = episode.name || undefined;
+        metadata.overview = episode.overview || metadata.overview;
+        metadata.thumbnail = image(episode.still_path) ?? metadata.thumbnail;
+      } catch {
+        // Series details remain useful when a provider's episode number is wrong.
+      }
+    }
+    return metadata;
   }
 
   private async convertToTmdbId(parsedId: ParsedId): Promise<string> {

@@ -35,6 +35,7 @@ import {
   applyPreferredChannelGuides,
 } from './catalog.js';
 import { configurationProvidesNativeEpg } from './epgProvider.js';
+import { enrichEpgVideos, enrichEpgMetas } from '../metadata/tmdb.js';
 import {
   getStreams as _getStreams,
   getMeta as _getMeta,
@@ -116,11 +117,27 @@ export class AIOStreams {
         if (!preferred.cacheable) result.cacheable = false;
       }
     }
+    if (type === constants.TV_TYPE && result.metasDetailed?.length) {
+      result.metasDetailed = await enrichEpgMetas(
+        result.metasDetailed,
+        this.ctx.userData
+      );
+    }
     return result;
   }
 
   public async getMeta(type: string, id: string) {
-    return _getMeta(this.ctx, type, id);
+    const result = await _getMeta(this.ctx, type, id);
+    if (
+      (type === constants.TV_TYPE || type === constants.CHANNEL_TYPE) &&
+      result.data?.videos?.length
+    ) {
+      result.data.videos = await enrichEpgVideos(
+        result.data.videos,
+        this.ctx.userData
+      );
+    }
+    return result;
   }
 
   public async getSubtitles(type: string, id: string, extras?: string) {
