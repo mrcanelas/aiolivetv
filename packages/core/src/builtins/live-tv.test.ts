@@ -15,6 +15,7 @@ const {
   M3uAddon,
   clearM3uSourceCache,
   parseM3u,
+  parseM3uEpgUrls,
   XmltvAddon,
   parseXmltv,
   parseXmltvData,
@@ -53,6 +54,66 @@ beforeEach(() => {
 });
 
 describe('live TV sources', () => {
+  it('discovers only valid, unique HTTP guide URLs from the playlist header', () => {
+    expect(
+      parseM3uEpgUrls(
+        '\uFEFF#EXTM3U x-tvg-url="https://example.com/a.xml?x=1&amp;y=2, https://example.com/b.xml.gz" url-tvg=\'https://example.com/b.xml.gz javascript:alert(1) invalid\'\n#EXTINF:-1 url-tvg="https://example.com/not-a-guide",BBC\nhttps://example.com/live'
+      )
+    ).toEqual([
+      'https://example.com/a.xml?x=1&y=2',
+      'https://example.com/b.xml.gz',
+    ]);
+    expect(
+      parseM3uEpgUrls('#EXTM3U\n#EXTINF:-1,BBC\nhttps://example.com/live')
+    ).toEqual([]);
+  });
+
+  it.each([
+    '<tv/>',
+    '<tv><channel id="bbc"><display-name>BBC</display-name></channel></tv>',
+    '<tv><channel id="bbc"><display-name>BBC</display-name></channel><programme channel="unknown" start="20260628120000 +0000" stop="20260628130000 +0000"><title>News</title></programme></tv>',
+    '<tv><channel id="bbc"><display-name>BBC</display-name></channel><programme channel="bbc" start="20260628130000 +0000" stop="20260628120000 +0000"><title>News</title></programme></tv>',
+  ])(
+    'does not advertise native EPG without valid channel programmes',
+    async (xml) => {
+      vi.mocked(makeRequest).mockResolvedValueOnce(sourceResponse(xml));
+      const manifest = await new XmltvAddon({
+        sourceUrl: 'https://example.com/empty.xml',
+        timeout: 1000,
+      }).getManifest();
+      expect(manifest.behaviorHints?.epgProvider).toBeUndefined();
+    }
+  );
+
+  it('keeps an unavailable XMLTV manifest usable without claiming EPG', async () => {
+    vi.mocked(makeRequest).mockRejectedValueOnce(new Error('offline'));
+    const manifest = await new XmltvAddon({
+      sourceUrl: 'https://example.com/offline.xml',
+      timeout: 1000,
+    }).getManifest();
+    expect(manifest.resources).toHaveLength(2);
+    expect(manifest.behaviorHints?.epgProvider).toBeUndefined();
+  });
+
+  it('reuses the parsed M3U for guide discovery and channel catalogs', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '#EXTM3U url-tvg="https://example.com/guide.xml"\n#EXTINF:-1,BBC\nhttps://example.com/live'
+      )
+    );
+    const addon = new M3uAddon({
+      sourceUrl: 'https://example.com/list.m3u',
+      timeout: 1000,
+    });
+    const urls = await addon.getEpgUrls();
+    urls.length = 0;
+    expect(await addon.getEpgUrls()).toEqual(['https://example.com/guide.xml']);
+    expect(await addon.getCatalog()).toHaveLength(1);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
+    expect(
+      (await addon.getManifest()).behaviorHints?.epgProvider
+    ).toBeUndefined();
+  });
   it('honors the administrator source size limit for downloads and gzip expansion', async () => {
     const { fetchSourceText } = await import('./live-tv/shared.js');
     const config = {
@@ -307,8 +368,9 @@ describe('live TV sources', () => {
       timeout: 1000,
     });
 
-    expect(addon.getManifest().behaviorHints?.epgProvider).toBe(true);
-    expect(addon.getManifest().catalogs[0].extra).toEqual([
+    const manifest = await addon.getManifest();
+    expect(manifest.behaviorHints?.epgProvider).toBe(true);
+    expect(manifest.catalogs[0].extra).toEqual([
       { name: 'skip' },
       { name: 'date' },
     ]);

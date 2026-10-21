@@ -858,7 +858,16 @@ export class M3uPreset extends Preset {
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION: 'Live TV channels and streams from an M3U playlist.',
-      OPTIONS: sourceOptions('M3U', resources),
+      OPTIONS: [
+        ...sourceOptions('M3U', resources),
+        {
+          id: 'discoverEpg',
+          name: 'Find EPG guides',
+          type: 'action' as const,
+          description:
+            'Find XMLTV guide URLs declared by this playlist. Selected guides are added with this addon and stay in your draft until Save.',
+        },
+      ],
       SUPPORTED_STREAM_TYPES: [constants.LIVE_STREAM_TYPE],
       SUPPORTED_RESOURCES: resources,
       BUILTIN: true,

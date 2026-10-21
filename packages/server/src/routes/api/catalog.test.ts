@@ -29,6 +29,7 @@ const fixture = vi.hoisted(() => {
     sources: [] as Array<{ error?: string; truncated?: boolean }>,
     inventory: new Map<string, { value: unknown; expires: number }>(),
     catalogCalls: 0,
+    m3uConfig: undefined as unknown,
     onGuideCatalog: undefined as (() => void) | undefined,
   };
 });
@@ -64,6 +65,14 @@ vi.mock('@aiolivetv/core', async () => {
   ];
   return {
     ...matching,
+    M3uAddon: class {
+      constructor(config: unknown) {
+        fixture.m3uConfig = config;
+      }
+      async getEpgUrls() {
+        return ['https://example.com/guide.xml'];
+      }
+    },
     constants,
     APIError: constants.APIError,
     normalizeChannelGroup,
@@ -307,6 +316,37 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('discovers M3U guide addresses through the existing catalog API', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use('/catalogs', catalogApi);
+    server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server!.once('listening', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('No test port');
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/catalogs/m3u/epg`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceUrl: 'https://example.com/list.m3u',
+          timeout: 5000,
+        }),
+      }
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      data: { urls: ['https://example.com/guide.xml'] },
+    });
+    expect(fixture.m3uConfig).toMatchObject({
+      sourceUrl: 'https://example.com/list.m3u',
+      timeout: 5000,
+    });
+  });
+
   it('keeps slow scans alive and returns valid JSON after heartbeats', async () => {
     const interval = globalThis.setInterval;
     vi.spyOn(globalThis, 'setInterval').mockImplementation((callback) =>

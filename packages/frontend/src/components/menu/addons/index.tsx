@@ -1,7 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { PageWrapper } from '../../shared/page-wrapper';
 import { useStatus } from '@/context/status';
-import { useUserData, useParentInheritance } from '@/context/userData';
+import {
+  useUserData,
+  useParentInheritance,
+  appendDiscoveredXmltvPresets,
+} from '@/context/userData';
 import { InheritedBadge } from '../../shared/inherited-badge';
 import { Card } from '../../ui/card';
 import { TextInput } from '../../ui/text-input';
@@ -120,17 +124,25 @@ function Content() {
       }
       setUserData((prev) => ({
         ...prev,
-        presets: [...prev.presets, newPreset],
+        presets: appendDiscoveredXmltvPresets(
+          [...prev.presets, newPreset],
+          modalPreset.ID === 'm3u' ? (values.epgUrls ?? []) : [],
+          values.options.timeout
+        ),
       }));
       toast.info('Addon installed successfully!');
       setModalOpen(false);
     } else if (modalMode === 'edit' && editingAddonId) {
       setUserData((prev) => ({
         ...prev,
-        presets: prev.presets.map((a) =>
-          a.instanceId === editingAddonId
-            ? { ...a, options: values.options }
-            : a
+        presets: appendDiscoveredXmltvPresets(
+          prev.presets.map((a) =>
+            a.instanceId === editingAddonId
+              ? { ...a, options: values.options }
+              : a
+          ),
+          modalPreset?.ID === 'm3u' ? (values.epgUrls ?? []) : [],
+          values.options.timeout
         ),
       }));
       toast.info('Addon updated successfully!');

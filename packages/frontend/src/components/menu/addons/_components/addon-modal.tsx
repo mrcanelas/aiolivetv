@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Option } from '@aiolivetv/core';
 import { Button } from '../../../ui/button';
 import { Modal } from '../../../ui/modal';
@@ -7,6 +7,7 @@ import MarkdownLite from '../../../shared/markdown-lite';
 import { useMode } from '@/context/mode';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { Switch } from '../../../ui/switch';
 
 export function AddonModal({
   open,
@@ -26,9 +27,16 @@ export function AddonModal({
   const { mode: configMode } = useMode();
   const [values, setValues] = useState<Record<string, any>>(initialValues);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [epgDiscovery, setEpgDiscovery] = useState<{
+    sourceUrl: string;
+    urls: string[];
+  } | null>(null);
+  const epgRequest = useRef<AbortController | null>(null);
   useEffect(() => {
+    setTestingConnection(false);
     if (open) {
       setValues(initialValues);
+      setEpgDiscovery(null);
     } else {
       // when closing, delay the reset to allow the animation to finish
       // so that the user doesn't see the values being reset
@@ -36,6 +44,10 @@ export function AddonModal({
         setValues(initialValues);
       }, 150);
     }
+    return () => {
+      epgRequest.current?.abort();
+      epgRequest.current = null;
+    };
   }, [open, initialValues]);
   let dynamicOptions: Option[] = presetMetadata?.OPTIONS || [];
   if (configMode === 'noob') {
@@ -109,6 +121,36 @@ export function AddonModal({
     }
   }
 
+  async function handleDiscoverEpg() {
+    const sourceUrl = values.options?.sourceUrl;
+    if (!sourceUrl) return;
+    setTestingConnection(true);
+    setEpgDiscovery(null);
+    const controller = new AbortController();
+    epgRequest.current = controller;
+    try {
+      const result = await api<{ urls: string[] }>('POST /catalogs/m3u/epg', {
+        body: { sourceUrl, timeout: values.options?.timeout },
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      setEpgDiscovery({ sourceUrl, urls: result.urls });
+      setValues((current) => ({ ...current, epgUrls: [] }));
+      if (!result.urls.length)
+        toast.info('This playlist does not declare an EPG guide.');
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to find EPG guides'
+      );
+    } finally {
+      if (epgRequest.current === controller) {
+        setTestingConnection(false);
+        epgRequest.current = null;
+      }
+    }
+  }
+
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -154,7 +196,13 @@ export function AddonModal({
       }
     }
     if (allRequiredFilled) {
-      onSubmit(values);
+      onSubmit({
+        ...values,
+        epgUrls:
+          epgDiscovery?.sourceUrl === values.options?.sourceUrl
+            ? (values.epgUrls ?? [])
+            : [],
+      });
     } else {
       toast.error('Please fill in all required fields');
     }
@@ -174,7 +222,38 @@ export function AddonModal({
       <form className="space-y-4" onSubmit={handleFormSubmit}>
         {dynamicOptions.map((opt: any) => (
           <div key={opt.id} className="mb-2">
-            {opt.type === 'action' && opt.id === 'testConnection' ? (
+            {opt.type === 'action' && opt.id === 'discoverEpg' ? (
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  intent="primary-subtle"
+                  disabled={testingConnection || !values.options?.sourceUrl}
+                  onClick={handleDiscoverEpg}
+                >
+                  {testingConnection ? 'Finding guides…' : opt.name}
+                </Button>
+                {epgDiscovery?.sourceUrl === values.options?.sourceUrl
+                  ? epgDiscovery?.urls.map((url) => (
+                      <Switch
+                        key={url}
+                        label={`Add XMLTV: ${new URL(url).hostname}${new URL(url).pathname}`}
+                        value={(values.epgUrls ?? []).includes(url)}
+                        onValueChange={(selected) =>
+                          setValues((current) => ({
+                            ...current,
+                            epgUrls: selected
+                              ? [...(current.epgUrls ?? []), url]
+                              : (current.epgUrls ?? []).filter(
+                                  (item: string) => item !== url
+                                ),
+                          }))
+                        }
+                      />
+                    ))
+                  : null}
+                <p className="text-xs text-[--muted]">{opt.description}</p>
+              </div>
+            ) : opt.type === 'action' && opt.id === 'testConnection' ? (
               <div>
                 <Button
                   type="button"
@@ -209,7 +288,7 @@ export function AddonModal({
         <Button
           className="w-full mt-2"
           type="submit"
-          disabled={!allRequiredFilled}
+          disabled={!allRequiredFilled || testingConnection}
         >
           {mode === 'add' ? 'Install' : 'Update'}
         </Button>

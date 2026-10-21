@@ -185,9 +185,13 @@ export class Wrapper {
     timeout?: number;
     bypassCache?: boolean;
   }): Promise<Manifest> {
-    const verifiesEpg = ['orange-tv', 'movistar-plus', 'tdtchannels', 'xtream'].includes(
-      this.addon.preset.type
-    );
+    const verifiesEpg = [
+      'orange-tv',
+      'movistar-plus',
+      'tdtchannels',
+      'xtream',
+      'xmltv',
+    ].includes(this.addon.preset.type);
     // Movistar and Xtream fetch channels before schedules.
     const probeBudget =
       this.addon.timeout *

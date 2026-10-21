@@ -13,6 +13,48 @@ import { useStatus } from './status';
 
 const USER_DATA_KEY = 'aiolivetv-user-data';
 
+export function appendDiscoveredXmltvPresets(
+  presets: UserData['presets'],
+  urls: string[],
+  timeout: number
+): UserData['presets'] {
+  const next = [...presets];
+  const known = new Set(
+    presets
+      .filter((preset) => preset.type === 'xmltv')
+      .map((preset) => {
+        try {
+          return new URL(preset.options.sourceUrl).href;
+        } catch {
+          return '';
+        }
+      })
+  );
+  for (const value of urls) {
+    try {
+      const url = new URL(value);
+      if (!['http:', 'https:'].includes(url.protocol) || known.has(url.href))
+        continue;
+      known.add(url.href);
+      next.push({
+        type: 'xmltv',
+        instanceId: crypto.randomUUID(),
+        enabled: true,
+        options: {
+          name: `XMLTV (${url.hostname})`,
+          sourceUrl: url.href,
+          resources: ['catalog', 'meta'],
+          timeout,
+          timeShiftMinutes: 0,
+        },
+      });
+    } catch {
+      // Ignore invalid suggestions; the M3U itself remains usable.
+    }
+  }
+  return next;
+}
+
 export function applyMigrations(config: any): UserData {
   migrateLegacyIdentityIds(config);
   if (

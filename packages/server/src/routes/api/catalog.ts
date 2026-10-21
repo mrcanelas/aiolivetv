@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { createResponse } from '../../utils/responses.js';
 import { catalogApiRateLimiter } from '../../middlewares/ratelimit.js';
 import { attachSession, injectAccessKey } from '../../middlewares/auth.js';
+import { z } from 'zod';
 import {
   createLogger,
   UserData,
@@ -30,6 +31,7 @@ import {
   config as appConfig,
   Cache,
   getSimpleTextHash,
+  M3uAddon,
 } from '@aiolivetv/core';
 
 const router: Router = Router();
@@ -178,6 +180,33 @@ async function validateDraft(
     );
   }
 }
+
+router.post(
+  '/m3u/epg',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = z
+        .object({
+          sourceUrl: z.url().refine((url) => /^https?:\/\//i.test(url)),
+          timeout: z.number().int().positive().max(120_000).optional(),
+        })
+        .parse(req.body);
+      const addon = new M3uAddon({
+        sourceUrl: body.sourceUrl,
+        timeout: body.timeout ?? 10_000,
+        maxBytes: appConfig.resources.liveTvSourceMaxBytes,
+      });
+      res.json(
+        createResponse({
+          success: true,
+          data: { urls: await addon.getEpgUrls() },
+        })
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   const { userData } = req.body;

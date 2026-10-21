@@ -17,11 +17,12 @@ import {
   channelGenreCatalogExtra,
   channelGenres,
 } from '../live-tv/epg.js';
-import { parseM3u, type M3uEntry } from './parser.js';
+import { parseM3u, parseM3uEpgUrls, type M3uEntry } from './parser.js';
 import { normalizeChannelGroup } from '../../utils/channelName.js';
 
 const SOURCE_CACHE_TTL_MS = 300_000;
 type M3uData = {
+  epgUrls: string[];
   catalog: MetaPreview[];
   catalogByGenre: Map<string | undefined, MetaPreview[]>;
   entriesByChannelId: Map<string, M3uEntry[]>;
@@ -34,12 +35,16 @@ const parsedSources = new Map<
 >();
 const inflightSources = new Map<string, Promise<M3uData>>();
 
-export function clearM3uSourceCache() {
+export function clearM3uSourceCache(sourceUrl?: string) {
+  if (sourceUrl) {
+    parsedSources.delete(sourceUrl);
+    return;
+  }
   parsedSources.clear();
   inflightSources.clear();
 }
 
-function prepareM3u(entries: M3uEntry[]): M3uData {
+function prepareM3u(entries: M3uEntry[], epgUrls: string[]): M3uData {
   const entriesByChannelId = new Map<string, M3uEntry[]>();
   for (const entry of entries) {
     const key = entry.channelId.trim().toLowerCase();
@@ -76,6 +81,7 @@ function prepareM3u(entries: M3uEntry[]): M3uData {
     catalogByGenre.set(genre, group);
   }
   return {
+    epgUrls,
     catalog,
     catalogByGenre,
     entriesByChannelId,
@@ -93,7 +99,7 @@ export async function loadM3u(config: LiveTvSourceConfig): Promise<M3uData> {
   if (pending) return pending;
   const load = (async () => {
     const text = await fetchSourceText(config);
-    const data = prepareM3u(parseM3u(text));
+    const data = prepareM3u(parseM3u(text), parseM3uEpgUrls(text));
     parsedSources.set(cacheKey, {
       data,
       expiresAt: Date.now() + SOURCE_CACHE_TTL_MS,
@@ -127,6 +133,10 @@ export class M3uAddon {
 
   constructor(config: z.input<typeof LiveTvSourceConfigSchema>) {
     this.config = LiveTvSourceConfigSchema.parse(config);
+  }
+
+  async getEpgUrls(): Promise<string[]> {
+    return [...(await loadM3u(this.config)).epgUrls];
   }
 
   async getManifest(): Promise<Manifest> {

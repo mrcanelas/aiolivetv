@@ -47,12 +47,18 @@ const parsedSources = new Map<
 const inflightSources = new Map<string, Promise<XmltvData>>();
 
 /** Drop parsed guides held by this process (used by tests). */
-export function clearXmltvSourceCache() {
+export function clearXmltvSourceCache(sourceUrl?: string) {
+  if (sourceUrl) {
+    parsedSources.delete(sourceUrl);
+    return;
+  }
   parsedSources.clear();
   inflightSources.clear();
 }
 
-export async function loadXmltv(config: LiveTvSourceConfig): Promise<XmltvData> {
+export async function loadXmltv(
+  config: LiveTvSourceConfig
+): Promise<XmltvData> {
   trimSourceCache(parsedSources);
   const cacheKey = config.sourceUrl;
   const cached = parsedSources.get(cacheKey);
@@ -129,7 +135,16 @@ export class XmltvAddon {
     this.config = LiveTvSourceConfigSchema.parse(config);
   }
 
-  getManifest(): Manifest {
+  async getManifest(): Promise<Manifest> {
+    let epgProvider = false;
+    try {
+      const data = await loadXmltv(this.config);
+      epgProvider = data.channels.some(
+        (channel) => programsForChannel(data, channel.id).length > 0
+      );
+    } catch {
+      // Configured URLs alone do not prove the presence of a usable guide.
+    }
     return {
       id: 'org.aiolivetv.xmltv',
       name: 'XMLTV',
@@ -156,7 +171,7 @@ export class XmltvAddon {
           extra: [...EPG_GUIDE_CATALOG_EXTRAS],
         },
       ],
-      behaviorHints: { epgProvider: true },
+      ...(epgProvider ? { behaviorHints: { epgProvider: true } } : {}),
     };
   }
 

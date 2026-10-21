@@ -11,6 +11,32 @@ export interface M3uEntry {
   language?: string;
 }
 
+/** Only playlist-level headers advertise guides; stream attributes do not. */
+export function parseM3uEpgUrls(playlist: string): string[] {
+  const urls = new Set<string>();
+  const header = playlist
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .find((line) => /^#EXTM3U(?:\s|$)/i.test(line.trim()));
+  if (!header) return [];
+  for (const match of header.matchAll(
+    /(?:^|\s)(?:x-tvg-url|url-tvg|tvg-url)\s*=\s*("[^"]*"|'[^']*'|[^\s]+)/gi
+  )) {
+    const value = decodeHtmlEntities(match[1].replace(/^["']|["']$/g, ''));
+    for (const candidate of value.split(/[,\s]+/)) {
+      try {
+        const url = new URL(candidate);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          urls.add(url.href);
+        }
+      } catch {
+        // A broken guide address must not prevent importing the playlist.
+      }
+    }
+  }
+  return [...urls];
+}
+
 function splitExtinf(line: string): [string, string] {
   let quote = '';
   for (let index = 0; index < line.length; index++) {
