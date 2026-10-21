@@ -16,6 +16,8 @@ The **Sources** card shows the last scan of every live catalog and stream addon:
 
 **Test / Refresh now** fetches the sources again and runs high-confidence matching plus suggestions. Failed addons stay listed so you can fix the URL or credentials on **Addons** without guessing which source broke.
 
+After a refresh, **Last refresh** summarizes added, missing and changed channels relative to the previous scan. Expand it to see names. Failed or incomplete sources are not treated as channel removals. Saved bindings, rejections, disabled channels and stream order are preserved, including bindings whose provider is temporarily unavailable.
+
 ## Needs review
 
 A conflict inbox groups channel issues:
@@ -44,6 +46,8 @@ EPG-backed channels are preferred as the canonical id when a guide is present. W
 - Accept or reject an automatic suggestion.
 - Create a manual mapping to a stream from another addon or a pasted URL.
 - Reorder bound streams (playback tries them in that order).
+- Filter channels by group, country or language, select the results, and enable or disable them together. These actions affect the selected channels, not future imports.
+- Choose an **EPG guide** in **Edit Channel** to use a specific guide channel, even when its id differs from the canonical channel id. This only changes the schedule; stream bindings and priority stay intact. Clear the selection to restore automatic selection. An unavailable selected guide leaves the schedule empty until it recovers or you change the choice.
 
 Rejected streams are remembered so the next auto-match pass does not reattach them.
 
