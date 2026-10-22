@@ -12,6 +12,7 @@ import { useCommandPalette } from '@/context/command-palette';
 import { useQuickActions } from '@/context/quick-actions';
 import { useMode } from '@/context/mode';
 import { FIELD_META, type MenuId } from '../../../../core/src/utils/fieldMeta';
+import { isLiveTvUserDataField } from '../../../../core/src/utils/userConfig';
 import { isConfigureMenuVisible } from '@/constants/configure-menus';
 import {
   BiInfoCircle,
@@ -161,7 +162,8 @@ export function CommandPalette() {
     for (const [key, meta] of Object.entries(FIELD_META) as Array<
       [string, (typeof FIELD_META)[keyof typeof FIELD_META]]
     >) {
-      if (!isConfigureMenuVisible(meta.menu)) continue;
+      if (!isLiveTvUserDataField(key) || !isConfigureMenuVisible(meta.menu))
+        continue;
       const score = bestScore(
         [meta.label, key, meta.menu, meta.subTab, ...(meta.keywords ?? [])],
         q

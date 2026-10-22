@@ -729,10 +729,8 @@ function Content() {
         }
         delete parsed.uuid;
         delete parsed.trusted;
-        setUserData((prev) => ({
-          ...prev,
-          ...applyMigrations(parsed),
-        }));
+        const imported = applyMigrations(parsed);
+        setUserData((prev) => applyMigrations({ ...prev, ...imported }));
         toast.success('Configuration imported successfully');
       } catch (err) {
         toast.error('Failed to import configuration: Invalid JSON file');
@@ -793,7 +791,7 @@ function Content() {
       const exportData = filterCredentialsInExport
         ? filterCredentials(userData)
         : structuredClone(userData);
-      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataStr = JSON.stringify(applyMigrations(exportData), null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

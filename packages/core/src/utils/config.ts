@@ -29,7 +29,12 @@ import {
 } from './index.js';
 import { assertConfigAccessKey } from './auth.js';
 import { parseSyncedUrl } from './sync.js';
-import { migrateLegacyIdentityIds } from './identity.js';
+import {
+  applyMigrations,
+  normalizeUserData,
+  removeInvalidPresetReferences,
+} from './userConfig.js';
+export { applyMigrations, normalizeUserData } from './userConfig.js';
 import { ZodError } from 'zod';
 import {
   formatZodError as formatZodErrorImpl,
@@ -434,298 +439,7 @@ export async function validateConfig(
     bypassManifestCache: options?.bypassManifestCache ?? false,
   }).initialise();
 
-  return config;
-}
-
-function removeInvalidPresetReferences(config: UserData) {
-  // remove references to non-existent presets in options:
-  const existingPresetIds = config.presets?.map((preset) => preset.instanceId);
-  if (config.proxy) {
-    config.proxy.proxiedAddons = config.proxy.proxiedAddons?.filter((addon) =>
-      existingPresetIds?.includes(addon)
-    );
-  }
-  if (config.yearMatching) {
-    config.yearMatching.addons = config.yearMatching.addons?.filter((addon) =>
-      existingPresetIds?.includes(addon)
-    );
-  }
-  if (config.titleMatching) {
-    config.titleMatching.addons = config.titleMatching.addons?.filter((addon) =>
-      existingPresetIds?.includes(addon)
-    );
-  }
-  if (config.seasonEpisodeMatching) {
-    config.seasonEpisodeMatching.addons =
-      config.seasonEpisodeMatching.addons?.filter((addon) =>
-        existingPresetIds?.includes(addon)
-      );
-  }
-  if (config.groups?.groupings) {
-    config.groups.groupings = config.groups.groupings.map((group) => ({
-      ...group,
-      addons: group.addons?.filter((addon) =>
-        existingPresetIds?.includes(addon)
-      ),
-    }));
-  }
-
-  if (config.serviceWrap?.presets) {
-    config.serviceWrap.presets = config.serviceWrap.presets.filter((preset) =>
-      existingPresetIds?.includes(preset)
-    );
-  }
-  return config;
-}
-
-export function applyMigrations(config: any): UserData {
-  migrateLegacyIdentityIds(config);
-  if (
-    config &&
-    config.addonPassword !== undefined &&
-    config.accessToken === undefined
-  ) {
-    config.accessToken = config.addonPassword;
-  }
-  if (config && config.addonPassword !== undefined) {
-    delete config.addonPassword;
-  }
-  if (
-    config &&
-    config.accessToken !== undefined &&
-    config.accessKey === undefined
-  ) {
-    config.accessKey = config.accessToken;
-  }
-  if (config && config.accessToken !== undefined) {
-    delete config.accessToken;
-  }
-  if (
-    config.deduplicator &&
-    typeof config.deduplicator.multiGroupBehaviour === 'string'
-  ) {
-    switch (config.deduplicator.multiGroupBehaviour as string) {
-      case 'remove_uncached':
-        config.deduplicator.multiGroupBehaviour = 'aggressive';
-        break;
-      case 'remove_uncached_same_service':
-        config.deduplicator.multiGroupBehaviour = 'conservative';
-        break;
-      case 'remove_nothing':
-        config.deduplicator.multiGroupBehaviour = 'keep_all';
-        break;
-    }
-  }
-
-  if (typeof config.digitalReleaseFilter === 'boolean') {
-    const oldValue = config.digitalReleaseFilter;
-    config.digitalReleaseFilter = {
-      enabled: oldValue,
-      tolerance: 1,
-      requestTypes: ['movie', 'series', 'anime'],
-      addons: [],
-    };
-  }
-  if (config.titleMatching?.matchYear) {
-    config.yearMatching = {
-      enabled: true,
-      tolerance: config.titleMatching.yearTolerance
-        ? config.titleMatching.yearTolerance
-        : 1,
-      requestTypes: config.titleMatching.requestTypes ?? [],
-      addons: config.titleMatching.addons ?? [],
-    };
-    delete config.titleMatching.matchYear;
-  }
-
-  if (Array.isArray(config.groups)) {
-    config.groups = {
-      enabled: config.disableGroups ? false : true,
-      groupings: config.groups,
-      behaviour: 'parallel',
-    };
-  }
-
-  if (config.showStatistics || config.statisticsPosition) {
-    config.statistics = {
-      enabled: config.showStatistics ?? false,
-      position: config.statisticsPosition ?? 'bottom',
-      statsToShow: ['addon', 'filter', 'timing'],
-      ...(config.statistics ?? {}),
-    };
-    delete config.showStatistics;
-    delete config.statisticsPosition;
-  }
-
-  const migrateHOSBS = (
-    type: 'preferred' | 'required' | 'excluded' | 'included'
-  ) => {
-    if (Array.isArray(config[type + 'Encodes'])) {
-      config[type + 'Encodes'] = config[type + 'Encodes'].filter(
-        (encode: string) => {
-          if (encode === 'H-OU' || encode === 'H-SBS') {
-            // add H-OU and H-SBS to visual tags if in encodes.
-            config[type + 'VisualTags'] = [
-              ...(config[type + 'VisualTags'] ?? []),
-              encode,
-            ];
-            // filter out H-OU and H-SBS from encodes
-            return false;
-          }
-          return true;
-        }
-      );
-    }
-  };
-
-  migrateHOSBS('preferred');
-  migrateHOSBS('required');
-  migrateHOSBS('excluded');
-  migrateHOSBS('included');
-
-  // migrate comparisons of queryType to 'anime' to 'anime.series' or 'anime.movie'
-  const migrateAnimeQueryTypeInExpression = (expr?: string) => {
-    if (typeof expr !== 'string') return expr as any;
-    // Replace equality comparisons
-    let updated = expr.replace(
-      /queryType\s*==\s*(["'])anime\1/g,
-      "(queryType == 'anime.series' or queryType == 'anime.movie')"
-    );
-    updated = updated.replace(
-      /(["'])anime\1\s*==\s*queryType/g,
-      "(queryType == 'anime.series' or queryType == 'anime.movie')"
-    );
-    // Replace inequality comparisons
-    updated = updated.replace(
-      /queryType\s*!=\s*(["'])anime\1/g,
-      "(queryType != 'anime.series' and queryType != 'anime.movie')"
-    );
-    updated = updated.replace(
-      /(["'])anime\1\s*!=\s*queryType/g,
-      "(queryType != 'anime.series' and queryType != 'anime.movie')"
-    );
-    return updated;
-  };
-
-  const expressionLists = [
-    'excludedStreamExpressions',
-    'requiredStreamExpressions',
-    'includedStreamExpressions',
-    'preferredStreamExpressions',
-  ] as const;
-
-  for (const key of expressionLists) {
-    if (Array.isArray((config as any)[key])) {
-      (config as any)[key] = (config as any)[key].map((expr: unknown) => {
-        if (typeof expr === 'string') {
-          return migrateAnimeQueryTypeInExpression(expr);
-        }
-        if (typeof expr === 'object' && expr !== null && 'expression' in expr) {
-          return {
-            ...(expr as any),
-            expression: migrateAnimeQueryTypeInExpression(
-              (expr as any).expression
-            ),
-          };
-        }
-        return expr;
-      });
-    }
-  }
-
-  if (config.dynamicAddonFetching?.condition) {
-    config.dynamicAddonFetching.condition = migrateAnimeQueryTypeInExpression(
-      config.dynamicAddonFetching.condition
-    );
-  }
-
-  if (config.groups?.groupings) {
-    config.groups.groupings = config.groups.groupings.map((group: any) => ({
-      ...group,
-      condition: migrateAnimeQueryTypeInExpression(group.condition),
-    }));
-  }
-
-  // migrate rpdbUseRedirectApi to usePosterRedirectApi
-  if (
-    config.rpdbUseRedirectApi !== undefined &&
-    config.usePosterRedirectApi === undefined
-  ) {
-    config.usePosterRedirectApi = config.rpdbUseRedirectApi;
-    delete config.rpdbUseRedirectApi;
-  }
-
-  // migrate 'rpdb' to 'usePosterService' in all catalog modifications
-  if (Array.isArray(config.catalogModifications)) {
-    for (const mod of config.catalogModifications) {
-      if (mod.usePosterService === undefined && mod.rpdb === true) {
-        mod.usePosterService = true;
-      }
-      delete mod.rpdb;
-    }
-  }
-
-  // migrate alwaysPrecache to precacheCondition, then precacheCondition to precacheSelector
-  if (config.precacheSelector === undefined && config.precacheNextEpisode) {
-    // First handle the old precacheCondition field
-    if (config.precacheCondition !== undefined) {
-      // Convert condition to selector format
-      config.precacheSelector = `${config.precacheCondition} ? uncached(streams) : []`;
-    } else {
-      // Handle even older alwaysPrecache field
-      config.precacheSelector =
-        config.alwaysPrecache === true
-          ? 'true ? uncached(streams) : []'
-          : constants.DEFAULT_PRECACHE_SELECTOR;
-    }
-  }
-  delete config.alwaysPrecache;
-  delete config.precacheCondition;
-
-  // migrate stream expressions from string[] to {expression, enabled}[]
-  const streamExpressionKeys = [
-    'excludedStreamExpressions',
-    'requiredStreamExpressions',
-    'preferredStreamExpressions',
-    'includedStreamExpressions',
-  ] as const;
-  for (const key of streamExpressionKeys) {
-    if (Array.isArray(config[key])) {
-      config[key] = config[key].map((item: unknown) =>
-        typeof item === 'string' ? { expression: item, enabled: true } : item
-      );
-    }
-  }
-
-  // migrate forceToTop at addon level to pinPosition set to 'top'
-  if (config.presets && Array.isArray(config.presets)) {
-    config.presets = config.presets.map((preset: any) => {
-      if (
-        preset.options?.forceToTop === true &&
-        preset.options.pinPosition === undefined
-      ) {
-        delete preset.options.forceToTop;
-        return {
-          ...preset,
-          options: {
-            ...preset.options,
-            pinPosition: 'top',
-          },
-        };
-      }
-      return preset;
-    });
-  }
-
-  if (config.formatter && config.formatter.definition) {
-    config.formatter.definitions = {
-      ...(config.formatter.definitions ?? {}),
-      custom: config.formatter.definition,
-    };
-    delete config.formatter.definition;
-  }
-
-  return config;
+  return normalizeUserData(config);
 }
 
 async function validateRegexes(config: UserData, skipErrors: boolean = false) {
@@ -1298,15 +1012,15 @@ async function validateProxy(
 
 // prettier-ignore
 const FILTER_FIELDS: (keyof UserData)[] = [
-  'excludedResolutions', 'includedResolutions', 'requiredResolutions', 'preferredResolutions',
+  'excludedResolutions', 'includedResolutions', 'requiredResolutions',
   'excludedQualities', 'includedQualities', 'requiredQualities', 'preferredQualities',
-  'excludedLanguages', 'includedLanguages', 'requiredLanguages', 'preferredLanguages',
+  'excludedLanguages', 'includedLanguages', 'requiredLanguages',
   'excludedSubtitles', 'includedSubtitles', 'requiredSubtitles', 'preferredSubtitles',
-  'excludedVisualTags', 'includedVisualTags', 'requiredVisualTags', 'preferredVisualTags',
-  'excludedAudioTags', 'includedAudioTags', 'requiredAudioTags', 'preferredAudioTags',
-  'excludedAudioChannels', 'includedAudioChannels', 'requiredAudioChannels', 'preferredAudioChannels',
+  'excludedVisualTags', 'includedVisualTags', 'requiredVisualTags',
+  'excludedAudioTags', 'includedAudioTags', 'requiredAudioTags',
+  'excludedAudioChannels', 'includedAudioChannels', 'requiredAudioChannels',
   'excludedStreamTypes', 'includedStreamTypes', 'requiredStreamTypes', 'preferredStreamTypes',
-  'excludedEncodes', 'includedEncodes', 'requiredEncodes', 'preferredEncodes',
+  'excludedEncodes', 'includedEncodes', 'requiredEncodes',
   'excludedRegexPatterns', 'includedRegexPatterns', 'requiredRegexPatterns',
   'preferredRegexPatterns', 'rankedRegexPatterns', 'regexOverrides', 'selOverrides',
   'syncedPreferredRegexUrls', 'syncedExcludedRegexUrls', 'syncedIncludedRegexUrls',
@@ -1331,6 +1045,8 @@ const FILTER_FIELDS: (keyof UserData)[] = [
 // prettier-ignore
 const SORTING_FIELDS: (keyof UserData)[] = [
   'sortCriteria', 'deduplicator', 'resultLimits',
+  'preferredResolutions', 'preferredLanguages', 'preferredEncodes',
+  'preferredVisualTags', 'preferredAudioTags', 'preferredAudioChannels',
 ];
 
 // prettier-ignore
@@ -1346,6 +1062,7 @@ const PROXY_FIELDS: (keyof UserData)[] = [
 // prettier-ignore
 const METADATA_FIELDS: (keyof UserData)[] = [
   'tmdbApiKey', 'tmdbAccessToken', 'tvdbApiKey',
+  'enrichEpgWithTmdb', 'epgMetadataLanguage',
   'rpdbApiKey', 'topPosterApiKey', 'aioratingsApiKey', 'aioratingsProfileId',
   'openposterdbApiKey', 'openposterdbUrl', 'openposterdbParameters', 'posterService',
   'usePosterRedirectApi', 'usePosterServiceForMeta',

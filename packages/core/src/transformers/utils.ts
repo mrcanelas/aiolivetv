@@ -11,6 +11,9 @@ export function generateBingeGroup(
   index: number,
   userData: UserData
 ): string | undefined {
+  if (stream.live || stream.type === constants.LIVE_STREAM_TYPE)
+    return undefined;
+
   const autoPlaySettings = {
     enabled: userData.autoPlay?.enabled ?? true,
     method: userData.autoPlay?.method ?? 'matchingFile',

@@ -1,4 +1,5 @@
 ﻿import { config as appConfig } from '../config/index.js';
+import { normalizeUserData } from '../utils/userConfig.js';
 import {
   Addon,
   Manifest,
@@ -49,6 +50,7 @@ export class AIOStreams {
   private ctx: AIOStreamsContext;
 
   constructor(userData: UserData, options?: AIOStreamsOptions) {
+    userData = normalizeUserData(userData);
     const filterer = new Filterer(userData);
     const precomputer = new Precomputer(userData);
     this.ctx = {

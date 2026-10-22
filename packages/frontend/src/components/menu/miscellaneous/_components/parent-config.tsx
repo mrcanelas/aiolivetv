@@ -12,6 +12,7 @@ import { GoLink, GoUnlink } from 'react-icons/go';
 import { FiSettings } from 'react-icons/fi';
 import type { ParentConfig, FieldGroup } from '@aiolivetv/core';
 import { FIELD_META } from '../../../../../../core/src/utils/fieldMeta';
+import { isLiveTvUserDataField } from '../../../../../../core/src/utils/userConfig';
 
 type MergeStrategy = 'inherit' | 'extend' | 'override';
 type BinaryMergeStrategy = 'inherit' | 'override';
@@ -73,8 +74,10 @@ const VISIBLE_FIELD_GROUP_SET = new Set<string>(FIELD_GROUPS);
 // individually overridden here.
 const ALL_FIELD_KEYS = Object.entries(FIELD_META)
   .filter(
-    ([, meta]) =>
-      !meta.ignoreForParentConfig && VISIBLE_FIELD_GROUP_SET.has(meta.group)
+    ([key, meta]) =>
+      isLiveTvUserDataField(key) &&
+      !meta.ignoreForParentConfig &&
+      VISIBLE_FIELD_GROUP_SET.has(meta.group)
   )
   .map(([key]) => key as keyof typeof FIELD_META)
   .sort((a, b) =>

@@ -804,7 +804,7 @@ export const UserDataSchema = z.object({
   cacheAndPlay: CacheAndPlaySchema.optional(),
 
   autoRemoveDownloads: z.boolean().optional(),
-  checkOwned: z.boolean().optional().default(true),
+  checkOwned: z.boolean().optional(),
   nzbFailover: z
     .object({
       enabled: z.boolean().optional(),

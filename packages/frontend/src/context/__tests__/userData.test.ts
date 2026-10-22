@@ -1,7 +1,36 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { UserData } from '@aiolivetv/core';
 vi.mock('@/context/status', () => ({ useStatus: vi.fn() }));
-import { appendDiscoveredXmltvPresets } from '../userData';
+import {
+  appendDiscoveredXmltvPresets,
+  applyMigrations,
+  DefaultUserData,
+} from '../userData';
+
+it('starts with Live TV defaults and does not restore legacy fields when importing into a draft', () => {
+  expect(Object.keys(DefaultUserData).sort()).toEqual([
+    'formatter',
+    'preferredResolutions',
+    'presets',
+    'sortCriteria',
+  ]);
+  const oldDraft = {
+    ...DefaultUserData,
+    enableSeadex: true,
+    services: [],
+    excludedQualities: ['CAM'],
+  };
+  const imported = applyMigrations({
+    ...DefaultUserData,
+    channelMappings: [{ id: 'disabled', enabled: false }],
+  });
+  const draft = applyMigrations({ ...oldDraft, ...imported });
+  expect(draft).not.toHaveProperty('enableSeadex');
+  expect(draft).not.toHaveProperty('services');
+  expect(draft).not.toHaveProperty('excludedQualities');
+  expect(draft.channelMappings).toEqual([{ id: 'disabled', enabled: false }]);
+  expect(applyMigrations(JSON.parse(JSON.stringify(draft)))).toEqual(draft);
+});
 
 describe('discovered XMLTV presets', () => {
   it('adds selected guides to a new draft without duplicating or enabling an existing guide', () => {

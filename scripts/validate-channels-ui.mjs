@@ -165,7 +165,18 @@ try {
   }));
   const userData = {
     presets: [],
-    services: [],
+    proxy: {
+      enabled: false,
+      id: 'mediaflow',
+      url: 'https://example.com/proxy',
+      credentials: 'saved-proxy-key',
+      proxiedServices: [],
+    },
+    services: [{ id: 'realdebrid', enabled: false, credentials: {} }],
+    enableSeadex: true,
+    checkOwned: true,
+    precacheNextEpisode: true,
+    excludedQualities: ['CAM'],
     channelMappings: Array.from({ length: 1000 }, (_, index) => ({
       id: 'removed:' + index,
       name: 'Removed ' + index,
@@ -706,6 +717,11 @@ try {
     const beforeSorting = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('aiolivetv-user-data'))
     );
+    assert.deepEqual(
+      beforeSorting.proxy,
+      userData.proxy,
+      'Instance defaults must preserve a configured disabled proxy'
+    );
     await page.goto(base + '/stremio/configure?menu=sorting');
     await page.getByRole('heading', { name: 'Sorting', exact: true }).waitFor();
     const criteriaInput = page.getByRole('combobox', {
@@ -802,6 +818,54 @@ try {
       fullPage: true,
     });
     assert.deepEqual(errors, [], 'Browser errors after addon configuration');
+    await page.goto(base + '/stremio/configure?menu=save-install');
+    const importedConfig = {
+      ...afterSorting,
+      enableSeadex: true,
+      checkOwned: true,
+      precacheNextEpisode: true,
+      services: [{ id: 'realdebrid', enabled: false, credentials: {} }],
+      excludedQualities: ['CAM'],
+    };
+    await page.locator('#import-file').setInputFiles({
+      name: 'legacy-config.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(importedConfig)),
+    });
+    await page
+      .getByText('Configuration imported successfully', { exact: true })
+      .waitFor();
+    const cleanDraft = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+    );
+    for (const key of [
+      'enableSeadex',
+      'checkOwned',
+      'precacheNextEpisode',
+      'services',
+      'excludedQualities',
+    ])
+      assert(!(key in cleanDraft), `${key} must not survive import`);
+    assert.deepEqual(cleanDraft.channelMappings, afterSorting.channelMappings);
+    assert.deepEqual(cleanDraft.presets, afterSorting.presets);
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const downloadReady = page.waitForEvent('download');
+    await page
+      .getByRole('button', { name: /Export Config.*Download as JSON/ })
+      .click();
+    const download = await downloadReady;
+    const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
+    for (const key of [
+      'enableSeadex',
+      'checkOwned',
+      'precacheNextEpisode',
+      'services',
+      'excludedQualities',
+    ])
+      assert(!(key in exported), `${key} must not survive export`);
+    assert.deepEqual(exported.channelMappings, cleanDraft.channelMappings);
+    assert.deepEqual(exported.presets, cleanDraft.presets);
+    assert.deepEqual(writes, [], 'Import/export must not save the draft');
     console.log(
       JSON.stringify({
         viewport: name,

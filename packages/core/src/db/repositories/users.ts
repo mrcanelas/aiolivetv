@@ -50,6 +50,7 @@ export class UserRepository {
     if (password.length < 6) {
       throw new APIError(constants.ErrorCode.USER_NEW_PASSWORD_TOO_SHORT);
     }
+    config = applyMigrations(config);
     assertConfigAccessKey(config);
     config.trusted = false;
     config.ip = undefined;
@@ -261,6 +262,7 @@ export class UserRepository {
     if (config.parentConfig?.uuid === uuid) {
       throw new APIError(constants.ErrorCode.PARENT_CONFIG_SELF_REFERENCE);
     }
+    config = applyMigrations(config);
     assertConfigAccessKey(config);
     config.trusted =
       appConfig.userLimits.trusted.uuids

@@ -5,6 +5,14 @@ description: Configure the Live TV builtins and how AIOLiveTV matches equivalent
 
 All sources are presets on the **Addons** page. There is no separate Sources screen.
 
+## Existing configurations and backups
+
+AIOLiveTV keeps the existing `UserData` configuration format. Loading an old draft or importing a backup removes VOD-only settings such as release-quality rules, SeaDex, torrent/Usenet age and seeder filters, title/year/episode matching, autoplay, downloads and episode pre-caching. Movie/series sorting and cache sorting overrides are removed; supported global Live TV criteria retain their order and direction.
+
+Empty disabled service entries and an unconfigured proxy are omitted. Services with credentials, configured proxies, Live TV deduplication rules, display settings, TMDB settings, formatter definitions, presets and channel mappings are preserved. Disabled or removed channels and manual stream URLs remain intact.
+
+The same cleanup runs on the server before saving and when reading older saved configurations. Reading or importing does not rewrite the saved configuration; **Save** persists the cleaned draft. JSON exports use the same cleanup so reimporting them does not restore retired options. Keep your original backup if you also use those VOD settings in AIOStreams.
+
 ## XMLTV
 
 XMLTV is a **catalog and meta** builtin. It does not play video.

@@ -348,6 +348,10 @@ async function validateWithEpg(
         delivered.streams[index].url === streams[index].url,
         `formatter changed playback URL: ${id}`
       );
+      assert(
+        !delivered.streams[index].behaviorHints?.bingeGroup,
+        'live streams must not receive VOD autoplay groups'
+      );
     }
     if (id === 'torrentio')
       assert(
@@ -1084,8 +1088,54 @@ async function validateGuideChoicesAndPersistence(
     'missing preferred guide must not silently switch schedules'
   );
   const password = 'live-tv-validation-only';
-  const saved = await core.UserRepository.createUser(draft, password);
+  const legacyDraft: UserData = {
+    ...draft,
+    preferredResolutions: ['720p', '1080p'],
+    enableSeadex: true,
+    checkOwned: true,
+    precacheNextEpisode: true,
+    services: [{ id: 'realdebrid', enabled: false, credentials: {} }],
+    excludedQualities: ['CAM'],
+    sortCriteria: {
+      global: [
+        { key: 'cached', direction: 'desc' },
+        { key: 'resolution', direction: 'asc' },
+      ],
+    },
+  };
+  const saved = await core.UserRepository.createUser(legacyDraft, password);
+  const assertStoredClean = async (uuid: string) => {
+    const row = await core.getDb().one<{
+      config: string;
+      config_salt: string;
+    }>(core.sql`SELECT config, config_salt FROM users WHERE uuid = ${uuid}`);
+    const { key } = await core.deriveKey(
+      `${password}:${core.config.bootstrap.secretKey}`,
+      row.config_salt
+    );
+    const decrypted = core.decryptString(row.config, key);
+    assert(
+      decrypted.success && decrypted.data,
+      'stored configuration must decrypt'
+    );
+    const stored = JSON.parse(decrypted.data);
+    for (const field of [
+      'enableSeadex',
+      'checkOwned',
+      'precacheNextEpisode',
+      'services',
+      'excludedQualities',
+    ]) {
+      assert(!(field in stored), `retired ${field} must not be persisted`);
+    }
+    assert(
+      stored.sortCriteria.global.length === 1 &&
+        stored.sortCriteria.global[0].key === 'resolution',
+      'storage must keep only supported sorting criteria'
+    );
+  };
   try {
+    await assertStoredClean(saved.uuid);
     const restored = await core.UserRepository.getRawUser(saved.uuid, password);
     assert(
       restored?.channelMappings?.[0].epgSource?.channelId === alternateId,
@@ -1101,6 +1151,43 @@ async function validateGuideChoicesAndPersistence(
           mapping.streams![0].addonId,
       'presets and stream order must survive persistence'
     );
+    await core.UserRepository.updateUser(saved.uuid, password, {
+      ...restored,
+      enableSeadex: true,
+      checkOwned: true,
+    });
+    await assertStoredClean(saved.uuid);
+    const child = await core.UserRepository.createUser(
+      {
+        ...legacyDraft,
+        preferredResolutions: ['1080p', '720p'],
+        epgMetadataLanguage: 'en-US',
+        parentConfig: { uuid: saved.uuid, password },
+      },
+      password
+    );
+    try {
+      await assertStoredClean(child.uuid);
+      const inherited = await core.UserRepository.getUser(child.uuid, password);
+      assert(
+        inherited?.channelMappings?.[0].epgSource?.channelId === alternateId,
+        'parent configuration must preserve guide choices'
+      );
+      assert(
+        inherited.sortCriteria.global[0].direction === 'asc',
+        'parent configuration must preserve sorting direction'
+      );
+      assert(
+        inherited.preferredResolutions?.[0] === '720p',
+        'Sorting inheritance must include preferred values'
+      );
+      assert(
+        inherited.epgMetadataLanguage === 'pt-BR',
+        'Metadata inheritance must include EPG enrichment settings'
+      );
+    } finally {
+      await core.UserRepository.deleteUser(child.uuid, password);
+    }
   } finally {
     await core.UserRepository.deleteUser(saved.uuid, password);
   }
