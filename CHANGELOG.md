@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.6.0](https://github.com/mrcanelas/aiolivetv/compare/v1.5.0...v1.6.0) (2026-10-22)
+
+
+### Features
+
+* **channels:** preserve refresh state and select preferred EPG guides ([d209d1a](https://github.com/mrcanelas/aiolivetv/commit/d209d1af8f3ff3c55c51f9e018b94db6ebc5297e))
+* **livetv:** discover playlist guides and validate native EPG ([5d3a919](https://github.com/mrcanelas/aiolivetv/commit/5d3a919d9f1e376d9d6fd8e713cd29313df02234))
+* **metadata:** enrich EPG programmes with TMDB ([e39e094](https://github.com/mrcanelas/aiolivetv/commit/e39e09490f9e52aaab87aa6879e45a6b73c56922))
+* **sorting:** restore shared Live TV stream ordering ([bee5a9f](https://github.com/mrcanelas/aiolivetv/commit/bee5a9f78902c8ac484c8f9b367ac1a89628ee41))
+
+
+### Bug Fixes
+
+* **clarotv:** report provider failures and avoid empty cache ([70a3275](https://github.com/mrcanelas/aiolivetv/commit/70a32751c7a409fbed653e8fe73b697412b68daf))
+* **dashboard:** prevent stale settings in browser and CDN caches ([0da5061](https://github.com/mrcanelas/aiolivetv/commit/0da506175e32f1e32b738a30879a9096d406e527))
+
 ## [1.5.0](https://github.com/mrcanelas/aiolivetv/compare/v1.4.1...v1.5.0) (2026-10-21)
 
 
