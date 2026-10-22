@@ -20,6 +20,9 @@ const FormatterMenu = lazy(() =>
     default: module.FormatterMenu,
   }))
 );
+const SortingMenu = lazy(() =>
+  import('./menu/sorting').then((module) => ({ default: module.SortingMenu }))
+);
 const ChannelsMenu = lazy(() =>
   import('./menu/channels').then((module) => ({ default: module.ChannelsMenu }))
 );
@@ -42,6 +45,8 @@ function SelectedMenu() {
       return <AddonsMenu />;
     case 'channels':
       return <ChannelsMenu />;
+    case 'sorting':
+      return <SortingMenu />;
     case 'formatter':
       return <FormatterMenu />;
     case 'miscellaneous':

@@ -1069,6 +1069,26 @@ const SORT_CRITERIA = [
   'releaseGroup',
 ] as const;
 
+/** Stream criteria supported by the Live TV configurator and pipeline. */
+export const LIVE_TV_SORT_CRITERIA = [
+  'addon',
+  'resolution',
+  'language',
+  'encode',
+  'visualTag',
+  'audioTag',
+  'audioChannel',
+  'bitrate',
+] as const satisfies readonly (typeof SORT_CRITERIA)[number][];
+
+export function getLiveTvSortCriteria<T extends { key: string }>(
+  criteria: readonly T[]
+): T[] {
+  return criteria.filter((item) =>
+    (LIVE_TV_SORT_CRITERIA as readonly string[]).includes(item.key)
+  );
+}
+
 export const MIN_SIZE = 0;
 export const MAX_SIZE = 100 * 1000 * 1000 * 1000; // 100GB
 
@@ -1214,8 +1234,8 @@ export const SORT_CRITERIA_DETAILS: Record<
     name: 'Addon',
     description: 'Sort by the addon order',
     defaultDirection: 'desc',
-    ascendingDescription: 'Streams are sorted by the order of your addon list',
-    descendingDescription: 'Streams are sorted by the order of your addon list',
+    ascendingDescription: 'Lower-priority addons are sorted first',
+    descendingDescription: 'Higher-priority addons are sorted first',
   },
   regexPatterns: {
     name: 'Regex Patterns',

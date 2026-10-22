@@ -5,6 +5,7 @@ export const CONFIGURE_VISIBLE_MENUS = [
   'about',
   'addons',
   'channels',
+  'sorting',
   'formatter',
   'miscellaneous',
   'save-install',

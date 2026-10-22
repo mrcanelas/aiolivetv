@@ -364,62 +364,8 @@ export const DefaultUserData: UserData = {
   excludedVisualTags: ['3D'],
   sortCriteria: {
     global: [
-      {
-        key: 'cached',
-        direction: 'desc',
-      },
-      {
-        key: 'library',
-        direction: 'desc',
-      },
-      {
-        key: 'resolution',
-        direction: 'desc',
-      },
-      {
-        key: 'quality',
-        direction: 'desc',
-      },
-      {
-        key: 'streamExpressionScore',
-        direction: 'desc',
-      },
-      {
-        key: 'regexPatterns',
-        direction: 'desc',
-      },
-      {
-        key: 'streamType',
-        direction: 'desc',
-      },
-      {
-        key: 'visualTag',
-        direction: 'desc',
-      },
-      {
-        key: 'audioTag',
-        direction: 'desc',
-      },
-      {
-        key: 'audioChannel',
-        direction: 'desc',
-      },
-      {
-        key: 'encode',
-        direction: 'desc',
-      },
-      {
-        key: 'language',
-        direction: 'desc',
-      },
-      {
-        key: 'subtitle',
-        direction: 'desc',
-      },
-      {
-        key: 'size',
-        direction: 'desc',
-      },
+      { key: 'addon', direction: 'desc' },
+      { key: 'resolution', direction: 'desc' },
     ],
   },
   posterService: 'rpdb',

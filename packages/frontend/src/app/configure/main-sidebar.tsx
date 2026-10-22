@@ -20,6 +20,7 @@ import {
   BiSearch,
   BiGridAlt,
   BiTv,
+  BiSortAlt2,
 } from 'react-icons/bi';
 import { useCommandPalette } from '@/context/command-palette';
 import { useRegisterQuickAction } from '@/context/quick-actions';
@@ -118,8 +119,7 @@ export function MainSidebar() {
 
   useRegisterQuickAction({
     id: 'toggle-mode',
-    label:
-      mode === 'pro' ? 'Switch to Simple mode' : 'Switch to Advanced mode',
+    label: mode === 'pro' ? 'Switch to Simple mode' : 'Switch to Advanced mode',
     icon: <BiCog />,
     keywords: ['mode', 'pro', 'noob', 'beginner', 'advanced'],
     onSelect: () => setMode(mode === 'pro' ? 'noob' : 'pro'),
@@ -143,6 +143,12 @@ export function MainSidebar() {
       iconType: BiTv,
       isCurrent: selectedMenu === 'channels',
       id: 'channels',
+    },
+    {
+      name: 'Sorting',
+      iconType: BiSortAlt2,
+      isCurrent: selectedMenu === 'sorting',
+      id: 'sorting',
     },
     {
       name: 'Formatter',

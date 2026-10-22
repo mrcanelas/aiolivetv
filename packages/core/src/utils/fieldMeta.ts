@@ -87,7 +87,7 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   excludedResolutions: { label: 'Excluded Resolutions', group: 'filters', type: 'list', menu: 'filters', subTab: 'resolution' },
   includedResolutions: { label: 'Included Resolutions', group: 'filters', type: 'list', menu: 'filters', subTab: 'resolution' },
   requiredResolutions: { label: 'Required Resolutions', group: 'filters', type: 'list', menu: 'filters', subTab: 'resolution' },
-  preferredResolutions: { label: 'Preferred Resolutions', group: 'filters', type: 'list', menu: 'filters', subTab: 'resolution' },
+  preferredResolutions: { label: 'Preferred Resolutions', group: 'sorting', type: 'list', menu: 'sorting', sectionId: 'preferredValues' },
 
   excludedQualities: { label: 'Excluded Qualities', group: 'filters', type: 'list', menu: 'filters', subTab: 'quality' },
   includedQualities: { label: 'Included Qualities', group: 'filters', type: 'list', menu: 'filters', subTab: 'quality' },
@@ -97,7 +97,7 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   excludedLanguages: { label: 'Excluded Languages', group: 'filters', type: 'list', menu: 'filters', subTab: 'language' },
   includedLanguages: { label: 'Included Languages', group: 'filters', type: 'list', menu: 'filters', subTab: 'language' },
   requiredLanguages: { label: 'Required Languages', group: 'filters', type: 'list', menu: 'filters', subTab: 'language' },
-  preferredLanguages: { label: 'Preferred Languages', group: 'filters', type: 'list', menu: 'filters', subTab: 'language' },
+  preferredLanguages: { label: 'Preferred Languages', group: 'sorting', type: 'list', menu: 'sorting', sectionId: 'preferredValues' },
 
   excludedSubtitles: { label: 'Excluded Subtitles', group: 'filters', type: 'list', menu: 'filters', subTab: 'subtitle', keywords: ['subs'] },
   includedSubtitles: { label: 'Included Subtitles', group: 'filters', type: 'list', menu: 'filters', subTab: 'subtitle', keywords: ['subs'] },
@@ -107,17 +107,17 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   excludedVisualTags: { label: 'Excluded Visual Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'visual-tag', keywords: ['hdr', 'dolby vision', 'dv'] },
   includedVisualTags: { label: 'Included Visual Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'visual-tag', keywords: ['hdr', 'dolby vision', 'dv'] },
   requiredVisualTags: { label: 'Required Visual Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'visual-tag', keywords: ['hdr', 'dolby vision', 'dv'] },
-  preferredVisualTags: { label: 'Preferred Visual Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'visual-tag', keywords: ['hdr', 'dolby vision', 'dv'] },
+  preferredVisualTags: { label: 'Preferred Visual Tags', group: 'sorting', type: 'list', menu: 'sorting', sectionId: 'preferredValues', keywords: ['hdr', 'dolby vision', 'dv'] },
 
   excludedAudioTags: { label: 'Excluded Audio Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-tag', keywords: ['atmos', 'dts', 'truehd'] },
   includedAudioTags: { label: 'Included Audio Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-tag', keywords: ['atmos', 'dts', 'truehd'] },
   requiredAudioTags: { label: 'Required Audio Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-tag', keywords: ['atmos', 'dts', 'truehd'] },
-  preferredAudioTags: { label: 'Preferred Audio Tags', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-tag', keywords: ['atmos', 'dts', 'truehd'] },
+  preferredAudioTags: { label: 'Preferred Audio Tags', group: 'sorting', type: 'list', menu: 'sorting', sectionId: 'preferredValues', keywords: ['atmos', 'dts', 'truehd'] },
 
   excludedAudioChannels: { label: 'Excluded Audio Channels', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-channel' },
   includedAudioChannels: { label: 'Included Audio Channels', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-channel' },
   requiredAudioChannels: { label: 'Required Audio Channels', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-channel' },
-  preferredAudioChannels: { label: 'Preferred Audio Channels', group: 'filters', type: 'list', menu: 'filters', subTab: 'audio-channel' },
+  preferredAudioChannels: { label: 'Preferred Audio Channels', group: 'sorting', type: 'list', menu: 'sorting', sectionId: 'preferredValues' },
 
   excludedStreamTypes: { label: 'Excluded Stream Types', group: 'filters', type: 'list', menu: 'filters', subTab: 'stream-type' },
   includedStreamTypes: { label: 'Included Stream Types', group: 'filters', type: 'list', menu: 'filters', subTab: 'stream-type' },
@@ -127,7 +127,7 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   excludedEncodes: { label: 'Excluded Encodes', group: 'filters', type: 'list', menu: 'filters', subTab: 'encode' },
   includedEncodes: { label: 'Included Encodes', group: 'filters', type: 'list', menu: 'filters', subTab: 'encode' },
   requiredEncodes: { label: 'Required Encodes', group: 'filters', type: 'list', menu: 'filters', subTab: 'encode' },
-  preferredEncodes: { label: 'Preferred Encodes', group: 'filters', type: 'list', menu: 'filters', subTab: 'encode' },
+  preferredEncodes: { label: 'Preferred Encodes', group: 'sorting', type: 'list', menu: 'sorting', sectionId: 'preferredValues' },
 
   excludedKeywords: { label: 'Excluded Keywords', group: 'filters', type: 'list', menu: 'filters', subTab: 'keyword' },
   includedKeywords: { label: 'Included Keywords', group: 'filters', type: 'list', menu: 'filters', subTab: 'keyword' },

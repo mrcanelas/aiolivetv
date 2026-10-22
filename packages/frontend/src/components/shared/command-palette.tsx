@@ -20,6 +20,7 @@ import {
   BiCog,
   BiSave,
   BiTv,
+  BiSortAlt2,
 } from 'react-icons/bi';
 
 const MENU_ITEMS: Array<{
@@ -31,6 +32,7 @@ const MENU_ITEMS: Array<{
   { id: 'about', label: 'About', icon: <BiInfoCircle /> },
   { id: 'addons', label: 'Addons', icon: <BiExtension /> },
   { id: 'channels', label: 'Channels', icon: <BiTv /> },
+  { id: 'sorting', label: 'Sorting', icon: <BiSortAlt2 /> },
   { id: 'formatter', label: 'Formatter', icon: <BiPen /> },
   { id: 'miscellaneous', label: 'Miscellaneous', icon: <BiCog /> },
   { id: 'save-install', label: 'Save & Install', icon: <BiSave /> },

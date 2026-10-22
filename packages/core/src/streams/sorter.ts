@@ -1,6 +1,7 @@
 import { ParsedStream, SortCriterion, UserData } from '../db/schemas.js';
 import { createLogger, constants } from '../utils/index.js';
 import { StreamContext } from './index.js';
+import { isLiveChannelType } from '../main/channelMappings.js';
 
 const logger = createLogger('sorter');
 
@@ -27,6 +28,13 @@ class StreamSorter {
     let primarySortCriteria = this.userData.sortCriteria.global;
     let cachedSortCriteria = this.userData.sortCriteria.cached;
     let uncachedSortCriteria = this.userData.sortCriteria.uncached;
+
+    if (isLiveChannelType(context.type)) {
+      primarySortCriteria =
+        constants.getLiveTvSortCriteria(primarySortCriteria);
+      cachedSortCriteria = undefined;
+      uncachedSortCriteria = undefined;
+    }
 
     const start = Date.now();
 

@@ -179,9 +179,10 @@ export function ChannelEditModal({
           <p className="text-sm text-red-400">{epgSourcesError}</p>
         ) : null}
         <p className="text-xs text-[--muted]">
-          A selected guide supplies the schedule. Stream bindings and priorities
-          are preserved. If it becomes unavailable, the channel has no schedule
-          until the guide recovers or you change this selection.
+          A selected guide supplies the schedule. Stream bindings are preserved.
+          Configure stream ordering on Sorting. If it becomes unavailable, the
+          channel has no schedule until the guide recovers or you change this
+          selection.
         </p>
         <div className="flex justify-end gap-2">
           <Button intent="primary-outline" onClick={() => onOpenChange(false)}>

@@ -182,7 +182,8 @@ try {
   ]) {
     const context = await browser.newContext({ viewport });
     await context.addInitScript((draft) => {
-      localStorage.setItem('aiolivetv-user-data', JSON.stringify(draft));
+      if (!localStorage.getItem('aiolivetv-user-data'))
+        localStorage.setItem('aiolivetv-user-data', JSON.stringify(draft));
       localStorage.setItem('aiolivetv-first-time', 'false');
       localStorage.setItem('aiolivetv-mode', 'pro');
     }, userData);
@@ -308,7 +309,7 @@ try {
         const description = [...card.querySelectorAll('p, div')].find(
           (element) =>
             element.textContent.trim() ===
-            'Manage channels, review mappings, and control stream priority.'
+            'Manage channels, review mappings, and choose EPG guides.'
         );
         const toolbar = card.querySelector(
           '[title="Group by source"]'
@@ -702,6 +703,104 @@ try {
       );
     });
     assert.deepEqual(writes, [], 'New configuration must remain in the draft');
+    const beforeSorting = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+    );
+    await page.goto(base + '/stremio/configure?menu=sorting');
+    await page.getByRole('heading', { name: 'Sorting', exact: true }).waitFor();
+    const criteriaInput = page.getByRole('combobox', {
+      name: 'Sort criteria',
+      exact: true,
+    });
+    await criteriaInput.click();
+    assert.equal(
+      await page
+        .locator('[cmdk-item]')
+        .filter({ hasText: /^Cached$/ })
+        .count(),
+      0
+    );
+    assert.equal(
+      await page
+        .locator('[cmdk-item]')
+        .filter({ hasText: /^Size$/ })
+        .count(),
+      0
+    );
+    await page
+      .locator('[cmdk-item]')
+      .filter({ hasText: /^Addon$/ })
+      .click();
+    await page
+      .locator('[cmdk-item]')
+      .filter({ hasText: /^Resolution$/ })
+      .click();
+    await page.keyboard.press('Escape');
+    await page
+      .getByRole('button', { name: 'Reverse Addon direction', exact: true })
+      .click();
+    await page.waitForFunction(
+      () =>
+        JSON.parse(localStorage.getItem('aiolivetv-user-data')).sortCriteria
+          .global[0].direction === 'asc'
+    );
+    const handle = page.getByRole('button', {
+      name: 'Reorder Resolution',
+      exact: true,
+    });
+    await handle.focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('ArrowUp');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Space');
+    await page.waitForFunction(
+      () =>
+        JSON.parse(localStorage.getItem('aiolivetv-user-data')).sortCriteria
+          .global[0].key === 'resolution'
+    );
+    await page
+      .getByRole('button', { name: 'Reorder Addons', exact: true })
+      .click();
+    const reorder = page.getByRole('dialog');
+    const sourceHandles = reorder.getByRole('button', { name: /^Reorder / });
+    await sourceHandles.last().focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('ArrowUp');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Space');
+    await reorder
+      .getByRole('button', { name: 'Save Order', exact: true })
+      .click();
+    await reorder.waitFor({ state: 'hidden' });
+    await page.waitForFunction(
+      (expected) =>
+        JSON.parse(localStorage.getItem('aiolivetv-user-data')).presets[0]
+          .instanceId === expected,
+      beforeSorting.presets[1].instanceId
+    );
+    const afterSorting = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+    );
+    assert.deepEqual(
+      afterSorting.channelMappings,
+      beforeSorting.channelMappings,
+      'Sorting must preserve channel mappings and guide choices'
+    );
+    assert.deepEqual(writes, [], 'Sorting must remain in the draft');
+    assert(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth
+      ),
+      'Sorting must fit the viewport'
+    );
+    await page.screenshot({
+      path: resolve(output, name + '-sorting.png'),
+      fullPage: true,
+    });
     assert.deepEqual(errors, [], 'Browser errors after addon configuration');
     console.log(
       JSON.stringify({

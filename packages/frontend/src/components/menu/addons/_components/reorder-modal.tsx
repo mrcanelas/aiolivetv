@@ -5,6 +5,7 @@ import {
   useSensors,
   PointerSensor,
   TouchSensor,
+  KeyboardSensor,
 } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import {
@@ -12,6 +13,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
+  sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Modal } from '../../../ui/modal';
@@ -51,10 +53,11 @@ function SortableReorderItem({ item }: { item: ReorderItem }) {
       className={`flex items-center gap-3 px-3 py-2 rounded-lg border bg-[var(--background)] select-none ${
         isDragging ? 'shadow-lg border-[--brand]/50' : 'border-[--border]'
       } ${!item.enabled ? 'opacity-50' : ''}`}
-      {...attributes}
     >
       <div
+        aria-label={`Reorder ${item.name}`}
         className="flex items-center justify-center w-5 text-sm font-mono text-[--muted] flex-shrink-0 cursor-move touch-none"
+        {...attributes}
         {...listeners}
       >
         <svg
@@ -116,6 +119,9 @@ export function ReorderModal({
 
   const sensors = useSensors(
     useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
     useSensor(TouchSensor, {
       activationConstraint: {
         delay: 150,

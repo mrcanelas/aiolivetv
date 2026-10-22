@@ -1,8 +1,6 @@
 import React from 'react';
 import {
   BiCheck,
-  BiChevronDown,
-  BiChevronUp,
   BiLink,
   BiPencil,
   BiPlus,
@@ -34,7 +32,6 @@ type ChannelMappingModalProps = {
   onRejectSuggestion: (addonId: string, streamChannelId: string) => void;
   onAcceptAllSuggestions: () => void;
   onRejectAllSuggestions: () => void;
-  onMoveMapping: (index: number, direction: -1 | 1) => void;
   onSplitMapping: (addonId: string, streamChannelId: string) => void;
   onLinkStreamSource: () => void;
   onAddManualStream: () => void;
@@ -62,7 +59,6 @@ export function ChannelMappingModal({
   onRejectSuggestion,
   onAcceptAllSuggestions,
   onRejectAllSuggestions,
-  onMoveMapping,
   onSplitMapping,
   onLinkStreamSource,
   onAddManualStream,
@@ -203,7 +199,7 @@ export function ChannelMappingModal({
               No stream sources linked yet.
             </p>
           ) : null}
-          {channel.mappings.map((mapping, index) => {
+          {channel.mappings.map((mapping) => {
             const suggestion = isChannelSuggestion(mapping.confidence);
             if (suggestion && !isVisibleChannelSuggestion(mapping.confidence))
               return null;
@@ -308,22 +304,6 @@ export function ChannelMappingModal({
                     </>
                   ) : (
                     <>
-                      <Button
-                        size="sm"
-                        aria-label={`Move ${mapping.addonName} up`}
-                        disabled={index === 0}
-                        onClick={() => onMoveMapping(index, -1)}
-                      >
-                        <BiChevronUp />
-                      </Button>
-                      <Button
-                        size="sm"
-                        aria-label={`Move ${mapping.addonName} down`}
-                        disabled={index === channel.mappings.length - 1}
-                        onClick={() => onMoveMapping(index, 1)}
-                      >
-                        <BiChevronDown />
-                      </Button>
                       {manual ? (
                         <Button
                           size="sm"

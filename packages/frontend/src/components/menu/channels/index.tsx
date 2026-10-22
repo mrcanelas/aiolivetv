@@ -442,22 +442,6 @@ export function ChannelsMenu() {
     );
   };
 
-  const moveMapping = (channelId: string, index: number, direction: -1 | 1) => {
-    setChannels((current) =>
-      current.map((channel) => {
-        if (channel.id !== channelId) return channel;
-        const target = index + direction;
-        if (target < 0 || target >= channel.mappings.length) return channel;
-        const mappings = [...channel.mappings];
-        [mappings[index], mappings[target]] = [
-          mappings[target],
-          mappings[index],
-        ];
-        return { ...channel, mappings };
-      })
-    );
-  };
-
   const splitMapping = (
     channelId: string,
     addonId: string,
@@ -951,7 +935,7 @@ export function ChannelsMenu() {
         description={
           channelsTab === 'removed'
             ? 'These channels are hidden from the catalog. Restore one to put it back in My Channels.'
-            : 'Manage channels, review mappings, and control stream priority.'
+            : 'Manage channels, review mappings, and choose EPG guides.'
         }
         action={
           channelsTab === 'removed' ? (
@@ -1354,10 +1338,6 @@ export function ChannelsMenu() {
         onRejectAllSuggestions={() => {
           if (!mappingChannelId) return;
           rejectAllSuggestions(mappingChannelId);
-        }}
-        onMoveMapping={(index, direction) => {
-          if (!mappingChannelId) return;
-          moveMapping(mappingChannelId, index, direction);
         }}
         onSplitMapping={(addonId, streamChannelId) => {
           if (!mappingChannelId) return;
