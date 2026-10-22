@@ -16,6 +16,11 @@
 * **clarotv:** report provider failures and avoid empty cache ([70a3275](https://github.com/mrcanelas/aiolivetv/commit/70a32751c7a409fbed653e8fe73b697412b68daf))
 * **dashboard:** prevent stale settings in browser and CDN caches ([0da5061](https://github.com/mrcanelas/aiolivetv/commit/0da506175e32f1e32b738a30879a9096d406e527))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.5.0](https://github.com/mrcanelas/aiolivetv/compare/v1.4.1...v1.5.0) (2026-10-21)
 
 
