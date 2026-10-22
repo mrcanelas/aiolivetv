@@ -141,17 +141,10 @@ export const INTERNAL_SECRET_HEADER = Buffer.from(
   'base64'
 ).toString('utf8');
 
-export const PUBLIC_NZB_PROXY_USERNAME = 'public_nzb_proxy_user';
-
 const API_VERSION = 1;
 
 export const REDIS_PREFIX = 'aiostreams:';
 export const PROJECT_GITHUB_URL = 'https://github.com/mrcanelas/aiolivetv';
-
-export const DEFAULT_PRECACHE_SELECTOR =
-  'count(cached(streams)) == 0 ? uncached(streams) : []';
-
-export const DEFAULT_PRELOAD_SELECTOR = 'slice(streams, 0, 2)';
 
 export const GDRIVE_FORMATTER = 'gdrive';
 export const LIGHT_GDRIVE_FORMATTER = 'lightgdrive';
@@ -898,54 +891,6 @@ export const DEFAULT_SMART_DETECT_ATTRIBUTES: SmartDetectAttribute[] = [
   'network',
   'remastered',
 ];
-
-export const AUTO_PLAY_ATTRIBUTES = [
-  'service',
-  'addon',
-  'proxied',
-  'resolution',
-  'quality',
-  'encode',
-  'audioTags',
-  'visualTags',
-  'languages',
-  'releaseGroup',
-  'type',
-  'infoHash',
-  'size',
-] as const;
-
-export const DEFAULT_AUTO_PLAY_ATTRIBUTES: (typeof AUTO_PLAY_ATTRIBUTES)[number][] =
-  ['resolution', 'quality', 'releaseGroup'] as const;
-
-export const AUTO_PLAY_METHODS = [
-  'matchingFile',
-  'matchingIndex',
-  'firstFile',
-] as const;
-export type AutoPlayMethod = (typeof AUTO_PLAY_METHODS)[number];
-export const AUTO_PLAY_METHOD_DETAILS: Record<
-  AutoPlayMethod,
-  {
-    name: string;
-    description: string;
-  }
-> = {
-  matchingFile: {
-    name: 'Matching File',
-    description:
-      'Auto-play the stream that matches the (customisable) attributes of the previous episode.',
-  },
-  matchingIndex: {
-    name: 'Matching Index',
-    description:
-      'Auto-play the stream in the same position in the result list (assuming it exists) i.e. if you play the second stream, the second stream for the next episode will also be played.',
-  },
-  firstFile: {
-    name: 'First File',
-    description: 'Always auto-play the first stream in the result list.',
-  },
-} as const;
 
 const RESOLUTIONS = [
   '2160p',

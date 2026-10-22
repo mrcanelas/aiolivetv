@@ -87,24 +87,6 @@ export function DisplayDebug() {
         />
       </SettingsCard>
 
-      <SettingsCard
-        title="External Downloads"
-        id="externalDownloads"
-        description="Adds a stream that automatically opens the stream in your browser below every stream for easier downloading"
-      >
-        <Switch
-          label="Enable"
-          side="right"
-          value={userData.externalDownloads}
-          onValueChange={(value) => {
-            setUserData((prev) => ({
-              ...prev,
-              externalDownloads: value,
-            }));
-          }}
-        />
-      </SettingsCard>
-
       <SettingsCard id="hideErrors" title="Hide Errors">
         <Switch
           label="Hide Errors"

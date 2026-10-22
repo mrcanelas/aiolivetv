@@ -102,11 +102,6 @@ const catalogApiRateLimiter = lazyLimiter(
   'catalog-api'
 );
 
-const animeApiRateLimiter = lazyLimiter(
-  () => appConfig.rateLimits.animeApi,
-  'anime-api'
-);
-
 const stremioStreamRateLimiter = lazyLimiter(
   () => appConfig.rateLimits.stremioStream,
   'stremio-stream'
@@ -142,23 +137,16 @@ const staticRateLimiter = lazyLimiter(
   'static'
 );
 
-const easynewsNzbRateLimiter = lazyLimiter(
-  () => appConfig.rateLimits.easynewsNzb,
-  'easynews-nzb'
-);
-
 export {
   userApiRateLimiter,
   streamApiRateLimiter,
   formatApiRateLimiter,
   catalogApiRateLimiter,
-  animeApiRateLimiter,
   stremioStreamRateLimiter,
   stremioCatalogRateLimiter,
   stremioManifestRateLimiter,
   stremioSubtitleRateLimiter,
   stremioMetaRateLimiter,
   staticRateLimiter,
-  easynewsNzbRateLimiter,
   loginRateLimiter,
 };

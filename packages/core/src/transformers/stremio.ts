@@ -26,7 +26,6 @@ import {
   AIOStreamsResponse,
 } from '../main/types.js';
 import { Cache, createLogger, getTimeTakenSincePoint } from '../utils/index.js';
-import { generateBingeGroup } from './utils.js';
 
 type ErrorOptions = {
   errorTitle?: string;
@@ -57,8 +56,7 @@ export class StremioTransformer {
         stream: ParsedStream
       ) => Promise<{ name: string; description: string }>;
     },
-    index: number,
-    options?: { disableAutoplay?: boolean; provideStreamData?: boolean }
+    options?: { provideStreamData?: boolean }
   ): Promise<AIOStream> {
     const { name, description } = stream.addon.formatPassthrough
       ? {
@@ -66,10 +64,6 @@ export class StremioTransformer {
           description: stream.originalDescription,
         }
       : await formatter.format(stream);
-
-    const bingeGroup = options?.disableAutoplay
-      ? undefined
-      : generateBingeGroup(stream, index, this.userData);
 
     return {
       name,
@@ -114,7 +108,6 @@ export class StremioTransformer {
       behaviorHints: {
         countryWhitelist: stream.countryWhitelist,
         notWebReady: stream.notWebReady,
-        bingeGroup: options?.disableAutoplay ? undefined : bingeGroup,
         proxyHeaders:
           stream.requestHeaders || stream.responseHeaders
             ? {
@@ -165,23 +158,22 @@ export class StremioTransformer {
       statistics: { title: string; description: string; forced?: boolean }[];
     }>,
     formatterContext: FormatterContext,
-    options?: { provideStreamData?: boolean; disableAutoplay?: boolean }
+    options?: { provideStreamData?: boolean }
   ): Promise<AIOStreamResponse> {
     const formatter = createFormatter(formatterContext);
     const {
       data: { streams, statistics },
       errors,
     } = response;
-    const { provideStreamData, disableAutoplay } = options ?? {};
+    const { provideStreamData } = options ?? {};
 
     let transformedStreams: AIOStream[] = [];
 
     const start = Date.now();
 
     transformedStreams = await Promise.all(
-      streams.map((stream: ParsedStream, index: number) =>
-        this.convertParsedStreamToStream(stream, formatter, index, {
-          disableAutoplay: disableAutoplay ?? false,
+      streams.map((stream: ParsedStream) =>
+        this.convertParsedStreamToStream(stream, formatter, {
           provideStreamData: provideStreamData ?? false,
         })
       )
@@ -303,10 +295,10 @@ export class StremioTransformer {
   async transformMeta(
     response: AIOStreamsResponse<ParsedMeta | null>,
     formatterContext?: FormatterContext,
-    options?: { provideStreamData?: boolean; disableAutoplay?: boolean }
+    options?: { provideStreamData?: boolean }
   ): Promise<MetaResponse | null> {
     const { data: meta, errors } = response;
-    const { provideStreamData, disableAutoplay } = options ?? {};
+    const { provideStreamData } = options ?? {};
 
     if (!meta && errors.length === 0) {
       return null;
@@ -339,9 +331,8 @@ export class StremioTransformer {
       for (const video of meta.videos) {
         if (video.streams && video.streams.length > 0) {
           const transformedStreams: AIOStream[] = await Promise.all(
-            video.streams.map((stream, index) =>
-              this.convertParsedStreamToStream(stream, formatter!, index, {
-                disableAutoplay: disableAutoplay ?? false,
+            video.streams.map((stream) =>
+              this.convertParsedStreamToStream(stream, formatter!, {
                 provideStreamData: provideStreamData ?? false,
               })
             )

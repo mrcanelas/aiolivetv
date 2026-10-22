@@ -133,37 +133,10 @@ const ResultLimitOptions = z.object({
   mode: z.enum(['independent', 'conjunctive']).optional(),
 });
 
-// const SizeFilter = z.object({
-//   min: z.number().min(1).optional(),
-//   max: z.number().min(1).optional(),
-// });
-const SizeFilter = z.object({
-  movies: z
-    .tuple([z.number().min(0), z.number().min(0)])
-    // .object({
-    //   min: z.number().min(1).optional(),
-    //   max: z.number().min(1).optional(),
-    // })
-    .optional(),
-  series: z
-    .tuple([z.number().min(0), z.number().min(0)])
-    // .object({
-    //   min: z.number().min(1).optional(),
-    //   max: z.number().min(1).optional(),
-    // })
-    .optional(),
-  anime: z.tuple([z.number().min(0), z.number().min(0)]).optional(),
-});
-
-const SizeFilterOptions = z.object({
-  global: SizeFilter.optional(),
-  resolution: z.partialRecord(Resolutions, SizeFilter).optional(),
-});
-
+const BitrateRange = z.tuple([z.number().min(0), z.number().min(0)]);
 const BitrateFilterOptions = z.object({
-  useMetadataRuntime: z.boolean().optional().default(true),
-  global: SizeFilter.optional(),
-  resolution: z.partialRecord(Resolutions, SizeFilter).optional(),
+  global: BitrateRange.optional(),
+  resolution: z.partialRecord(Resolutions, BitrateRange).optional(),
 });
 
 const ServiceSchema = z.object({
@@ -202,7 +175,6 @@ const AddonSchema = z.object({
   resultPassthrough: z.boolean().optional(),
   // forceToTop: z.boolean().optional(),
   pinPosition: z.enum(['top', 'bottom']).optional(),
-  serviceWrapped: z.boolean().optional(),
   headers: z.record(z.string().min(1), z.string().min(1)).optional(),
   ip: z.string().optional(),
 });
@@ -414,15 +386,6 @@ const MergedCatalog = z.object({
 
 export type MergedCatalog = z.infer<typeof MergedCatalog>;
 
-export const CacheAndPlaySchema = z
-  .object({
-    enabled: z.boolean().optional(),
-    streamTypes: z.array(z.enum(['usenet', 'torrent'])).optional(),
-  })
-  .optional();
-
-export type CacheAndPlay = z.infer<typeof CacheAndPlaySchema>;
-
 const MergeStrategy = z.enum(['inherit', 'extend', 'override']);
 const BinaryMergeStrategy = z.enum(['inherit', 'override']);
 
@@ -476,10 +439,6 @@ export const UserDataSchema = z.object({
   includedResolutions: z.array(Resolutions).optional(),
   requiredResolutions: z.array(Resolutions).optional(),
   preferredResolutions: z.array(Resolutions).optional(),
-  excludedQualities: z.array(Qualities).optional(),
-  includedQualities: z.array(Qualities).optional(),
-  requiredQualities: z.array(Qualities).optional(),
-  preferredQualities: z.array(Qualities).optional(),
   excludedLanguages: z.array(Languages).optional(),
   includedLanguages: z.array(Languages).optional(),
   requiredLanguages: z.array(Languages).optional(),
@@ -522,49 +481,10 @@ export const UserDataSchema = z.object({
   syncedIncludedStreamExpressionUrls: z.array(z.string().url()).optional(),
   syncedRequiredStreamExpressionUrls: z.array(z.string().url()).optional(),
   syncedRankedStreamExpressionUrls: z.array(z.string().url()).optional(),
-  excludedReleaseGroups: z.array(z.string().min(1)).optional(),
-  includedReleaseGroups: z.array(z.string().min(1)).optional(),
-  requiredReleaseGroups: z.array(z.string().min(1)).optional(),
-  preferredReleaseGroups: z.array(z.string().min(1)).optional(),
   requiredKeywords: z.array(z.string().min(1)).optional(),
   includedKeywords: z.array(z.string().min(1)).optional(),
   excludedKeywords: z.array(z.string().min(1)).optional(),
   preferredKeywords: z.array(z.string().min(1)).optional(),
-  excludeSeederRange: z
-    .tuple([z.number().min(0), z.number().min(0)])
-    .optional(),
-  includeSeederRange: z
-    .tuple([z.number().min(0), z.number().min(0)])
-    .optional(),
-  requiredSeederRange: z
-    .tuple([z.number().min(0), z.number().min(0)])
-    .optional(),
-  seederRangeTypes: z.array(z.enum(['p2p', 'cached', 'uncached'])).optional(),
-  excludeAgeRange: z.tuple([z.number().min(0), z.number().min(0)]).optional(),
-  includeAgeRange: z.tuple([z.number().min(0), z.number().min(0)]).optional(),
-  requiredAgeRange: z.tuple([z.number().min(0), z.number().min(0)]).optional(),
-  ageRangeTypes: z.array(z.enum(['usenet', 'debrid', 'p2p'])).optional(),
-  digitalReleaseFilter: z
-    .object({
-      enabled: z.boolean().optional(),
-      tolerance: z.number().min(0).max(365).optional(),
-      requestTypes: z.array(z.string()).optional(),
-      addons: z.array(z.string()).optional(),
-      showInfoOnFilter: z.boolean().optional(),
-    })
-    .optional(),
-  enableSeadex: z.boolean().optional(),
-  excludeSeasonPacks: z.boolean().optional(),
-  excludeCached: z.boolean().optional(),
-  excludeCachedFromAddons: z.array(z.string().min(1)).optional(),
-  excludeCachedFromServices: z.array(z.string().min(1)).optional(),
-  excludeCachedFromStreamTypes: z.array(StreamTypes).optional(),
-  excludeCachedMode: z.enum(['or', 'and']).optional(),
-  excludeUncached: z.boolean().optional(),
-  excludeUncachedFromAddons: z.array(z.string().min(1)).optional(),
-  excludeUncachedFromServices: z.array(z.string().min(1)).optional(),
-  excludeUncachedFromStreamTypes: z.array(StreamTypes).optional(),
-  excludeUncachedMode: z.enum(['or', 'and']).optional(),
   excludedStreamExpressions: z
     .array(
       z.object({
@@ -668,21 +588,6 @@ export const UserDataSchema = z.object({
   sortCriteria: z.object({
     // global must be defined.
     global: z.array(SortCriterion),
-    // results must be from either a movie or series search, so we can safely apply different sort criteria.
-    movies: z.array(SortCriterion).optional(),
-    series: z.array(SortCriterion).optional(),
-    anime: z.array(SortCriterion).optional(),
-    // cached and uncached results are a sort criteria themselves, so this can only be applied when cache is high enough in the global
-    // sort criteria, and we would have to split the results into two (cached and uncached) lists, and then apply both sort criteria below
-    // and then merge the results.
-    cached: z.array(SortCriterion).optional(),
-    uncached: z.array(SortCriterion).optional(),
-    cachedMovies: z.array(SortCriterion).optional(),
-    uncachedMovies: z.array(SortCriterion).optional(),
-    cachedSeries: z.array(SortCriterion).optional(),
-    uncachedSeries: z.array(SortCriterion).optional(),
-    cachedAnime: z.array(SortCriterion).optional(),
-    uncachedAnime: z.array(SortCriterion).optional(),
   }),
   rpdbApiKey: z.string().optional(),
   // rpdbUseRedirectApi: z.boolean().optional(),
@@ -706,7 +611,6 @@ export const UserDataSchema = z.object({
   formatter: Formatter,
   proxy: StreamProxyConfig.optional(),
   resultLimits: ResultLimitOptions.optional(),
-  size: SizeFilterOptions.optional(),
   bitrate: BitrateFilterOptions.optional(),
   hideErrors: z.boolean().optional(),
   hideErrorsForResources: z.array(ResourceSchema).optional(),
@@ -728,66 +632,7 @@ export const UserDataSchema = z.object({
     .regex(/^[a-z]{2}(?:-[A-Z]{2})?$/)
     .optional(),
   tvdbApiKey: z.string().optional(),
-  yearMatching: z
-    .object({
-      enabled: z.boolean().optional(),
-      tolerance: z.number().min(0).max(100).optional(),
-      strict: z.boolean().optional(),
-      useInitialAirDate: z.boolean().optional(),
-      requestTypes: z.array(z.string()).optional(),
-      addons: z.array(z.string()).optional(),
-    })
-    .optional(),
-  titleMatching: z
-    .object({
-      mode: z.enum(['exact', 'contains']).optional(),
-      matchYear: z.boolean().optional(),
-      yearTolerance: z.number().min(0).max(100).optional(),
-      similarityThreshold: z.number().min(0).max(1).optional(),
-      enabled: z.boolean().optional(),
-      requestTypes: z.array(z.string()).optional(),
-      addons: z.array(z.string()).optional(),
-    })
-    .optional(),
-  seasonEpisodeMatching: z
-    .object({
-      enabled: z.boolean().optional(),
-      strict: z.boolean().optional(),
-      requestTypes: z.array(z.string()).optional(),
-      addons: z.array(z.string()).optional(),
-    })
-    .optional(),
   deduplicator: DeduplicatorOptions.optional(),
-  autoPlay: z
-    .object({
-      enabled: z.boolean().optional(),
-      method: z.enum(constants.AUTO_PLAY_METHODS).optional(),
-      attributes: z.array(z.enum(constants.AUTO_PLAY_ATTRIBUTES)).optional(),
-    })
-    .optional(),
-  areYouStillThere: z
-    .object({
-      enabled: z.boolean().optional(),
-      episodesBeforeCheck: z.number().min(1).optional(),
-      cooldownMinutes: z.number().min(1).optional(),
-    })
-    .optional(),
-  precacheNextEpisode: z.boolean().optional(),
-  /** @deprecated Use precacheSelector instead */
-  alwaysPrecache: z.boolean().optional(),
-  /** @deprecated Use precacheSelector instead */
-  precacheCondition: streamExpression().optional(),
-  precacheSelector: streamExpression().optional(),
-  /** When false, all streams returned by precacheSelector are pinged; defaults to true (first stream only). */
-  precacheSingleStream: z.boolean().optional(),
-  preloadStreams: z
-    .object({
-      enabled: z.boolean().optional(),
-      selector: streamExpression().optional(),
-      /** When false, all streams returned by selector are pinged; defaults to true (first stream only). */
-      singleStream: z.boolean().optional(),
-    })
-    .optional(),
   streamProbe: z
     .object({
       enabled: z.boolean().optional(),
@@ -800,30 +645,6 @@ export const UserDataSchema = z.object({
   catalogModifications: z.array(CatalogModification).optional(),
   channelMappings: z.array(ChannelMapping).optional(),
   mergedCatalogs: z.array(MergedCatalog).optional(),
-  externalDownloads: z.boolean().optional(),
-  cacheAndPlay: CacheAndPlaySchema.optional(),
-
-  autoRemoveDownloads: z.boolean().optional(),
-  checkOwned: z.boolean().optional(),
-  nzbFailover: z
-    .object({
-      enabled: z.boolean().optional(),
-      count: z.number().min(1).optional(),
-      position: z.enum(['beforeLimiting', 'beforeSEL', 'last']).optional(),
-    })
-    .optional(),
-  serviceWrap: z
-    .object({
-      enabled: z.boolean().optional(),
-      /** Preset instanceIds to wrap — if empty/absent, all P2P-capable presets are wrapped */
-      presets: z.array(z.string().min(1)).optional(),
-      /** Which debrid services to use for processing wrapped P2P torrents — if absent, uses all enabled */
-      services: z.array(ServiceIds).optional(),
-      /** Re-process debrid results from external addons that include torrent info hashes through
-       *  additional/different debrid services. Only applies to addons selected in the wrap addons list. */
-      reconfigureService: z.boolean().optional(),
-    })
-    .optional(),
 });
 
 export type UserData = z.infer<typeof UserDataSchema>;
@@ -1488,8 +1309,6 @@ const StatusResponseSchema = z.object({
       maxStreamExpressions: z.number(),
       maxStreamExpressionsTotalCharacters: z.number(),
       maxAddons: z.number(),
-      maxNzbFailoverCount: z.number(),
-      maxBackgroundPings: z.number(),
     }),
     tvheadend: z
       .object({

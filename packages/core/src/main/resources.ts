@@ -4,7 +4,6 @@ import {
   constants,
   Env,
   ExtrasParser,
-  makeUrlLogSafe,
   addonProvidesResource,
 } from '../utils/index.js';
 import { canRunFfprobe } from '../utils/runtime.js';
@@ -13,18 +12,14 @@ import { getAddonName } from '../utils/general.js';
 import { Wrapper } from './wrapper.js';
 import { PresetManager } from '../presets/index.js';
 import { FeatureControl } from '../utils/feature.js';
-import { StreamContext, StreamUtils } from '../streams/index.js';
+import { StreamContext } from '../streams/index.js';
 import { enrichStreamsWithProbe } from '../streams/stream-probe.js';
 import { applyLiveStreamWebHints } from '../streams/web-readiness.js';
 import {
   attachLiveMetadataToStreams,
   currentProgramMetadata,
 } from '../streams/live-metadata.js';
-import { populateNzbFallbacks } from './nzbFailover.js';
-import { resolveServiceWrappedStreams } from './serviceWrapper.js';
-import type { ServiceWrapServiceTiming } from './serviceWrapper.js';
 import type { PrecomputeSubTimings } from '../streams/precomputer.js';
-import { StreamSelector } from '../parser/streamExpression.js';
 import type {
   ParsedMeta,
   ParsedStream,
@@ -32,14 +27,12 @@ import type {
   AddonCatalog,
 } from '../db/schemas.js';
 import type { Addon } from '../db/index.js';
-import type { Metadata } from '../metadata/utils.js';
 import type {
   AIOStreamsContext,
   AIOStreamsError,
   AIOStreamsResponse,
 } from './types.js';
 import { buildStatistics } from './statistics.js';
-import { precacheCache } from './caches.js';
 import {
   applyPosterModifications,
   convertDiscoverDeepLinks,
@@ -72,57 +65,6 @@ import { decodeHtmlEntities } from '../utils/text.js';
 import { configurationProvidesNativeEpg } from './epgProvider.js';
 
 const logger = createLogger('core');
-
-const PING_TIMEOUT_MS = 10_000;
-
-async function pingStream(stream: ParsedStream, timeoutMs = PING_TIMEOUT_MS) {
-  if (!stream.url) {
-    throw new Error('pingStream: stream has no URL');
-  }
-  const wrapper = new Wrapper(stream.addon);
-  return wrapper.makeRequest(stream.url, {
-    timeout: timeoutMs,
-    rawOptions: { redirect: 'manual' },
-  });
-}
-
-async function pingStreamUrls(streams: ParsedStream[]): Promise<void> {
-  const eligible = streams.filter((s) => s.url);
-  if (eligible.length === 0) {
-    logger.debug('No streams to ping');
-    return;
-  }
-  logger.debug({ count: eligible.length }, 'pinging stream urls');
-  const limit = pLimit(appConfig.resources.preload.streamsConcurrency);
-  await Promise.all(
-    eligible.map((stream) =>
-      limit(async () => {
-        try {
-          const response = await pingStream(stream);
-          response.body?.cancel().catch(() => undefined);
-          logger.debug('Ping request sent', {
-            url: makeUrlLogSafe(stream.url!),
-            status: response.status,
-            redirectHost: (() => {
-              const location = response.headers.get('location');
-              if (!location) return 'no redirect';
-              try {
-                return new URL(location).host;
-              } catch {
-                return 'invalid URL';
-              }
-            })(),
-          });
-        } catch (error) {
-          logger.debug('Ping request failed', {
-            url: makeUrlLogSafe(stream.url!),
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      })
-    )
-  );
-}
 
 /**
  * Returns all addons that support the given resource name, type, and id.
@@ -356,49 +298,16 @@ function collectLiveChannelMetaCandidates(
   );
 }
 
-function getNextEpisode(
-  currentSeason: number | undefined,
-  currentEpisode: number,
-  metadata?: Metadata
-): { season: number | undefined; episode: number } {
-  let season = currentSeason;
-  let episode = currentEpisode + 1;
-  if (!currentSeason) return { season, episode };
-  const episodeCount = metadata?.seasons?.find(
-    (s) => s.season_number === season
-  )?.episode_count;
-
-  if (episodeCount && currentEpisode === episodeCount) {
-    const nextSeasonNumber = currentSeason + 1;
-    if (metadata?.seasons?.find((s) => s.season_number === nextSeasonNumber)) {
-      logger.debug(
-        { currentSeason, nextSeason: nextSeasonNumber },
-        'current episode is last of season, advancing to next'
-      );
-      season = nextSeasonNumber;
-      episode = 1;
-    }
-  }
-  return { season, episode };
-}
-
 export async function processStreams(
   ctx: AIOStreamsContext,
   streams: ParsedStream[],
   context: StreamContext,
-  isMeta: boolean = false,
-  nzbFailoverOpts?: {
-    count: number;
-    position: 'beforeLimiting' | 'beforeSEL' | 'last';
-  }
+  isMeta: boolean = false
 ): Promise<{
   streams: ParsedStream[];
   errors: AIOStreamsError[];
   timings: {
     metaFilterMs: number;
-    serviceWrapMs: number;
-    serviceWrapTimings?: Record<string, ServiceWrapServiceTiming>;
-    filterMs: number;
     deduplicationMs: number;
     precomputeMs: number;
     precomputeSubTimings?: PrecomputeSubTimings;
@@ -412,9 +321,6 @@ export async function processStreams(
   let errors: AIOStreamsError[] = [];
 
   let metaFilterMs = 0;
-  let serviceWrapMs = 0;
-  let serviceWrapTimings: Record<string, ServiceWrapServiceTiming> | undefined;
-  let filterMs = 0;
   let deduplicationMs = 0;
   let precomputeMs = 0;
   let precomputeSubTimings: PrecomputeSubTimings | undefined;
@@ -423,45 +329,20 @@ export async function processStreams(
   let selMs = 0;
 
   if (isMeta) {
-    await ctx.precomputer.precomputeSeaDexOnly(processedStreams, context);
     const metaFilterStart = Date.now();
     processedStreams = await ctx.filterer.filter(processedStreams, context);
     metaFilterMs = Date.now() - metaFilterStart;
-  }
-
-  const preServiceWrapIds = new Set(processedStreams.map((s) => s.id));
-  const serviceWrapStart = Date.now();
-  const resolvedResults = await resolveServiceWrappedStreams(
-    processedStreams,
-    context,
-    ctx.userData,
-    ctx.addons
-  );
-  serviceWrapMs = Date.now() - serviceWrapStart;
-  processedStreams = resolvedResults.streams;
-  errors.push(...resolvedResults.errors);
-  if (resolvedResults.serviceTimings) {
-    serviceWrapTimings = resolvedResults.serviceTimings;
-  }
-
-  if (resolvedResults.hasNewStreams) {
-    const filterStart = Date.now();
-    processedStreams = await ctx.filterer.filter(processedStreams, context);
-    filterMs = Date.now() - filterStart;
   }
 
   const dedupStart = Date.now();
   processedStreams = await ctx.deduplicator.deduplicate(processedStreams);
   deduplicationMs = Date.now() - dedupStart;
 
-  if (isMeta || resolvedResults.hasNewStreams) {
-    const skipPerStreamIds =
-      !isMeta && resolvedResults.hasNewStreams ? preServiceWrapIds : undefined;
+  if (isMeta) {
     const precomputeStart = Date.now();
     precomputeSubTimings = await ctx.precomputer.precomputePreferred(
       processedStreams,
-      context,
-      skipPerStreamIds
+      context
     );
     precomputeMs = Date.now() - precomputeStart;
   }
@@ -469,22 +350,6 @@ export async function processStreams(
   const sortStart = Date.now();
   let finalStreams = await ctx.sorter.sort(processedStreams, context);
   sortMs = Date.now() - sortStart;
-
-  if (nzbFailoverOpts?.position === 'beforeLimiting') {
-    await populateNzbFallbacks(
-      finalStreams,
-      nzbFailoverOpts.count,
-      ctx.userData.uuid
-    ).catch((error) => {
-      logger.error(
-        {
-          err: error instanceof Error ? error.message : String(error),
-          position: 'beforeLimiting',
-        },
-        'error during nzb failover population'
-      );
-    });
-  }
 
   const limitStart = Date.now();
   finalStreams = await ctx.limiter.limit(finalStreams);
@@ -506,46 +371,12 @@ export async function processStreams(
     });
   }
 
-  if (nzbFailoverOpts?.position === 'beforeSEL') {
-    await populateNzbFallbacks(
-      finalStreams,
-      nzbFailoverOpts.count,
-      ctx.userData.uuid
-    ).catch((error) => {
-      logger.error(
-        {
-          err: error instanceof Error ? error.message : String(error),
-          position: 'beforeSEL',
-        },
-        'error during nzb failover population'
-      );
-    });
-  }
-
   const selStart = Date.now();
   finalStreams = await ctx.filterer.applyStreamExpressionFilters(
     finalStreams,
     context
   );
   selMs = Date.now() - selStart;
-
-  if (!nzbFailoverOpts?.position || nzbFailoverOpts.position === 'last') {
-    if (nzbFailoverOpts) {
-      await populateNzbFallbacks(
-        finalStreams,
-        nzbFailoverOpts.count,
-        ctx.userData.uuid
-      ).catch((error) => {
-        logger.error(
-          {
-            err: error instanceof Error ? error.message : String(error),
-            position: 'last',
-          },
-          'error during nzb failover population'
-        );
-      });
-    }
-  }
 
   ctx.filterer.generateFilterSummary(streams, finalStreams, type, id);
 
@@ -567,31 +398,11 @@ export async function processStreams(
     return stream;
   });
 
-  if (ctx.userData.externalDownloads) {
-    const streamsWithExternalDownloads: ParsedStream[] = [];
-    for (const stream of finalStreams) {
-      streamsWithExternalDownloads.push(stream);
-      if (stream.url) {
-        streamsWithExternalDownloads.push(
-          StreamUtils.createDownloadableStream(stream)
-        );
-      }
-    }
-    logger.debug(
-      { added: streamsWithExternalDownloads.length - finalStreams.length },
-      'added external download streams'
-    );
-    finalStreams = streamsWithExternalDownloads;
-  }
-
   return {
     streams: finalStreams,
     errors,
     timings: {
       metaFilterMs,
-      serviceWrapMs,
-      serviceWrapTimings,
-      filterMs,
       deduplicationMs,
       precomputeMs,
       precomputeSubTimings,
@@ -600,117 +411,6 @@ export async function processStreams(
       selMs,
     },
   };
-}
-
-async function precacheNextEpisode(
-  ctx: AIOStreamsContext,
-  context: StreamContext
-): Promise<void> {
-  const { type, id, parsedId } = context;
-  if (!parsedId) return;
-
-  const currentSeason = parsedId.season ? Number(parsedId.season) : undefined;
-  const currentEpisode = parsedId.episode
-    ? Number(parsedId.episode)
-    : undefined;
-  if (!currentEpisode) return;
-
-  const metadata = await context.getMetadata();
-  const { season: seasonToPrecache, episode: episodeToPrecache } =
-    getNextEpisode(currentSeason, currentEpisode, metadata);
-
-  const precacheId = parsedId.generator(
-    parsedId.value,
-    seasonToPrecache?.toString(),
-    episodeToPrecache?.toString()
-  );
-  logger.debug(
-    {
-      titleId: parsedId.value,
-      currentSeason,
-      currentEpisode,
-      episodeToPrecache,
-      seasonToPrecache,
-      precacheId,
-    },
-    'pre-caching next episode'
-  );
-
-  // Temporarily mutate userData to remove excludeUncached filter for background precache.
-  // Preserve original to restore after getStreams returns.
-  const originalUserData = ctx.userData;
-  const userData = structuredClone(ctx.userData);
-  userData.excludeUncached = false;
-  userData.groups = undefined;
-  userData.dynamicAddonFetching = { enabled: false };
-  ctx.userData = userData;
-
-  const nextStreamsResponse = await getStreams(ctx, precacheId, type, true);
-  ctx.userData = originalUserData;
-
-  if (!nextStreamsResponse.success) {
-    logger.error(
-      { id, errors: nextStreamsResponse.errors },
-      'failed to get streams during precaching'
-    );
-    return;
-  }
-
-  const nextStreams = nextStreamsResponse.data.streams;
-
-  let selectedStreams: ParsedStream[] = [];
-  const selector =
-    ctx.userData.precacheSelector || constants.DEFAULT_PRECACHE_SELECTOR;
-  try {
-    const streamSelector = new StreamSelector(context.toExpressionContext());
-    selectedStreams = await streamSelector.select(nextStreams, selector);
-    logger.debug(
-      { selector, resultCount: selectedStreams.length },
-      'precache selector evaluated'
-    );
-  } catch (error) {
-    logger.error(
-      { selector, err: error instanceof Error ? error.message : String(error) },
-      'failed to evaluate precache selector'
-    );
-  }
-
-  if (selectedStreams.length === 0) {
-    logger.debug(
-      { id },
-      'skipping precaching, precache selector returned no streams'
-    );
-    return;
-  }
-
-  const singleStreamOnly = ctx.userData.precacheSingleStream !== false;
-  const streamsToCache = selectedStreams
-    .filter((s) => s.url)
-    .slice(0, singleStreamOnly ? 1 : appConfig.userLimits.maxBackgroundPings);
-
-  if (streamsToCache.length === 0) {
-    logger.debug({ id }, 'skipping precaching, no selected stream had a url');
-    return;
-  }
-
-  logger.debug(
-    { count: streamsToCache.length, id, type },
-    'precaching streams'
-  );
-
-  const cacheKey = `precache-${type}-${id}-${ctx.userData.uuid}`;
-  await precacheCache.set(
-    cacheKey,
-    true,
-    appConfig.resources.precache.nextEpisodeMinInterval
-  );
-
-  await pingStreamUrls(streamsToCache);
-
-  logger.debug(
-    { count: streamsToCache.length, id, type },
-    'precaching complete'
-  );
 }
 
 /**
@@ -1044,8 +744,7 @@ async function resolveLiveStreamFetchPlan(
 export async function getStreams(
   ctx: AIOStreamsContext,
   id: string,
-  type: string,
-  preCaching: boolean = false
+  type: string
 ): Promise<
   AIOStreamsResponse<{
     streams: ParsedStream[];
@@ -1180,18 +879,7 @@ export async function getStreams(
     }))
   );
 
-  const processResults = await processStreams(
-    ctx,
-    fetchedStreams,
-    context,
-    false,
-    ctx.userData.nzbFailover?.enabled && !preCaching
-      ? {
-          count: ctx.userData.nzbFailover.count ?? 3,
-          position: ctx.userData.nzbFailover.position ?? 'last',
-        }
-      : undefined
-  );
+  const processResults = await processStreams(ctx, fetchedStreams, context);
   let finalStreams = processResults.streams;
   const pipelineTimings = processResults.timings;
   errors.push(...processResults.errors);
@@ -1222,96 +910,6 @@ export async function getStreams(
         description: lines.join('\n').trim(),
         forced: true,
       });
-    }
-  }
-
-  if (ctx.userData.precacheNextEpisode && !preCaching) {
-    let precache = false;
-    const cacheKey = `precache-${type}-${id}-${ctx.userData.uuid}`;
-    const cachedNextEpisode = await precacheCache.get(cacheKey, false);
-    if (cachedNextEpisode) {
-      logger.debug(
-        { type, id, ttl: precacheCache.getTTL(cacheKey) },
-        'skipping precache, already precached recently'
-      );
-      precache = false;
-    } else {
-      precache = true;
-    }
-    if (precache) {
-      setImmediate(() => {
-        precacheNextEpisode(ctx, context).catch((error) => {
-          logger.error('Error during precaching:', {
-            error: error instanceof Error ? error.message : String(error),
-            type,
-            id,
-          });
-        });
-      });
-    }
-  }
-
-  if (ctx.userData.preloadStreams?.enabled && !preCaching) {
-    let shouldPreload = true;
-    if (appConfig.resources.preload.minInterval > 0) {
-      const preloadCooldownKey = `preload-${type}-${id}-${ctx.userData.uuid}`;
-      const recentlyPreloaded = await precacheCache.get(
-        preloadCooldownKey,
-        false
-      );
-      if (recentlyPreloaded) {
-        logger.debug(
-          { type, id, ttl: precacheCache.getTTL(preloadCooldownKey) },
-          'preload skipped, within cooldown'
-        );
-        shouldPreload = false;
-      } else {
-        await precacheCache.set(
-          preloadCooldownKey,
-          true,
-          appConfig.resources.preload.minInterval
-        );
-      }
-    }
-
-    if (shouldPreload) {
-      const preloadSelector =
-        ctx.userData.preloadStreams.selector ??
-        constants.DEFAULT_PRELOAD_SELECTOR;
-      const streamSelector = new StreamSelector(context.toExpressionContext());
-      let streamsToPreload: ParsedStream[];
-      const preloadSingleStream =
-        ctx.userData.preloadStreams?.singleStream !== false;
-      try {
-        streamsToPreload = (
-          await streamSelector.select(finalStreams, preloadSelector)
-        )
-          .filter((s) => s.url)
-          .slice(
-            0,
-            preloadSingleStream ? 1 : appConfig.userLimits.maxBackgroundPings
-          );
-      } catch (selectorError) {
-        logger.warn('Preload selector evaluation failed', {
-          selector: preloadSelector,
-          error:
-            selectorError instanceof Error
-              ? selectorError.message
-              : String(selectorError),
-        });
-        streamsToPreload = [];
-      }
-      if (streamsToPreload.length > 0) {
-        setImmediate(() => {
-          pingStreamUrls(streamsToPreload).catch((error) => {
-            logger.error('Error during stream preloading:', {
-              error: error instanceof Error ? error.message : String(error),
-              type,
-              id,
-            });
-          });
-        });
-      }
     }
   }
 

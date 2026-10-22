@@ -119,9 +119,7 @@ const statusInfo = async (): Promise<StatusResponse> => {
             ...preset,
             DISABLED: {
               ...disabledFromFeature,
-              reason: formatTvheadendDisabledReason(
-                disabledFromFeature.reason
-              ),
+              reason: formatTvheadendDisabledReason(disabledFromFeature.reason),
             },
           };
         }
@@ -138,8 +136,6 @@ const statusInfo = async (): Promise<StatusResponse> => {
         maxStreamExpressionsTotalCharacters:
           appConfig.userLimits.sel.maxExpressionCharacters,
         maxAddons: appConfig.userLimits.maxAddons,
-        maxNzbFailoverCount: appConfig.userLimits.maxNzbFailoverCount,
-        maxBackgroundPings: appConfig.userLimits.maxBackgroundPings,
       },
       tvheadend: (() => {
         const policy = getTvheadendInstancePolicy();

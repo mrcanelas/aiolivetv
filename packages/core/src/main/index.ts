@@ -6,13 +6,7 @@ import {
   StrictManifestResource,
   UserData,
 } from '../db/index.js';
-import {
-  Cache,
-  createLogger,
-  IdParser,
-  constants,
-  ExtrasParser,
-} from '../utils/index.js';
+import { constants, ExtrasParser } from '../utils/index.js';
 import Proxifier from '../streams/proxifier.js';
 import StreamLimiter from '../streams/limiter.js';
 import {
@@ -43,8 +37,6 @@ import {
   getSubtitles as _getSubtitles,
   getAddonCatalog as _getAddonCatalog,
 } from './resources.js';
-
-const logger = createLogger('core');
 
 export class AIOStreams {
   private ctx: AIOStreamsContext;
@@ -92,12 +84,8 @@ export class AIOStreams {
     }
   }
 
-  public async getStreams(
-    id: string,
-    type: string,
-    preCaching: boolean = false
-  ) {
-    return _getStreams(this.ctx, id, type, preCaching);
+  public async getStreams(id: string, type: string) {
+    return _getStreams(this.ctx, id, type);
   }
 
   public async getCatalog(
@@ -190,54 +178,5 @@ export class AIOStreams {
   public hasEpgProvider(): boolean {
     this.checkInitialised();
     return configurationProvidesNativeEpg(this.ctx.addons, this.ctx.manifests);
-  }
-
-  public async shouldStopAutoPlay(type: string, id: string) {
-    if (
-      !this.ctx.userData.areYouStillThere?.enabled ||
-      !this.ctx.userData.uuid ||
-      type !== 'series'
-    ) {
-      return false;
-    }
-    logger.debug({ type, id }, 'checking if autoplay should be stopped');
-    let disableAutoplay = false;
-    const cfg = this.ctx.userData.areYouStillThere;
-    const threshold = cfg.episodesBeforeCheck ?? 3;
-    const cooldownMs = (cfg.cooldownMinutes ?? 60) * 60 * 1000;
-    const cache = Cache.getInstance<string, { count: number; lastAt: number }>(
-      'ays',
-      10000,
-      appConfig.bootstrap.redisUri ? undefined : 'sql'
-    );
-    const parsed = IdParser.parse(id, type);
-    const baseSeriesKey = parsed
-      ? `${parsed.type}:${parsed.value}`
-      : id.split(':')[0] || id;
-    const key = `${this.ctx.userData.uuid}:${baseSeriesKey}`;
-    logger.trace({ key }, 'formed ays cache key');
-    const now = Date.now();
-    const prev = (await cache.get(key)) || { count: 0, lastAt: 0 };
-    const withinWindow = now - prev.lastAt <= cooldownMs;
-    const nextCount = withinWindow ? prev.count + 1 : 1;
-    if (nextCount >= threshold) {
-      disableAutoplay = true;
-      await cache.set(
-        key,
-        { count: 0, lastAt: now },
-        Math.ceil(cooldownMs / 1000)
-      );
-    } else {
-      await cache.set(
-        key,
-        { count: nextCount, lastAt: now },
-        Math.ceil(cooldownMs / 1000)
-      );
-    }
-    logger.debug(
-      { disableAutoplay, count: nextCount, withinWindow },
-      'autoplay disable check result'
-    );
-    return disableAutoplay;
   }
 }

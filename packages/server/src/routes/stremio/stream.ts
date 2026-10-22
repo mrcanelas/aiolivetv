@@ -50,9 +50,9 @@ router.get(
     const provideSetting = appConfig.api.provideStreamData;
     const provideStreamData =
       provideSetting === null
-        ? (req.headers['user-agent']?.includes('AIOLiveTV/') ||
-            req.headers['user-agent']?.includes('AIOStreams/') ||
-            false)
+        ? req.headers['user-agent']?.includes('AIOLiveTV/') ||
+          req.headers['user-agent']?.includes('AIOStreams/') ||
+          false
         : typeof provideSetting === 'boolean'
           ? provideSetting
           : provideSetting.includes(req.requestIp || '');
@@ -61,8 +61,6 @@ router.get(
       const { type, id } = req.params;
 
       const aiostreams = await new AIOStreams(req.userData).initialise();
-
-      const disableAutoplay = await aiostreams.shouldStopAutoPlay(type, id);
 
       const response = await aiostreams.getStreams(id, type);
       const streamContext = aiostreams.getStreamContext();
@@ -77,7 +75,7 @@ router.get(
           await transformer.transformStreams(
             response,
             streamContext.toFormatterContext(response.data.streams),
-            { provideStreamData, disableAutoplay }
+            { provideStreamData }
           )
         );
     } catch (error) {

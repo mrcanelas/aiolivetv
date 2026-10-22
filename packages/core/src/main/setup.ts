@@ -11,7 +11,7 @@ import { PresetManager } from '../presets/index.js';
 import { FeatureControl } from '../utils/feature.js';
 import { createProxy } from '../proxy/index.js';
 import { getAddonName } from '../utils/general.js';
-import type { Addon, Resource, UserData } from '../db/index.js';
+import type { Addon, Resource } from '../db/index.js';
 import type { AIOStreamsContext } from './types.js';
 import { CHANNEL_ID_PREFIX } from '../builtins/live-tv/shared.js';
 import {
@@ -32,8 +32,6 @@ export async function applyPresets(ctx: AIOStreamsContext): Promise<void> {
     return;
   }
 
-  const serviceWrap = ctx.userData.serviceWrap;
-
   for (const preset of ctx.userData.presets.filter((p) => p.enabled)) {
     try {
       if (!PresetManager.has(preset.type)) {
@@ -50,65 +48,9 @@ export async function applyPresets(ctx: AIOStreamsContext): Promise<void> {
         );
       }
 
-      // Determine if P2P wrap applies to this preset
-      const shouldServiceWrap =
-        serviceWrap?.enabled &&
-        Preset.METADATA.SUPPORTED_STREAM_TYPES.includes(
-          constants.P2P_STREAM_TYPE
-        ) &&
-        !Preset.METADATA.BUILTIN &&
-        (!serviceWrap.presets ||
-          serviceWrap.presets.length === 0 ||
-          serviceWrap.presets.includes(preset.instanceId));
-
-      // When Service Wrap is active, only generate normal addons for services
-      // that are NOT builtin-supported (since builtin services will be handled
-      // by resolveServiceWrappedStreams through the service-wrapped addon).
-      // This avoids redundant debrid addons.
-      const normalUserData = shouldServiceWrap
-        ? {
-            ...ctx.userData,
-            services: (ctx.userData.services ?? []).filter(
-              (s) =>
-                !(
-                  constants.BUILTIN_SUPPORTED_SERVICES as readonly string[]
-                ).includes(s.id)
-            ),
-            presets: ctx.userData.presets?.map((p) =>
-              p.instanceId === preset.instanceId
-                ? {
-                    ...p,
-                    options: {
-                      ...p.options,
-                      // only keep non-builtin specified services.
-                      services: p.options.services?.filter(
-                        (s: string) =>
-                          !(
-                            constants.BUILTIN_SUPPORTED_SERVICES as readonly string[]
-                          ).includes(s)
-                      ),
-                    },
-                  }
-                : p
-            ),
-          }
-        : ctx.userData;
-
-      const options = shouldServiceWrap
-        ? { ...preset.options, services: [] }
-        : preset.options;
-
-      const addons = await Preset.generateAddons(normalUserData, options);
-
-      // When service wrapping, don't add addons that fell into P2P mode
-      // due to having no usable services — those would be unmarked duplicates
-      // of the serviceWrapped addon we generate below.
-      const filteredAddons = shouldServiceWrap
-        ? addons.filter((a) => a.identifier !== 'p2p')
-        : addons;
-
+      const addons = await Preset.generateAddons(ctx.userData, preset.options);
       ctx.addons.push(
-        ...filteredAddons.map(
+        ...addons.map(
           (a): Addon => ({
             ...a,
             preset: {
@@ -121,60 +63,6 @@ export async function applyPresets(ctx: AIOStreamsContext): Promise<void> {
           })
         )
       );
-
-      // Service Wrap: generate the P2P-mode addon for this preset
-      // so its torrent results can be resolved through builtin debrid services
-      if (shouldServiceWrap) {
-        try {
-          // Generate addons with no services, forcing the preset into P2P mode
-          const p2pUserData: UserData = {
-            ...ctx.userData,
-            services: [], // empty services → preset falls into P2P codepath
-            presets: ctx.userData.presets?.map((p) =>
-              p.instanceId === preset.instanceId
-                ? {
-                    ...p,
-                    options: {
-                      ...p.options,
-                      services: [], // remove specified services to avoid errors.
-                    },
-                  }
-                : p
-            ),
-          };
-          const p2pOptions = { ...preset.options, services: [] };
-          const p2pAddons = await Preset.generateAddons(
-            p2pUserData,
-            p2pOptions
-          );
-          // Only keep addons that are actually P2P (not debrid addons from presets that don't care about services)
-          ctx.addons.push(
-            ...p2pAddons.map(
-              (a): Addon => ({
-                ...a,
-                preset: {
-                  ...a.preset,
-                  id: preset.instanceId,
-                },
-                instanceId: `${preset.instanceId}${getSimpleTextHash(`servicewrap-${a.identifier ?? ''}`).slice(0, 4)}`,
-                serviceWrapped: true,
-              })
-            )
-          );
-          logger.debug(
-            { preset: Preset.METADATA.NAME, count: p2pAddons.length },
-            'service wrap: generated p2p-mode addons'
-          );
-        } catch (error) {
-          logger.warn(
-            {
-              preset: Preset.METADATA.NAME,
-              err: error instanceof Error ? error.message : String(error),
-            },
-            'service wrap: failed to generate p2p addons'
-          );
-        }
-      }
     } catch (error) {
       if (ctx.options?.skipFailedAddons !== false) {
         ctx.addonInitialisationErrors.push({
@@ -193,7 +81,7 @@ export async function applyPresets(ctx: AIOStreamsContext): Promise<void> {
 
   if (ctx.addons.length > appConfig.userLimits.maxAddons) {
     throw new Error(
-      `Your current configuration requires ${ctx.addons.length} addons, but the maximum allowed is ${appConfig.userLimits.maxAddons}. Please reduce the number of addons installed or services enabled. If you own the instance or know the owner, increase the max addons setting or set the MAX_ADDONS environment override.`
+      `Your current configuration requires ${ctx.addons.length} addons, but the maximum allowed is ${appConfig.userLimits.maxAddons}. Please reduce the number of addons installed. If you own the instance or know the owner, increase the max addons setting or set the MAX_ADDONS environment override.`
     );
   }
 }

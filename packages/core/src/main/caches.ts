@@ -1,5 +1,4 @@
-﻿import { config as appConfig } from '../config/index.js';
-import { Cache } from '../utils/index.js';
+﻿import { Cache } from '../utils/index.js';
 import type { MetaPreview } from '../db/schemas.js';
 import type { AIOStreamsCatalogResponse } from './types.js';
 
@@ -14,9 +13,3 @@ export const mergedCatalogCache = Cache.getInstance<
   string,
   MergedCatalogSkipState
 >('merged_catalog');
-
-export const precacheCache = Cache.getInstance<string, boolean>(
-  'precache',
-  undefined,
-  appConfig.bootstrap.redisUri ? 'redis' : 'memory'
-);

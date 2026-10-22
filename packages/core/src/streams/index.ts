@@ -4,7 +4,7 @@ import StreamSorter from './sorter.js';
 import StreamDeduplicator from './deduplicator.js';
 import StreamPrecomputer from './precomputer.js';
 import StreamUtils from './utils.js';
-import { StreamContext, ExtendedMetadata } from './context.js';
+import { StreamContext } from './context.js';
 
 export {
   StreamFetcher,
@@ -16,7 +16,6 @@ export {
   StreamContext,
 };
 
-export type { ExtendedMetadata };
 export type { PrecomputeSubTimings } from './precomputer.js';
 export {
   buildDeclaredStreamLabel,

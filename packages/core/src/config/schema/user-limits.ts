@@ -73,15 +73,6 @@ export const userLimitsSchema = {
     requiresRestart: false,
     secret: false,
   },
-  maxNzbFailoverCount: {
-    schema: positiveInt,
-    default: 5,
-    label: 'Max NZB failover count',
-    description: 'Maximum NZB failover attempts a user can configure.',
-    env: 'MAX_NZB_FAILOVER_COUNT',
-    requiresRestart: false,
-    secret: false,
-  },
   maxGroups: {
     schema: positiveInt,
     default: 20,
@@ -97,16 +88,6 @@ export const userLimitsSchema = {
     label: 'Max merged catalog sources',
     description: 'Maximum source catalogs in a single merged catalog.',
     env: 'MAX_MERGED_CATALOG_SOURCES',
-    requiresRestart: false,
-    secret: false,
-  },
-  maxBackgroundPings: {
-    schema: positiveInt,
-    default: 2,
-    label: 'Max background pings',
-    description:
-      'Maximum streams pinged in a background preload/precache operation.',
-    env: 'MAX_BACKGROUND_PINGS',
     requiresRestart: false,
     secret: false,
   },

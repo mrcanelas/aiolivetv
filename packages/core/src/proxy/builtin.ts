@@ -2,14 +2,11 @@
 import {
   appConfig,
   createLogger,
-  maskSensitiveInfo,
-  Env,
   makeRequest,
   encryptString,
   decryptString,
   Cache,
   toUrlSafeBase64,
-  constants,
 } from '../utils/index.js';
 import z from 'zod';
 
@@ -112,7 +109,6 @@ export class BuiltinProxy extends BaseProxy {
     encrypt: boolean = true
   ): Promise<string[] | null> {
     const auth = BuiltinProxy.validateAuth(this.config.credentials);
-    const isPublicProxy = auth.username === constants.PUBLIC_NZB_PROXY_USERNAME;
 
     return streams.map((stream) => {
       let authData = JSON.stringify({
@@ -124,14 +120,9 @@ export class BuiltinProxy extends BaseProxy {
         filename: stream.filename,
         requestHeaders: stream.headers?.request,
         responseHeaders: stream.headers?.response,
-        type: 'nzb',
+        type: 'stream',
       });
 
-      if (stream.type !== 'nzb' && isPublicProxy) {
-        throw new Error(
-          'Public NZB Proxy can only be used to proxy NZB files.'
-        );
-      }
       if (encrypt) {
         const { success, data, error } = encryptString(authData);
         if (!success) {

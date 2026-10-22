@@ -15,7 +15,7 @@ const cache = Cache.getInstance<string, string>('publicIp');
 export interface ProxyStream {
   url: string;
   filename?: string;
-  type?: 'nzb' | 'stream';
+  type?: 'stream';
   headers?: {
     request?: Record<string, string>;
     response?: Record<string, string>;

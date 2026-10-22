@@ -22,7 +22,6 @@ import { createProxy, BuiltinProxyStats, BuiltinProxy } from '@aiolivetv/core';
 import { requireAdmin } from '../../middlewares/auth.js';
 import { corsMiddleware } from '../../middlewares/cors.js';
 import { StaticFiles } from '../../app.js';
-import { Transform } from 'stream';
 
 const logger = createLogger('server');
 const router: Router = Router();
@@ -102,7 +101,7 @@ const ProxyAuthSchema = z.object({
 const ProxyDataSchema = z.object({
   url: z.url(),
   filename: z.string().optional(),
-  type: z.enum(['nzb', 'stream']).optional(),
+  type: z.literal('stream').optional(),
   // These are optional, as we'll be forwarding client headers
   requestHeaders: z.record(z.string(), z.string()).optional(),
   responseHeaders: z.record(z.string(), z.string()).optional(),
@@ -289,10 +288,8 @@ router.all(
       auth = ProxyAuthSchema.parse(JSON.parse(rawAuth));
 
       if (
-        (!appConfig.bootstrap.auth?.has(auth.username) ||
-          appConfig.bootstrap.auth?.get(auth.username) !== auth.password) &&
-        (auth.username !== constants.PUBLIC_NZB_PROXY_USERNAME ||
-          !appConfig.nzbProxy.publicEnabled)
+        !appConfig.bootstrap.auth?.has(auth.username) ||
+        appConfig.bootstrap.auth?.get(auth.username) !== auth.password
       ) {
         logger.warn(`[${requestId}] Authentication failed`, {
           username: auth.username,
@@ -307,10 +304,7 @@ router.all(
         return;
       }
 
-      if (
-        auth.username !== constants.PUBLIC_NZB_PROXY_USERNAME &&
-        !canUseProxy(auth.username)
-      ) {
+      if (!canUseProxy(auth.username)) {
         logger.warn(`[${requestId}] Proxy access denied`, {
           username: auth.username,
         });
@@ -340,38 +334,6 @@ router.all(
       const isBodyRequest =
         req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH';
       const isGetRequest = req.method === 'GET';
-
-      let sizeLimiter;
-      let bytesRead = 0;
-      if (auth.username === constants.PUBLIC_NZB_PROXY_USERNAME) {
-        if (appConfig.nzbProxy.maxSize > 0) {
-          sizeLimiter = new Transform({
-            transform(chunk, encoding, callback) {
-              bytesRead += chunk.length;
-
-              if (bytesRead > appConfig.nzbProxy.maxSize) {
-                callback(new Error('Content too large'));
-              } else {
-                callback(null, chunk);
-              }
-            },
-          });
-        }
-        if (data.type !== 'nzb') {
-          logger.warn(
-            `[${requestId}] Public NZB proxy can only be used for NZB files`,
-            { dataType: data.type }
-          );
-          next(
-            new APIError(
-              constants.ErrorCode.FORBIDDEN,
-              undefined,
-              'Public NZB proxy can only be used for NZB files'
-            )
-          );
-          return;
-        }
-      }
 
       if (isGetRequest) {
         if (connectionLimit > 0) {
@@ -408,29 +370,6 @@ router.all(
 
       const upstreamStartTime = Date.now();
       let currentUrl = data.url;
-
-      const INTERNAL_FORWARDED_PARAMS = ['fbk'] as const;
-      if (appConfig.bootstrap.baseUrl) {
-        try {
-          const upstreamUrlObj = new URL(currentUrl);
-          if (
-            upstreamUrlObj.origin ===
-            new URL(appConfig.bootstrap.baseUrl).origin
-          ) {
-            let forwarded = false;
-            for (const param of INTERNAL_FORWARDED_PARAMS) {
-              const val = req.query[param];
-              if (val && typeof val === 'string') {
-                upstreamUrlObj.searchParams.set(param, val);
-                forwarded = true;
-              }
-            }
-            if (forwarded) currentUrl = upstreamUrlObj.toString();
-          }
-        } catch {
-          // ignore malformed URLs
-        }
-      }
 
       const maxRedirects = 10;
       let redirectCount = 0;
@@ -539,35 +478,6 @@ router.all(
       }
       const upstreamDuration = getTimeTakenSincePoint(upstreamStartTime);
 
-      if (auth.username === constants.PUBLIC_NZB_PROXY_USERNAME) {
-        // size check
-        if (appConfig.nzbProxy.maxSize > 0) {
-          const contentLengthHeader = upstreamResponse.headers['content-length']
-            ? Array.isArray(upstreamResponse.headers['content-length'])
-              ? upstreamResponse.headers['content-length'][0]
-              : upstreamResponse.headers['content-length']
-            : undefined;
-          const contentLength = contentLengthHeader
-            ? parseInt(contentLengthHeader, 10)
-            : 0;
-          const maxSize = appConfig.nzbProxy.maxSize;
-          if (maxSize > 0 && contentLength > maxSize) {
-            logger.warn(`[${requestId}] Public NZB proxy size limit exceeded`, {
-              contentLength,
-              maxSize,
-            });
-            next(
-              new APIError(
-                constants.ErrorCode.FORBIDDEN,
-                undefined,
-                'Content size exceeds public NZB proxy limit'
-              )
-            );
-            return;
-          }
-        }
-      }
-
       // forward upstream response to client
       res.set(sanitiseHeaders(upstreamResponse.headers));
       if (data.responseHeaders) {
@@ -598,11 +508,7 @@ router.all(
             }
           );
         } else {
-          if (sizeLimiter) {
-            await pipeline(upstreamResponse.body, sizeLimiter, res);
-          } else {
-            await pipeline(upstreamResponse.body, res);
-          }
+          await pipeline(upstreamResponse.body, res);
         }
       }
 

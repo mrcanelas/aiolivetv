@@ -13,15 +13,12 @@ import {
   SelAccess,
   ConfigStartupError,
   TemplateManager,
-  maskSensitiveInfo,
-  constants,
   ensureConfigAccessKey,
   startAnalytics,
   stopAnalytics,
   TaskManager,
   isEphemeralRuntime,
 } from '@aiolivetv/core';
-import { randomBytes } from 'crypto';
 
 const logger = createLogger('server');
 
@@ -107,19 +104,6 @@ async function initialiseTemplates() {
 
 async function initialiseAuth() {
   await ensureConfigAccessKey();
-  if (appConfig.nzbProxy.publicEnabled) {
-    appConfig.bootstrap.auth.set(
-      constants.PUBLIC_NZB_PROXY_USERNAME,
-      appConfig.bootstrap.auth.get(constants.PUBLIC_NZB_PROXY_USERNAME) ||
-        randomBytes(32).toString('hex')
-    );
-    logger.info('Public NZB Proxy is enabled.', {
-      username: constants.PUBLIC_NZB_PROXY_USERNAME,
-      password: maskSensitiveInfo(
-        appConfig.bootstrap.auth.get(constants.PUBLIC_NZB_PROXY_USERNAME) || ''
-      ),
-    });
-  }
 }
 
 async function start() {

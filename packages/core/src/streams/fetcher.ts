@@ -81,8 +81,6 @@ class StreamFetcher {
   }> {
     const { type, id, queryType } = context;
 
-    context.startAllFetches();
-
     const allErrors: {
       title: string;
       description: string;
@@ -284,10 +282,6 @@ class StreamFetcher {
       const groupStatistics = results
         .flatMap((r) => r.statistic)
         .filter((s) => s !== undefined);
-
-      // Run SeaDex precompute BEFORE filter so seadex() works in Included SEL
-      // Now uses context's cached SeaDex data when available
-      await this.precompute.precomputeSeaDexOnly(groupStreams, context);
 
       const filteredStreams = await this.deduplicate.deduplicate(
         await this.filter.filter(groupStreams, context)

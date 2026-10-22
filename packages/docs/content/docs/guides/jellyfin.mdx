@@ -13,7 +13,7 @@ Jellyfin then uses its built-in **M3U Tuner** and **XMLTV** guide provider. No A
 ## Prerequisites
 
 1. Configure sources on **Addons**.
-2. Review channels on **Channels** (enable/disable, mappings, stream priority).
+2. Review channels on **Channels** (enable/disable and mappings), then configure stream priority on **Sorting**.
 3. **Save** the configuration on **Save / Install**.
 4. Open the **Jellyfin / Outros players** block on the same page and copy the URLs.
 
@@ -61,7 +61,7 @@ Export and proxy are separate. A public instance may allow playlist/guide downlo
 ## Identity notes
 
 - One playlist entry per enabled canonical channel (not per programme).
-- Stream priority follows the order on the Channels page; only the first working resolution is used at tune time.
+- Stream priority follows the shared criteria on the Sorting page; only the first working resolution is used at tune time.
 - Renaming a channel or updating EPG does not change `tvg-id`.
 - Changing which mapping is the canonical channel may change the exported id — remap in Jellyfin if that happens.
 

@@ -7,8 +7,7 @@ import type { RuntimeConfigSection } from '../types.js';
  * Subsections:
  * - `pruning`: removing inactive users
  *
- * (Stream precache/preload behaviour now lives under `resources`; analytics
- * retention has moved to the dedicated `analytics` section.)
+ * Analytics retention lives in the dedicated `analytics` section.
  */
 export const tasksSchema = {
   pruning: {

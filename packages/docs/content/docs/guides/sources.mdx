@@ -11,6 +11,8 @@ AIOLiveTV keeps the existing `UserData` configuration format. Loading an old dra
 
 Empty disabled service entries and an unconfigured proxy are omitted. Services with credentials, configured proxies, Live TV deduplication rules, display settings, TMDB settings, formatter definitions, presets and channel mappings are preserved. Disabled or removed channels and manual stream URLs remain intact.
 
+The runtime no longer resolves torrents or NZBs, preloads episodes, generates autoplay groups, or exposes the public NZB proxy. Those settings are absent from the schema and inheritance controls. Custom addons keep the standard manifest, timeout, resources and passthrough options; retired Movie/Series/Anime restrictions and Library Addon flags are discarded on import. Bitrate filters use stream bitrate directly, without fetching movie or episode runtimes.
+
 The same cleanup runs on the server before saving and when reading older saved configurations. Reading or importing does not rewrite the saved configuration; **Save** persists the cleaned draft. JSON exports use the same cleanup so reimporting them does not restore retired options. Keep your original backup if you also use those VOD settings in AIOStreams.
 
 ## XMLTV

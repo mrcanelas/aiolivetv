@@ -59,55 +59,20 @@ class StreamPrecomputer {
   }
 
   /**
-   * Precompute SeaDex only - runs BEFORE filtering so seadex() works in Included SEL
-   * Uses StreamContext's cached SeaDex data when available.
-   */
-  public async precomputeSeaDexOnly(
-    streams: ParsedStream[],
-    context: StreamContext
-  ): Promise<number> {
-    const start = Date.now();
-    if (!context.isAnime || this.userData.enableSeadex === false) {
-      return 0;
-    }
-
-    // Wait for SeaDex data if it's being fetched
-    const seadexResult = await context.getSeaDex();
-    if (!seadexResult) {
-      return Date.now() - start;
-    }
-
-    this.precomputeSeaDexFromResult(
-      streams,
-      seadexResult,
-      context.animeEntry?.mappings?.anilistId
-    );
-    return Date.now() - start;
-  }
-
-  /**
    * Precompute preferred matches - runs AFTER filtering on fewer streams.
-   * When `skipPerStreamIds` is provided, per-stream operations (regex/keyword matching)
-   * skip streams that were already precomputed (e.g. in the fetcher).
    * SEL-based operations always re-evaluate against the full stream list since
    * selections can depend on the composition of the entire set.
    */
   public async precomputePreferred(
     streams: ParsedStream[],
-    context: StreamContext,
-    skipPerStreamIds?: Set<string>
+    context: StreamContext
   ): Promise<PrecomputeSubTimings> {
     const start = Date.now();
     // preferred regex / keywords --> ranked regex patterns --> ranked stream expressions --> preferred stream expressions
     // this is the optimal order so that regexMatched can be used in RSE/PSE and streamExpressionScore and regexScore can be used in PSE
-    const preferredRegexMs = await this.precomputePreferredRegexMatches(
-      streams,
-      skipPerStreamIds
-    );
-    const rankedRegexMs = await this.precomputeRankedRegexPatterns(
-      streams,
-      skipPerStreamIds
-    );
+    const preferredRegexMs =
+      await this.precomputePreferredRegexMatches(streams);
+    const rankedRegexMs = await this.precomputeRankedRegexPatterns(streams);
     const rankedSELMs = await this.precomputeRankedStreamExpressions(
       streams,
       context
@@ -120,7 +85,6 @@ class StreamPrecomputer {
     logger.debug(
       {
         took: totalMs,
-        skipped: skipPerStreamIds?.size ?? 0,
         preferredRegexMs,
         rankedRegexMs,
         rankedSELMs,
@@ -215,8 +179,7 @@ class StreamPrecomputer {
   }
 
   private async precomputeRankedRegexPatterns(
-    streams: ParsedStream[],
-    skipStreamIds?: Set<string>
+    streams: ParsedStream[]
   ): Promise<number> {
     if (!this.userData.rankedRegexPatterns?.length || streams.length === 0) {
       return 0;
@@ -230,11 +193,7 @@ class StreamPrecomputer {
       }))
     );
 
-    const streamsToProcess = skipStreamIds
-      ? streams.filter((s) => !skipStreamIds.has(s.id))
-      : streams;
-
-    for (const stream of streamsToProcess) {
+    for (const stream of streams) {
       if (!stream.filename) {
         continue;
       }
@@ -267,115 +226,10 @@ class StreamPrecomputer {
   }
 
   /**
-   * Apply SeaDex tags to streams using pre-fetched SeaDex data
-   */
-  private precomputeSeaDexFromResult(
-    streams: ParsedStream[],
-    seadexResult: {
-      bestHashes: Set<string>;
-      allHashes: Set<string>;
-      bestGroups: Set<string>;
-      allGroups: Set<string>;
-    },
-    anilistId: string | number | undefined
-  ) {
-    if (
-      seadexResult.bestHashes.size === 0 &&
-      seadexResult.allHashes.size === 0 &&
-      seadexResult.bestGroups.size === 0 &&
-      seadexResult.allGroups.size === 0
-    ) {
-      logger.debug({ anilistId }, 'no seadex releases found');
-      return;
-    }
-
-    logger.debug(
-      {
-        anilistId,
-        bestHashes: Array.from(seadexResult.bestHashes),
-        allHashes: Array.from(seadexResult.allHashes),
-        bestGroups: Array.from(seadexResult.bestGroups),
-        allGroups: Array.from(seadexResult.allGroups),
-      },
-      'applying seadex tags'
-    );
-    let seadexBestCount = 0;
-    let seadexCount = 0;
-    let seadexGroupFallbackCount = 0;
-    let anyHashMatched = false;
-
-    // First pass: try hash matching for all streams
-    for (const stream of streams) {
-      const infoHash = stream.torrent?.infoHash?.toLowerCase();
-
-      if (infoHash) {
-        const isBest = seadexResult.bestHashes.has(infoHash);
-        const isSeadex = seadexResult.allHashes.has(infoHash);
-
-        if (isSeadex) {
-          stream.seadex = {
-            isBest,
-            isSeadex: true,
-          };
-
-          if (isBest) {
-            seadexBestCount++;
-          }
-          seadexCount++;
-          anyHashMatched = true;
-        }
-      }
-    }
-
-    // Second pass: fallback to release group matching ONLY if no hash matched
-    if (!anyHashMatched) {
-      for (const stream of streams) {
-        // Skip streams already tagged
-        if (stream.seadex) {
-          continue;
-        }
-
-        const releaseGroup = stream.parsedFile?.releaseGroup?.toLowerCase();
-        if (releaseGroup) {
-          const isBestGroup = seadexResult.bestGroups.has(releaseGroup);
-          const isSeadexGroup = seadexResult.allGroups.has(releaseGroup);
-
-          if (isBestGroup || isSeadexGroup) {
-            stream.seadex = {
-              isBest: isBestGroup,
-              isSeadex: true,
-            };
-            if (isBestGroup) {
-              seadexBestCount++;
-            }
-            seadexCount++;
-            seadexGroupFallbackCount++;
-          }
-        }
-      }
-    }
-
-    if (seadexCount > 0) {
-      logger.debug(
-        {
-          tagged: seadexCount,
-          best: seadexBestCount,
-          groupFallback: seadexGroupFallbackCount,
-          anilistId,
-        },
-        'seadex tagging complete'
-      );
-    }
-  }
-
-  /**
    * Precompute preferred regex, keyword, and stream expression matches.
-   * When `skipStreamIds` is provided, per-stream keyword and regex matching
-   * is skipped for those streams (they were already computed in the fetcher).
    */
   private async precomputePreferredRegexMatches(
-    streams: ParsedStream[],
-    skipStreamIds?: Set<string>
+    streams: ParsedStream[]
   ): Promise<number> {
     const start = Date.now();
     const preferredRegexPatterns =
@@ -407,12 +261,8 @@ class StreamPrecomputer {
       return 0;
     }
 
-    const streamsToProcess = skipStreamIds
-      ? streams.filter((s) => !skipStreamIds.has(s.id))
-      : streams;
-
     if (preferredKeywordsPatterns) {
-      streamsToProcess.forEach((stream) => {
+      streams.forEach((stream) => {
         stream.keywordMatched =
           preferredKeywordsPatterns.test(stream.filename || '') ||
           preferredKeywordsPatterns.test(stream.folderName || '') ||
@@ -430,7 +280,7 @@ class StreamPrecomputer {
       return attribute ? regexPattern.pattern.test(attribute) : false;
     };
     if (preferredRegexPatterns) {
-      streamsToProcess.forEach((stream) => {
+      streams.forEach((stream) => {
         for (let i = 0; i < preferredRegexPatterns.length; i++) {
           // if negate, then the pattern must not match any of the attributes
           // and if the attribute is undefined, then we can consider that as a non-match so true

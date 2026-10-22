@@ -249,20 +249,6 @@ export async function validateConfig(
     }
   }
 
-  // validate NZB failover count against the server limit
-  if (
-    config.nzbFailover?.count &&
-    config.nzbFailover.count > appConfig.userLimits.maxNzbFailoverCount
-  ) {
-    if (options?.skipErrorsFromAddonsOrProxies) {
-      config.nzbFailover.count = appConfig.userLimits.maxNzbFailoverCount;
-    } else {
-      throw new Error(
-        `NZB failover count is ${config.nzbFailover.count}, but the maximum allowed is ${appConfig.userLimits.maxNzbFailoverCount}`
-      );
-    }
-  }
-
   // now, validate preset options and service credentials.
 
   if (config.presets) {
@@ -331,15 +317,6 @@ export async function validateConfig(
     }
   }
 
-  // validate precache selector
-  if (config.precacheSelector) {
-    try {
-      await StreamSelector.testSelect(config.precacheSelector);
-    } catch (error) {
-      throw new Error(`Invalid precache selector: ${error}`);
-    }
-  }
-
   if (config.services) {
     config.services = config.services.map((service: Service) =>
       validateService(service, options?.decryptValues)
@@ -367,26 +344,8 @@ export async function validateConfig(
     }
   }
 
-  const tmdbAuth =
-    config.tmdbApiKey ||
-    config.tmdbAccessToken ||
-    appConfig.metadata.tmdb.apiKey ||
-    appConfig.metadata.tmdb.accessToken;
-
-  const needTmdb =
-    config.titleMatching?.enabled ||
-    config.yearMatching?.enabled ||
-    config.digitalReleaseFilter?.enabled ||
-    config.bitrate?.useMetadataRuntime;
-
-  if (needTmdb && !tmdbAuth) {
-    throw new Error(
-      'A TMDB API key or access token is required for the following features: title matching, year matching, and digital release filter'
-    );
-  }
-
-  // validate tmdb auth if it is needed or if it is provided in the config.
-  if (needTmdb || config.tmdbAccessToken || config.tmdbApiKey) {
+  // Validate credentials when supplied; EPG enrichment remains optional.
+  if (config.tmdbAccessToken || config.tmdbApiKey) {
     try {
       const tmdb = new TMDBMetadata({
         accessToken: config.tmdbAccessToken,
@@ -1013,7 +972,6 @@ async function validateProxy(
 // prettier-ignore
 const FILTER_FIELDS: (keyof UserData)[] = [
   'excludedResolutions', 'includedResolutions', 'requiredResolutions',
-  'excludedQualities', 'includedQualities', 'requiredQualities', 'preferredQualities',
   'excludedLanguages', 'includedLanguages', 'requiredLanguages',
   'excludedSubtitles', 'includedSubtitles', 'requiredSubtitles', 'preferredSubtitles',
   'excludedVisualTags', 'includedVisualTags', 'requiredVisualTags',
@@ -1031,15 +989,7 @@ const FILTER_FIELDS: (keyof UserData)[] = [
   'excludedStreamExpressions', 'requiredStreamExpressions', 'preferredStreamExpressions',
   'includedStreamExpressions', 'rankedStreamExpressions',
   'excludedKeywords', 'includedKeywords', 'requiredKeywords', 'preferredKeywords',
-  'excludedReleaseGroups', 'includedReleaseGroups', 'requiredReleaseGroups', 'preferredReleaseGroups',
-  'enableSeadex', 'excludeSeasonPacks',
-  'excludeCached', 'excludeCachedFromAddons', 'excludeCachedFromServices',
-  'excludeCachedFromStreamTypes', 'excludeCachedMode',
-  'excludeUncached', 'excludeUncachedFromAddons', 'excludeUncachedFromServices',
-  'excludeUncachedFromStreamTypes', 'excludeUncachedMode',
-  'excludeSeederRange', 'includeSeederRange', 'requiredSeederRange', 'seederRangeTypes',
-  'excludeAgeRange', 'includeAgeRange', 'requiredAgeRange', 'ageRangeTypes',
-  'digitalReleaseFilter', 'size', 'bitrate', 'titleMatching', 'yearMatching', 'seasonEpisodeMatching'
+  'bitrate',
 ];
 
 // prettier-ignore
@@ -1070,10 +1020,9 @@ const METADATA_FIELDS: (keyof UserData)[] = [
 
 // prettier-ignore
 const MISC_FIELDS: (keyof UserData)[] = [
-  'autoPlay', 'areYouStillThere', 'statistics', 'dynamicAddonFetching',
-  'nzbFailover', 'serviceWrap', 'cacheAndPlay', 'preloadStreams', 'precacheSelector',
+  'statistics', 'dynamicAddonFetching',
   'hideErrors', 'hideErrorsForResources', 'addonCategoryColors', 'catalogModifications', 'mergedCatalogs',
-  'accessKey', 'externalDownloads', 'autoRemoveDownloads', 'checkOwned', 'showChanges',
+  'accessKey', 'showChanges',
 ];
 
 // prettier-ignore

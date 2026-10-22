@@ -28,6 +28,23 @@ export function applyMigrations(config: any): UserData {
   }
   config = structuredClone(config);
   migrateLegacyIdentityIds(config);
+  if (config.bitrate && typeof config.bitrate === 'object') {
+    delete config.bitrate.useMetadataRuntime;
+    if (config.bitrate.global && !Array.isArray(config.bitrate.global)) {
+      config.bitrate.global = config.bitrate.global.series;
+    }
+    if (config.bitrate.resolution) {
+      for (const [resolution, range] of Object.entries(
+        config.bitrate.resolution
+      )) {
+        if (range && !Array.isArray(range)) {
+          config.bitrate.resolution[resolution] = (
+            range as Record<string, unknown>
+          ).series;
+        }
+      }
+    }
+  }
   if (
     config &&
     config.addonPassword !== undefined &&
@@ -287,7 +304,7 @@ const VOD_FIELDS = [
   'checkOwned',
   'externalDownloads',
   'autoRemoveDownloads',
-] as const satisfies readonly (keyof UserData)[];
+] as const;
 
 export function isLiveTvUserDataField(key: string): boolean {
   return !(VOD_FIELDS as readonly string[]).includes(key);
@@ -296,7 +313,23 @@ export function isLiveTvUserDataField(key: string): boolean {
 /** Keep the existing UserData contract, with only settings relevant to Live TV. */
 export function normalizeUserData(config: UserData): UserData {
   const next = { ...config };
-  for (const key of VOD_FIELDS) delete next[key];
+  for (const key of VOD_FIELDS) delete (next as Record<string, unknown>)[key];
+  if (
+    next.presets?.some(
+      (preset) =>
+        preset.type === 'custom' &&
+        (preset.options?.mediaTypes !== undefined ||
+          preset.options?.libraryAddon !== undefined)
+    )
+  ) {
+    next.presets = next.presets.map((preset) => {
+      if (preset.type !== 'custom') return preset;
+      const options = { ...preset.options };
+      delete options.mediaTypes;
+      delete options.libraryAddon;
+      return { ...preset, options };
+    });
+  }
   const parent = next.parentConfig;
   const strategies = parent?.mergeStrategies;
   const overrides = strategies?.fieldOverrides;

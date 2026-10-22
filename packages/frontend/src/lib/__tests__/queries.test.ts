@@ -19,7 +19,6 @@ describe('channel configuration reload', () => {
       presets: [],
       sortCriteria: { global: [] },
       formatter: { id: 'gdrive' },
-      checkOwned: true,
       channelMappings: [],
     };
     vi.mocked(fetchChannels).mockImplementation(async (userData) => ({

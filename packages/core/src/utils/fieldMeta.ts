@@ -77,10 +77,7 @@ type IgnoredKeys =
   | 'proxies'
   | 'ip'
   | 'addonCategories'
-  | 'appliedTemplates'
-  | 'precacheNextEpisode'
-  | 'alwaysPrecache'
-  | 'precacheCondition';
+  | 'appliedTemplates';
 
 // prettier-ignore
 export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = {
@@ -88,11 +85,6 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   includedResolutions: { label: 'Included Resolutions', group: 'filters', type: 'list', menu: 'filters', subTab: 'resolution' },
   requiredResolutions: { label: 'Required Resolutions', group: 'filters', type: 'list', menu: 'filters', subTab: 'resolution' },
   preferredResolutions: { label: 'Preferred Resolutions', group: 'sorting', type: 'list', menu: 'sorting', sectionId: 'preferredValues' },
-
-  excludedQualities: { label: 'Excluded Qualities', group: 'filters', type: 'list', menu: 'filters', subTab: 'quality' },
-  includedQualities: { label: 'Included Qualities', group: 'filters', type: 'list', menu: 'filters', subTab: 'quality' },
-  requiredQualities: { label: 'Required Qualities', group: 'filters', type: 'list', menu: 'filters', subTab: 'quality' },
-  preferredQualities: { label: 'Preferred Qualities', group: 'filters', type: 'list', menu: 'filters', subTab: 'quality' },
 
   excludedLanguages: { label: 'Excluded Languages', group: 'filters', type: 'list', menu: 'filters', subTab: 'language' },
   includedLanguages: { label: 'Included Languages', group: 'filters', type: 'list', menu: 'filters', subTab: 'language' },
@@ -134,11 +126,6 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   requiredKeywords: { label: 'Required Keywords', group: 'filters', type: 'list', menu: 'filters', subTab: 'keyword' },
   preferredKeywords: { label: 'Preferred Keywords', group: 'filters', type: 'list', menu: 'filters', subTab: 'keyword' },
 
-  excludedReleaseGroups: { label: 'Excluded Release Groups', group: 'filters', type: 'list', menu: 'filters', subTab: 'release-group' },
-  includedReleaseGroups: { label: 'Included Release Groups', group: 'filters', type: 'list', menu: 'filters', subTab: 'release-group' },
-  requiredReleaseGroups: { label: 'Required Release Groups', group: 'filters', type: 'list', menu: 'filters', subTab: 'release-group' },
-  preferredReleaseGroups: { label: 'Preferred Release Groups', group: 'filters', type: 'list', menu: 'filters', subTab: 'release-group' },
-
   excludedRegexPatterns: { label: 'Excluded Regex Patterns', group: 'filters', type: 'list', menu: 'filters', subTab: 'regex' },
   includedRegexPatterns: { label: 'Included Regex Patterns', group: 'filters', type: 'list', menu: 'filters', subTab: 'regex' },
   requiredRegexPatterns: { label: 'Required Regex Patterns', group: 'filters', type: 'list', menu: 'filters', subTab: 'regex' },
@@ -162,38 +149,7 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   syncedRequiredStreamExpressionUrls: { label: 'Synced Required Expression URLs', group: 'filters', type: 'list', menu: 'filters', subTab: 'stream-expression' },
   syncedPreferredStreamExpressionUrls: { label: 'Synced Preferred Expression URLs', group: 'filters', type: 'list', menu: 'filters', subTab: 'stream-expression' },
   syncedRankedStreamExpressionUrls: { label: 'Synced Ranked Expression URLs', group: 'filters', type: 'list', menu: 'filters', subTab: 'stream-expression' },
-
-  enableSeadex: { label: 'SeaDex', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'miscellaneous', keywords: ['anime', 'releases.moe'] },
-  excludeSeasonPacks: { label: 'Exclude Season Packs', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'miscellaneous' },
-
-  excludeCached: { label: 'Exclude Cached Streams', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'cache' },
-  excludeCachedFromAddons: { label: 'Exclude Cached — From Addons', group: 'filters', type: 'list', menu: 'filters', subTab: 'cache', sectionId: 'excludeCached' },
-  excludeCachedFromServices: { label: 'Exclude Cached — From Services', group: 'filters', type: 'list', menu: 'filters', subTab: 'cache', sectionId: 'excludeCached' },
-  excludeCachedFromStreamTypes: { label: 'Exclude Cached — Stream Types', group: 'filters', type: 'list', menu: 'filters', subTab: 'cache', sectionId: 'excludeCached' },
-  excludeCachedMode: { label: 'Exclude Cached Mode', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'cache', sectionId: 'excludeCached' },
-
-  excludeUncached: { label: 'Exclude Uncached Streams', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'cache' },
-  excludeUncachedFromAddons: { label: 'Exclude Uncached — From Addons', group: 'filters', type: 'list', menu: 'filters', subTab: 'cache', sectionId: 'excludeUncached' },
-  excludeUncachedFromServices: { label: 'Exclude Uncached — From Services', group: 'filters', type: 'list', menu: 'filters', subTab: 'cache', sectionId: 'excludeUncached' },
-  excludeUncachedFromStreamTypes: { label: 'Exclude Uncached — Stream Types', group: 'filters', type: 'list', menu: 'filters', subTab: 'cache', sectionId: 'excludeUncached' },
-  excludeUncachedMode: { label: 'Exclude Uncached Mode', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'cache', sectionId: 'excludeUncached' },
-
-  excludeSeederRange: { label: 'Exclude Seeder Range', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'seeders' },
-  includeSeederRange: { label: 'Include Seeder Range', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'seeders' },
-  requiredSeederRange: { label: 'Required Seeder Range', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'seeders' },
-  seederRangeTypes: { label: 'Seeder Range Types', group: 'filters', type: 'list', menu: 'filters', subTab: 'seeders' },
-
-  excludeAgeRange: { label: 'Exclude Age Range', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'age' },
-  includeAgeRange: { label: 'Include Age Range', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'age' },
-  requiredAgeRange: { label: 'Required Age Range', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'age' },
-  ageRangeTypes: { label: 'Age Range Types', group: 'filters', type: 'list', menu: 'filters', subTab: 'age' },
-
-  digitalReleaseFilter: { label: 'Digital Release Filter', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'miscellaneous' },
-  size: { label: 'Size Filter', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'size' },
   bitrate: { label: 'Bitrate Filter', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'bitrate' },
-  titleMatching: { label: 'Title Matching', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'matching' },
-  yearMatching: { label: 'Year Matching', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'matching' },
-  seasonEpisodeMatching: { label: 'Season/Episode Matching', group: 'filters', type: 'scalar', menu: 'filters', subTab: 'matching' },
 
   sortCriteria: { label: 'Sort Criteria', group: 'sorting', type: 'scalar', menu: 'sorting' },
   deduplicator: { label: 'Deduplicator', group: 'sorting', type: 'scalar', menu: 'filters', subTab: 'deduplicator' },
@@ -218,29 +174,16 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   posterService: { label: 'Poster Service', group: 'metadata', type: 'scalar', menu: 'services', subTab: 'posters' },
   usePosterRedirectApi: { label: 'Use Poster Redirect API', group: 'metadata', type: 'scalar', menu: 'services', subTab: 'posters' },
   usePosterServiceForMeta: { label: 'Use Poster Service for Meta', group: 'metadata', type: 'scalar', menu: 'services', subTab: 'posters' },
-
-  autoPlay: { label: 'Auto Play', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'playback' },
-  areYouStillThere: { label: 'Are You Still There?', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'playback' },
   statistics: { label: 'Statistics', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'display' },
   hideErrors: { label: 'Hide Errors', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'display' },
   hideErrorsForResources: { label: 'Hide Errors for Resources', group: 'misc', type: 'list', menu: 'miscellaneous', subTab: 'display', sectionId: 'hideErrors' },
-  externalDownloads: { label: 'External Downloads', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'display' },
-  preloadStreams: { label: 'Preload Streams', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'background' },
   streamProbe: { label: 'Stream Probe (ffprobe)', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'playback', keywords: ['ffprobe', 'live tv', 'codec', 'resolution', 'notWebReady', 'web'] },
-  precacheSelector: { label: 'Precache Selector', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'background' },
-  precacheSingleStream: { label: 'Precache Single Stream', group: 'misc', type: 'scalar', menu: 'miscellaneous', subTab: 'background' },
 
   dynamicAddonFetching: { label: 'Dynamic Addon Fetching', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'addons', sectionId: 'fetchStrategy', keywords: ['exit condition', 'dynamic fetching', 'fetch strategy'] },
   addonCategoryColors: { label: 'Addon Category Colors', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'addons' },
   catalogModifications: { label: 'Catalog Modifications', group: 'misc', type: 'scalar', menu: 'channels' },
   channelMappings: { label: 'Channel Mappings', group: 'metadata', type: 'list', identityKey: 'id', menu: 'channels', keywords: ['live tv', 'm3u', 'xmltv'] },
   mergedCatalogs: { label: 'Merged Catalogs', group: 'misc', type: 'scalar', menu: 'channels' },
-
-  nzbFailover: { label: 'NZB Failover', group: 'misc', type: 'scalar', menu: 'services', subTab: 'builtin' },
-  serviceWrap: { label: 'Service Wrap', group: 'misc', type: 'scalar', menu: 'services', subTab: 'builtin' },
-  cacheAndPlay: { label: 'Cache and Play', group: 'misc', type: 'scalar', menu: 'services', subTab: 'builtin' },
-  autoRemoveDownloads: { label: 'Auto Remove Downloads', group: 'misc', type: 'scalar', menu: 'services', subTab: 'builtin' },
-  checkOwned: { label: 'Check Owned', group: 'misc', type: 'scalar', menu: 'services', subTab: 'builtin' },
 
   accessKey: { label: 'Config Access Key', group: 'misc', type: 'scalar', menu: 'save-install' },
   showChanges: { label: 'Show Changes', group: 'misc', type: 'scalar', menu: 'save-install' },

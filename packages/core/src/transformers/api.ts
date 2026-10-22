@@ -7,7 +7,6 @@ import {
   UserData,
 } from '../db/index.js';
 import { AIOStreamsResponse } from '../main/types.js';
-import { generateBingeGroup } from './utils.js';
 
 export interface SearchApiResponseData {
   results: SearchApiResult[];
@@ -85,7 +84,7 @@ export class ApiTransformer {
     const { data, errors } = response;
     let filteredCount = 0;
     const results: SearchApiResult[] = data.streams
-      .map((stream: ParsedStream, index: number) => ({
+      .map((stream: ParsedStream) => ({
         infoHash: stream.torrent?.infoHash ?? null,
         url: stream.url ?? null,
         nzbUrl: stream.nzbUrl ?? null,
@@ -122,7 +121,7 @@ export class ApiTransformer {
         cached: stream.service?.cached ?? null,
         servers: stream.servers ?? null,
         notWebReady: stream.notWebReady ?? null,
-        bingeGroup: generateBingeGroup(stream, index, this.userData) ?? null,
+        bingeGroup: null,
         private: stream.torrent?.private ?? null,
         seadexBest: stream.seadex?.isBest ?? null,
         seadex: stream.seadex?.isSeadex ?? null,

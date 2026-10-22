@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import type { UserData } from '../db/schemas.js';
+import { describe, expect, it, vi } from 'vitest';
+import { UserDataSchema, type UserData } from '../db/schemas.js';
 import { applyMigrations, normalizeUserData } from './userConfig.js';
 
-function legacyConfig(): UserData {
+vi.mock('../config/index.js', () => ({ config: {} }));
+
+function legacyConfig(): UserData & Record<string, unknown> {
   return {
     presets: [
       {
@@ -18,7 +20,6 @@ function legacyConfig(): UserData {
         { key: 'cached', direction: 'desc' },
         { key: 'resolution', direction: 'asc' },
       ],
-      movies: [{ key: 'size', direction: 'desc' }],
     },
     preferredResolutions: ['720p', '1080p'],
     preferredLanguages: ['Portuguese'],
@@ -55,6 +56,71 @@ function legacyConfig(): UserData {
 }
 
 describe('shared Live TV user configuration', () => {
+  it('keeps bitrate ranges without movie, episode or runtime settings', () => {
+    const clean = applyMigrations({
+      ...legacyConfig(),
+      bitrate: {
+        useMetadataRuntime: true,
+        global: { movies: [1, 2], series: [1_000_000, 10_000_000] },
+        resolution: { '1080p': { series: [2_000_000, 20_000_000] } },
+      },
+    });
+    expect(clean.bitrate).toEqual({
+      global: [1_000_000, 10_000_000],
+      resolution: { '1080p': [2_000_000, 20_000_000] },
+    });
+    expect(UserDataSchema.shape.bitrate.parse(clean.bitrate)).toEqual(
+      clean.bitrate
+    );
+  });
+
+  it('does not expose retired VOD fields in the configuration schema', () => {
+    for (const key of [
+      'excludedQualities',
+      'enableSeadex',
+      'size',
+      'titleMatching',
+      'yearMatching',
+      'seasonEpisodeMatching',
+      'autoPlay',
+      'areYouStillThere',
+      'precacheNextEpisode',
+      'preloadStreams',
+      'cacheAndPlay',
+      'nzbFailover',
+      'serviceWrap',
+      'checkOwned',
+      'externalDownloads',
+      'autoRemoveDownloads',
+    ]) {
+      expect(UserDataSchema.shape).not.toHaveProperty(key);
+    }
+    expect(Object.keys(UserDataSchema.shape.sortCriteria.shape)).toEqual([
+      'global',
+    ]);
+  });
+
+  it('removes retired custom addon controls without mutating the draft', () => {
+    const data = legacyConfig();
+    data.presets[0] = {
+      ...data.presets[0],
+      type: 'custom',
+      options: {
+        manifestUrl: 'https://example.com/manifest.json',
+        mediaTypes: ['movie'],
+        libraryAddon: true,
+        resultPassthrough: true,
+      },
+    };
+    const clean = normalizeUserData(data);
+    expect(clean.presets[0].options).toEqual({
+      manifestUrl: 'https://example.com/manifest.json',
+      resultPassthrough: true,
+    });
+    expect(data.presets[0].options.libraryAddon).toBe(true);
+    expect(clean.channelMappings).toBe(data.channelMappings);
+  });
+
   it('removes VOD settings while preserving channel identities, sources, credentials and preferences', () => {
     const original = legacyConfig();
     const snapshot = structuredClone(original);

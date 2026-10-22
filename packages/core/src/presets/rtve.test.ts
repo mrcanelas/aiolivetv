@@ -18,6 +18,7 @@ const { config } = vi.hoisted(() => ({
 vi.mock('../config/index.js', () => ({ config }));
 vi.mock('../utils/index.js', async () => ({
   constants: await import('../utils/constants.js'),
+  RESOURCES: (await import('../utils/constants.js')).RESOURCES,
   appConfig: config,
   Cache: { getInstance: () => ({}) },
   createLogger: () => ({}),
@@ -37,6 +38,27 @@ vi.mock('../builtins/tvheadend/index.js', () => ({}));
 vi.mock('../builtins/plutotv/index.js', () => ({}));
 
 const { RtvePreset } = await import('./liveTv.js');
+const { CustomPreset } = await import('./custom.js');
+
+describe('custom Live TV addon preset', () => {
+  it('keeps the standard addon options without VOD media or library controls', async () => {
+    const optionIds = CustomPreset.METADATA.OPTIONS.map((option) => option.id);
+    expect(optionIds).not.toContain('mediaTypes');
+    expect(optionIds).not.toContain('libraryAddon');
+    const [addon] = await CustomPreset.generateAddons({} as UserData, {
+      name: 'Live source',
+      manifestUrl: 'https://example.com/manifest.json',
+      resources: ['stream'],
+      libraryAddon: true,
+      mediaTypes: ['movie'],
+      resultPassthrough: true,
+    });
+    expect(addon.mediaTypes).toEqual(['tv', 'channel']);
+    expect(addon.library).toBeUndefined();
+    expect(addon.resources).toEqual(['stream']);
+    expect(addon.resultPassthrough).toBe(true);
+  });
+});
 
 describe('RTVE external addon preset', () => {
   it('uses the existing external-addon options and live parser without claiming to be a builtin', () => {

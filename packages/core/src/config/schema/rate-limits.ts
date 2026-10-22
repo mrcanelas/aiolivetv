@@ -94,12 +94,6 @@ export const rateLimitsSchema = {
     envPrefix: 'CATALOG_API',
     label: 'catalog API',
   }),
-  animeApi: rateLimit({
-    windowDefault: 60,
-    maxDefault: 120,
-    envPrefix: 'ANIME_API',
-    label: 'anime API',
-  }),
   stremioStream: rateLimit({
     windowDefault: 15,
     maxDefault: 10,
@@ -129,12 +123,6 @@ export const rateLimitsSchema = {
     maxDefault: 15,
     envPrefix: 'STREMIO_META',
     label: 'Stremio meta',
-  }),
-  easynewsNzb: rateLimit({
-    windowDefault: 60,
-    maxDefault: 15,
-    envPrefix: 'EASYNEWS_NZB',
-    label: 'Easynews NZB',
   }),
   login: rateLimit({
     windowDefault: 300,

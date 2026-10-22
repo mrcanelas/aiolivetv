@@ -139,41 +139,6 @@ export const resourcesSchema = {
       secret: false,
     },
   },
-  precache: {
-    nextEpisodeMinInterval: {
-      schema: seconds,
-      default: 86400,
-      label: 'Precache next-episode min interval',
-      description:
-        'Minimum interval before re-attempting to precache the same next episode (accepts e.g. "30m", "1h").',
-      env: 'PRECACHE_NEXT_EPISODE_MIN_INTERVAL',
-      requiresRestart: false,
-      secret: false,
-      ui: { kind: 'duration' },
-    },
-  },
-  preload: {
-    minInterval: {
-      schema: seconds,
-      default: 3600,
-      label: 'Preload min interval',
-      description:
-        'Minimum interval between preload operations for the same item per user (0 disables the cooldown).',
-      env: 'PRELOAD_MIN_INTERVAL',
-      requiresRestart: false,
-      secret: false,
-      ui: { kind: 'duration' },
-    },
-    streamsConcurrency: {
-      schema: positiveInt,
-      default: 5,
-      label: 'Preload streams concurrency',
-      description: 'Maximum simultaneous stream preload requests.',
-      env: 'PRELOAD_STREAMS_CONCURRENCY',
-      requiresRestart: false,
-      secret: false,
-    },
-  },
   background: {
     enabled: {
       schema: z.boolean(),

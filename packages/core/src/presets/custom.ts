@@ -1,5 +1,5 @@
 import { Addon, Option, UserData } from '../db/index.js';
-import { Preset, baseOptions } from './preset.js';
+import { Preset } from './preset.js';
 import { appConfig, RESOURCES } from '../utils/index.js';
 import { constants } from '../utils/index.js';
 
@@ -48,30 +48,6 @@ export class CustomPreset extends Preset {
         })),
       },
       {
-        id: 'mediaTypes',
-        name: 'Media Types',
-        description:
-          'Limits this addon to the selected media types for streams. For example, selecting "Movie" means this addon will only be used for movie streams (if the addon supports them). Leave empty to allow all.',
-        type: 'multi-select',
-        required: false,
-        showInSimpleMode: false,
-        default: [],
-        options: [
-          {
-            label: 'Movie',
-            value: 'movie',
-          },
-          {
-            label: 'Series',
-            value: 'series',
-          },
-          {
-            label: 'Anime',
-            value: 'anime',
-          },
-        ],
-      },
-      {
         id: 'pinPosition',
         name: 'Pin Position',
         description:
@@ -85,15 +61,6 @@ export class CustomPreset extends Preset {
           { label: 'Bottom', value: 'bottom' },
         ],
         showInSimpleMode: false,
-      },
-      {
-        id: 'libraryAddon',
-        name: 'Library Addon',
-        description:
-          'Whether to mark this addon as a library addon. This will result in all streams from this addon being marked as library streams.',
-        type: 'boolean',
-        required: false,
-        default: false,
       },
       {
         id: 'formatPassthrough',
@@ -158,9 +125,8 @@ export class CustomPreset extends Preset {
       name: options.name || this.METADATA.NAME,
       manifestUrl: options.manifestUrl,
       enabled: true,
-      library: options.libraryAddon ?? false,
       resources: options.resources || undefined,
-      mediaTypes: options.mediaTypes || [],
+      mediaTypes: [constants.TV_TYPE, constants.CHANNEL_TYPE],
       timeout: options.timeout || this.METADATA.TIMEOUT,
       preset: {
         id: '',

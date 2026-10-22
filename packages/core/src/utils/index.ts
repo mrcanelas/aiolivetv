@@ -31,8 +31,6 @@ export * from './regex.js';
 export * from './general.js';
 export * from './text.js';
 export * from './channelName.js';
-export * from './seadex.js';
-export * from './nzb-proxy.js';
 export * from './time.js';
 export * from './fieldMeta.js';
 export { config as appConfig } from '../config/index.js';

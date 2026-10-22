@@ -65,8 +65,12 @@ describe('Live TV stream sorting', () => {
       { key: 'cached', direction: 'desc' },
       { key: 'size', direction: 'desc' },
     ]);
-    data.sortCriteria.cached = [{ key: 'resolution', direction: 'desc' }];
-    data.sortCriteria.uncached = [{ key: 'resolution', direction: 'desc' }];
+    (data.sortCriteria as unknown as Record<string, unknown>).cached = [
+      { key: 'resolution', direction: 'desc' },
+    ];
+    (data.sortCriteria as unknown as Record<string, unknown>).uncached = [
+      { key: 'resolution', direction: 'desc' },
+    ];
     const streams = [
       stream('sd', 'first'),
       { ...stream('hd', 'second', '1080p'), size: 999 },

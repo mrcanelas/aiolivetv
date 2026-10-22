@@ -17,7 +17,6 @@ import type {
   StreamPrecomputer as Precomputer,
   StreamContext,
 } from '../streams/index.js';
-import type { ServiceWrapServiceTiming } from './serviceWrapper.js';
 import type { PrecomputeSubTimings } from '../streams/precomputer.js';
 
 export interface AIOStreamsError {
@@ -54,9 +53,6 @@ export type StatEntry = {
 
 export type PipelineTimings = {
   metaFilterMs: number;
-  serviceWrapMs: number;
-  serviceWrapTimings?: Record<string, ServiceWrapServiceTiming>;
-  filterMs: number;
   deduplicationMs: number;
   precomputeMs: number;
   precomputeSubTimings?: PrecomputeSubTimings;
@@ -68,8 +64,6 @@ export type PipelineTimings = {
 /**
  * Shared mutable context passed to all AIOStreams functions.
  * Owned by the AIOStreams class; passed into every module function.
- * `userData` is the only field that may be mutated at runtime
- * (precacheNextEpisode temporarily swaps it with a cloned copy).
  */
 export interface AIOStreamsContext {
   userData: UserData;

@@ -9,7 +9,6 @@ import {
   BiBox,
   BiTachometer,
   BiImage,
-  BiCloudDownload,
   BiTask,
   BiPalette,
   BiInfoCircle,
@@ -31,31 +30,15 @@ export interface TabDef {
   order: number;
 }
 
-/**
- * AIOStreams VOD leftovers. Env vars and schema still exist for the inherited
- * pipeline; they are not shown on the operator Settings page.
- */
+/** Shared sections that remain outside the Live TV operator settings. */
 export const HIDDEN_DASHBOARD_SECTIONS = new Set<string>([
-  'nzbProxy',
   'services',
-  'builtins',
   'poster',
   'metadata',
 ]);
 
-export const HIDDEN_DASHBOARD_KEY_PREFIXES = [
-  'rateLimits.animeApi',
-  'rateLimits.easynewsNzb',
-  'resources.precache',
-  'resources.preload',
-] as const;
-
 export function isDashboardSettingsKeyVisible(key: string): boolean {
-  const section = key.split('.')[0];
-  if (HIDDEN_DASHBOARD_SECTIONS.has(section)) return false;
-  return !HIDDEN_DASHBOARD_KEY_PREFIXES.some(
-    (prefix) => key === prefix || key.startsWith(`${prefix}.`)
-  );
+  return !HIDDEN_DASHBOARD_SECTIONS.has(key.split('.')[0]);
 }
 
 export const TAB_MANIFEST: Record<string, Omit<TabDef, 'section'>> = {
@@ -66,12 +49,6 @@ export const TAB_MANIFEST: Record<string, Omit<TabDef, 'section'>> = {
   logging: { label: 'Logging', icon: BiListUl, group: 'Core', order: 5 },
   http: { label: 'HTTP', icon: BiNetworkChart, group: 'Network', order: 6 },
   proxy: { label: 'Proxy', icon: BiNetworkChart, group: 'Network', order: 7 },
-  nzbProxy: {
-    label: 'NZB Proxy',
-    icon: BiCloudDownload,
-    group: 'Network',
-    order: 8,
-  },
   rateLimits: {
     label: 'Rate Limits',
     icon: BiTachometer,

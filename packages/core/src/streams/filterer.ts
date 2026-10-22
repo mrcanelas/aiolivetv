@@ -8,22 +8,13 @@ import {
   compileRegex,
   formRegexFromKeywords,
 } from '../utils/index.js';
-import { LANGUAGES, StreamType } from '../utils/constants.js';
 import {
   StreamSelector,
   extractNamesFromExpression,
 } from '../parser/streamExpression.js';
 import StreamUtils, { shouldPassthroughStage } from './utils.js';
-import {
-  normaliseTitle,
-  preprocessTitle,
-  titleMatchWithLang,
-} from '../parser/utils.js';
-import { partial_ratio } from 'fuzzball';
-import { formatBitrate, formatBytes } from '../formatters/utils.js';
-import { iso6391ToLanguage } from '../utils/languages.js';
-import { ReleaseDate } from '../metadata/tmdb.js';
-import { StreamContext, ExtendedMetadata } from './context.js';
+import { formatBitrate } from '../formatters/utils.js';
+import { StreamContext } from './context.js';
 
 const logger = createLogger('filterer');
 
@@ -34,17 +25,10 @@ interface Reason {
 
 export interface FilterStatistics {
   removed: {
-    titleMatching: Reason;
-    yearMatching: Reason;
-    seasonEpisodeMatching: Reason;
-    excludeSeasonPacks: Reason;
-    noDigitalRelease: Reason;
     excludedStreamType: Reason;
     requiredStreamType: Reason;
     excludedResolution: Reason;
     requiredResolution: Reason;
-    excludedQuality: Reason;
-    requiredQuality: Reason;
     excludedEncode: Reason;
     requiredEncode: Reason;
     excludedVisualTag: Reason;
@@ -57,27 +41,17 @@ export interface FilterStatistics {
     requiredLanguage: Reason;
     excludedSubtitle: Reason;
     requiredSubtitle: Reason;
-    excludedReleaseGroup: Reason;
-    requiredReleaseGroup: Reason;
-    excludedCached: Reason;
-    excludedUncached: Reason;
     excludedRegex: Reason;
     requiredRegex: Reason;
     excludedKeywords: Reason;
     requiredKeywords: Reason;
-    excludedSeederRange: Reason;
-    requiredSeederRange: Reason;
-    excludedAgeRange: Reason;
-    requiredAgeRange: Reason;
     excludedFilterCondition: Reason;
     requiredFilterCondition: Reason;
-    size: Reason;
     bitrate: Reason;
   };
   included: {
     passthrough: Reason;
     resolution: Reason;
-    quality: Reason;
     encode: Reason;
     visualTag: Reason;
     audioTag: Reason;
@@ -85,32 +59,17 @@ export interface FilterStatistics {
     language: Reason;
     subtitle: Reason;
     streamType: Reason;
-    releaseGroup: Reason;
-    size: Reason;
-    seeder: Reason;
-    age: Reason;
     regex: Reason;
     keywords: Reason;
     streamExpression: Reason;
   };
 }
 
-export interface PhaseTimingStats {
-  /** Total ms spent in this phase across all streams and all filter() calls */
-  totalMs: number;
-  /** Maximum ms for any single stream evaluation */
-  maxMs: number;
-  /** Minimum ms for any single stream evaluation */
-  minMs: number;
-  /** Number of per-stream evaluations tracked */
-  count: number;
-}
-
 export interface FilterTimings {
   /** Total wall-clock ms spent inside all filter() calls for this request */
   totalMs: number;
-  /** Ms spent awaiting metadata (context.getMetadata, getReleaseDates, etc.) */
-  metadataMs: number;
+  /** Ms spent checking access to regex filtering */
+  regexAccessMs: number;
   /** Ms spent evaluating includedStreamExpressions */
   expressionMs: number;
   /** Ms spent compiling regex / keyword patterns */
@@ -122,12 +81,6 @@ export interface FilterTimings {
   filterPassMs: number;
   /** Number of filter() calls accumulated */
   calls: number;
-  /** Per-stream phase timings from the shouldKeepStream pass, accumulated across all filter() calls */
-  phases: {
-    titleMatch: PhaseTimingStats;
-    yearMatch: PhaseTimingStats;
-    seasonEpisodeMatch: PhaseTimingStats;
-  };
 }
 
 class StreamFilterer {
@@ -139,17 +92,10 @@ class StreamFilterer {
     this.userData = userData;
     this.filterStatistics = {
       removed: {
-        titleMatching: { total: 0, details: {} },
-        yearMatching: { total: 0, details: {} },
-        seasonEpisodeMatching: { total: 0, details: {} },
-        excludeSeasonPacks: { total: 0, details: {} },
-        noDigitalRelease: { total: 0, details: {} },
         excludedStreamType: { total: 0, details: {} },
         requiredStreamType: { total: 0, details: {} },
         excludedResolution: { total: 0, details: {} },
         requiredResolution: { total: 0, details: {} },
-        excludedQuality: { total: 0, details: {} },
-        requiredQuality: { total: 0, details: {} },
         excludedEncode: { total: 0, details: {} },
         requiredEncode: { total: 0, details: {} },
         excludedVisualTag: { total: 0, details: {} },
@@ -162,27 +108,17 @@ class StreamFilterer {
         requiredLanguage: { total: 0, details: {} },
         excludedSubtitle: { total: 0, details: {} },
         requiredSubtitle: { total: 0, details: {} },
-        excludedReleaseGroup: { total: 0, details: {} },
-        requiredReleaseGroup: { total: 0, details: {} },
-        excludedCached: { total: 0, details: {} },
-        excludedUncached: { total: 0, details: {} },
         excludedRegex: { total: 0, details: {} },
         requiredRegex: { total: 0, details: {} },
         excludedKeywords: { total: 0, details: {} },
         requiredKeywords: { total: 0, details: {} },
-        excludedSeederRange: { total: 0, details: {} },
-        requiredSeederRange: { total: 0, details: {} },
-        excludedAgeRange: { total: 0, details: {} },
-        requiredAgeRange: { total: 0, details: {} },
         excludedFilterCondition: { total: 0, details: {} },
         requiredFilterCondition: { total: 0, details: {} },
-        size: { total: 0, details: {} },
         bitrate: { total: 0, details: {} },
       },
       included: {
         passthrough: { total: 0, details: {} },
         resolution: { total: 0, details: {} },
-        quality: { total: 0, details: {} },
         encode: { total: 0, details: {} },
         visualTag: { total: 0, details: {} },
         audioTag: { total: 0, details: {} },
@@ -190,10 +126,6 @@ class StreamFilterer {
         language: { total: 0, details: {} },
         subtitle: { total: 0, details: {} },
         streamType: { total: 0, details: {} },
-        releaseGroup: { total: 0, details: {} },
-        size: { total: 0, details: {} },
-        seeder: { total: 0, details: {} },
-        age: { total: 0, details: {} },
         regex: { total: 0, details: {} },
         keywords: { total: 0, details: {} },
         streamExpression: { total: 0, details: {} },
@@ -201,17 +133,12 @@ class StreamFilterer {
     };
     this.filterTimings = {
       totalMs: 0,
-      metadataMs: 0,
+      regexAccessMs: 0,
       expressionMs: 0,
       regexCompileMs: 0,
       regexTestMs: 0,
       filterPassMs: 0,
       calls: 0,
-      phases: {
-        titleMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-        yearMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-        seasonEpisodeMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-      },
     };
   }
 
@@ -244,28 +171,18 @@ class StreamFilterer {
   public getFilterTimings(): FilterTimings {
     return {
       ...this.filterTimings,
-      phases: {
-        titleMatch: { ...this.filterTimings.phases.titleMatch },
-        yearMatch: { ...this.filterTimings.phases.yearMatch },
-        seasonEpisodeMatch: { ...this.filterTimings.phases.seasonEpisodeMatch },
-      },
     };
   }
 
   public resetFilterTimings(): void {
     this.filterTimings = {
       totalMs: 0,
-      metadataMs: 0,
+      regexAccessMs: 0,
       expressionMs: 0,
       regexCompileMs: 0,
       regexTestMs: 0,
       filterPassMs: 0,
       calls: 0,
-      phases: {
-        titleMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-        yearMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-        seasonEpisodeMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-      },
     };
   }
 
@@ -343,32 +260,16 @@ class StreamFilterer {
     streams: ParsedStream[],
     context: StreamContext
   ): Promise<ParsedStream[]> {
-    const { type, id, parsedId, isAnime } = context;
+    const { type, id } = context;
 
     const start = Date.now();
     // Sub-phase timing accumulators for this filter() call
-    let metadataMs = 0;
+    let regexAccessMs = 0;
     let expressionMs = 0;
     let regexCompileMs = 0;
     let filterPassMs = 0;
     let regexTestMs = 0;
-    // Per-stream phase timing accumulators (accumulated during the filter pass, then merged into filterTimings)
-    const phases = {
-      titleMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-      yearMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-      seasonEpisodeMatch: { totalMs: 0, maxMs: 0, minMs: Infinity, count: 0 },
-    };
-    const accumPhase = (
-      s: { totalMs: number; maxMs: number; minMs: number; count: number },
-      ms: number
-    ) => {
-      s.totalMs += ms;
-      s.count++;
-      if (ms > s.maxMs) s.maxMs = ms;
-      if (ms < s.minMs) s.minMs = ms;
-    };
-
-    const metadataStart = Date.now();
+    const regexAccessStart = Date.now();
     const isRegexAllowed = await RegexAccess.isRegexAllowed(this.userData, [
       ...(this.userData.excludedRegexPatterns ?? []),
       ...(this.userData.requiredRegexPatterns ?? []),
@@ -378,673 +279,7 @@ class StreamFilterer {
       ),
     ]);
 
-    // Get metadata from context (already fetched in parallel with addon requests)
-    const requestedMetadata: ExtendedMetadata | undefined =
-      await context.getMetadata();
-    const releaseDates: ReleaseDate[] | undefined =
-      await context.getReleaseDates();
-    const episodeAirDate: string | undefined =
-      await context.getEpisodeAirDate();
-    let originalLanguage = requestedMetadata?.originalLanguage
-      ? iso6391ToLanguage(requestedMetadata.originalLanguage)
-      : undefined;
-
-    const episodeRuntime = await context.getEpisodeRuntime();
-    metadataMs = Date.now() - metadataStart;
-    if (metadataMs > 10) {
-      logger.debug(
-        `Metadata + regex access resolved in ${formatMilliseconds(metadataMs)}`,
-        { id }
-      );
-    }
-    const runtimeToUse =
-      episodeRuntime ||
-      (requestedMetadata?.runtime ? requestedMetadata.runtime : undefined);
-
-    if (episodeRuntime) {
-      logger.debug(`Using episode runtime: ${episodeRuntime} minutes`, {
-        id,
-        episode: `${parsedId?.season}:${parsedId?.episode}`,
-      });
-    } else if (requestedMetadata?.runtime) {
-      logger.debug(
-        `Using series average runtime: ${requestedMetadata.runtime} minutes`,
-        {
-          id,
-        }
-      );
-    }
-
-    let yearWithinTitle: string | undefined;
-    let yearWithinTitleRegex: RegExp | undefined;
-
-    if (requestedMetadata?.title) {
-      yearWithinTitle = requestedMetadata.title.match(
-        /\b(19\d{2}|20\d{2})\b/
-      )?.[0];
-      if (yearWithinTitle) {
-        yearWithinTitleRegex = new RegExp(yearWithinTitle, 'g');
-      }
-      logger.info(`Using metadata from context`, {
-        id,
-        title: requestedMetadata.title,
-        year: requestedMetadata.year,
-        hasGenres: !!requestedMetadata.genres?.length,
-        originalLanguage: originalLanguage,
-      });
-    }
-
-    // fill in bitrate from metadata runtime and size if missing and enabled
-    if (this.userData.bitrate?.useMetadataRuntime !== false) {
-      streams.forEach((stream) => {
-        const isFolderSize =
-          stream.parsedFile?.seasons?.length &&
-          stream.parsedFile.seasons.length > 0 &&
-          (!stream.parsedFile.episodes ||
-            stream.parsedFile.episodes.length === 0);
-        let doBitrateCalculation = true;
-
-        if (
-          (stream.bitrate === undefined || !Number.isFinite(stream.bitrate)) &&
-          runtimeToUse &&
-          stream.size &&
-          (!isFolderSize || type === 'series') // only calculate for folder sizes if it's a series
-        ) {
-          let episodeCount = stream.parsedFile?.episodes?.length || 0;
-          let finalSize = stream.size;
-
-          if (!stream.folderSize && episodeCount > 5 && type === 'series') {
-            finalSize = stream.size / episodeCount;
-            logger.silly(
-              `Assuming episode pack for stream ${stream.filename} with ${episodeCount} episodes, dividing size by episode count for bitrate calculation`,
-              {
-                originalSize: formatBytes(stream.size, 1024),
-                adjustedSize: formatBytes(finalSize, 1024),
-              }
-            );
-          } else if (isFolderSize && type === 'series') {
-            // For folder/season pack size, calculate per-episode size for bitrate calculation
-            // Get total episodes across all seasons in the pack
-            let totalEpisodes = 0;
-            let hasUnknownSeasons = false;
-
-            for (const season of stream.parsedFile?.seasons || []) {
-              const seasonData = requestedMetadata?.seasons?.find(
-                (s) => s.season_number === season
-              );
-
-              if (seasonData?.episode_count) {
-                totalEpisodes += seasonData.episode_count;
-              } else {
-                // If we can't find episode count for any season, we can't reliably calculate
-                hasUnknownSeasons = true;
-                break;
-              }
-            }
-
-            if (!hasUnknownSeasons && totalEpisodes > 0) {
-              logger.silly(
-                `Calculating bitrate for season pack ${stream.filename} using total of ${totalEpisodes} episodes`,
-                {
-                  seasons: stream.parsedFile?.seasons,
-                }
-              );
-              finalSize = finalSize / totalEpisodes;
-            } else {
-              doBitrateCalculation = false;
-              logger.silly(
-                `Cannot calculate bitrate for season pack ${stream.filename}: ${hasUnknownSeasons ? 'unknown season data' : 'no episodes found'}`,
-                {
-                  seasons: stream.parsedFile?.seasons,
-                }
-              );
-            }
-          }
-
-          if (doBitrateCalculation && runtimeToUse) {
-            stream.bitrate = Math.round((finalSize * 8) / (runtimeToUse * 60));
-          }
-        }
-      });
-    }
-
-    const applyDigitalReleaseFilter = (): boolean => {
-      const config = this.userData.digitalReleaseFilter;
-      if (!config?.enabled) return true;
-
-      // Preconditions: check content type is in scope
-      const filterRequestTypes = config.requestTypes;
-      if (
-        filterRequestTypes?.length &&
-        ((isAnime && !filterRequestTypes.includes('anime')) ||
-          (!isAnime && !filterRequestTypes.includes(type)))
-      ) {
-        return true;
-      }
-      if (!['movie', 'series', 'anime'].includes(type)) return true;
-
-      // Parse and validate release date (required for all subsequent rules)
-      const releaseDate = requestedMetadata?.releaseDate
-        ? new Date(requestedMetadata.releaseDate)
-        : null;
-      if (!releaseDate || isNaN(releaseDate.getTime())) {
-        logger.debug(
-          `[DigitalReleaseFilter] No valid release date for "${requestedMetadata?.title}", allowing`
-        );
-        return true;
-      }
-
-      // Precompute values referenced by rules
-      const today = new Date();
-      const tolerance = config.tolerance ?? 0;
-      const msPerDay = 1000 * 60 * 60 * 24;
-      const daysBetween = (from: Date, to: Date) =>
-        Math.floor((to.getTime() - from.getTime()) / msPerDay);
-      const title = requestedMetadata?.title;
-      const daysSinceRelease = daysBetween(releaseDate, today);
-      const isSeries = type === 'series' || type === 'anime';
-
-      // Episode air date (series/anime only)
-      const epDateStr = isSeries
-        ? episodeAirDate || requestedMetadata?.releaseDate
-        : null;
-      const epDate =
-        epDateStr && !isNaN(new Date(epDateStr).getTime())
-          ? new Date(epDateStr)
-          : null;
-      const daysSinceEpisode = epDate ? daysBetween(epDate, today) : null;
-      const epLabel = `S${parsedId?.season}E${parsedId?.episode}`;
-
-      // Digital release dates (TMDB types 4-6: Digital, Physical, TV)
-      const digitalDates = (releaseDates ?? []).filter(
-        (rd) => rd.type >= 4 && rd.type <= 6
-      );
-      const pastDigitalRelease = digitalDates.some(
-        (rd) => new Date(rd.release_date) <= today
-      );
-      const closestFutureDigital = pastDigitalRelease
-        ? null
-        : digitalDates.length > 0
-          ? digitalDates
-              .map((rd) => ({
-                date: rd.release_date,
-                daysUntil: Math.ceil(
-                  (new Date(rd.release_date).getTime() - today.getTime()) /
-                    msPerDay
-                ),
-              }))
-              .sort((a, b) => a.daysUntil - b.daysUntil)[0]
-          : null;
-
-      const formatDate = (dateStr: string | Date) =>
-        new Date(dateStr).toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-
-      logger.debug(`[DigitalReleaseFilter] Evaluating "${title}"`, {
-        releaseDate: formatDate(releaseDate),
-        daysSinceRelease,
-        isSeries,
-        episodeAirDate: epDate ? formatDate(epDate) : 'N/A',
-        daysSinceEpisode: daysSinceEpisode ?? 'N/A',
-        digitalReleaseDates:
-          digitalDates.map((rd) => formatDate(rd.release_date)).join(', ') ||
-          'None',
-        pastDigitalRelease,
-        closestFutureDigital: closestFutureDigital
-          ? `${formatDate(closestFutureDigital.date)} (${closestFutureDigital.daysUntil}d away)`
-          : 'None',
-      });
-
-      // Rules evaluated top-to-bottom; first matching rule determines the outcome.
-      // allow: true = let streams through, false = block streams
-      // level: log level for the rule's reason (default: 'debug')
-      type FilterRule = {
-        when: () => boolean;
-        allow: boolean;
-        reason: () => string;
-        level?: 'debug' | 'info';
-      };
-      const rules: FilterRule[] = [
-        // General
-        {
-          when: () => Math.abs(daysSinceRelease) <= tolerance,
-          allow: true,
-          reason: () =>
-            `"${title}" within tolerance (${Math.abs(daysSinceRelease)}d <= ${tolerance}d)`,
-        },
-        {
-          when: () => daysSinceRelease < 0,
-          allow: false,
-          level: 'info',
-          reason: () =>
-            `"${title}" releases in ${Math.abs(daysSinceRelease)} days`,
-        },
-        // Series / Anime episode rules
-        {
-          when: () => isSeries && daysSinceEpisode === null,
-          allow: true,
-          reason: () => `No episode air date available`,
-        },
-        {
-          when: () =>
-            isSeries &&
-            daysSinceEpisode !== null &&
-            Math.abs(daysSinceEpisode) <= tolerance,
-          allow: true,
-          reason: () =>
-            `Episode ${epLabel} within tolerance (${Math.abs(daysSinceEpisode!)}d <= ${tolerance}d)`,
-        },
-        {
-          when: () =>
-            isSeries && daysSinceEpisode !== null && daysSinceEpisode < 0,
-          allow: false,
-          level: 'info',
-          reason: () =>
-            `"${title}" ${epLabel} airs in ${Math.abs(daysSinceEpisode!)} days`,
-        },
-        {
-          when: () => isSeries,
-          allow: true,
-          reason: () => `Episode has aired`,
-        },
-        // Movie rules
-        {
-          when: () => daysSinceRelease > 365,
-          allow: true,
-          reason: () => `Movie over 1 year old, likely has digital release`,
-        },
-        {
-          when: () => !releaseDates?.length,
-          allow: true,
-          reason: () => `No TMDB release dates for "${title}"`,
-        },
-        {
-          when: () => pastDigitalRelease,
-          allow: true,
-          reason: () => `Digital release found for "${title}"`,
-        },
-        {
-          when: () =>
-            closestFutureDigital !== null &&
-            closestFutureDigital.daysUntil <= tolerance,
-          allow: true,
-          reason: () =>
-            `Digital release for "${title}" within tolerance (${closestFutureDigital!.daysUntil}d <= ${tolerance}d)`,
-        },
-        {
-          when: () => digitalDates.length > 0,
-          allow: false,
-          level: 'info',
-          reason: () =>
-            `"${title}" no digital release yet (closest: ${closestFutureDigital ? formatDate(closestFutureDigital.date) : 'None'}, ${closestFutureDigital?.daysUntil}d away)`,
-        },
-        // Fallback
-        {
-          when: () => true,
-          allow: false,
-          level: 'info',
-          reason: () =>
-            `"${title}" no digital release data (${daysSinceRelease}d since theatrical)`,
-        },
-      ];
-
-      for (const rule of rules) {
-        if (rule.when()) {
-          const action = rule.allow ? 'ALLOWING' : 'BLOCKING';
-          logger[rule.level ?? 'debug'](
-            `[DigitalReleaseFilter] ${action} - ${rule.reason()}`
-          );
-          return rule.allow;
-        }
-      }
-
-      return true;
-    };
-
-    const performTitleMatch = (stream: ParsedStream) => {
-      const titleMatchingOptions = {
-        mode: 'exact',
-        similarityThreshold: 0.85,
-        ...(this.userData.titleMatching ?? {}),
-      };
-      if (!titleMatchingOptions || !titleMatchingOptions.enabled) {
-        return true;
-      }
-      if (
-        !requestedMetadata ||
-        !requestedMetadata.titles ||
-        requestedMetadata.titles.length === 0
-      ) {
-        return true;
-      }
-
-      let streamTitle = stream.parsedFile?.title;
-      if (
-        titleMatchingOptions.requestTypes?.length &&
-        (!titleMatchingOptions.requestTypes.includes(type) ||
-          (isAnime && !titleMatchingOptions.requestTypes.includes('anime')))
-      ) {
-        return true;
-      }
-
-      if (
-        titleMatchingOptions.addons?.length &&
-        !titleMatchingOptions.addons.includes(stream.addon.preset.id)
-      ) {
-        return true;
-      }
-
-      if (!streamTitle || !stream.filename) {
-        // only filter out movies without a year as series results usually don't include a year
-        return false;
-      }
-
-      // Extract title strings for preprocessTitle
-      const titleStrings = requestedMetadata.titles.map((t) => t.title);
-
-      streamTitle = preprocessTitle(streamTitle, stream.filename, titleStrings);
-
-      const normalisedStreamTitle = normaliseTitle(streamTitle);
-
-      // Single-pass match that also returns the language of the best matching title
-      let result: { matched: boolean; language?: string };
-      if (titleMatchingOptions.mode === 'exact') {
-        result = titleMatchWithLang(
-          normalisedStreamTitle,
-          requestedMetadata.titles,
-          {
-            threshold: titleMatchingOptions.similarityThreshold,
-            limitTitles: 100,
-          }
-        );
-      } else {
-        result = titleMatchWithLang(
-          normalisedStreamTitle,
-          requestedMetadata.titles,
-          {
-            threshold: titleMatchingOptions.similarityThreshold,
-            scorer: partial_ratio,
-            limitTitles: 100,
-          }
-        );
-      }
-
-      if (result.matched && result.language && stream.parsedFile) {
-        const lang = result.language.toLowerCase();
-        // Skip common languages where a title match doesn't reliably indicate
-        // the stream is in that language (English/Japanese titles are universal)
-        const isCommon = lang === 'en' || (isAnime && lang === 'ja');
-
-        // Don't infer language if the stream already carries a specific language tag.
-        // Unknown / Dual Audio / Multi / Dubbed are non-specific and don't count.
-        const nonSpecificLanguages = [
-          'Unknown',
-          'Dual Audio',
-          'Multi',
-          'Dubbed',
-        ];
-        const hasSpecificLanguage = stream.parsedFile.languages.some(
-          (l) => !nonSpecificLanguages.includes(l)
-        );
-
-        if (!isCommon && !hasSpecificLanguage) {
-          const inferredLanguage = iso6391ToLanguage(lang);
-          if (
-            inferredLanguage &&
-            !stream.parsedFile.languages.includes(inferredLanguage) &&
-            LANGUAGES.includes(inferredLanguage as any)
-          ) {
-            stream.parsedFile.languages.push(inferredLanguage);
-            logger.debug(
-              `Inferred language "${inferredLanguage}" for stream "${stream.filename}" from matched title language (${lang})`
-            );
-          }
-        }
-      }
-
-      return result.matched;
-    };
-
-    const findYearInString = (string: string) => {
-      const regexes = [
-        /[([*]?(?!^)(?<!\d|Cap[. ]?)((?:19\d{2}|20[012]\d{2}))(?!\d|kbps)[*)\]]?/i,
-        /[([]?((?:19\d{2}|20[012]\d{1}))(?!\d|kbps)[)\]]?/i,
-      ];
-      for (const regex of regexes) {
-        const match = string.match(regex);
-        if (match && match[1]) {
-          return match[1];
-        }
-      }
-      return undefined;
-    };
-
-    const performYearMatch = (stream: ParsedStream) => {
-      const yearMatchingOptions = {
-        tolerance: 1,
-        strict: true,
-        ...this.userData.yearMatching,
-      };
-
-      if (!yearMatchingOptions || !yearMatchingOptions.enabled) {
-        return true;
-      }
-
-      if (!requestedMetadata || !requestedMetadata.year) {
-        return true;
-      }
-
-      if (
-        yearMatchingOptions.requestTypes?.length &&
-        (!yearMatchingOptions.requestTypes.includes(type) ||
-          (isAnime && !yearMatchingOptions.requestTypes.includes('anime')))
-      ) {
-        return true;
-      }
-
-      if (
-        yearMatchingOptions.addons?.length &&
-        !yearMatchingOptions.addons.includes(stream.addon.preset.id)
-      ) {
-        return true;
-      }
-
-      let streamYear = stream.parsedFile?.year;
-      if (yearWithinTitleRegex && yearWithinTitle) {
-        const filenameWithoutYear = stream.filename
-          ? stream.filename.replace(yearWithinTitleRegex, '')
-          : undefined;
-        const foldernameWithoutYear = stream.folderName
-          ? stream.folderName.replace(yearWithinTitle, '')
-          : undefined;
-
-        const strings = [filenameWithoutYear, foldernameWithoutYear].filter(
-          (s): s is string => s !== undefined
-        );
-
-        for (const string of strings) {
-          const newStreamYear = findYearInString(string);
-          if (newStreamYear) {
-            streamYear = newStreamYear;
-            if (stream.parsedFile) {
-              stream.parsedFile.year = newStreamYear;
-            }
-            break;
-          }
-        }
-
-        if (
-          streamYear === yearWithinTitle &&
-          yearWithinTitle !== requestedMetadata.year.toString()
-        ) {
-          streamYear = undefined;
-          if (stream.parsedFile) stream.parsedFile.year = undefined;
-        }
-      }
-
-      if (!streamYear) {
-        // if no year is present, filter out if its a movie IF strict is true, keep otherwise
-        return type === 'movie' && yearMatchingOptions.strict ? false : true;
-      }
-
-      // streamYear can be a string like "2004" or "2012-2020"
-      // Calculate the requested year range.
-      // When useInitialAirDate is enabled for series/anime, compare against
-      // only the initial air year instead of the full year range.
-      const useInitialOnly =
-        yearMatchingOptions.useInitialAirDate &&
-        (type === 'series' || type === 'anime');
-
-      let requestedYearRange: [number, number] = [
-        requestedMetadata.year,
-        requestedMetadata.year,
-      ];
-      if (requestedMetadata.yearEnd && !useInitialOnly) {
-        requestedYearRange[1] = requestedMetadata.yearEnd;
-      }
-
-      // Calculate the stream year range
-      let streamYearRange: [number, number];
-      if (streamYear.includes('-')) {
-        const [min, max] = streamYear.split('-').map(Number);
-        streamYearRange = [min, max];
-      } else {
-        const yearNum = Number(streamYear);
-        streamYearRange = [yearNum, yearNum];
-      }
-
-      // Apply tolerance to the stream year range
-      const tolerance = yearMatchingOptions.tolerance ?? 1;
-      streamYearRange[0] -= tolerance;
-      streamYearRange[1] += tolerance;
-
-      // If the requested year range and stream year range overlap, accept the stream
-      const [requestedStart, requestedEnd] = requestedYearRange;
-      const [streamStart, streamEnd] = streamYearRange;
-      return requestedStart <= streamEnd && requestedEnd >= streamStart;
-    };
-
-    const performSeasonEpisodeMatch = (stream: ParsedStream) => {
-      const seasonEpisodeMatchingOptions = this.userData.seasonEpisodeMatching;
-      if (
-        !seasonEpisodeMatchingOptions ||
-        !seasonEpisodeMatchingOptions.enabled
-      ) {
-        return true;
-      }
-
-      if (!parsedId) return true;
-      const requestedSeason = Number.isInteger(Number(parsedId.season))
-        ? Number(parsedId.season)
-        : undefined;
-      const requestedEpisode = Number.isInteger(Number(parsedId.episode))
-        ? Number(parsedId.episode)
-        : undefined;
-
-      if (
-        seasonEpisodeMatchingOptions.requestTypes?.length &&
-        (!seasonEpisodeMatchingOptions.requestTypes.includes(type) ||
-          (isAnime &&
-            !seasonEpisodeMatchingOptions.requestTypes.includes('anime')))
-      ) {
-        return true;
-      }
-
-      if (
-        seasonEpisodeMatchingOptions.addons?.length &&
-        !seasonEpisodeMatchingOptions.addons.includes(stream.addon.preset.id)
-      ) {
-        return true;
-      }
-
-      // if the requested content is a movie and season/episode is present, filter out
-      if (
-        type === 'movie' &&
-        (stream.parsedFile?.seasons?.length ||
-          stream.parsedFile?.episodes?.length)
-      ) {
-        return false;
-      }
-      let seasons = stream.parsedFile?.seasons;
-
-      // if the requested content is series and no season or episode info is present, filter out if strict is true
-      if (type === 'series' && seasonEpisodeMatchingOptions.strict) {
-        if (
-          !stream.parsedFile?.seasons?.length &&
-          !stream.parsedFile?.episodes?.length
-        ) {
-          return false;
-        }
-
-        if (
-          !stream.parsedFile.seasons?.length &&
-          stream.parsedFile.episodes?.length
-        ) {
-          // assume season is 1 when empty and episode is present in strict mode.
-          seasons = [1];
-        }
-      }
-
-      if (
-        requestedSeason &&
-        seasons &&
-        seasons.length > 0 &&
-        !seasons.includes(requestedSeason)
-      ) {
-        if (
-          seasons[0] === 1 &&
-          stream.parsedFile?.episodes?.length &&
-          requestedMetadata?.absoluteEpisode &&
-          stream.parsedFile?.episodes?.includes(
-            requestedMetadata.absoluteEpisode
-          )
-        ) {
-          // allow if absolute episode matches AND season is 1
-        } else if (
-          seasons[0] === 1 &&
-          stream.parsedFile?.episodes?.length &&
-          requestedMetadata?.relativeAbsoluteEpisode &&
-          stream.parsedFile?.episodes?.includes(
-            requestedMetadata.relativeAbsoluteEpisode
-          )
-        ) {
-          // allow if relative absolute episode (AniDB episode) matches AND season is 1
-        } else {
-          return false;
-        }
-      }
-
-      if (
-        requestedEpisode &&
-        stream.parsedFile?.episodes?.length &&
-        !stream.parsedFile?.episodes?.includes(requestedEpisode)
-      ) {
-        if (
-          requestedMetadata?.absoluteEpisode &&
-          stream.parsedFile?.episodes?.includes(
-            requestedMetadata.absoluteEpisode
-          ) &&
-          (!seasons?.length || seasons[0] === 1)
-        ) {
-          // allow if absolute episode matches AND (no season OR season is 1)
-        } else if (
-          requestedMetadata?.relativeAbsoluteEpisode &&
-          stream.parsedFile?.episodes?.includes(
-            requestedMetadata.relativeAbsoluteEpisode
-          ) &&
-          (!seasons?.length || seasons[0] === 1)
-        ) {
-          // allow if relative absolute episode (AniDB episode) matches AND (no season OR season is 1)
-        } else {
-          return false;
-        }
-      }
-
-      return true;
-    };
+    regexAccessMs = Date.now() - regexAccessStart;
 
     const expressionStart = Date.now();
     const includedStreamsByExpression =
@@ -1054,57 +289,6 @@ class StreamFilterer {
       logger.info(
         `${includedStreamsByExpression.length} streams were included by stream expressions`
       );
-    }
-
-    // Early digital release filter check - if it returns false, filter out streams
-    // except those with passthrough for 'digitalRelease' stage or those from addons not in the filter list
-    if (!applyDigitalReleaseFilter()) {
-      const digitalReleaseFilterAddons =
-        this.userData.digitalReleaseFilter?.addons;
-      const passthroughDigitalRelease = streams.filter((stream) => {
-        // Check if stream has passthrough for this stage
-        if (shouldPassthroughStage(stream, 'digitalRelease')) {
-          return true;
-        }
-        // If addons filter is set and stream is not from a filtered addon, bypass
-        if (
-          digitalReleaseFilterAddons &&
-          digitalReleaseFilterAddons.length > 0 &&
-          stream.addon.preset.id &&
-          !digitalReleaseFilterAddons.includes(stream.addon.preset.id)
-        ) {
-          return true;
-        }
-        return false;
-      });
-      const filteredCount = streams.length - passthroughDigitalRelease.length;
-      if (filteredCount > 0) {
-        this.filterStatistics.removed.noDigitalRelease.total = filteredCount;
-        this.filterStatistics.removed.noDigitalRelease.details[
-          'No digital release available'
-        ] = filteredCount;
-      }
-      if (passthroughDigitalRelease.length > 0) {
-        this.incrementIncludedReason(
-          'passthrough',
-          `digitalRelease (${passthroughDigitalRelease.length})`
-        );
-      }
-
-      if (passthroughDigitalRelease.length === 0) {
-        const finalStreams: ParsedStream[] = [];
-        const totalMs = Date.now() - start;
-        this.filterTimings.totalMs += totalMs;
-        this.filterTimings.metadataMs += metadataMs;
-        this.filterTimings.expressionMs += expressionMs;
-        this.filterTimings.calls++;
-        logger.info(
-          `Applied basic filters in ${getTimeTakenSincePoint(start)}`
-        );
-        return finalStreams;
-      }
-      // Continue with only passthrough streams
-      streams = passthroughDigitalRelease;
     }
 
     const regexCompileStart = Date.now();
@@ -1181,45 +365,6 @@ class StreamFilterer {
       return false;
     };
 
-    const filterBasedOnCacheStatus = (
-      stream: ParsedStream,
-      mode: 'and' | 'or',
-      addonIds: string[] | undefined,
-      serviceIds: string[] | undefined,
-      streamTypes: StreamType[] | undefined,
-      cached: boolean
-    ) => {
-      const isAddonFilteredOut =
-        addonIds &&
-        addonIds.length > 0 &&
-        addonIds.some((addonId) => stream.addon.preset.id === addonId) &&
-        stream.service?.cached === cached;
-      const isServiceFilteredOut =
-        serviceIds &&
-        serviceIds.length > 0 &&
-        serviceIds.some((serviceId) => stream.service?.id === serviceId) &&
-        stream.service?.cached === cached;
-      const isStreamTypeFilteredOut =
-        streamTypes &&
-        streamTypes.length > 0 &&
-        streamTypes.includes(stream.type) &&
-        stream.service?.cached === cached;
-
-      if (mode === 'and') {
-        return !(
-          isAddonFilteredOut &&
-          isServiceFilteredOut &&
-          isStreamTypeFilteredOut
-        );
-      } else {
-        return !(
-          isAddonFilteredOut ||
-          isServiceFilteredOut ||
-          isStreamTypeFilteredOut
-        );
-      }
-    };
-
     const normaliseRange = (
       range: [number, number] | undefined,
       defaults: { min: number; max: number }
@@ -1233,29 +378,6 @@ class StreamFilterer {
         : [normMin, normMax];
     };
 
-    const normaliseSeederRange = (
-      seederRange: [number, number] | undefined
-    ) => {
-      return normaliseRange(seederRange, {
-        min: constants.MIN_SEEDERS,
-        max: constants.MAX_SEEDERS,
-      });
-    };
-
-    const normaliseAgeRange = (ageRange: [number, number] | undefined) => {
-      return normaliseRange(ageRange, {
-        min: constants.MIN_AGE_HOURS,
-        max: constants.MAX_AGE_HOURS,
-      });
-    };
-
-    const normaliseSizeRange = (sizeRange: [number, number] | undefined) => {
-      return normaliseRange(sizeRange, {
-        min: constants.MIN_SIZE,
-        max: constants.MAX_SIZE,
-      });
-    };
-
     const normaliseBitrateRange = (
       bitrateRange: [number, number] | undefined
     ) => {
@@ -1265,49 +387,12 @@ class StreamFilterer {
       });
     };
 
-    const getSeederStreamType = (
-      stream: ParsedStream
-    ): 'p2p' | 'cached' | 'uncached' | undefined => {
-      switch (stream.type) {
-        case 'debrid':
-          return stream.service?.cached ? 'cached' : 'uncached';
-        case 'p2p':
-          return 'p2p';
-        default:
-          return undefined;
-      }
-    };
-
-    const getAgeStreamType = (
-      stream: ParsedStream
-    ): 'debrid' | 'usenet' | 'p2p' | undefined => {
-      switch (stream.type) {
-        case 'debrid':
-          return 'debrid';
-        case 'usenet':
-          return 'usenet';
-        case 'p2p':
-          return 'p2p';
-        default:
-          return undefined;
-      }
-    };
-
     const shouldKeepStream = (stream: ParsedStream): boolean => {
       const file = stream.parsedFile;
 
       const skipLanguageFiltering = shouldPassthroughStage(stream, 'language');
       const skipSubtitleFiltering = shouldPassthroughStage(stream, 'subtitle');
 
-      if (originalLanguage && LANGUAGES.includes(originalLanguage as any)) {
-        if (
-          file?.languages &&
-          file?.languages.length > 0 &&
-          file?.languages.includes(originalLanguage)
-        ) {
-          file.languages.push('Original');
-        }
-      }
       // Temporarily add in our fake visual tags used for sorting/filtering
       // HDR+DV
       if (
@@ -1359,20 +444,6 @@ class StreamFilterer {
         );
         if (resolution) {
           this.incrementIncludedReason('resolution', resolution);
-        }
-        return true;
-      }
-
-      if (
-        this.userData.includedQualities?.includes(
-          file?.quality || ('Unknown' as any)
-        )
-      ) {
-        const quality = this.userData.includedQualities.find(
-          (quality) => (file?.quality || 'Unknown') === quality
-        );
-        if (quality) {
-          this.incrementIncludedReason('quality', quality);
         }
         return true;
       }
@@ -1458,22 +529,6 @@ class StreamFilterer {
       }
 
       if (
-        this.userData.includedReleaseGroups?.some(
-          (group) =>
-            (file?.releaseGroup || 'Unknown').toLowerCase() ===
-            group.toLowerCase()
-        )
-      ) {
-        const group = this.userData.includedReleaseGroups.find(
-          (group) =>
-            (file?.releaseGroup || 'Unknown').toLowerCase() ===
-            group.toLowerCase()
-        );
-        this.incrementIncludedReason('releaseGroup', group!);
-        return true;
-      }
-
-      if (
         this.userData.includedEncodes?.some(
           (encode) => (file?.encode || 'Unknown') === encode
         )
@@ -1506,72 +561,7 @@ class StreamFilterer {
         return true;
       }
 
-      const includedSeederRange = normaliseSeederRange(
-        this.userData.includeSeederRange
-      );
-      const excludedSeederRange = normaliseSeederRange(
-        this.userData.excludeSeederRange
-      );
-      const requiredSeederRange = normaliseSeederRange(
-        this.userData.requiredSeederRange
-      );
-
-      const includedAgeRange = normaliseAgeRange(this.userData.includeAgeRange);
-      const excludedAgeRange = normaliseAgeRange(this.userData.excludeAgeRange);
-      const requiredAgeRange = normaliseAgeRange(
-        this.userData.requiredAgeRange
-      );
-
-      const typeForSeederRange = getSeederStreamType(stream);
-      const typeForAgeRange = getAgeStreamType(stream);
-
-      if (
-        includedSeederRange &&
-        (!this.userData.seederRangeTypes?.length ||
-          (typeForSeederRange &&
-            this.userData.seederRangeTypes.includes(typeForSeederRange)))
-      ) {
-        if (
-          includedSeederRange[0] &&
-          (stream.torrent?.seeders ?? 0) > includedSeederRange[0]
-        ) {
-          this.incrementIncludedReason('seeder', `>${includedSeederRange[0]}`);
-          return true;
-        }
-        if (
-          includedSeederRange[1] &&
-          (stream.torrent?.seeders ?? 0) < includedSeederRange[1]
-        ) {
-          this.incrementIncludedReason('seeder', `<${includedSeederRange[1]}`);
-          return true;
-        }
-      }
-
-      if (
-        includedAgeRange &&
-        (!this.userData.ageRangeTypes?.length ||
-          (typeForAgeRange &&
-            this.userData.ageRangeTypes.includes(typeForAgeRange)))
-      ) {
-        if (includedAgeRange[0] && (stream.age ?? 0) > includedAgeRange[0]) {
-          this.incrementIncludedReason('age', `>${includedAgeRange[0]}h`);
-          return true;
-        }
-        if (includedAgeRange[1] && (stream.age ?? 0) < includedAgeRange[1]) {
-          this.incrementIncludedReason('age', `<${includedAgeRange[1]}h`);
-          return true;
-        }
-      }
-
-      // Skip stream type filtering for P2P streams when service wrapping is enabled.
-      // These will be converted to debrid streams by _resolveServiceWrappedStreams later.
-      const skipStreamTypeFilter =
-        stream.type === 'p2p' && this.userData.serviceWrap?.enabled;
-
-      if (
-        !skipStreamTypeFilter &&
-        this.userData.excludedStreamTypes?.includes(stream.type)
-      ) {
+      if (this.userData.excludedStreamTypes?.includes(stream.type)) {
         // Track stream type exclusions
         this.incrementRemovalReason('excludedStreamType', stream.type);
         return false;
@@ -1579,7 +569,6 @@ class StreamFilterer {
 
       // Track required stream type misses
       if (
-        !skipStreamTypeFilter &&
         this.userData.requiredStreamTypes &&
         this.userData.requiredStreamTypes.length > 0 &&
         !this.userData.requiredStreamTypes.includes(stream.type)
@@ -1617,33 +606,6 @@ class StreamFilterer {
         this.incrementRemovalReason(
           'requiredResolution',
           file?.resolution || 'Unknown'
-        );
-        return false;
-      }
-
-      // Qualities
-      if (
-        this.userData.excludedQualities?.includes(
-          (file?.quality || 'Unknown') as any
-        )
-      ) {
-        this.incrementRemovalReason(
-          'excludedQuality',
-          file?.quality || 'Unknown'
-        );
-        return false;
-      }
-
-      if (
-        this.userData.requiredQualities &&
-        this.userData.requiredQualities.length > 0 &&
-        !this.userData.requiredQualities.includes(
-          (file?.quality || 'Unknown') as any
-        )
-      ) {
-        this.incrementRemovalReason(
-          'requiredQuality',
-          file?.quality || 'Unknown'
         );
         return false;
       }
@@ -1828,97 +790,6 @@ class StreamFilterer {
         return false;
       }
 
-      // release group
-      if (
-        this.userData.excludedReleaseGroups?.some(
-          (group) =>
-            (file?.releaseGroup || 'Unknown').toLowerCase() ===
-            group.toLowerCase()
-        )
-      ) {
-        this.incrementRemovalReason(
-          'excludedReleaseGroup',
-          file?.releaseGroup || 'Unknown'
-        );
-        return false;
-      }
-
-      if (
-        this.userData.requiredReleaseGroups &&
-        this.userData.requiredReleaseGroups.length > 0 &&
-        !this.userData.requiredReleaseGroups.some(
-          (group) =>
-            (file?.releaseGroup || 'Unknown').toLowerCase() ===
-            group.toLowerCase()
-        )
-      ) {
-        this.incrementRemovalReason(
-          'requiredReleaseGroup',
-          file?.releaseGroup || 'Unknown'
-        );
-        return false;
-      }
-
-      // uncached
-
-      if (this.userData.excludeUncached && stream.service?.cached === false) {
-        this.incrementRemovalReason('excludedUncached');
-        return false;
-      }
-
-      if (this.userData.excludeCached && stream.service?.cached === true) {
-        this.incrementRemovalReason('excludedCached');
-        return false;
-      }
-
-      if (
-        filterBasedOnCacheStatus(
-          stream,
-          this.userData.excludeCachedMode || 'or',
-          this.userData.excludeCachedFromAddons,
-          this.userData.excludeCachedFromServices,
-          this.userData.excludeCachedFromStreamTypes,
-          true
-        ) === false
-      ) {
-        this.incrementRemovalReason('excludedCached');
-        return false;
-      }
-
-      if (
-        filterBasedOnCacheStatus(
-          stream,
-          this.userData.excludeUncachedMode || 'or',
-          this.userData.excludeUncachedFromAddons,
-          this.userData.excludeUncachedFromServices,
-          this.userData.excludeUncachedFromStreamTypes,
-          false
-        ) === false
-      ) {
-        this.incrementRemovalReason('excludedUncached');
-        return false;
-      }
-
-      if (
-        this.userData.excludeSeasonPacks &&
-        type === 'series' &&
-        stream.parsedFile?.seasons?.length &&
-        !stream.parsedFile?.episodes?.length
-      ) {
-        const seasons = stream.parsedFile?.seasons;
-        const seasonStr =
-          seasons?.length === 1
-            ? `S${String(seasons[0]).padStart(2, '0')}`
-            : seasons?.length
-              ? `S${String(seasons[0]).padStart(2, '0')}-${String(seasons[seasons.length - 1]).padStart(2, '0')}`
-              : undefined;
-        this.incrementRemovalReason(
-          'excludeSeasonPacks',
-          `${stream.parsedFile.title} - ${seasonStr}`
-        );
-        return false;
-      }
-
       if (
         excludedRegexPatterns &&
         regexDecisionsMap.get(stream.id)?.excludedByRegex
@@ -1951,211 +822,6 @@ class StreamFilterer {
         return false;
       }
 
-      if (
-        requiredSeederRange &&
-        (!this.userData.seederRangeTypes?.length ||
-          (typeForSeederRange &&
-            this.userData.seederRangeTypes.includes(typeForSeederRange)))
-      ) {
-        if (
-          requiredSeederRange[0] &&
-          (stream.torrent?.seeders ?? 0) < requiredSeederRange[0]
-        ) {
-          this.incrementRemovalReason(
-            'requiredSeederRange',
-            `< ${requiredSeederRange[0]}`
-          );
-          return false;
-        }
-        if (
-          stream.torrent?.seeders !== undefined &&
-          requiredSeederRange[1] &&
-          (stream.torrent?.seeders ?? 0) > requiredSeederRange[1]
-        ) {
-          this.incrementRemovalReason(
-            'requiredSeederRange',
-            `> ${requiredSeederRange[1]}`
-          );
-          return false;
-        }
-      }
-
-      if (
-        excludedSeederRange &&
-        (!this.userData.seederRangeTypes?.length ||
-          (typeForSeederRange &&
-            this.userData.seederRangeTypes.includes(typeForSeederRange)))
-      ) {
-        if (
-          excludedSeederRange[0] &&
-          (stream.torrent?.seeders ?? 0) > excludedSeederRange[0]
-        ) {
-          this.incrementRemovalReason(
-            'excludedSeederRange',
-            `< ${excludedSeederRange[0]}`
-          );
-          return false;
-        }
-        if (
-          excludedSeederRange[1] &&
-          (stream.torrent?.seeders ?? 0) < excludedSeederRange[1]
-        ) {
-          this.incrementRemovalReason(
-            'excludedSeederRange',
-            `> ${excludedSeederRange[1]}`
-          );
-          return false;
-        }
-      }
-
-      if (
-        requiredAgeRange &&
-        (!this.userData.ageRangeTypes?.length ||
-          (typeForAgeRange &&
-            this.userData.ageRangeTypes.includes(typeForAgeRange)))
-      ) {
-        if (requiredAgeRange[0] && (stream.age ?? 0) < requiredAgeRange[0]) {
-          this.incrementRemovalReason(
-            'requiredAgeRange',
-            `< ${requiredAgeRange[0]}h`
-          );
-          return false;
-        }
-        if (
-          stream.age !== undefined &&
-          requiredAgeRange[1] &&
-          (stream.age ?? 0) > requiredAgeRange[1]
-        ) {
-          this.incrementRemovalReason(
-            'requiredAgeRange',
-            `> ${requiredAgeRange[1]}h`
-          );
-          return false;
-        }
-      }
-
-      if (
-        excludedAgeRange &&
-        (!this.userData.ageRangeTypes?.length ||
-          (typeForAgeRange &&
-            this.userData.ageRangeTypes.includes(typeForAgeRange)))
-      ) {
-        if (excludedAgeRange[0] && (stream.age ?? 0) > excludedAgeRange[0]) {
-          this.incrementRemovalReason(
-            'excludedAgeRange',
-            `< ${excludedAgeRange[0]}h`
-          );
-          return false;
-        }
-        if (excludedAgeRange[1] && (stream.age ?? 0) < excludedAgeRange[1]) {
-          this.incrementRemovalReason(
-            'excludedAgeRange',
-            `> ${excludedAgeRange[1]}h`
-          );
-          return false;
-        }
-      }
-
-      if (!shouldPassthroughStage(stream, 'year')) {
-        const _ymStart = Date.now();
-        const _ymResult = performYearMatch(stream);
-        accumPhase(phases.yearMatch, Date.now() - _ymStart);
-        if (!_ymResult) {
-          this.incrementRemovalReason(
-            'yearMatching',
-            `${stream.parsedFile?.title || 'Unknown Title'} - ${stream.parsedFile?.year || 'Unknown Year'}`
-          );
-          return false;
-        }
-      }
-
-      if (!shouldPassthroughStage(stream, 'episode')) {
-        const _seStart = Date.now();
-        const _seResult = performSeasonEpisodeMatch(stream);
-        accumPhase(phases.seasonEpisodeMatch, Date.now() - _seStart);
-        if (!_seResult) {
-          const pad = (n: number) => n.toString().padStart(2, '0');
-          const s = stream.parsedFile?.seasons;
-          const e = stream.parsedFile?.episodes;
-          const formattedSeasonString = s?.length
-            ? `S${pad(s[0])}${s.length > 1 ? `-${pad(s[s.length - 1])}` : ''}`
-            : undefined;
-          const formattedEpisodeString = e?.length
-            ? `E${pad(e[0])}${e.length > 1 ? `-${pad(e[e.length - 1])}` : ''}`
-            : undefined;
-          const seasonEpisode = [
-            formattedSeasonString,
-            formattedEpisodeString,
-          ].filter(Boolean);
-          const detail =
-            stream.parsedFile?.title +
-            ' ' +
-            (seasonEpisode?.join(' • ') || 'Unknown');
-
-          this.incrementRemovalReason('seasonEpisodeMatching', detail);
-          return false;
-        }
-      }
-
-      if (!shouldPassthroughStage(stream, 'title')) {
-        const _tmStart = Date.now();
-        const _tmResult = performTitleMatch(stream);
-        accumPhase(phases.titleMatch, Date.now() - _tmStart);
-        if (!_tmResult) {
-          this.incrementRemovalReason(
-            'titleMatching',
-            `${stream.parsedFile?.title || 'Unknown Title'}${type === 'movie' ? ` - (${stream.parsedFile?.year || 'Unknown Year'})` : ''}`
-          );
-          return false;
-        }
-      }
-
-      const globalSizeRange = this.userData.size?.global;
-      const resolutionSizeRange = stream.parsedFile?.resolution
-        ? // @ts-ignore
-          this.userData.size?.resolution?.[stream.parsedFile.resolution]
-        : undefined;
-
-      let finalSizeRange: [number | undefined, number | undefined] | undefined;
-      if (type === 'movie') {
-        finalSizeRange =
-          normaliseSizeRange(resolutionSizeRange?.movies) ||
-          normaliseSizeRange(globalSizeRange?.movies);
-      } else {
-        finalSizeRange =
-          (isAnime
-            ? normaliseSizeRange(resolutionSizeRange?.anime) ||
-              normaliseSizeRange(globalSizeRange?.anime)
-            : undefined) ||
-          normaliseSizeRange(resolutionSizeRange?.series) ||
-          normaliseSizeRange(globalSizeRange?.series);
-      }
-
-      if (finalSizeRange) {
-        if (
-          stream.size &&
-          finalSizeRange[0] &&
-          stream.size < finalSizeRange[0]
-        ) {
-          this.incrementRemovalReason(
-            'size',
-            `< ${formatBytes(finalSizeRange[0], 1000)}`
-          );
-          return false;
-        }
-        if (
-          stream.size &&
-          finalSizeRange[1] &&
-          stream.size > finalSizeRange[1]
-        ) {
-          this.incrementRemovalReason(
-            'size',
-            `> ${formatBytes(finalSizeRange[1], 1000)}`
-          );
-          return false;
-        }
-      }
-
       const globalBitrateRange = this.userData.bitrate?.global;
       const resolutionBitrateRange = stream.parsedFile?.resolution
         ? // @ts-ignore
@@ -2165,19 +831,9 @@ class StreamFilterer {
       let finalBitrateRange:
         | [number | undefined, number | undefined]
         | undefined;
-      if (type === 'movie') {
-        finalBitrateRange =
-          normaliseBitrateRange(resolutionBitrateRange?.movies) ||
-          normaliseBitrateRange(globalBitrateRange?.movies);
-      } else {
-        finalBitrateRange =
-          (isAnime
-            ? normaliseBitrateRange(resolutionBitrateRange?.anime) ||
-              normaliseBitrateRange(globalBitrateRange?.anime)
-            : undefined) ||
-          normaliseBitrateRange(resolutionBitrateRange?.series) ||
-          normaliseBitrateRange(globalBitrateRange?.series);
-      }
+      finalBitrateRange =
+        normaliseBitrateRange(resolutionBitrateRange) ||
+        normaliseBitrateRange(globalBitrateRange);
 
       if (
         finalBitrateRange &&
@@ -2291,30 +947,12 @@ class StreamFilterer {
 
     const totalMs = Date.now() - start;
     this.filterTimings.totalMs += totalMs;
-    this.filterTimings.metadataMs += metadataMs;
+    this.filterTimings.regexAccessMs += regexAccessMs;
     this.filterTimings.expressionMs += expressionMs;
     this.filterTimings.regexCompileMs += regexCompileMs;
     this.filterTimings.regexTestMs += regexTestMs;
     this.filterTimings.filterPassMs += filterPassMs;
     this.filterTimings.calls++;
-    // Merge per-stream phase stats into the accumulated filterTimings
-    const mergePhase = (
-      dest: PhaseTimingStats,
-      src: { totalMs: number; maxMs: number; minMs: number; count: number }
-    ) => {
-      if (src.count === 0) return;
-      dest.totalMs += src.totalMs;
-      dest.count += src.count;
-      if (src.maxMs > dest.maxMs) dest.maxMs = src.maxMs;
-      if (src.minMs < dest.minMs) dest.minMs = src.minMs;
-    };
-    mergePhase(this.filterTimings.phases.titleMatch, phases.titleMatch);
-    mergePhase(this.filterTimings.phases.yearMatch, phases.yearMatch);
-    mergePhase(
-      this.filterTimings.phases.seasonEpisodeMatch,
-      phases.seasonEpisodeMatch
-    );
-
     logger.info(
       `Applied basic filters in ${getTimeTakenSincePoint(start)}, removed ${streams.length - finalStreams.length} streams`
     );

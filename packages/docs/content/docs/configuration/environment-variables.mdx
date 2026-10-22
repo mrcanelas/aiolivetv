@@ -233,17 +233,6 @@ neither the environment variable nor a stored value is present.
 | --- | --- | --- | --- | --- |
 | `PROXY_IP_CACHE_TTL` | IP › Cache TTL | number | `900` | Cache TTL for resolved proxy IPs (seconds). |
 
-### NZB Proxy
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `NZB_PROXY_PUBLIC_ENABLED` | Public Enabled | boolean | `false` | Enable the public/generic NZB proxy endpoint. Disabled by default for security. _(restart required)_ |
-| `NZB_PROXY_EASYNEWS_ENABLED` | Easynews Enabled | boolean | `false` | Enable the Easynews-specific NZB proxy endpoint. _(restart required)_ |
-| `NZB_PROXY_MAX_SIZE` | Max Size | size | `20000000` | Maximum size of NZBs that can be proxied. Accepts plain bytes or `20MB`-style strings. |
-| `NZB_PROXY_RATE_LIMIT_WINDOW` | Rate Limit Window | number | `3600` | Sliding window for the NZB proxy rate limit (seconds). _(restart required)_ |
-| `NZB_PROXY_RATE_LIMIT_PER_USER` | Rate Limit Per User | number | `100` | Maximum NZB proxy requests per user per window. _(restart required)_ |
-| `ZYCLOPS_HEALTH_PROXY_ENDPOINT` | Zyclops Health Proxy Endpoint | string | `https://zyclops.elfhosted.com` | Base URL of the Zyclops health proxy used by the Newznab preset. |
-
 ### Rate Limits
 
 | Environment Variable | UI Setting | Type | Default | Description |
@@ -286,13 +275,6 @@ neither the environment variable nor a stored value is present.
 | `CATALOG_API_RATE_LIMIT_WINDOW` | Catalog API › Window | number | `5` | Sliding-window length (seconds) for the catalog API rate limiter. _(restart required)_ |
 | `CATALOG_API_RATE_LIMIT_MAX_REQUESTS` | Catalog API › Max Requests | number | `5` | Maximum requests per IP within the window for the catalog API rate limiter. _(restart required)_ |
 
-#### Anime API
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `ANIME_API_RATE_LIMIT_WINDOW` | Anime API › Window | number | `60` | Sliding-window length (seconds) for the anime API rate limiter. _(restart required)_ |
-| `ANIME_API_RATE_LIMIT_MAX_REQUESTS` | Anime API › Max Requests | number | `120` | Maximum requests per IP within the window for the anime API rate limiter. _(restart required)_ |
-
 #### Stremio Stream
 
 | Environment Variable | UI Setting | Type | Default | Description |
@@ -327,13 +309,6 @@ neither the environment variable nor a stored value is present.
 | --- | --- | --- | --- | --- |
 | `STREMIO_META_RATE_LIMIT_WINDOW` | Stremio Meta › Window | number | `5` | Sliding-window length (seconds) for the Stremio meta rate limiter. _(restart required)_ |
 | `STREMIO_META_RATE_LIMIT_MAX_REQUESTS` | Stremio Meta › Max Requests | number | `15` | Maximum requests per IP within the window for the Stremio meta rate limiter. _(restart required)_ |
-
-#### Easynews NZB
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `EASYNEWS_NZB_RATE_LIMIT_WINDOW` | Easynews NZB › Window | number | `60` | Sliding-window length (seconds) for the Easynews NZB rate limiter. _(restart required)_ |
-| `EASYNEWS_NZB_RATE_LIMIT_MAX_REQUESTS` | Easynews NZB › Max Requests | number | `15` | Maximum requests per IP within the window for the Easynews NZB rate limiter. _(restart required)_ |
 
 #### Login
 
@@ -415,55 +390,6 @@ neither the environment variable nor a stored value is present.
 
 ### Built-ins
 
-#### Stremthru
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `BUILTIN_STREMTHRU_URL` | Stremthru › URL | string | `https://stremthru.13377001.xyz` | Base URL of the StremThru instance used by the built-in addons. |
-| `TORBOX_USENET_VIA_STREMTHRU` | Stremthru › Torbox Usenet Via Stremthru | boolean | `false` | Route Torbox usenet operations entirely through StremThru rather than the Torbox API. _(restart required)_ |
-
-#### Debrid
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `BUILTIN_DEBRID_INSTANT_AVAILABILITY_CACHE_TTL` | Debrid › Instant Availability Cache TTL | duration | `1800` | Cache TTL for instant-availability checks. |
-| `BUILTIN_DEBRID_PLAYBACK_LINK_CACHE_TTL` | Debrid › Playback Link Cache TTL | duration | `3600` | Cache TTL for resolved playback links. |
-| `BUILTIN_DEBRID_ERROR_CACHE_TTL` | Debrid › Error Cache TTL | duration | `3600` | How long content-level failures (e.g. download status = failed/invalid) are cached globally to suppress retries. |
-| `BUILTIN_DEBRID_LIBRARY_CACHE_TTL` | Debrid › Library Cache TTL | duration | `604800` | Cache TTL for library list results (listMagnets/listNzbs). |
-| `BUILTIN_DEBRID_LIBRARY_STALE_THRESHOLD` | Debrid › Library Stale Threshold | duration | `600` | Time after which cached library data is treated as stale (background refresh while serving cached data). |
-| `BUILTIN_DEBRID_LIBRARY_PAGE_LIMIT` | Debrid › Library Page Limit | number | `1` | Maximum pages fetched per listMagnets / listNzbs request. |
-| `BUILTIN_DEBRID_LIBRARY_PAGE_SIZE` | Debrid › Library Page Size | number | `500` | Maximum items per page when listing library items. StremThru caps at 500, Torbox at 1000. |
-| `BUILTIN_DEBRID_USE_TORRENT_DOWNLOAD_URL` | Debrid › Use Torrent Download URL | boolean | `true` | Prefer .torrent URLs over magnets for better private-tracker compatibility. |
-| `BUILTIN_DEBRID_METADATA_STORE` | Debrid › Metadata Store | enum | — | Backend used to persist debrid metadata. Defaults to the platform-default when unset. _(restart required)_ |
-| `BUILTIN_DEBRID_FILEINFO_STORE` | Debrid › Fileinfo Store | json | `true` | Backend (or `true`/`false`) used for the debrid fileinfo store. _(restart required)_ |
-| `BUILTIN_PLAYBACK_LINK_VALIDITY` | Debrid › Playback Link Validity | duration | `86400` | How long a generated playback link is treated as valid (seconds). |
-| `BUILTIN_DOWNLOAD_POLL_INTERVAL` | Debrid › Download Poll Interval | map | `{"nzbdav":2000,"altmount":2000,"stremthru_newz":2000,"*":10000}` | Per-service download-status poll interval. Env shape: `service:duration,...`. Wildcard `*` covers unlisted services. |
-| `BUILTIN_DOWNLOAD_MAX_WAIT_TIME` | Debrid › Download Max Wait Time | map | `{"nzbdav":90000,"altmount":90000,"stremthru_newz":90000,"*":120000}` | Per-service maximum wait time before timing out a download check. Env shape: `service:duration,...`. |
-
-#### Scrape
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `BUILTIN_SCRAPE_WITH_ALL_TITLES` | Scrape › With All Titles | boolOrList | `false` | By default, built-in addons only use the primary title for text-based queries. `true` enables all alternative titles for every indexer; `false` (default) uses the primary title only; a comma-separated hostname list (e.g. `jackett,knaben.org`) enables it only for those indexers. Superseded per-indexer by BUILTIN_SCRAPE_TITLE_LANGUAGES. |
-| `BUILTIN_SCRAPE_TITLE_LANGUAGES` | Scrape › Title Languages | map | — | Fine-grained alternative-title control, per indexer hostname, indexer name, or addon type. Supersedes BUILTIN_SCRAPE_WITH_ALL_TITLES. Format: `<key>:<spec>[,<spec>...][,<key>:<spec>...]`. Keys (checked in priority order): exact indexer hostname (e.g. `my-indexer.com`); auto-extracted indexer name (Jackett `/api/v2.0/indexers/<name>/...`, NZBHydra2 `?indexers=<name>`); addon-id (`newznab`, `torznab`, `easynews`, `knaben`, `prowlarr`, `torrent-galaxy`); `*` wildcard fallback. Specs: `default` (primary/English-style title), `all` (all alternative titles up to BUILTIN_SCRAPE_TITLE_LIMIT), `original` (TMDB original-language title), `<lang>` (ISO 639-1 code, e.g. `de`, `fr`). Multiple specs under one key are combined (duplicates removed); only the highest-priority matching key applies; always falls back to the primary title. Examples: `*:default,original` — every indexer gets default + TMDB original-language title. `*:default,newznab:default,original,de` — newznab indexers query English + original + German, others English only. `*:default,germanindexer.com:de,default` — germanindexer.com queries German + English, all others English only. |
-| `BUILTIN_SCRAPE_TITLE_LIMIT` | Scrape › Title Limit | number | `3` | Maximum alternative titles used per scrape. |
-| `BUILTIN_SCRAPE_QUERY_CONCURRENCY` | Scrape › Query Concurrency | number | `5` | Maximum concurrent scrape queries. |
-
-#### Get Torrent
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `BUILTIN_GET_TORRENT_TIMEOUT` | Get Torrent › Timeout | number | `5000` | Timeout for fetching torrent files. |
-| `BUILTIN_GET_TORRENT_CONCURRENCY` | Get Torrent › Concurrency | number | `100` | Maximum concurrent torrent fetches. |
-| `BUILTIN_GET_TORRENT_LAZILY` | Get Torrent › Lazily | boolean | `true` | Fetch torrents lazily in the background. First search returns immediately with available results. |
-
-#### Torrent
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `BUILTIN_TORRENT_METADATA_CACHE_TTL` | Torrent › Metadata Cache TTL | duration | `604800` | Cache TTL for torrent metadata. |
-| `BUILTIN_MINIMUM_BACKGROUND_REFRESH_INTERVAL` | Torrent › Minimum Background Refresh Interval | duration | `86400` | Minimum interval between background search-cache refreshes triggered during normal searches. |
-
 #### Tvheadend
 
 | Environment Variable | UI Setting | Type | Default | Description |
@@ -511,19 +437,6 @@ neither the environment variable nor a stored value is present.
 | `CATALOG_TIMEOUT` | Timeouts › Catalog | number | `30000` | Timeout for `/catalog/*` fetches (milliseconds). |
 | `CHANNEL_SCAN_BUDGET_MS` | Timeouts › Channel Scan | number | `0` | Optional wall-clock budget for one Channels page scan, including provider initialisation. When reached, the scan returns the channels found so far and lists unfinished sources. Defaults to 0 (no limit). Hosting platforms may still enforce their own request limits. |
 
-#### Precache
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `PRECACHE_NEXT_EPISODE_MIN_INTERVAL` | Precache › Next Episode Min Interval | duration | `86400` | Minimum interval before re-attempting to precache the same next episode (accepts e.g. "30m", "1h"). |
-
-#### Preload
-
-| Environment Variable | UI Setting | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `PRELOAD_MIN_INTERVAL` | Preload › Min Interval | duration | `3600` | Minimum interval between preload operations for the same item per user (0 disables the cooldown). |
-| `PRELOAD_STREAMS_CONCURRENCY` | Preload › Streams Concurrency | number | `5` | Maximum simultaneous stream preload requests. |
-
 #### Background
 
 | Environment Variable | UI Setting | Type | Default | Description |
@@ -559,10 +472,8 @@ neither the environment variable nor a stored value is present.
 | `MAX_ADDONS` | Max Addons | number | `15` | Maximum number of addons a user configuration can install. |
 | `MAX_KEYWORD_FILTERS` | Max Keyword Filters | number | `30` | Maximum number of keyword filters per keyword filter group. |
 | `MAX_FORMATTER_TEMPLATE_LENGTH` | Max Formatter Template Length | number | `5000` | Maximum length (characters) of a single formatter template string. Enforced during config validation. |
-| `MAX_NZB_FAILOVER_COUNT` | Max NZB Failover Count | number | `5` | Maximum NZB failover attempts a user can configure. |
 | `MAX_GROUPS` | Max Groups | number | `20` | Maximum number of stream groups in a user configuration. |
 | `MAX_MERGED_CATALOG_SOURCES` | Max Merged Catalog Sources | number | `10` | Maximum source catalogs in a single merged catalog. |
-| `MAX_BACKGROUND_PINGS` | Max Background Pings | number | `2` | Maximum streams pinged in a background preload/precache operation. |
 
 #### Timeouts
 
