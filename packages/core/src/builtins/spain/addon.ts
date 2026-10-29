@@ -128,7 +128,10 @@ function channelMeta(channel: MetaPreview, videos: Videos): Meta {
     ),
     background:
       typeof current?.background === 'string' ? current.background : undefined,
-    behaviorHints: { hasScheduledVideos: videos.length > 0 },
+    behaviorHints: {
+      ...channel.behaviorHints,
+      hasScheduledVideos: videos.length > 0,
+    },
   };
 }
 
@@ -669,6 +672,15 @@ async function tdtData(config: SpainTvConfig) {
       .map((channel) => ({
         ...channel,
         id: encodeChannelId(`tdtchannels:${decodeChannelId(channel.id)}`),
+        ...(playlist
+          ? {
+              behaviorHints: {
+                hasStreams: playlist.entriesByChannelId.has(
+                  decodeChannelId(channel.id)
+                ),
+              },
+            }
+          : {}),
       }))
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es')),
   };

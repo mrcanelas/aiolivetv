@@ -367,6 +367,9 @@ describe('TDTChannels builtin', () => {
     const addon = new TdtChannelsAddon({ timeout: 1000 });
     expect((await addon.getManifest()).behaviorHints?.epgProvider).toBe(true);
     expect(await addon.getCatalog()).toHaveLength(1);
+    expect(
+      (await addon.getCatalog())[0].behaviorHints?.hasStreams
+    ).toBeUndefined();
   });
   it('uses EPG channels, playlist names, and multiple streams for the same ID', async () => {
     tdtMock();
@@ -374,9 +377,14 @@ describe('TDTChannels builtin', () => {
     expect((await addon.getManifest()).behaviorHints?.epgProvider).toBe(true);
     const channels = await addon.getCatalog();
     expect(channels).toHaveLength(1);
-    expect(channels[0]).toMatchObject({ name: 'La 1', tvgId: 'La1.TV' });
+    expect(channels[0]).toMatchObject({
+      name: 'La 1',
+      tvgId: 'La1.TV',
+      behaviorHints: { hasStreams: true },
+    });
     const meta = await addon.getMeta(channels[0].id);
     expect(meta.videos?.[0].title).toBe('News');
+    expect(meta.behaviorHints?.hasStreams).toBe(true);
     expect(await addon.getStreams(meta.videos![0].id)).toHaveLength(2);
     expect(await addon.getStreams(encodeChannelId('orange-tv:101'))).toEqual(
       []
@@ -395,5 +403,38 @@ describe('TDTChannels builtin', () => {
       (await addon.getMeta(channel.id)).behaviorHints?.hasScheduledVideos
     ).toBe(false);
     expect(await addon.getStreams(channel.id)).toHaveLength(2);
+  });
+
+  it('keeps EPG-only channels without claiming they have streams', async () => {
+    tdtMock();
+    const original = vi.mocked(makeRequest).getMockImplementation()!;
+    const guide = xml.replace(
+      '</tv>',
+      '<channel id="Boing.TV"><display-name>Boing</display-name></channel><programme channel="Boing.TV" start="20261013120000 +0000" stop="20261013130000 +0000"><title>Cartoons</title></programme></tv>'
+    );
+    vi.mocked(makeRequest).mockImplementation(async (url, options) => {
+      if (String(url).endsWith('.m3u')) return original(url, options);
+      return new Response(Uint8Array.from(gzipSync(guide))) as never;
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-13T12:30:00Z'));
+    const addon = new TdtChannelsAddon({ timeout: 1000 });
+    const channel = (await addon.getCatalog()).find(
+      (item) => item.name === 'Boing'
+    )!;
+    expect(channel.behaviorHints?.hasStreams).toBe(false);
+    expect(
+      (await addon.getCatalogGuide(0, '2026-10-13')).find(
+        (item) => item.id === channel.id
+      )
+    ).toMatchObject({
+      behaviorHints: { hasStreams: false, hasScheduledVideos: true },
+      videos: [{ title: 'Cartoons' }],
+    });
+    expect((await addon.getMeta(channel.id)).behaviorHints).toMatchObject({
+      hasStreams: false,
+      hasScheduledVideos: true,
+    });
+    expect(await addon.getStreams(channel.id)).toEqual([]);
   });
 });

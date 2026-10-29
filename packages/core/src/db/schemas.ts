@@ -1037,6 +1037,15 @@ const MetaParsedVideoSchema = MetaVideoSchema.extend({
   streams: z.array(ParsedStreamSchema).or(z.null()).optional(),
 });
 
+const MetaBehaviorHintsSchema = z
+  .object({
+    defaultVideoId: z.string().or(z.null()).optional(),
+    hasScheduledVideos: z.boolean().nullable().optional(),
+    // Whether the source has stream entries for this channel, not a playback probe.
+    hasStreams: z.boolean().optional(),
+  })
+  .passthrough();
+
 export const MetaPreviewSchema = z
   .object({
     id: z.string().min(1),
@@ -1062,6 +1071,7 @@ export const MetaPreviewSchema = z
     description: z.string().or(z.null()).optional(),
     trailers: z.array(TrailerSchema).or(z.null()).optional(),
     links: z.array(MetaLinkSchema).or(z.null()).optional(),
+    behaviorHints: MetaBehaviorHintsSchema.optional(),
     // released: z.string().datetime().optional(),
   })
   .passthrough();
@@ -1076,13 +1086,6 @@ export const MetaSchema = MetaPreviewSchema.extend({
   country: z.string().or(z.null()).optional(),
   awards: z.string().or(z.null()).optional(),
   website: z.string().url().or(z.null()).optional(),
-  behaviorHints: z
-    .object({
-      defaultVideoId: z.string().or(z.null()).optional(),
-      hasScheduledVideos: z.boolean().nullable().optional(),
-    })
-    .passthrough()
-    .optional(),
 }).passthrough();
 
 export const ParsedMetaSchema = MetaSchema.extend({

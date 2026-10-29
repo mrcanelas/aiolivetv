@@ -104,6 +104,7 @@ type CatalogPageItem = {
   language?: string;
   genres?: string[] | null;
   videos?: Array<unknown> | null;
+  behaviorHints?: { hasStreams?: boolean };
 };
 
 function catalogPageItems(response: {
@@ -616,7 +617,8 @@ router.post(
                 addonId,
                 addonName: addon.name,
                 epgProvider,
-                canStream,
+                canStream:
+                  canStream && item.behaviorHints?.hasStreams !== false,
                 contributesChannels,
                 tvgId: typeof item.tvgId === 'string' ? item.tvgId : undefined,
                 aliases: Array.isArray(item.aliases)

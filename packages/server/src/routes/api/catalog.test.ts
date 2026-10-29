@@ -11,6 +11,7 @@ const fixture = vi.hoisted(() => {
   process.env.BASE_URL = 'http://127.0.0.1';
   return {
     epg: true,
+    hybridGuide: false,
     budgetMs: 0,
     extraStreams: 0,
     truncated: false,
@@ -118,7 +119,8 @@ vi.mock('@aiolivetv/core', async () => {
     ),
     addonProvidesResource: (addon: { instanceId: string }, resource: string) =>
       addon.instanceId === 'guide'
-        ? resource === 'catalog'
+        ? resource === 'catalog' ||
+          (fixture.hybridGuide && resource === 'stream')
         : resource === 'stream',
     AIOStreams: class {
       async initialise() {
@@ -140,7 +142,10 @@ vi.mock('@aiolivetv/core', async () => {
       }
       getManifest(id: string) {
         return {
-          resources: id === 'guide' ? ['catalog', 'meta'] : ['stream'],
+          resources:
+            id === 'guide'
+              ? ['catalog', 'meta', ...(fixture.hybridGuide ? ['stream'] : [])]
+              : ['stream'],
           catalogs: [
             {
               id: id === 'guide' ? fixture.guideCatalog : fixture.streamCatalog,
@@ -181,7 +186,22 @@ vi.mock('@aiolivetv/core', async () => {
           data: id.startsWith('guide.')
             ? [
                 { id: 'bbc', name: 'BBC News', tvgId: 'bbc.news' },
-                { id: 'hbo', name: 'HBO West' },
+                {
+                  id: 'hbo',
+                  name: 'HBO West',
+                  ...(fixture.hybridGuide
+                    ? { behaviorHints: { hasStreams: false } }
+                    : {}),
+                },
+                ...(fixture.hybridGuide
+                  ? [
+                      {
+                        id: 'playable',
+                        name: 'Playable',
+                        behaviorHints: { hasStreams: true },
+                      },
+                    ]
+                  : []),
               ]
             : [
                 { id: 'bbc-stream', name: 'BBC News HD', tvgId: 'BBC.NEWS' },
@@ -226,6 +246,7 @@ afterEach(async () => {
   fixture.inventory.clear();
   fixture.catalogCalls = 0;
   fixture.onGuideCatalog = undefined;
+  fixture.hybridGuide = false;
 });
 
 async function scan(
@@ -262,27 +283,29 @@ async function scan(
               id: 'bbc',
               canonicalAddonId: 'guide',
               streams:
-                sourceConfig === 'saved-bindings'
-                  ? [
-                      {
-                        addonId: 'streams',
-                        channelId: 'gone',
-                        confidence: 0,
-                        enabled: false,
-                      },
-                      {
-                        addonId: 'manual',
-                        channelId: 'manual:one',
-                        url: 'https://example.com/live.m3u8',
-                        confidence: 0,
-                      },
-                      {
-                        addonId: 'streams',
-                        channelId: 'bbc-stream',
-                        confidence: 0,
-                      },
-                    ]
-                  : [],
+                sourceConfig === 'saved-epg-only'
+                  ? [{ addonId: 'guide', channelId: 'hbo', confidence: 1 }]
+                  : sourceConfig === 'saved-bindings'
+                    ? [
+                        {
+                          addonId: 'streams',
+                          channelId: 'gone',
+                          confidence: 0,
+                          enabled: false,
+                        },
+                        {
+                          addonId: 'manual',
+                          channelId: 'manual:one',
+                          url: 'https://example.com/live.m3u8',
+                          confidence: 0,
+                        },
+                        {
+                          addonId: 'streams',
+                          channelId: 'bbc-stream',
+                          confidence: 0,
+                        },
+                      ]
+                    : [],
               enabled,
               rejectedStreams: rejectAlternative
                 ? [{ addonId: 'streams', channelId: 'bbc-alt' }]
@@ -337,6 +360,41 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('keeps EPG-only channels without adding a false builtin stream binding', async () => {
+    fixture.hybridGuide = true;
+    const channels = await scan(false);
+    expect(channels.find((channel) => channel.id === 'hbo')).toMatchObject({
+      epgProvider: true,
+      mappings: [],
+    });
+    expect(
+      channels.find((channel) => channel.id === 'playable')?.mappings
+    ).toEqual([
+      expect.objectContaining({
+        addonId: 'guide',
+        channelId: 'playable',
+        canStream: true,
+      }),
+    ]);
+    const alternatives = await scan(false, false, 'hbo');
+    expect(alternatives[0].availableStreamSources).toContainEqual(
+      expect.objectContaining({ channelId: 'hbo-stream' })
+    );
+  });
+
+  it('preserves saved bindings when their channel has no stream entries', async () => {
+    fixture.hybridGuide = true;
+    const channels = await scan(false, false, undefined, 200, 'saved-epg-only');
+    expect(channels.find((channel) => channel.id === 'bbc')?.mappings).toEqual([
+      expect.objectContaining({
+        addonId: 'guide',
+        channelId: 'hbo',
+        enabled: true,
+        canStream: false,
+      }),
+    ]);
+  });
+
   it('discovers M3U guide addresses through the existing catalog API', async () => {
     const app = express();
     app.use(express.json());
