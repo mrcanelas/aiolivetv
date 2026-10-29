@@ -360,11 +360,14 @@ export class TMDBMetadata {
     ) {
       throw new Error('TMDB Access Token or API Key is not set');
     }
-    if (auth?.apiKey || appConfig.metadata.tmdb.apiKey) {
-      this.apiKey = auth?.apiKey || appConfig.metadata.tmdb.apiKey || undefined;
-    } else if (auth?.accessToken || appConfig.metadata.tmdb.accessToken) {
-      this.accessToken =
-        auth?.accessToken || appConfig.metadata.tmdb.accessToken || undefined;
+    if (auth?.apiKey) {
+      this.apiKey = auth.apiKey;
+    } else if (auth?.accessToken) {
+      this.accessToken = auth.accessToken;
+    } else if (appConfig.metadata.tmdb.apiKey) {
+      this.apiKey = appConfig.metadata.tmdb.apiKey;
+    } else {
+      this.accessToken = appConfig.metadata.tmdb.accessToken || undefined;
     }
   }
 

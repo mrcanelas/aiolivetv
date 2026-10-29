@@ -3,11 +3,15 @@ import type { Meta, UserData } from '../db/index.js';
 
 const fixture = vi.hoisted(() => {
   process.env.BASE_URL = 'http://127.0.0.1:3000';
-  return { request: vi.fn(), cache: new Map<string, unknown>() };
+  return {
+    request: vi.fn(),
+    cache: new Map<string, unknown>(),
+    tmdb: {} as { apiKey?: string; accessToken?: string },
+  };
 });
 
 vi.mock('../utils/index.js', async () => ({
-  appConfig: { metadata: { tmdb: {} } },
+  appConfig: { metadata: { tmdb: fixture.tmdb } },
   Cache: {
     getInstance: (name: string) => ({
       get: async (key: string) => fixture.cache.get(`${name}:${key}`),
@@ -61,9 +65,34 @@ function respond(body: unknown) {
 beforeEach(() => {
   fixture.request.mockReset();
   fixture.cache.clear();
+  delete fixture.tmdb.apiKey;
+  delete fixture.tmdb.accessToken;
 });
 
 describe('optional EPG metadata enrichment', () => {
+  it.each([
+    [
+      { tmdbAccessToken: 'personal-token', tmdbApiKey: undefined },
+      undefined,
+      'Bearer personal-token',
+    ],
+    [{ tmdbApiKey: 'personal-key' }, 'personal-key', null],
+    [{ tmdbApiKey: undefined }, 'instance-key', null],
+  ])(
+    'prefers personal credentials over instance defaults: %j',
+    async (auth, apiKey, authorization) => {
+      fixture.tmdb.apiKey = 'instance-key';
+      fixture.tmdb.accessToken = 'instance-token';
+      fixture.request
+        .mockResolvedValueOnce(respond({ results: [details] }))
+        .mockResolvedValueOnce(respond(details));
+      await enrichEpgVideos([movie()], { ...config, ...auth });
+      const [url, options] = fixture.request.mock.calls[0];
+      expect(new URL(url).searchParams.get('api_key')).toBe(apiKey ?? null);
+      expect(options.headers.get('Authorization')).toBe(authorization);
+    }
+  );
+
   it('fills missing fields without changing broadcast data, stream identity or provider metadata', async () => {
     fixture.request
       .mockResolvedValueOnce(respond({ results: [details] }))
