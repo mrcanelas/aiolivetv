@@ -23,6 +23,11 @@
 * **metadata:** prioritize personal TMDB credentials ([eeecdff](https://github.com/mrcanelas/aiolivetv/commit/eeecdff88728761864abfdb009a98df398e453ee))
 * **tdtchannels:** report stream availability per channel ([84a1f8f](https://github.com/mrcanelas/aiolivetv/commit/84a1f8fe123d065b412efc495a6251b567a3ddd9))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.5.0](https://github.com/mrcanelas/aiolivetv/compare/v1.4.1...v1.5.0) (2026-10-21)
 
 
