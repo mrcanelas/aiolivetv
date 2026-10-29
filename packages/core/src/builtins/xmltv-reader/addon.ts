@@ -119,6 +119,7 @@ function mapProgramToVideo(
       subtitle: program.subtitle,
       description: program.description,
       thumbnail: program.thumbnail,
+      background: program.background,
       startTime,
       endTime,
       airedYear: program.released?.slice(0, 4),

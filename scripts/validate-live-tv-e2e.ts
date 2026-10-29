@@ -25,6 +25,8 @@ const XMLTV_FIXTURE = `<tv>
   <channel id="rtp1"><display-name>RTP 1</display-name></channel>
   <programme channel="bbc.one" start="${xmltvTimestamp(EPG_START)}" stop="${xmltvTimestamp(EPG_STOP)}">
     <title>News</title><desc>Latest news</desc>
+    <icon src="https://example.com/news-small.jpg" />
+    <image type="backdrop" orient="L" size="3">https://example.com/news-wide.jpg</image>
   </programme>
 </tv>`;
 
@@ -282,6 +284,11 @@ async function validateWithEpg(
   const bbcId = bbcXmltv.id;
 
   const epgMeta = (await aio.getMeta(constants.TV_TYPE, bbcId)).data;
+  assert(
+    epgMeta?.videos?.[0]?.thumbnail === 'https://example.com/news-small.jpg' &&
+      epgMeta.videos[0].background === 'https://example.com/news-wide.jpg',
+    'expected separate XMLTV thumbnail and background in meta'
+  );
   assert(
     epgMeta?.videos?.[0]?.title === 'News',
     'expected EPG program in meta'

@@ -54,6 +54,34 @@ beforeEach(() => {
 });
 
 describe('live TV sources', () => {
+  it('preserves XMLTV icons and selects the largest landscape programme backdrop', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="bbc"><display-name>BBC</display-name></channel><programme channel="bbc" start="20261021120000 +0000" stop="20261021130000 +0000"><title>News</title><icon src="https://example.com/icon.jpg"/><image type="backdrop" orient="L" size="1">https://example.com/small.jpg</image><image type="backdrop" orient="P" size="3">https://example.com/portrait.jpg</image><image type="backdrop" orient="L" size="3">https://example.com/wide.jpg</image></programme></tv>'
+      )
+    );
+    const addon = new XmltvAddon({
+      sourceUrl: 'https://example.com/guide.xml',
+      timeout: 1000,
+    });
+    expect(
+      (await addon.getCatalogGuide(0, '2026-10-21'))[0].videos?.[0]
+    ).toMatchObject({
+      thumbnail: 'https://example.com/icon.jpg',
+      background: 'https://example.com/wide.jpg',
+    });
+  });
+
+  it('uses small still images when XMLTV has no icon and does not invent a backdrop from a poster', async () => {
+    const data = await parseXmltvData(
+      '<tv><programme channel="bbc" start="20261021120000 +0000" stop="20261021130000 +0000"><title>News</title><image type="poster" orient="P">https://example.com/poster.jpg</image><image type="still" orient="L" size="3">https://example.com/large.jpg</image><image type="still" orient="L" size="1">https://example.com/small.jpg</image></programme></tv>'
+    );
+    expect(data.programs[0]).toMatchObject({
+      thumbnail: 'https://example.com/small.jpg',
+    });
+    expect(data.programs[0].background).toBeUndefined();
+  });
+
   it('preserves XMLTV content identifiers, production year and zero-based episode numbers', async () => {
     vi.mocked(makeRequest).mockResolvedValueOnce(
       sourceResponse(

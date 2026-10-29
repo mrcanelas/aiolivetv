@@ -692,6 +692,7 @@ function tdtVideos(
         subtitle: program.subtitle,
         description: program.description,
         thumbnail: program.thumbnail,
+        background: program.background,
         ...applyEpgTimeShift(
           program.startTime,
           program.endTime,

@@ -22,6 +22,7 @@ interface XmltvProgram {
   runtime?: string;
   description?: string;
   thumbnail?: string;
+  background?: string;
   categories?: string[];
   cast?: string[];
   directors?: string[];
@@ -69,6 +70,26 @@ function values(input: unknown): string[] {
   return (Array.isArray(input) ? input : input ? [input] : [])
     .map(value)
     .filter((entry): entry is string => Boolean(entry));
+}
+
+function programmeImage(
+  images:
+    | Array<{
+        _?: string;
+        $?: { type?: string; orient?: string; size?: string };
+      }>
+    | undefined,
+  type: string,
+  largest = false
+): string | undefined {
+  return (images ?? [])
+    .filter(
+      (image) =>
+        image.$?.type === type && (type === 'poster' || image.$?.orient !== 'P')
+    )
+    .map((image) => ({ url: value(image), size: Number(image.$?.size) || 2 }))
+    .filter((image) => image.url)
+    .sort((a, b) => (largest ? b.size - a.size : a.size - b.size))[0]?.url;
 }
 
 function parseXmltvDate(input: unknown): string | undefined {
@@ -229,7 +250,12 @@ export async function parseXmltvData(xml: string): Promise<XmltvData> {
         released: parseProgramDate(program?.date?.[0]),
         runtime: programRuntime(startTime, endTime),
         description: value(program?.desc?.[0]?._ ?? program?.desc?.[0]),
-        thumbnail: value(program?.icon?.[0]?.$?.src),
+        thumbnail:
+          value(program?.icon?.[0]?.$?.src) ||
+          programmeImage(program?.image, 'still') ||
+          programmeImage(program?.image, 'poster') ||
+          programmeImage(program?.image, 'backdrop'),
+        background: programmeImage(program?.image, 'backdrop', true),
         categories: values(program?.category),
         cast: values(program?.credits?.[0]?.actor),
         directors: values(program?.credits?.[0]?.director),
