@@ -484,6 +484,13 @@ function scheduleToVideo(
           'width=455&height=256&resize=CROP&format=JPEG'
         )
       : undefined,
+    background: thumbnailUrl
+      ? spotlightUrl(
+          country,
+          thumbnailUrl,
+          'width=1280&height=720&resize=CROP&format=JPEG'
+        )
+      : undefined,
     startTime,
     endTime,
     airedYear,

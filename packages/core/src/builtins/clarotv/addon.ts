@@ -100,8 +100,8 @@ function normalizeChannelTitle(title: string): string {
   return decodeHtmlEntities(title.replace(/HD | HD/g, '').trim());
 }
 
-function programThumbnailUrl(url: string): string {
-  return url.replace('{{image-size-placeholder}}', '420_236');
+function programImageUrl(url: string, size: string): string {
+  return url.replace('{{image-size-placeholder}}', size);
 }
 
 /** Claro sends ClassInd L as numeric code 1; other ages are the age itself. */
@@ -257,7 +257,9 @@ function scheduleToVideo(
     new Date(item.endTime * 1000).toISOString(),
     timeShiftMinutes
   );
-  const thumbnail = item.image ? programThumbnailUrl(item.image) : undefined;
+  const thumbnail = item.image
+    ? programImageUrl(item.image, '420_236')
+    : undefined;
   return programToVideo({
     channelEncodedId: encodedId,
     title: decodeHtmlEntities(item.title),
@@ -265,6 +267,9 @@ function scheduleToVideo(
       ? decodeHtmlEntities(item.description)
       : undefined,
     thumbnail,
+    background: item.image
+      ? programImageUrl(item.image, '1280_720')
+      : undefined,
     startTime,
     endTime,
     ratings: toContentRatings([

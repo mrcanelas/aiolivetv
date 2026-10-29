@@ -68,6 +68,7 @@ interface TvpProgramme {
   startTime: string;
   endTime: string;
   thumbnail?: string;
+  background?: string;
   categories?: string[];
   airedYear?: string;
   ratings?: Array<{ value: string; system: string }>;
@@ -261,6 +262,19 @@ function mapProgramme(
         480,
         270
       ),
+    background:
+      picture(
+        row.images as Record<string, TvpImage[]> | undefined,
+        '16x9',
+        1280,
+        720
+      ) ||
+      picture(
+        row.artworks as Record<string, TvpImage[]> | undefined,
+        '16x9',
+        1280,
+        720
+      ),
     categories: genres.length ? genres : undefined,
     airedYear: year,
     ratings,
@@ -381,6 +395,7 @@ function programmeToVideo(
     title: item.title,
     description: item.description,
     thumbnail: item.thumbnail,
+    background: item.background,
     startTime,
     endTime,
     airedYear: item.airedYear,

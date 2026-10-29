@@ -228,6 +228,7 @@ describe('Claro TV+ builtin', () => {
       season: 1,
       episode: 2,
       thumbnail: 'https://cdn.example/frame-420_236.jpg',
+      background: 'https://cdn.example/frame-1280_720.jpg',
       ratings: [
         {
           value: '12',

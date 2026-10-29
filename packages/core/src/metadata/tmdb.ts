@@ -466,14 +466,14 @@ export class TMDBMetadata {
       })
     );
     if (!matchesEpgTmdbTitle(details, query)) return null;
-    const image = (path: string | null | undefined) =>
+    const image = (path: string | null | undefined, size: string) =>
       path?.startsWith('/')
-        ? `https://image.tmdb.org/t/p/w780${path}`
+        ? `https://image.tmdb.org/t/p/${size}${path}`
         : undefined;
     const metadata: EpgTmdbMetadata = {
       overview: details.overview || undefined,
-      thumbnail: image(details.poster_path),
-      background: image(details.backdrop_path),
+      thumbnail: image(details.poster_path, 'w342'),
+      background: image(details.backdrop_path, 'w1280'),
       genres: details.genres?.map((genre) => genre.name),
       cast: details.credits?.cast?.slice(0, 10).map((person) => person.name),
       directors: details.credits?.crew
@@ -494,7 +494,8 @@ export class TMDBMetadata {
         );
         metadata.subtitle = episode.name || undefined;
         metadata.overview = episode.overview || metadata.overview;
-        metadata.thumbnail = image(episode.still_path) ?? metadata.thumbnail;
+        metadata.thumbnail =
+          image(episode.still_path, 'w300') ?? metadata.thumbnail;
       } catch {
         // Series details remain useful when a provider's episode number is wrong.
       }

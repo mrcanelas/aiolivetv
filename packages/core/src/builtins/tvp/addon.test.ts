@@ -104,6 +104,14 @@ describe('TVP builtin', () => {
             till: '2026-09-17T12:30:00+0000',
             live: { id: 399699 },
             description: 'Serwis informacyjny',
+            images: {
+              '16x9': [
+                {
+                  templateUrl:
+                    'https://cdn.example/image_{width:315}x{height:177}.jpg',
+                },
+              ],
+            },
             year: 2026,
             rating: '12',
           },
@@ -120,6 +128,8 @@ describe('TVP builtin', () => {
     expect(meta.videos?.[0]).toMatchObject({
       title: 'Wiadomości',
       overview: 'Serwis informacyjny',
+      thumbnail: 'https://cdn.example/image_480x270.jpg',
+      background: 'https://cdn.example/image_1280x720.jpg',
       startTime: '2026-09-17T12:00:00.000Z',
       endTime: '2026-09-17T12:30:00.000Z',
       ratings: [

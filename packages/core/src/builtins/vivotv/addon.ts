@@ -103,8 +103,8 @@ function channelLogoUrl(iconUrl: string): string {
   return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(iconUrl)}&format=WEBP`;
 }
 
-function programThumbnailUrl(url: string): string {
-  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(url)}&width=455&height=256&resize=CROP&format=WEBP`;
+function programImageUrl(url: string, width: number, height: number): string {
+  return `https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=${encodeURIComponent(url)}&width=${width}&height=${height}&resize=CROP&format=WEBP`;
 }
 
 function parseProgramTitle(title: string): {
@@ -373,7 +373,12 @@ function scheduleToVideo(
     title,
     subtitle,
     description: item.Description,
-    thumbnail: thumbnailUrl ? programThumbnailUrl(thumbnailUrl) : undefined,
+    thumbnail: thumbnailUrl
+      ? programImageUrl(thumbnailUrl, 455, 256)
+      : undefined,
+    background: thumbnailUrl
+      ? programImageUrl(thumbnailUrl, 1280, 720)
+      : undefined,
     startTime,
     endTime,
     airedYear,
