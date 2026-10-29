@@ -126,6 +126,7 @@ export interface MiTvProgram {
   subtitle?: string;
   description?: string;
   thumbnail?: string;
+  background?: string;
   startTime: string;
   endTime: string;
   season?: number;
@@ -280,12 +281,18 @@ export function parseMiTvListings(html: string, date: string): MiTvProgram[] {
     const thumbnail = body
       .match(/background-image:\s*url\(['"]?([^'")\s]+)['"]?\)/i)?.[1]
       ?.replace(/\\+/g, '');
+    const background = thumbnail?.match(
+      /^https:\/\/cdn\.mitvstatic\.com\/programs\/[^?#]+_l_[ml]\.jpg(?:[?#]|$)/
+    )
+      ? thumbnail.replace(/_l_m\.jpg(?=[?#]|$)/, '_l_l.jpg')
+      : undefined;
 
     parsed.push({
       title,
       subtitle,
       description,
       thumbnail,
+      background,
       startTime: start.toISOString(),
       startMs: start.getTime(),
       season,
@@ -301,6 +308,7 @@ export function parseMiTvListings(html: string, date: string): MiTvProgram[] {
       subtitle: program.subtitle,
       description: program.description,
       thumbnail: program.thumbnail,
+      background: program.background,
       startTime: program.startTime,
       endTime: new Date(endMs).toISOString(),
       season: program.season,
@@ -373,6 +381,7 @@ function programToChannelVideo(
       subtitle: program.subtitle,
       description: program.description,
       thumbnail: program.thumbnail,
+      background: program.background,
       startTime,
       endTime,
       categories:

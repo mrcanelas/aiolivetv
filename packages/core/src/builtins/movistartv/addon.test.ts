@@ -291,7 +291,7 @@ describe('Movistar TV builtin', () => {
       thumbnail:
         'https://spotlight-cl.cdn.telefonica.com/customer/v1/source?image=http%3A%2F%2Fmedia.gvp.telefonica.com%2Fframe.jpg&width=455&height=256&resize=CROP&format=JPEG',
       background:
-        'https://spotlight-cl.cdn.telefonica.com/customer/v1/source?image=http%3A%2F%2Fmedia.gvp.telefonica.com%2Fframe.jpg&width=1280&height=720&resize=CROP&format=JPEG',
+        'https://spotlight-cl.cdn.telefonica.com/customer/v1/source?image=http%3A%2F%2Fmedia.gvp.telefonica.com%2Fframe.jpg&width=1920&height=1080&resize=CROP&format=JPEG',
       genres: ['Noticias'],
       cast: ['Presentador'],
       ratings: [

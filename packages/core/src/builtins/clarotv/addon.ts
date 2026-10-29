@@ -268,7 +268,7 @@ function scheduleToVideo(
       : undefined,
     thumbnail,
     background: item.image
-      ? programImageUrl(item.image, '1280_720')
+      ? programImageUrl(item.image, '1920_1080')
       : undefined,
     startTime,
     endTime,

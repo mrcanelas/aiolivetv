@@ -266,14 +266,14 @@ function mapProgramme(
       picture(
         row.images as Record<string, TvpImage[]> | undefined,
         '16x9',
-        1280,
-        720
+        1920,
+        1080
       ) ||
       picture(
         row.artworks as Record<string, TvpImage[]> | undefined,
         '16x9',
-        1280,
-        720
+        1920,
+        1080
       ),
     categories: genres.length ? genres : undefined,
     airedYear: year,

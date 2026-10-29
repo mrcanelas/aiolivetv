@@ -35,7 +35,7 @@ const LISTINGS_HTML = `
     <li>
       <a class="program-link">
         <div class="image-parent">
-          <div class="image" style="background-image: url('https://cdn.mitvstatic.com/programs/globo.jpg')"></div>
+          <div class="image" style="background-image: url('https://cdn.mitvstatic.com/programs/br_jornal-nacional_l_m.jpg')"></div>
         </div>
         <div class="content">
           <span class="time">20:30</span>
@@ -117,6 +117,31 @@ describe('Mi.tv builtin', () => {
     expect(programs[2]?.startTime).toBe('2026-09-12T00:15:00.000Z');
   });
 
+  it.each([
+    [
+      'https://cdn.mitvstatic.com/programs/ar_show_l_m.jpg?version=1',
+      'https://cdn.mitvstatic.com/programs/ar_show_l_l.jpg?version=1',
+    ],
+    [
+      'https://cdn.mitvstatic.com/programs/ar_show_l_l.jpg',
+      'https://cdn.mitvstatic.com/programs/ar_show_l_l.jpg',
+    ],
+    ['https://cdn.mitvstatic.com/programs/unknown.jpg', undefined],
+    ['https://example.com/ar_show_l_m.jpg', undefined],
+  ])(
+    'uses only validated Mi.tv landscape variants: %s',
+    (thumbnail, background) => {
+      const html = LISTINGS_HTML.replace(
+        'https://cdn.mitvstatic.com/programs/br_jornal-nacional_l_m.jpg',
+        thumbnail
+      );
+      expect(parseMiTvListings(html, '2026-09-11')[0]).toMatchObject({
+        thumbnail,
+        background,
+      });
+    }
+  );
+
   it('maps catalog channels from the sitemap', async () => {
     vi.mocked(makeRequest).mockResolvedValueOnce({
       ok: true,
@@ -162,6 +187,10 @@ describe('Mi.tv builtin', () => {
     expect(meta.videos?.[0]).toMatchObject({
       title: 'Jornal Nacional',
       overview: 'As notícias do dia.',
+      thumbnail:
+        'https://cdn.mitvstatic.com/programs/br_jornal-nacional_l_m.jpg',
+      background:
+        'https://cdn.mitvstatic.com/programs/br_jornal-nacional_l_l.jpg',
     });
     expect(meta.videos?.[1]).toMatchObject({
       title: 'Novela',

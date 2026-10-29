@@ -181,7 +181,7 @@ describe('Vivo TV builtin', () => {
       thumbnail:
         'https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=https%3A%2F%2Fcdn.example%2Fframe.jpg&width=455&height=256&resize=CROP&format=WEBP',
       background:
-        'https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=https%3A%2F%2Fcdn.example%2Fframe.jpg&width=1280&height=720&resize=CROP&format=WEBP',
+        'https://spotlight-br.cdn.telefonica.com/customer/v1/source?image=https%3A%2F%2Fcdn.example%2Fframe.jpg&width=1920&height=1080&resize=CROP&format=WEBP',
       genres: ['Notícias'],
       cast: ['Apresentador'],
       ratings: [

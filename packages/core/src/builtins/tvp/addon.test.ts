@@ -129,7 +129,7 @@ describe('TVP builtin', () => {
       title: 'Wiadomości',
       overview: 'Serwis informacyjny',
       thumbnail: 'https://cdn.example/image_480x270.jpg',
-      background: 'https://cdn.example/image_1280x720.jpg',
+      background: 'https://cdn.example/image_1920x1080.jpg',
       startTime: '2026-09-17T12:00:00.000Z',
       endTime: '2026-09-17T12:30:00.000Z',
       ratings: [

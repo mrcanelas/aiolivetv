@@ -365,7 +365,7 @@ export class TMDBMetadata {
   public async getEpgMetadata(
     query: EpgTmdbQuery
   ): Promise<EpgTmdbMetadata | null> {
-    const cacheKey = JSON.stringify(query);
+    const cacheKey = `original-backdrop:${JSON.stringify(query)}`;
     const cached = await TMDBMetadata.epgCache.get(cacheKey);
     if (cached) return cached.metadata;
     const pending = pendingEpgLookups.get(cacheKey);
@@ -455,7 +455,7 @@ export class TMDBMetadata {
     const metadata: EpgTmdbMetadata = {
       overview: details.overview || undefined,
       thumbnail: image(details.poster_path, 'w342'),
-      background: image(details.backdrop_path, 'w1280'),
+      background: image(details.backdrop_path, 'original'),
       genres: details.genres?.map((genre) => genre.name),
       cast: details.credits?.cast?.slice(0, 10).map((person) => person.name),
       directors: details.credits?.crew

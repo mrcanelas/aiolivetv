@@ -488,7 +488,7 @@ function scheduleToVideo(
       ? spotlightUrl(
           country,
           thumbnailUrl,
-          'width=1280&height=720&resize=CROP&format=JPEG'
+          'width=1920&height=1080&resize=CROP&format=JPEG'
         )
       : undefined,
     startTime,

@@ -108,7 +108,7 @@ describe('optional EPG metadata enrichment', () => {
       thumbnail: 'https://provider/art.jpg',
       cast: ['Provider cast'],
       directors: ['Lana Wachowski'],
-      background: 'https://image.tmdb.org/t/p/w1280/background.jpg',
+      background: 'https://image.tmdb.org/t/p/original/background.jpg',
     });
     expect(source).not.toHaveProperty('overview');
     expect(fixture.request.mock.calls[0][0]).toContain('language=pt-BR');
