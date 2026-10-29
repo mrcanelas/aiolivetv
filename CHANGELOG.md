@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.6.0](https://github.com/mrcanelas/aiolivetv/compare/v1.5.0...v1.6.0) (2026-10-29)
+
+
+### Features
+
+* **channels:** preserve refresh state and select preferred EPG guides ([d209d1a](https://github.com/mrcanelas/aiolivetv/commit/d209d1af8f3ff3c55c51f9e018b94db6ebc5297e))
+* **directv:** add Full HD programme backgrounds ([2dcd8e4](https://github.com/mrcanelas/aiolivetv/commit/2dcd8e4ba11878290154f67086ec43588c7f2d11))
+* **livetv:** discover playlist guides and validate native EPG ([5d3a919](https://github.com/mrcanelas/aiolivetv/commit/5d3a919d9f1e376d9d6fd8e713cd29313df02234))
+* **metadata:** enrich EPG programmes with TMDB ([e39e094](https://github.com/mrcanelas/aiolivetv/commit/e39e09490f9e52aaab87aa6879e45a6b73c56922))
+* **metadata:** prefer Full HD and original programme backgrounds ([afb297e](https://github.com/mrcanelas/aiolivetv/commit/afb297e0f26c699bf0a55b118e375e155d83a1ff))
+* **metadata:** separate programme thumbnail and backdrop sizes ([07d03ab](https://github.com/mrcanelas/aiolivetv/commit/07d03ab13630f081ef44d092329c568a3330cd57))
+* **sorting:** restore shared Live TV stream ordering ([bee5a9f](https://github.com/mrcanelas/aiolivetv/commit/bee5a9f78902c8ac484c8f9b367ac1a89628ee41))
+* **xmltv:** preserve programme backdrops and image roles ([80d1031](https://github.com/mrcanelas/aiolivetv/commit/80d1031346b93acff0e74782cc9c7526fdbc3cf9))
+
+
+### Bug Fixes
+
+* **clarotv:** report provider failures and avoid empty cache ([70a3275](https://github.com/mrcanelas/aiolivetv/commit/70a32751c7a409fbed653e8fe73b697412b68daf))
+* **dashboard:** prevent stale settings in browser and CDN caches ([0da5061](https://github.com/mrcanelas/aiolivetv/commit/0da506175e32f1e32b738a30879a9096d406e527))
+* **metadata:** enrich programmes only in channel details ([d3538f6](https://github.com/mrcanelas/aiolivetv/commit/d3538f68d019b1cbf54b3fb6624b490a35090ba5))
+* **metadata:** prioritize personal TMDB credentials ([eeecdff](https://github.com/mrcanelas/aiolivetv/commit/eeecdff88728761864abfdb009a98df398e453ee))
+* **tdtchannels:** report stream availability per channel ([84a1f8f](https://github.com/mrcanelas/aiolivetv/commit/84a1f8fe123d065b412efc495a6251b567a3ddd9))
+
 ## [1.5.0](https://github.com/mrcanelas/aiolivetv/compare/v1.4.1...v1.5.0) (2026-10-21)
 
 
