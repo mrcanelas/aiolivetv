@@ -64,6 +64,7 @@ interface DirectvProgramme {
   subtitle?: string;
   description?: string;
   thumbnail?: string;
+  background?: string;
   startTime: string;
   endTime: string;
   airedYear?: string;
@@ -387,13 +388,14 @@ function cdnImage(id: string): string | undefined {
  */
 function programmeCdnImage(
   kind: 'episode' | 'series',
-  id: string
+  id: string,
+  size: '640/360' | '1920/1080'
 ): string | undefined {
   if (!CHANNEL_ID_PATTERN.test(id)) return undefined;
   if (kind === 'episode') {
-    return `${PROGRAMME_IMAGE_ROOT}/episode/${id}/keyframe-ci/640/360`;
+    return `${PROGRAMME_IMAGE_ROOT}/episode/${id}/keyframe-ci/${size}`;
   }
-  return `${PROGRAMME_IMAGE_ROOT}/series/${id}/iconic-ci/640/360`;
+  return `${PROGRAMME_IMAGE_ROOT}/series/${id}/iconic-ci/${size}`;
 }
 
 function mapChannel(item: Record<string, unknown>): DirectvChannel | undefined {
@@ -467,13 +469,16 @@ function programmeRating(
   return { value: raw, system: 'mpa' };
 }
 
-function programmeThumbnail(item: DirectvScheduleItem): string | undefined {
+function programmeImage(
+  item: DirectvScheduleItem,
+  size: '640/360' | '1920/1080'
+): string | undefined {
   const external = listedImage(item as unknown as Record<string, unknown>);
-  if (external) return external;
+  if (external && size === '640/360') return external;
   const seriesEditId = text(item.seriesEditId);
-  if (seriesEditId) return programmeCdnImage('series', seriesEditId);
+  if (seriesEditId) return programmeCdnImage('series', seriesEditId, size);
   const editId = text(item.editId);
-  if (editId) return programmeCdnImage('episode', editId);
+  if (editId) return programmeCdnImage('episode', editId, size);
   return undefined;
 }
 
@@ -490,13 +495,13 @@ function mapProgramme(
     return undefined;
   }
   const rating = programmeRating(item);
-  const thumbnail = programmeThumbnail(item);
   return {
     channelId,
     title,
     subtitle: programmeSubtitle(item),
     description: text(item.description),
-    thumbnail,
+    thumbnail: programmeImage(item, '640/360'),
+    background: programmeImage(item, '1920/1080'),
     startTime: new Date(startMs).toISOString(),
     endTime: new Date(endMs).toISOString(),
     airedYear: airedYear(item),
@@ -512,7 +517,7 @@ async function loadProgrammesForChannelDay(
 ): Promise<DirectvProgramme[]> {
   const startMs = Date.parse(`${date}T00:00:00.000Z`);
   if (!Number.isFinite(startMs)) return [];
-  const cacheKey = `${date}:${channelId.toLowerCase()}:v5`;
+  const cacheKey = `${date}:${channelId.toLowerCase()}:v6`;
   const cached = await programmeCache.get(cacheKey);
   if (cached) return cached;
 
@@ -590,6 +595,7 @@ function toVideo(
     subtitle: item.subtitle,
     description: item.description,
     thumbnail: item.thumbnail,
+    background: item.background,
     startTime,
     endTime,
     airedYear: item.airedYear,

@@ -192,65 +192,70 @@ describe('DIRECTV builtin', () => {
     ]);
   });
 
-  it('uses the series image when the episode still may be missing and reads the TV rating', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-17T12:00:00.000Z'));
-    const seriesEditId = '42df0f3e-b723-4618-bb7a-170890de7e4f';
-    vi.mocked(makeRequest).mockImplementation(async (url: string) => {
-      const href = String(url);
-      if (href.includes('/tokens')) {
-        return jsonResponse({ access_token: 'tok', expires_in: 3600 });
-      }
-      if (href.includes('/allchannels')) {
-        return jsonResponse({ channelInfoList: [CHANNEL] });
-      }
-      if (href.includes('/schedule')) {
-        return jsonResponse({
-          schedules: [
-            {
-              channelId: '123',
-              contents: [
-                {
-                  programID: 'abc',
-                  title: '20/20',
-                  seriesId: 'f95949d9-807e-8584-e299-ad8c19f23b6f',
-                  seriesEditId,
-                  editId: 'd752e5ef-8dd4-4e2a-94fb-3ea9295f339a',
-                  description: 'Scott Peterson may receive a new trial.',
-                  genres: ['News'],
-                  consumables: [
-                    {
-                      startTime: '2026-09-17T12:00:00.000Z',
-                      endTime: '2026-09-17T13:00:00.000Z',
-                      parentalRating: 'TVPG',
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        });
-      }
-      return jsonResponse({}, 404);
-    });
+  it.each(['series', 'episode'] as const)(
+    'uses %s artwork with separate thumbnail and Full HD background sizes',
+    async (kind) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-17T12:00:00.000Z'));
+      const seriesEditId = '42df0f3e-b723-4618-bb7a-170890de7e4f';
+      const editId = 'd752e5ef-8dd4-4e2a-94fb-3ea9295f339a';
+      vi.mocked(makeRequest).mockImplementation(async (url: string) => {
+        const href = String(url);
+        if (href.includes('/tokens')) {
+          return jsonResponse({ access_token: 'tok', expires_in: 3600 });
+        }
+        if (href.includes('/allchannels')) {
+          return jsonResponse({ channelInfoList: [CHANNEL] });
+        }
+        if (href.includes('/schedule')) {
+          return jsonResponse({
+            schedules: [
+              {
+                channelId: '123',
+                contents: [
+                  {
+                    programID: 'abc',
+                    title: '20/20',
+                    seriesId: 'f95949d9-807e-8584-e299-ad8c19f23b6f',
+                    seriesEditId: kind === 'series' ? seriesEditId : undefined,
+                    editId,
+                    description: 'Scott Peterson may receive a new trial.',
+                    genres: ['News'],
+                    consumables: [
+                      {
+                        startTime: '2026-09-17T12:00:00.000Z',
+                        endTime: '2026-09-17T13:00:00.000Z',
+                        parentalRating: 'TVPG',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          });
+        }
+        return jsonResponse({}, 404);
+      });
 
     const addon = new DirectvAddon({ timeout: 1000 });
     const catalog = await addon.getCatalog();
     const meta = await addon.getMeta(catalog[0]!.id);
     vi.useRealTimers();
 
-    expect(meta.videos?.[0]).toMatchObject({
-      title: '20/20',
-      thumbnail: `https://dfwfis.prod.dtvcdn.com/catalog/image/imageserver/v1/service/series/${seriesEditId}/iconic-ci/640/360`,
-      ratings: [
-        {
-          value: 'TV-PG',
-          system: 'tv-pg',
-          icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/tv-pg/tv-pg.svg',
-        },
-      ],
-    });
-  });
+      expect(meta.videos?.[0]).toMatchObject({
+        title: '20/20',
+        thumbnail: `https://dfwfis.prod.dtvcdn.com/catalog/image/imageserver/v1/service/${kind}/${kind === 'series' ? seriesEditId : editId}/${kind === 'series' ? 'iconic-ci' : 'keyframe-ci'}/640/360`,
+        background: `https://dfwfis.prod.dtvcdn.com/catalog/image/imageserver/v1/service/${kind}/${kind === 'series' ? seriesEditId : editId}/${kind === 'series' ? 'iconic-ci' : 'keyframe-ci'}/1920/1080`,
+        ratings: [
+          {
+            value: 'TV-PG',
+            system: 'tv-pg',
+            icon: 'https://cdn.jsdelivr.net/gh/mrcanelas/age-rating-kit@latest/icons/tv-pg/tv-pg.svg',
+          },
+        ],
+      });
+    }
+  );
 
   it('uses a proxied logo when DIRECTV does not send an external image', async () => {
     const id = '0ceb396e-86d0-417f-99a2-5de1f3366743';
@@ -259,7 +264,9 @@ describe('DIRECTV builtin', () => {
         return jsonResponse({ access_token: 'tok', expires_in: 3600 });
       }
       return jsonResponse({
-        channelInfoList: [{ resourceId: id, channelName: '20/20', callSign: '2020' }],
+        channelInfoList: [
+          { resourceId: id, channelName: '20/20', callSign: '2020' },
+        ],
       });
     });
 
