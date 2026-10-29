@@ -93,7 +93,7 @@ export async function enrichEpgVideos<
   } catch {
     return videos;
   }
-  // Bound work per page; large guides should never enqueue a whole country's schedule.
+  // Bound work per channel; opening details should not enrich the entire schedule.
   const targets = new Set(
     videos
       .filter(
@@ -179,24 +179,6 @@ export async function enrichEpgVideos<
     videos,
     { timeout: 1500, getContext: () => 'optional TMDB EPG enrichment' }
   );
-}
-
-export async function enrichEpgMetas<T extends Meta>(
-  metas: T[],
-  userData: UserData
-): Promise<T[]> {
-  if (!userData.enrichEpgWithTmdb) return metas;
-  const videos = metas.flatMap((meta) => meta.videos ?? []);
-  const enriched = await enrichEpgVideos(videos, userData);
-  let offset = 0;
-  return metas.map((meta) => {
-    const count = meta.videos?.length ?? 0;
-    const result = count
-      ? { ...meta, videos: enriched.slice(offset, offset + count) }
-      : meta;
-    offset += count;
-    return result;
-  });
 }
 
 // interface ExternalId {

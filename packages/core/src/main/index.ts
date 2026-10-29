@@ -30,7 +30,7 @@ import {
   applyPreferredChannelGuides,
 } from './catalog.js';
 import { configurationProvidesNativeEpg } from './epgProvider.js';
-import { enrichEpgVideos, enrichEpgMetas } from '../metadata/tmdb.js';
+import { enrichEpgVideos } from '../metadata/tmdb.js';
 import {
   getStreams as _getStreams,
   getMeta as _getMeta,
@@ -106,12 +106,6 @@ export class AIOStreams {
         result.metasDetailed = preferred.items;
         if (!preferred.cacheable) result.cacheable = false;
       }
-    }
-    if (type === constants.TV_TYPE && result.metasDetailed?.length) {
-      result.metasDetailed = await enrichEpgMetas(
-        result.metasDetailed,
-        this.ctx.userData
-      );
     }
     return result;
   }

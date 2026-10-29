@@ -83,9 +83,11 @@ async function startFixtureServer(): Promise<{
   sourceBase: string;
 }> {
   const server = createServer((req, res) => {
-    if (req.url === '/guide.xml') {
+    if (req.url === '/guide.xml' || req.url === '/guide-enrichment.xml') {
       res.writeHead(200, { 'content-type': 'application/xml' });
-      res.end(XMLTV_FIXTURE);
+      res.end(req.url === '/guide-enrichment.xml'
+        ? XMLTV_FIXTURE.replace('<title>News</title>', '<title>The Matrix</title><category>Movie</category><date>1999</date>')
+        : XMLTV_FIXTURE);
       return;
     }
     if (req.url === '/alternate-guide.xml' || req.url === '/empty-guide.xml') {
@@ -1203,6 +1205,40 @@ async function validateGuideChoicesAndPersistence(
   );
 }
 
+async function validateDetailsOnlyEnrichment(sourceBase: string, core: CoreModule) {
+  const { TMDBMetadata } = await import('../packages/core/dist/metadata/tmdb.js');
+  const original = TMDBMetadata.prototype.getEpgMetadata;
+  let lookups = 0;
+  TMDBMetadata.prototype.getEpgMetadata = async () => {
+    lookups++;
+    return { cast: ['Enriched cast'] };
+  };
+  try {
+    const aio = await new core.AIOStreams({
+      ...liveTvUserData([{
+        ...xmltvPreset,
+        options: { ...xmltvPreset.options, sourceUrl: `${sourceBase}/guide-enrichment.xml` },
+      }]),
+      enrichEpgWithTmdb: true,
+      tmdbApiKey: 'fixture-key',
+    }).initialise();
+    const catalog = aio.getCatalogs().find((item) => item.type === core.constants.TV_TYPE);
+    assert(catalog, 'expected enrichment fixture catalog');
+    const guide = await aio.getCatalog(core.constants.TV_TYPE, catalog.id, `date=${EPG_START_ISO.slice(0, 10)}`);
+    const channel = guide.metasDetailed?.find((item) => item.videos?.length);
+    assert(channel, 'expected scheduled programme in discovery');
+    assert(lookups === 0, 'discovery must not query TMDB');
+    assert(channel.videos?.[0]?.overview === 'Latest news', 'discovery must preserve provider metadata');
+    const meta = await aio.getMeta(core.constants.TV_TYPE, channel.id);
+    assert(Number(lookups) === 1, 'details must still query TMDB');
+    assert(meta.data?.videos?.[0]?.title === 'The Matrix', 'details must preserve the programme title');
+    assert(meta.data?.videos?.[0]?.cast?.[0] === 'Enriched cast', 'details must receive enriched metadata');
+  } finally {
+    TMDBMetadata.prototype.getEpgMetadata = original;
+  }
+  console.log('  [ok] TMDB enrichment: discovery skips lookups, channel details enrich on demand');
+}
+
 async function main() {
   console.log('Validando Live TV E2E...');
   const { server: fixtureServer, sourceBase } = await startFixtureServer();
@@ -1230,6 +1266,7 @@ async function main() {
     await validateChannelMappings(sourceBase, deps);
     await validateParallelStreamResolution(core);
     await validateGuideChoicesAndPersistence(sourceBase, core);
+    await validateDetailsOnlyEnrichment(sourceBase, core);
     console.log('Live TV E2E: todos os checks passaram.');
   } finally {
     await Promise.all([

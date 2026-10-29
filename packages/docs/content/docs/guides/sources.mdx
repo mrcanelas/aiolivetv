@@ -52,7 +52,7 @@ In the M3U add/edit dialog, enter the playlist URL and choose **Find EPG guides*
 
 Under **Addons → Marketplace → Metadata & Catalogs**, enable **Enrich EPG programmes with TMDB**. Use the instance credentials or supply your own API key/read token, and select a language. This sends eligible programme titles to TMDB.
 
-Enrichment fills missing descriptions, artwork, genres and credits for confidently identified films and episodes. XMLTV content links to TMDB/IMDb and `xmltv_ns` episode numbers are supported. Title searches require an explicit production year or episode evidence and a unique exact normalized match. Broadcast dates are never treated as production years.
+Enrichment runs when opening channel details, not when browsing Discovery or the EPG grid. It fills missing descriptions, artwork, genres and credits for up to 24 programmes per channel, prioritizing start times closest to now. XMLTV content links to TMDB/IMDb and `xmltv_ns` episode numbers are supported. Title searches require an explicit production year or episode evidence and a unique exact normalized match. Broadcast dates are never treated as production years.
 
 The original guide keeps its schedule, programme ids, transmission runtime and populated metadata. Requests use four concurrent lookups, at most 24 programmes per response (nearest to the current time), a 1.5-second response budget and the existing cache infrastructure. Successful lookups are cached for seven days; genuine misses for six hours. Upstream/authentication failures are not cached as misses. A failed lookup leaves the original programme available. Without EPG, this option does not generate a schedule or enable `epgProvider`.
 

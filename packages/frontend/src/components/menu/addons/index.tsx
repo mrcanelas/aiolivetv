@@ -348,10 +348,10 @@ function Content() {
                       }
                     />
                     <p className="text-xs text-[--muted]">
-                      Fill missing descriptions, artwork and credits for
-                      confidently identified films and episodes. Programme
-                      titles are sent to TMDB. The guide remains available if
-                      enrichment fails.
+                      Fill missing descriptions, artwork and credits when
+                      opening channel details, for confidently identified films
+                      and episodes. Programme titles are sent to TMDB. The guide
+                      remains available if enrichment fails.
                     </p>
                     {userData.enrichEpgWithTmdb ? (
                       <div className="grid gap-3 sm:grid-cols-2">
