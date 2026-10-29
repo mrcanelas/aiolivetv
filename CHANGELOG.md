@@ -7,6 +7,11 @@
 
 * **docker:** remove obsolete patches copies ([30c892a](https://github.com/mrcanelas/aiolivetv/commit/30c892adc0af4e323bdb04b48d1784eeb6bfd0a2))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.6.0](https://github.com/mrcanelas/aiolivetv/compare/v1.5.0...v1.6.0) (2026-10-29)
 
 
