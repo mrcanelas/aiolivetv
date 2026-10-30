@@ -19,6 +19,7 @@ import {
 } from '../live-tv/epg.js';
 import { parseM3u, parseM3uEpgUrls, type M3uEntry } from './parser.js';
 import { normalizeChannelGroup } from '../../utils/channelName.js';
+import { APIError, ErrorCode } from '../../utils/constants.js';
 
 const SOURCE_CACHE_TTL_MS = 300_000;
 type M3uData = {
@@ -187,7 +188,12 @@ export class M3uAddon {
     const entry = (await loadM3u(this.config)).entriesByChannelId.get(
       channelId
     )?.[0];
-    if (!entry) throw new Error(`Channel not found: ${channelId}`);
+    if (!entry)
+      throw new APIError(
+        ErrorCode.BAD_REQUEST,
+        404,
+        'Channel not found in this playlist'
+      );
     return {
       id: id.split(':epg:', 1)[0],
       type: TV_TYPE,

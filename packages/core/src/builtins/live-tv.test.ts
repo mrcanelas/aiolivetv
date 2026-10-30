@@ -54,6 +54,20 @@ beforeEach(() => {
 });
 
 describe('live TV sources', () => {
+  it('reports a missing playlist channel as 404 without inventing metadata or streams', async () => {
+    vi.mocked(makeRequest).mockResolvedValue(sourceResponse('#EXTM3U\n'));
+    const addon = new M3uAddon({
+      sourceUrl: 'https://example.com/list.m3u',
+      timeout: 1000,
+    });
+    await expect(
+      addon.getMeta(encodeChannelId('missing'))
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: 'Channel not found in this playlist',
+    });
+    expect(await addon.getStreams(encodeChannelId('missing'))).toEqual([]);
+  });
   it('preserves XMLTV icons and selects the largest landscape programme backdrop', async () => {
     vi.mocked(makeRequest).mockResolvedValueOnce(
       sourceResponse(
