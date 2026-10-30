@@ -18,6 +18,7 @@ import {
 import { socksDispatcher } from 'fetch-socks';
 import { createLogger } from '../logging/logger.js';
 import { sameOrigin } from './origin.js';
+import { APIError, ErrorCode } from './constants.js';
 import {
   MAX_SSRF_REDIRECTS,
   SsrfError,
@@ -211,6 +212,22 @@ export async function makeRequest(url: string, options: RequestOptions) {
       }
     }
   } catch (err) {
+    // Undici nests CONNECT failures; expose only the status, never proxy credentials.
+    let cause: unknown = err;
+    for (let depth = 0; depth < 8 && cause instanceof Error; depth++) {
+      const status =
+        /Proxy response \((\d{3})\) !== 200 when HTTP Tunneling/.exec(
+          cause.message
+        )?.[1];
+      if (status) {
+        throw new APIError(
+          ErrorCode.INTERNAL_SERVER_ERROR,
+          502,
+          `Outbound proxy refused the connection (HTTP ${status}). Check the proxy account, access policy and ADDON_PROXY settings.`
+        );
+      }
+      cause = cause.cause;
+    }
     if (err instanceof SsrfError) {
       logger.warn(
         { url: makeUrlLogSafe(currentUrl.toString()), err: err.message },
