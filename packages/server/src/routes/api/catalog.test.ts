@@ -30,6 +30,8 @@ const fixture = vi.hoisted(() => {
     sources: [] as Array<{ error?: string; truncated?: boolean }>,
     inventory: new Map<string, { value: unknown; expires: number }>(),
     catalogCalls: 0,
+    catalogError: '',
+    errorAfterFirstPage: false,
     m3uConfig: undefined as unknown,
     onGuideCatalog: undefined as (() => void) | undefined,
   };
@@ -158,6 +160,17 @@ vi.mock('@aiolivetv/core', async () => {
       async getCatalog(_type: string, id: string, extras?: string) {
         fixture.catalogCalls++;
         if (id.startsWith('guide.')) fixture.onGuideCatalog?.();
+        if (
+          fixture.catalogError &&
+          (!fixture.errorAfterFirstPage ||
+            Number(new URLSearchParams(extras).get('skip')) > 0)
+        ) {
+          return {
+            success: false,
+            data: [],
+            errors: [{ description: fixture.catalogError }],
+          };
+        }
         if (id.startsWith('streams.') && fixture.slowCatalogMs)
           await new Promise((resolve) =>
             setTimeout(resolve, fixture.slowCatalogMs)
@@ -245,6 +258,8 @@ afterEach(async () => {
   fixture.stalledValidation = false;
   fixture.inventory.clear();
   fixture.catalogCalls = 0;
+  fixture.catalogError = '';
+  fixture.errorAfterFirstPage = false;
   fixture.onGuideCatalog = undefined;
   fixture.hybridGuide = false;
 });
@@ -360,6 +375,36 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('accepts a 404 after valid catalog pages as the end of pagination', async () => {
+    fixture.pagedChannels = 25;
+    fixture.pagedStreams = 25;
+    fixture.catalogError = '404 - Not Found';
+    fixture.errorAfterFirstPage = true;
+    expect(await scan(false)).toHaveLength(25);
+    expect(fixture.sources.every((source) => !source.error)).toBe(true);
+  });
+
+  it.each(['404 - Not Found', '429 - Too Many Requests'])(
+    'reports a first-page %s',
+    async (error) => {
+      fixture.catalogError = error;
+      await scan(false);
+      expect(
+        fixture.sources.some((source) => source.error?.includes(error))
+      ).toBe(true);
+    }
+  );
+
+  it('preserves server errors after valid catalog pages', async () => {
+    fixture.pagedChannels = 25;
+    fixture.pagedStreams = 25;
+    fixture.catalogError = '500 - Internal Server Error';
+    fixture.errorAfterFirstPage = true;
+    await scan(false);
+    expect(
+      fixture.sources.some((source) => source.error?.includes('500'))
+    ).toBe(true);
+  });
   it('keeps EPG-only channels without adding a false builtin stream binding', async () => {
     fixture.hybridGuide = true;
     const channels = await scan(false);

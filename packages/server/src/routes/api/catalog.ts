@@ -590,6 +590,13 @@ router.post(
               break;
             }
             if (!response.success) {
+              // Some addons signal the end of pagination with HTTP 404.
+              if (
+                page > 1 &&
+                seenCatalogItems.size > 0 &&
+                /^404\s*-/.test(catalogErrorMessage(response))
+              )
+                break;
               errors.push(
                 `${catalog.id}${page > 1 ? ` (page ${page})` : ''}: ${catalogErrorMessage(response)}`
               );
