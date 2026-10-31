@@ -5,6 +5,9 @@ import { AboutMenu } from './menu/about';
 const AddonsMenu = lazy(() =>
   import('./menu/addons').then((module) => ({ default: module.AddonsMenu }))
 );
+const ServicesMenu = lazy(() =>
+  import('./menu/services').then((module) => ({ default: module.ServicesMenu }))
+);
 const MiscellaneousMenu = lazy(() =>
   import('./menu/miscellaneous').then((module) => ({
     default: module.MiscellaneousMenu,
@@ -43,6 +46,8 @@ function SelectedMenu() {
       return <AboutMenu />;
     case 'addons':
       return <AddonsMenu />;
+    case 'services':
+      return <ServicesMenu />;
     case 'channels':
       return <ChannelsMenu />;
     case 'sorting':

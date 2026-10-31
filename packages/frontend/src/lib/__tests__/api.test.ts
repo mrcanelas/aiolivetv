@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../api';
+import { api, fetchTmdbLanguages } from '../api';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -54,4 +54,43 @@ describe('dashboard API caching', () => {
       expect.objectContaining({ cache: 'force-cache' })
     );
   });
+});
+
+describe('TMDB language response validation', () => {
+  it('accepts names returned by the API without caching the HTTP response', async () => {
+    const languages = [
+      { code: 'aa', name: 'Afar' },
+      { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+    ];
+    const request = vi
+      .fn()
+      .mockResolvedValue(Response.json({ success: true, data: { languages } }));
+    vi.stubGlobal('fetch', request);
+    expect(await fetchTmdbLanguages({})).toEqual(languages);
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/catalogs/tmdb/languages',
+      expect.objectContaining({ method: 'POST', cache: 'no-store', body: '{}' })
+    );
+  });
+
+  it.each([
+    ['aa', 'ab'],
+    [{ code: 'aa' }],
+    [{ name: 'Afar' }],
+    [{ code: 'aa', name: '' }],
+    [],
+  ])(
+    'rejects malformed options instead of displaying undefined: %j',
+    async (...languages) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            Response.json({ success: true, data: { languages } })
+          )
+      );
+      await expect(fetchTmdbLanguages({})).rejects.toThrow();
+    }
+  );
 });

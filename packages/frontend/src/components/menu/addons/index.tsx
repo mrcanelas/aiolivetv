@@ -9,8 +9,6 @@ import {
 import { InheritedBadge } from '../../shared/inherited-badge';
 import { Card } from '../../ui/card';
 import { TextInput } from '../../ui/text-input';
-import { Switch } from '../../ui/switch';
-import { Select } from '../../ui/select';
 import { SearchIcon } from 'lucide-react';
 import { StaticTabs } from '../../ui/tabs';
 import { LuDownload, LuGlobe, LuSettings } from 'react-icons/lu';
@@ -336,76 +334,6 @@ function Content() {
                   <h3 className="flex gap-3 items-center">
                     <MdOutlineDataset /> Metadata & Catalogs
                   </h3>
-                  <div id="epgMetadata" className="space-y-3">
-                    <Switch
-                      label="Enrich EPG programmes with TMDB"
-                      value={userData.enrichEpgWithTmdb ?? false}
-                      onValueChange={(enabled) =>
-                        setUserData((current) => ({
-                          ...current,
-                          enrichEpgWithTmdb: enabled,
-                        }))
-                      }
-                    />
-                    <p className="text-xs text-[--muted]">
-                      Fill missing descriptions, artwork and credits when
-                      opening channel details, for confidently identified films
-                      and episodes. Programme titles are sent to TMDB. The guide
-                      remains available if enrichment fails.
-                    </p>
-                    {userData.enrichEpgWithTmdb ? (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <TextInput
-                          label="TMDB API key"
-                          type="password"
-                          value={userData.tmdbApiKey ?? ''}
-                          onChange={(
-                            event: React.ChangeEvent<HTMLInputElement>
-                          ) =>
-                            setUserData((current) => ({
-                              ...current,
-                              tmdbApiKey: event.target.value || undefined,
-                            }))
-                          }
-                          placeholder="Use the instance key or enter your own"
-                        />
-                        <TextInput
-                          label="TMDB read access token"
-                          type="password"
-                          value={userData.tmdbAccessToken ?? ''}
-                          onChange={(
-                            event: React.ChangeEvent<HTMLInputElement>
-                          ) =>
-                            setUserData((current) => ({
-                              ...current,
-                              tmdbAccessToken: event.target.value || undefined,
-                            }))
-                          }
-                          placeholder="Optional alternative to an API key"
-                        />
-                        <Select
-                          label="Metadata language"
-                          aria-label="Metadata language"
-                          value={userData.epgMetadataLanguage ?? 'en-US'}
-                          onValueChange={(language) =>
-                            setUserData((current) => ({
-                              ...current,
-                              epgMetadataLanguage: language,
-                            }))
-                          }
-                          options={[
-                            { value: 'en-US', label: 'English' },
-                            { value: 'pt-BR', label: 'Português (Brasil)' },
-                            { value: 'es-ES', label: 'Español' },
-                          ]}
-                        />
-                        <p className="text-xs text-[--muted]">
-                          This product uses the TMDB API but is not endorsed or
-                          certified by TMDB.
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
                   <div className={addonGridClassName}>
                     {metaCatalogPresets.map((preset: any) => (
                       <AddonCard

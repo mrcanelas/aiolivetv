@@ -29,7 +29,6 @@ import { TMDBMetadata, enrichEpgVideos } from './tmdb.js';
 import { parseXmltvData } from '../builtins/xmltv-reader/parser.js';
 
 const config = {
-  enrichEpgWithTmdb: true,
   tmdbApiKey: 'test-key',
   epgMetadataLanguage: 'pt-BR',
 } as UserData;
@@ -150,8 +149,7 @@ describe('optional EPG metadata enrichment', () => {
     expect(fixture.request).not.toHaveBeenCalled();
   });
 
-  it('performs no requests when disabled, without credentials or without a schedule', async () => {
-    await enrichEpgVideos([movie()], { ...config, enrichEpgWithTmdb: false });
+  it('performs no requests without credentials or without a schedule', async () => {
     await enrichEpgVideos([movie()], { ...config, tmdbApiKey: undefined });
     await enrichEpgVideos([movie({ startTime: undefined })], config);
     expect(fixture.request).not.toHaveBeenCalled();
@@ -326,5 +324,96 @@ describe('optional EPG metadata enrichment', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('TMDB languages', () => {
+  it('refreshes a cache entry containing the obsolete code-only response', async () => {
+    fixture.cache.set('tmdb_language_options:languages', ['aa', 'ab']);
+    fixture.request
+      .mockResolvedValueOnce(
+        respond([{ iso_639_1: 'aa', english_name: 'Afar', name: '' }])
+      )
+      .mockResolvedValueOnce(respond([]));
+    const languages = await new TMDBMetadata({ apiKey: 'key' }).getLanguages();
+    expect(languages).toEqual([{ code: 'aa', name: 'Afar' }]);
+    expect(fixture.cache.get('tmdb_language_options:languages')).toEqual(
+      languages
+    );
+  });
+
+  it('preserves TMDB names for languages not named by the browser', async () => {
+    fixture.request
+      .mockResolvedValueOnce(
+        respond([
+          { iso_639_1: 'aa', english_name: 'Afar', name: '' },
+          { iso_639_1: 'ab', english_name: 'Abkhazian', name: '' },
+          { iso_639_1: 'ae', english_name: 'Avestan', name: '' },
+        ])
+      )
+      .mockResolvedValueOnce(respond([]));
+    expect(await new TMDBMetadata({ apiKey: 'key' }).getLanguages()).toEqual([
+      { code: 'aa', name: 'Afar' },
+      { code: 'ab', name: 'Abkhazian' },
+      { code: 'ae', name: 'Avestan' },
+    ]);
+  });
+  it('uses the dashboard instance key when no personal credentials are provided', async () => {
+    fixture.tmdb.apiKey = 'instance-key';
+    fixture.request
+      .mockResolvedValueOnce(
+        respond([
+          { iso_639_1: 'pt', english_name: 'Portuguese', name: 'Português' },
+        ])
+      )
+      .mockResolvedValueOnce(respond(['pt-BR']));
+    expect(await new TMDBMetadata().getLanguages()).toEqual([
+      { code: 'pt', name: 'Portuguese' },
+      { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+    ]);
+    for (const [url] of fixture.request.mock.calls) {
+      expect(new URL(url).searchParams.get('api_key')).toBe('instance-key');
+    }
+  });
+
+  it('combines all language codes and regional translations and caches the list', async () => {
+    fixture.request
+      .mockResolvedValueOnce(
+        respond([
+          { iso_639_1: 'en', english_name: 'English', name: 'English' },
+          { iso_639_1: 'pt', english_name: 'Portuguese', name: 'Português' },
+          { iso_639_1: 'ja', english_name: 'Japanese', name: '日本語' },
+        ])
+      )
+      .mockResolvedValueOnce(
+        respond(['en-US', 'pt-BR', 'pt-PT', 'ja-JP', 'pt-BR'])
+      );
+    const tmdb = new TMDBMetadata({ apiKey: 'test-key' });
+    const languages = await tmdb.getLanguages();
+    expect(languages).toEqual([
+      { code: 'en', name: 'English' },
+      { code: 'en-US', name: 'English (United States)' },
+      { code: 'ja', name: 'Japanese' },
+      { code: 'ja-JP', name: 'Japanese (Japan)' },
+      { code: 'pt', name: 'Portuguese' },
+      { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+      { code: 'pt-PT', name: 'Portuguese (Portugal)' },
+    ]);
+    expect(await tmdb.getLanguages()).toEqual(languages);
+    expect(fixture.request).toHaveBeenCalledTimes(2);
+    expect(
+      fixture.request.mock.calls.map(([url]) => new URL(url).pathname)
+    ).toEqual([
+      '/3/configuration/languages',
+      '/3/configuration/primary_translations',
+    ]);
+  });
+
+  it('does not cache a failed language request', async () => {
+    fixture.request.mockResolvedValue({ ok: false, status: 401 });
+    await expect(
+      new TMDBMetadata({ apiKey: 'invalid' }).getLanguages()
+    ).rejects.toThrow();
+    expect(fixture.cache.size).toBe(0);
   });
 });

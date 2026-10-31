@@ -38,6 +38,8 @@ export const HIDDEN_DASHBOARD_SECTIONS = new Set<string>([
 ]);
 
 export function isDashboardSettingsKeyVisible(key: string): boolean {
+  if (key === 'metadata.tmdb.apiKey' || key === 'metadata.tmdb.accessToken')
+    return true;
   return !HIDDEN_DASHBOARD_SECTIONS.has(key.split('.')[0]);
 }
 

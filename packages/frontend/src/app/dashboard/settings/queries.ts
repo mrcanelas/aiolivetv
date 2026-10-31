@@ -63,7 +63,12 @@ export function useSaveSettings() {
   return useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
       api<PatchResult>('PATCH /dashboard/settings', { body: patch }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: KEY }),
+        qc.invalidateQueries({ queryKey: ['status'] }),
+      ]);
+    },
   });
 }
 

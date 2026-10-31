@@ -361,6 +361,7 @@ export const Combobox = React.forwardRef<HTMLButtonElement, ComboboxProps>(
                 id={basicFieldProps.id}
                 role="combobox"
                 aria-expanded={open}
+                disabled={basicFieldProps.disabled || basicFieldProps.readonly}
                 className={cn(
                   InputAnatomy.root({
                     size,

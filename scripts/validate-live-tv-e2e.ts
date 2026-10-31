@@ -1110,7 +1110,6 @@ async function validateGuideChoicesAndPersistence(
         },
       ]
     ),
-    enrichEpgWithTmdb: true,
     epgMetadataLanguage: 'pt-BR',
   });
   const inventory = await new core.AIOStreams({
@@ -1232,7 +1231,7 @@ async function validateGuideChoicesAndPersistence(
       'guide choice must survive UserData persistence'
     );
     assert(
-      restored.enrichEpgWithTmdb && restored.epgMetadataLanguage === 'pt-BR',
+      restored.epgMetadataLanguage === 'pt-BR',
       'metadata settings must survive UserData persistence'
     );
     assert(
@@ -1300,7 +1299,6 @@ async function validateDetailsOnlyEnrichment(sourceBase: string, core: CoreModul
         ...xmltvPreset,
         options: { ...xmltvPreset.options, sourceUrl: `${sourceBase}/guide-enrichment.xml` },
       }]),
-      enrichEpgWithTmdb: true,
       tmdbApiKey: 'fixture-key',
     }).initialise();
     const catalog = aio.getCatalogs().find((item) => item.type === core.constants.TV_TYPE);

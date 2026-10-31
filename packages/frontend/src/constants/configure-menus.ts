@@ -3,6 +3,7 @@ import type { MenuId } from '../../../core/src/utils/fieldMeta';
 /** Top-level configure pages for the AIOLiveTV scope (see AGENTS.md). */
 export const CONFIGURE_VISIBLE_MENUS = [
   'about',
+  'services',
   'addons',
   'channels',
   'sorting',

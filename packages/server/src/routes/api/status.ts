@@ -45,7 +45,7 @@ const statusInfo = async (): Promise<StatusResponse> => {
           : undefined,
       alternateDesign: appConfig.branding.alternateDesign,
       protected: appConfig.api.authRequired,
-      tmdbApiAvailable: !!appConfig.metadata.tmdb.accessToken,
+      tmdbApiAvailable: !!(appConfig.metadata.tmdb.accessToken || appConfig.metadata.tmdb.apiKey),
       regexAccess: {
         level: appConfig.userLimits.regex.access,
         ...allowedRegexes,

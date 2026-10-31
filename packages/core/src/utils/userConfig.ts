@@ -313,6 +313,7 @@ export function isLiveTvUserDataField(key: string): boolean {
 /** Keep the existing UserData contract, with only settings relevant to Live TV. */
 export function normalizeUserData(config: UserData): UserData {
   const next = { ...config };
+  delete (next as Record<string, unknown>).enrichEpgWithTmdb;
   for (const key of VOD_FIELDS) delete (next as Record<string, unknown>)[key];
   if (
     next.presets?.some(

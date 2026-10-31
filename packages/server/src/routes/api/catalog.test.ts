@@ -10,6 +10,7 @@ import catalogApi from './catalog.js';
 const fixture = vi.hoisted(() => {
   process.env.BASE_URL = 'http://127.0.0.1';
   return {
+    languages: vi.fn(),
     epg: true,
     hybridGuide: false,
     budgetMs: 0,
@@ -68,6 +69,18 @@ vi.mock('@aiolivetv/core', async () => {
   ];
   return {
     ...matching,
+    TMDBMetadata: class {
+      constructor(auth: unknown) {
+        fixture.languages(auth);
+      }
+      getLanguages() {
+        return Promise.resolve([
+          { code: 'en-US', name: 'English (United States)' },
+          { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+          { code: 'ja', name: 'Japanese' },
+        ]);
+      }
+    },
     M3uAddon: class {
       constructor(config: unknown) {
         fixture.m3uConfig = config;
@@ -807,5 +820,55 @@ describe('Channels prepared matching', () => {
     );
     expect(fixture.truncated).toBe(false);
     expect(fixture.matchingTruncated).toBe(true);
+  });
+});
+
+describe('TMDB language configuration', () => {
+  it('accepts credentials in the request body and returns languages', async () => {
+    const app = express();
+    app.use(express.json(), catalogApi);
+    server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server!.once('listening', resolve));
+    const address = server.address() as { port: number };
+    const response = await fetch(
+      'http://127.0.0.1:' + address.port + '/tmdb/languages',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: ' personal-key ' }),
+      }
+    );
+    expect(response.status).toBe(200);
+    expect(fixture.languages).toHaveBeenLastCalledWith({
+      apiKey: 'personal-key',
+    });
+    expect(await response.json()).toMatchObject({
+      success: true,
+      data: {
+        languages: [
+          { code: 'en-US', name: 'English (United States)' },
+          { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+          { code: 'ja', name: 'Japanese' },
+        ],
+      },
+    });
+  });
+
+  it('rejects malformed credentials without disclosing them', async () => {
+    const app = express();
+    app.use(express.json(), catalogApi);
+    server = app.listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server!.once('listening', resolve));
+    const address = server.address() as { port: number };
+    const response = await fetch(
+      'http://127.0.0.1:' + address.port + '/tmdb/languages',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: { secret: 'never-display-this' } }),
+      }
+    );
+    expect(response.status).toBe(400);
+    expect(await response.text()).not.toContain('never-display-this');
   });
 });

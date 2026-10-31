@@ -35,6 +35,7 @@ import {
   M3uAddon,
   clearM3uSourceCache,
   clearXmltvSourceCache,
+  TMDBMetadata,
 } from '@aiolivetv/core';
 
 const router: Router = Router();
@@ -184,6 +185,34 @@ async function validateDraft(
     );
   }
 }
+
+router.post(
+  '/tmdb/languages',
+  async (req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const auth = z
+        .object({
+          apiKey: z.string().trim().max(2048).optional(),
+          accessToken: z.string().trim().max(4096).optional(),
+        })
+        .parse(req.body ?? {});
+      const languages = await new TMDBMetadata(auth).getLanguages();
+      res.json(createResponse({ success: true, data: { languages } }));
+    } catch {
+      res.status(400).json(
+        createResponse({
+          success: false,
+          error: {
+            code: 'TMDB_LANGUAGES_UNAVAILABLE',
+            message:
+              'Could not load TMDB languages. Check the API key or read access token and try again.',
+          },
+        })
+      );
+    }
+  }
+);
 
 router.post(
   '/m3u/epg',

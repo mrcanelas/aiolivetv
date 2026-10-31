@@ -127,6 +127,7 @@ describe('shared Live TV user configuration', () => {
     const clean = applyMigrations(original);
     expect(original).toEqual(snapshot);
     for (const key of [
+      'enrichEpgWithTmdb',
       'services',
       'excludedQualities',
       'enableSeadex',

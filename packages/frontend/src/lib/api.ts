@@ -7,6 +7,8 @@
 // Types
 // =============================================================================
 
+import { z } from 'zod';
+
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
 type Endpoint = `${Method} /${string}` | `/${string}`;
@@ -573,6 +575,29 @@ export async function fetchCatalogs(userData: UserData) {
   return api<CatalogInfo[]>('POST /catalogs', {
     body: { userData },
   });
+}
+
+export async function fetchTmdbLanguages(
+  auth: { apiKey?: string; accessToken?: string },
+  signal?: AbortSignal
+) {
+  const result = await api<unknown>('POST /catalogs/tmdb/languages', {
+    body: auth,
+    signal,
+    cache: 'no-store',
+  });
+  return z
+    .object({
+      languages: z
+        .array(
+          z.object({
+            code: z.string().regex(/^[a-z]{2}(?:-[A-Z]{2})?$/),
+            name: z.string().trim().min(1),
+          })
+        )
+        .min(1),
+    })
+    .parse(result).languages;
 }
 
 export async function fetchChannels(

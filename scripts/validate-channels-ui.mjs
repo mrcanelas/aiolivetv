@@ -211,13 +211,37 @@ try {
         route.request().method() !== 'GET' &&
         !url.pathname.endsWith('/catalogs') &&
         !url.pathname.endsWith('/catalogs/channels') &&
-        !url.pathname.endsWith('/catalogs/m3u/epg')
+        !url.pathname.endsWith('/catalogs/m3u/epg') &&
+        !url.pathname.endsWith('/catalogs/tmdb/languages')
       ) {
         writes.push(url.pathname);
       }
       let data = null;
       if (url.pathname.endsWith('/status')) data = status;
-      else if (url.pathname.endsWith('/catalogs/m3u/epg'))
+      else if (url.pathname.endsWith('/catalogs/tmdb/languages')) {
+        if (route.request().postDataJSON().apiKey === 'offline-key') {
+          await route.fulfill({
+            status: 400,
+            json: {
+              success: false,
+              error: {
+                code: 'TMDB_LANGUAGES_UNAVAILABLE',
+                message: 'Unavailable',
+              },
+            },
+          });
+          return;
+        }
+        data = {
+          languages: [
+            { code: 'en-US', name: 'English (United States)' },
+            { code: 'aa', name: 'Afar' },
+            { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+            { code: 'pt-PT', name: 'Portuguese (Portugal)' },
+            { code: 'ja-JP', name: 'Japanese (Japan)' },
+          ],
+        };
+      } else if (url.pathname.endsWith('/catalogs/m3u/epg'))
         data = { urls: ['https://example.com/guide.xml'] };
       else if (url.pathname.endsWith('/catalogs/channels')) {
         const body = route.request().postDataJSON();
@@ -647,31 +671,69 @@ try {
     await list.locator('li[data-index]').first().waitFor();
     assert((await list.locator('li[data-index]').count()) < 60);
     assert.deepEqual(errors, [], 'Browser errors');
-    await page.goto(base + '/stremio/configure?menu=addons');
-    await page.getByText('Marketplace', { exact: true }).click();
+    await page.goto(base + '/stremio/configure?menu=services');
     await page
-      .getByRole('switch', {
-        name: 'Enrich EPG programmes with TMDB',
-        exact: true,
-      })
-      .click();
+      .getByRole('heading', { name: 'Services', exact: true })
+      .waitFor();
+    assert.equal(await page.getByRole('switch').count(), 0);
+    assert(
+      await page
+        .getByRole('combobox', { name: /Metadata language/ })
+        .isDisabled()
+    );
+    await page.getByLabel('TMDB API key', { exact: true }).fill('offline-key');
+    await page
+      .getByRole('status')
+      .filter({ hasText: 'Could not load TMDB languages' })
+      .waitFor();
+    assert(
+      await page
+        .getByRole('combobox', { name: /Metadata language/ })
+        .isDisabled()
+    );
+    const languagesResponse = page.waitForResponse((response) =>
+      response.url().endsWith('/catalogs/tmdb/languages')
+    );
+    await page.getByLabel('TMDB API key', { exact: true }).fill('test-key');
     await page.waitForFunction(
       () =>
-        JSON.parse(localStorage.getItem('aiolivetv-user-data'))
-          .enrichEpgWithTmdb === true
+        JSON.parse(localStorage.getItem('aiolivetv-user-data')).tmdbApiKey ===
+        'test-key'
     );
+    await page
+      .getByRole('status')
+      .filter({ hasText: 'Loading TMDB languages' })
+      .waitFor({ state: 'hidden' });
     await page.screenshot({
       path: resolve(output, name + '-metadata.png'),
       fullPage: true,
     });
+    await languagesResponse;
     await page.getByRole('combobox', { name: /Metadata language/ }).click();
     await page
-      .getByRole('option', { name: 'Português (Brasil)', exact: true })
-      .click();
+      .getByRole('option', { name: 'Afar (aa)', exact: true })
+      .waitFor();
+    assert.equal(
+      await page.getByRole('option', { name: 'aa (aa)', exact: true }).count(),
+      0
+    );
+    await page.getByRole('combobox', { name: 'Search options' }).fill('pt-BR');
+    await page.getByRole('option', { name: /Portuguese.*pt-BR/ }).click();
     await page.waitForFunction(
       () =>
         JSON.parse(localStorage.getItem('aiolivetv-user-data'))
           .epgMetadataLanguage === 'pt-BR'
+    );
+    await page.goto(base + '/stremio/configure?menu=addons');
+    await page.getByText('Marketplace', { exact: true }).click();
+    assert.equal(
+      await page
+        .getByRole('switch', {
+          name: 'Enrich EPG programmes with TMDB',
+          exact: true,
+        })
+        .count(),
+      0
     );
     await page
       .getByRole('button', { name: 'Configure', exact: true })

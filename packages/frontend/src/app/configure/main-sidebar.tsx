@@ -21,6 +21,7 @@ import {
   BiGridAlt,
   BiTv,
   BiSortAlt2,
+  BiServer,
 } from 'react-icons/bi';
 import { useCommandPalette } from '@/context/command-palette';
 import { useRegisterQuickAction } from '@/context/quick-actions';
@@ -131,6 +132,12 @@ export function MainSidebar() {
       iconType: BiInfoCircle,
       isCurrent: selectedMenu === 'about',
       id: 'about',
+    },
+    {
+      name: 'Services',
+      iconType: BiServer,
+      isCurrent: selectedMenu === 'services',
+      id: 'services',
     },
     {
       name: 'Addons',

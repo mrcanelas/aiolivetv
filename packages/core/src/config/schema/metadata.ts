@@ -10,7 +10,8 @@ export const metadataSchema = {
       schema: nullableString,
       default: null,
       label: 'TMDB Read Access Token',
-      description: 'TMDB Read Access Token used for strict title matching.',
+      description:
+        'Instance TMDB token used to refresh metadata languages and enrich EPG programmes. Users can supply their own credentials.',
       env: 'TMDB_ACCESS_TOKEN',
       requiresRestart: false,
       secret: true,
@@ -19,7 +20,8 @@ export const metadataSchema = {
       schema: nullableString,
       default: null,
       label: 'TMDB API key',
-      description: 'TMDB API key used for strict title matching.',
+      description:
+        'Instance TMDB API key used to refresh metadata languages and enrich EPG programmes. Users can supply their own credentials.',
       env: 'TMDB_API_KEY',
       requiresRestart: false,
       secret: true,

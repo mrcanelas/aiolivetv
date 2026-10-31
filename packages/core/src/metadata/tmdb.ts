@@ -83,7 +83,7 @@ const pendingEpgLookups = new Map<string, Promise<EpgTmdbMetadata | null>>();
 export async function enrichEpgVideos<
   T extends NonNullable<Meta['videos']>[number],
 >(videos: T[], userData: UserData): Promise<T[]> {
-  if (!userData.enrichEpgWithTmdb || !videos.length) return videos;
+  if (!videos.length) return videos;
   let client: TMDBMetadata;
   try {
     client = new TMDBMetadata({
@@ -316,6 +316,10 @@ const IdTypeMap: Partial<Record<IdType, TMDBIdType>> = {
 };
 
 export class TMDBMetadata {
+  private static readonly languagesCache = Cache.getInstance<
+    string,
+    { code: string; name: string }[]
+  >('tmdb_language_options');
   private static readonly epgCache = Cache.getInstance<
     string,
     { metadata: EpgTmdbMetadata | null }
@@ -360,6 +364,58 @@ export class TMDBMetadata {
     }
     headers.set('Content-Type', 'application/json');
     return headers;
+  }
+
+  public async getLanguages(): Promise<{ code: string; name: string }[]> {
+    const cached = await TMDBMetadata.languagesCache.get('languages');
+    const parsedCache = z
+      .array(
+        z.object({
+          code: z.string().regex(/^[a-z]{2}(?:-[A-Z]{2})?$/),
+          name: z.string().trim().min(1),
+        })
+      )
+      .min(1)
+      .safeParse(cached);
+    if (parsedCache.success) return parsedCache.data;
+    const [languages, translations] = await Promise.all([
+      this.fetchEpgJson('/configuration/languages', 'en-US'),
+      this.fetchEpgJson('/configuration/primary_translations', 'en-US'),
+    ]);
+    const entries = z
+      .array(
+        z.object({
+          iso_639_1: z.string().regex(/^[a-z]{2}$/),
+          english_name: z.string(),
+          name: z.string(),
+        })
+      )
+      .parse(languages);
+    const names = new Map(
+      entries.map((entry) => [
+        entry.iso_639_1,
+        entry.english_name.trim() || entry.name.trim() || entry.iso_639_1,
+      ])
+    );
+    const locales = z
+      .array(z.string().regex(/^[a-z]{2}-[A-Z]{2}$/))
+      .parse(translations);
+    const regions = new Intl.DisplayNames(['en'], { type: 'region' });
+    const result = [...new Set([...names.keys(), ...locales])]
+      .sort()
+      .map((code) => {
+        const [base, region] = code.split('-');
+        const name = names.get(base) ?? base;
+        return {
+          code,
+          name: region
+            ? name + ' (' + (regions.of(region) ?? region) + ')'
+            : name,
+        };
+      });
+    if (!result.length) throw new Error('TMDB returned no languages');
+    await TMDBMetadata.languagesCache.set('languages', result, 86400);
+    return result;
   }
 
   public async getEpgMetadata(
