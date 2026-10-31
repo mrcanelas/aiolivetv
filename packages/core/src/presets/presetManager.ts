@@ -7,6 +7,7 @@ import { MinhaTvPreset } from './minhaTv.js';
 import { ArgentinaTVPreset } from './argentinaTv.js';
 import { USATVPreset } from './usaTv.js';
 import { Preset } from './preset.js';
+import { IptvOrgPreset, IptvEpgPreset } from './iptv.js';
 import {
   M3uPreset,
   ClaroTvPreset,
@@ -28,6 +29,8 @@ import {
 const PRESETS = {
   m3u: M3uPreset,
   xmltv: XmltvPreset,
+  'iptv-org': IptvOrgPreset,
+  'iptv-epg': IptvEpgPreset,
   xtream: XtreamPreset,
   tvheadend: TvheadendPreset,
   'pluto-tv': PlutoTvPreset,

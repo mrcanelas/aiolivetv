@@ -214,6 +214,12 @@ export async function parseXmltvData(xml: string): Promise<XmltvData> {
       const episodeParts = value(episodeNumber)?.match(
         /^(\d+)(?:\/\d+)?\.(\d+)(?:\/\d+)?\./
       );
+      const onscreenEpisode = (program?.['episode-num'] ?? [])
+        .filter(
+          (entry: any) => !entry?.$?.system || entry.$.system === 'onscreen'
+        )
+        .map((entry: unknown) => value(entry)?.match(/^S(\d+)\s*E(\d+)$/i))
+        .find(Boolean);
       const urls = values(program?.url);
       const tmdb = urls
         .map((url) =>
@@ -232,8 +238,16 @@ export async function parseXmltvData(xml: string): Promise<XmltvData> {
       return {
         channelId,
         title,
-        season: episodeParts ? Number(episodeParts[1]) + 1 : undefined,
-        episode: episodeParts ? Number(episodeParts[2]) + 1 : undefined,
+        season: episodeParts
+          ? Number(episodeParts[1]) + 1
+          : onscreenEpisode
+            ? Number(onscreenEpisode[1])
+            : undefined,
+        episode: episodeParts
+          ? Number(episodeParts[2]) + 1
+          : onscreenEpisode
+            ? Number(onscreenEpisode[2])
+            : undefined,
         tmdbId: tmdb ? Number(tmdb[2]) : undefined,
         imdbId: imdb?.[1],
         mediaType:

@@ -1,3 +1,4 @@
+import { iptvOrgSourceUrl, iptvEpgSourceUrl } from '@aiolivetv/core';
 import { Router, Request, Response, NextFunction } from 'express';
 import { createResponse } from '../../utils/responses.js';
 import { catalogApiRateLimiter } from '../../middlewares/ratelimit.js';
@@ -308,6 +309,15 @@ router.post(
           req.body.userData
         );
         for (const preset of presets) {
+          if (preset.type === 'iptv-org' || preset.type === 'iptv-epg') {
+            const guide = preset.type === 'iptv-epg';
+            const countries = preset.options.countries ?? [guide ? 'gb' : 'uk'];
+            if (Array.isArray(countries))
+              for (const country of countries) {
+                if (guide) clearXmltvSourceCache(iptvEpgSourceUrl(country));
+                else clearM3uSourceCache(iptvOrgSourceUrl(country));
+              }
+          }
           if (typeof preset.options.sourceUrl !== 'string') continue;
           if (preset.type === 'm3u')
             clearM3uSourceCache(preset.options.sourceUrl);
@@ -486,7 +496,7 @@ router.post(
         const epgProvider = manifest.behaviorHints?.epgProvider === true;
         const includeGuide =
           epgProvider &&
-          addon.preset.type === 'xmltv' &&
+          ['xmltv', 'iptv-epg'].includes(addon.preset.type) &&
           manifest.catalogs.some((item) =>
             item.extra?.some((extra) => extra.name === 'date')
           );

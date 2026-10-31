@@ -49,18 +49,30 @@ const inflightSources = new Map<string, Promise<XmltvData>>();
 /** Drop parsed guides held by this process (used by tests). */
 export function clearXmltvSourceCache(sourceUrl?: string) {
   if (sourceUrl) {
-    parsedSources.delete(sourceUrl);
+    for (const key of parsedSources.keys()) {
+      if (key === sourceUrl || key.endsWith(`:${sourceUrl}`))
+        parsedSources.delete(key);
+    }
     return;
   }
   parsedSources.clear();
   inflightSources.clear();
 }
 
+export interface XmltvReaderOptions {
+  /** Keep provider-specific normalization out of the generic reader cache. */
+  cacheNamespace: string;
+  transform: (data: XmltvData) => XmltvData;
+}
+
 export async function loadXmltv(
-  config: LiveTvSourceConfig
+  config: LiveTvSourceConfig,
+  options?: XmltvReaderOptions
 ): Promise<XmltvData> {
   trimSourceCache(parsedSources);
-  const cacheKey = config.sourceUrl;
+  const cacheKey = options
+    ? `${options.cacheNamespace}:${config.sourceUrl}`
+    : config.sourceUrl;
   const cached = parsedSources.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
   if (cached) parsedSources.delete(cacheKey);
@@ -71,7 +83,8 @@ export async function loadXmltv(
 
   const load = (async () => {
     const text = await fetchSourceText(config);
-    const data = hydrateXmltvData(await parseXmltvData(text));
+    const parsed = hydrateXmltvData(await parseXmltvData(text));
+    const data = options ? options.transform(parsed) : parsed;
     parsedSources.set(cacheKey, {
       data,
       expiresAt: Date.now() + SOURCE_CACHE_TTL_MS,
@@ -142,14 +155,17 @@ function mapProgramToVideo(
 export class XmltvAddon {
   private readonly config: LiveTvSourceConfig;
 
-  constructor(config: z.input<typeof LiveTvSourceConfigSchema>) {
+  constructor(
+    config: z.input<typeof LiveTvSourceConfigSchema>,
+    private readonly readerOptions?: XmltvReaderOptions
+  ) {
     this.config = LiveTvSourceConfigSchema.parse(config);
   }
 
   async getManifest(): Promise<Manifest> {
     let epgProvider = false;
     try {
-      const data = await loadXmltv(this.config);
+      const data = await loadXmltv(this.config, this.readerOptions);
       epgProvider = data.channels.some(
         (channel) => programsForChannel(data, channel.id).length > 0
       );
@@ -187,7 +203,7 @@ export class XmltvAddon {
   }
 
   async getCatalog(skip = 0): Promise<MetaPreview[]> {
-    return (await loadXmltv(this.config)).channels
+    return (await loadXmltv(this.config, this.readerOptions)).channels
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
       .map((channel) =>
         bareChannelPreview({
@@ -203,7 +219,7 @@ export class XmltvAddon {
 
   async getCatalogGuide(skip = 0, date?: string): Promise<Meta[]> {
     const guideDate = resolveGuideDate(date);
-    const data = await loadXmltv(this.config);
+    const data = await loadXmltv(this.config, this.readerOptions);
     const { timeShiftMinutes } = this.config;
     return data.channels
       .slice(skip, skip + LIVE_TV_CATALOG_PAGE_SIZE)
@@ -244,7 +260,7 @@ export class XmltvAddon {
 
   async getMeta(id: string): Promise<Meta> {
     const channelId = decodeChannelId(id);
-    const data = await loadXmltv(this.config);
+    const data = await loadXmltv(this.config, this.readerOptions);
     const channel = data.channels.find(
       (item) => item.id.trim().toLowerCase() === channelId
     );
@@ -257,6 +273,7 @@ export class XmltvAddon {
       type: TV_TYPE,
       name: channel.name,
       poster: channel.logo,
+      logo: channel.logo,
       posterShape: 'square',
       behaviorHints: { hasScheduledVideos: true },
       videos: programsForChannel(data, channel.id)

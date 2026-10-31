@@ -117,6 +117,62 @@ describe('live TV sources', () => {
       imdbId: 'tt123456',
     });
   });
+  it.each([
+    ['<episode-num>S10 E16</episode-num>', 10, 16],
+    ['<episode-num system="onscreen">S18E7</episode-num>', 18, 7],
+    [
+      '<episode-num system="onscreen">S10 E16</episode-num><episode-num system="xmltv_ns">0.1.</episode-num>',
+      1,
+      2,
+    ],
+    [
+      '<episode-num system="custom">S10 E16</episode-num>',
+      undefined,
+      undefined,
+    ],
+    ['<episode-num>Episode 16</episode-num>', undefined, undefined],
+  ])(
+    'reads explicit onscreen episodes without guessing: %s',
+    async (episodeNumber, season, episode) => {
+      const data = await parseXmltvData(
+        `<tv><programme channel="axn" start="20261021120000 +0000" stop="20261021130000 +0000"><title>Criminal Minds</title>${episodeNumber}</programme></tv>`
+      );
+      expect(data.programs[0].season).toBe(season);
+      expect(data.programs[0].episode).toBe(episode);
+    }
+  );
+
+  it('returns channel logos in XMLTV and M3U details', async () => {
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '<tv><channel id="axn"><display-name>AXN</display-name><icon src="https://example.com/axn.png" /></channel></tv>'
+      )
+    );
+    expect(
+      await new XmltvAddon({
+        sourceUrl: 'https://example.com/guide.xml',
+        timeout: 1000,
+      }).getMeta(encodeChannelId('axn'))
+    ).toMatchObject({
+      logo: 'https://example.com/axn.png',
+      poster: 'https://example.com/axn.png',
+    });
+    vi.mocked(makeRequest).mockResolvedValueOnce(
+      sourceResponse(
+        '#EXTM3U\n#EXTINF:-1 tvg-id="axn" tvg-logo="https://example.com/axn.png",AXN\nhttps://example.com/live.m3u8'
+      )
+    );
+    expect(
+      await new M3uAddon({
+        sourceUrl: 'https://example.com/list.m3u',
+        timeout: 1000,
+      }).getMeta(encodeChannelId('axn'))
+    ).toMatchObject({
+      logo: 'https://example.com/axn.png',
+      poster: 'https://example.com/axn.png',
+    });
+  });
+
   it('discovers only valid, unique HTTP guide URLs from the playlist header', () => {
     expect(
       parseM3uEpgUrls(

@@ -191,6 +191,7 @@ export class Wrapper {
       'tdtchannels',
       'xtream',
       'xmltv',
+      'iptv-epg',
     ].includes(this.addon.preset.type);
     // Movistar and Xtream fetch channels before schedules.
     const probeBudget =

@@ -163,7 +163,14 @@ describe('EPG manifest requests', () => {
     expect(makeRequest).toHaveBeenCalledOnce();
     expect(upstream.catalogs[0].type).toBe('TV');
   });
-  it.each(['orange-tv', 'movistar-plus', 'tdtchannels', 'xtream', 'xmltv'])(
+  it.each([
+    'orange-tv',
+    'movistar-plus',
+    'tdtchannels',
+    'xtream',
+    'xmltv',
+    'iptv-epg',
+  ])(
     'waits beyond the global 3s timeout for a verified guide: %s',
     async (type) => {
       vi.mocked(makeRequest).mockImplementation(async () => {
@@ -187,7 +194,7 @@ describe('EPG manifest requests', () => {
     expect(makeRequest).toHaveBeenCalledOnce();
   });
 
-  it.each(['orange-tv', 'xtream', 'xmltv'])(
+  it.each(['orange-tv', 'xtream', 'xmltv', 'iptv-epg'])(
     'retries a temporary no-EPG response without claiming EPG prematurely: %s',
     async (type) => {
       vi.mocked(makeRequest)

@@ -26,6 +26,7 @@ vi.mock('../utils/index.js', async () => ({
 }));
 
 import { TMDBMetadata, enrichEpgVideos } from './tmdb.js';
+import { parseXmltvData } from '../builtins/xmltv-reader/parser.js';
 
 const config = {
   enrichEpgWithTmdb: true,
@@ -224,6 +225,44 @@ describe('optional EPG metadata enrichment', () => {
       thumbnail: 'https://image.tmdb.org/t/p/w300/episode.jpg',
       runtime: '150 min',
     });
+  });
+
+  it('enriches IPTV-EPG onscreen episodes with missing genres and cast', async () => {
+    const data = await parseXmltvData(
+      '<tv><programme channel="AXN.br" start="20261021120000 +0000" stop="20261021130000 +0000"><title>Criminal Minds</title><episode-num>S10 E16</episode-num></programme></tv>'
+    );
+    fixture.request
+      .mockResolvedValueOnce(
+        respond({ results: [{ id: 4057, name: 'Criminal Minds' }] })
+      )
+      .mockResolvedValueOnce(
+        respond({
+          id: 4057,
+          name: 'Criminal Minds',
+          genres: [{ name: 'Crime' }],
+          credits: { cast: [{ name: 'Joe Mantegna' }] },
+        })
+      )
+      .mockResolvedValueOnce(
+        respond({ season_number: 10, episode_number: 16 })
+      );
+    const [result] = await enrichEpgVideos(
+      [
+        {
+          ...data.programs[0],
+          id: 'axn:epg:test',
+          genres: [],
+        },
+      ],
+      config
+    );
+    expect(result).toMatchObject({
+      season: 10,
+      episode: 16,
+      genres: ['Crime'],
+      cast: ['Joe Mantegna'],
+    });
+    expect(fixture.request.mock.calls[0][0]).toContain('/search/tv?');
   });
 
   it('coalesces concurrent requests for the same programme', async () => {

@@ -62,6 +62,20 @@ Catch-up playback is not exposed yet. In the Native EPG implementation reference
 
 AIOLiveTV therefore returns no streams for a scheduled programme that is past, future or unknown, instead of silently playing the live channel. Direct channel playback remains available. Provider archive URL support should be implemented once an archive action can be exercised through the supported client flow.
 
+## IPTV-org streams and IPTV-EPG guides
+
+These are two independent builtins. In **Addons → Streams**, install **IPTV-org** and select the countries whose playlists you want. In **Metadata & Catalogs**, install **IPTV-EPG** and select the countries whose guides you want. Each country becomes an independent source. You can pair either builtin with other providers.
+
+IPTV-org contributes **Catalog**, **Meta** and **Stream** by default, so it works without a guide. When using another provider's channels, select only **Stream** in Resources and review matches in **Channels**. IPTV-org does not advertise Native EPG. Stream availability and geographic restrictions depend on each upstream broadcaster. Required playlist `http-referrer`, `http-user-agent` and `EXTVLCOPT` playback headers are preserved.
+
+IPTV-EPG contributes **Catalog** and **Meta**, with the existing `date` guide support and **EPG Time Shift** option. It provides no video. Guide coverage is not the same as playlist coverage: scan **Channels**, review suggested matches, and add manual links where needed.
+
+The UK playlist uses `uk.m3u`, while the guide uses `epg-gb.xml.gz`; country selection handles this difference automatically. Quality/national stream variants can match the base TVG ID, while playback IDs retain the full `@feed`. Regional variants retain their feed in matching IDs and display names; review their guide mapping rather than assuming every feed has the same schedule.
+
+Guides use the provider's stable public URL, follow its redirects, and share the existing bounded in-process XMLTV cache per country. Programmes titled exactly `No Data`, `No Game Today`, or `No EVENT Today` are omitted, as are invalid time intervals. These filters apply only to the IPTV-EPG builtin. Empty or placeholder-only guides do not advertise Native EPG.
+
+IPTV-EPG downloads use gzip and a dedicated `IPTV_EPG_SOURCE_MAX_BYTES` limit (100 MiB by default, including decompressed XML); ordinary XMLTV/M3U imports retain `LIVE_TV_SOURCE_MAX_BYTES`. Large country guides can still exceed the limit and need substantial parsing memory. Administrators can adjust the guide limit in Dashboard settings on suitably sized instances.
+
 ## Xtream Codes
 
 Xtream can supply catalog, meta (including EPG when the provider has it) and streams.

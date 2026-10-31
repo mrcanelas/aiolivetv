@@ -69,6 +69,16 @@ const streamUrlMappings = z.union([
  * caches, and incoming stream-URL rewrites.
  */
 export const resourcesSchema = {
+  iptvEpgSourceMaxBytes: {
+    schema: positiveInt,
+    default: 100 * 1024 * 1024,
+    label: 'IPTV-EPG guide maximum size (bytes)',
+    description:
+      'Maximum downloaded and decompressed IPTV-EPG country guide size. Large guides require more parsing memory; increase only on suitably sized instances.',
+    env: 'IPTV_EPG_SOURCE_MAX_BYTES',
+    requiresRestart: false,
+    secret: false,
+  },
   liveTvSourceMaxBytes: {
     schema: positiveInt,
     default: 50 * 1024 * 1024,

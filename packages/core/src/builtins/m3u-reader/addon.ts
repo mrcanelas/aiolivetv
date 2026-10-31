@@ -122,10 +122,16 @@ async function mapStream(entry: M3uEntry): Promise<Stream> {
     url: entry.url,
     name: entry.name,
     description: entry.group,
+    ...(entry.headers
+      ? { behaviorHints: { proxyHeaders: { request: entry.headers } } }
+      : {}),
   };
   const notWebReady = await resolveNotWebReady(stream, { probe: true });
   return notWebReady
-    ? { ...stream, behaviorHints: { notWebReady: true } }
+    ? {
+        ...stream,
+        behaviorHints: { ...stream.behaviorHints, notWebReady: true },
+      }
     : stream;
 }
 
@@ -199,6 +205,7 @@ export class M3uAddon {
       type: TV_TYPE,
       name: entry.name,
       poster: entry.logo,
+      logo: entry.logo,
       posterShape: 'square',
       country: entry.country,
       language: entry.language,

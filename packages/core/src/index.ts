@@ -106,3 +106,5 @@ export type {
   StreamUrlFormatInfo,
   SanitisedStreamUrl,
 } from './streams/url-format.js';
+
+export * from './builtins/iptv/index.js';

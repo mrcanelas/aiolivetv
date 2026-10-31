@@ -6,6 +6,11 @@ import {
 } from 'express';
 import {
   fromUrlSafeBase64,
+  IptvOrgAddon,
+  IptvEpgAddon,
+  IptvOrgConfigSchema,
+  IptvEpgConfigSchema,
+  appConfig,
   M3uAddon,
   XmltvAddon,
   VivoTvAddon,
@@ -84,6 +89,88 @@ function tvheadendConfig(encodedConfig: string): TvheadendConfig {
 function plutoTvConfig(encodedConfig: string): PlutoTvConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
+
+// Both providers reuse the readers, but keep their public preset roles separate.
+function iptvOrgAddon(encoded: string) {
+  return new IptvOrgAddon({
+    ...IptvOrgConfigSchema.parse(config(encoded)),
+    maxBytes: appConfig.resources.liveTvSourceMaxBytes,
+  });
+}
+function iptvEpgAddon(encoded: string) {
+  return new IptvEpgAddon({
+    ...IptvEpgConfigSchema.parse(config(encoded)),
+    maxBytes: appConfig.resources.iptvEpgSourceMaxBytes,
+  });
+}
+
+for (const [source, createAddon] of [
+  ['iptv-org', iptvOrgAddon],
+  ['iptv-epg', iptvEpgAddon],
+] as const) {
+  router.get(
+    `/${source}/:encodedConfig/manifest.json`,
+    async (req, res, next) => {
+      try {
+        res.json(await createAddon(req.params.encodedConfig).getManifest());
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.get(
+    `/${source}/:encodedConfig/catalog/:type/:id{/:extras}.json`,
+    async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+      try {
+        const { skip, date, genre } = parseCatalogExtras(getEncodedExtras(req));
+        const addon = createAddon(req.params.encodedConfig);
+        res.json(
+          addon instanceof IptvEpgAddon
+            ? await addon.getCatalogResponse(skip, date)
+            : {
+                metas: await addon.getCatalog(skip, genre),
+                cacheMaxAge: 300,
+                staleRevalidate: 1800,
+                staleError: 604800,
+              }
+        );
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  router.get(
+    `/${source}/:encodedConfig/meta/:type/:id.json`,
+    async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+      try {
+        res.json({
+          meta: await createAddon(req.params.encodedConfig).getMeta(
+            req.params.id
+          ),
+          cacheMaxAge: 900,
+          staleRevalidate: 3600,
+          staleError: 604800,
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+}
+router.get(
+  '/iptv-org/:encodedConfig/stream/:type/:id.json',
+  async (req: Request<ResourceParams>, res: Response, next: NextFunction) => {
+    try {
+      res.json({
+        streams: await iptvOrgAddon(req.params.encodedConfig).getStreams(
+          req.params.id
+        ),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 router.get('/:source/:encodedConfig/manifest.json', async (req, res, next) => {
   try {

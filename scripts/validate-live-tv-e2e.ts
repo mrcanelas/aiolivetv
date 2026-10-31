@@ -21,7 +21,7 @@ const EPG_STOP = new Date(EPG_START.getTime() + 2 * 60 * 60 * 1000);
 const EPG_START_ISO = EPG_START.toISOString();
 
 const XMLTV_FIXTURE = `<tv>
-  <channel id="bbc.one"><display-name>BBC One</display-name></channel>
+  <channel id="bbc.one"><display-name>BBC One</display-name><icon src="https://example.com/bbc-logo.png" /></channel>
   <channel id="rtp1"><display-name>RTP 1</display-name></channel>
   <programme channel="bbc.one" start="${xmltvTimestamp(EPG_START)}" stop="${xmltvTimestamp(EPG_STOP)}">
     <title>News</title><desc>Latest news</desc>
@@ -31,7 +31,7 @@ const XMLTV_FIXTURE = `<tv>
 </tv>`;
 
 const M3U_FIXTURE = `#EXTM3U
-#EXTINF:-1 tvg-id="bbc.one" tvg-name="BBC One",BBC One
+#EXTINF:-1 tvg-id="bbc.one" tvg-name="BBC One" tvg-logo="https://example.com/bbc-logo.png",BBC One
 https://example.com/bbc.m3u8
 #EXTINF:-1 tvg-id="rtp-1" tvg-name="RTP-1",RTP-1
 https://example.com/rtp.m3u8`;
@@ -83,11 +83,20 @@ async function startFixtureServer(): Promise<{
   sourceBase: string;
 }> {
   const server = createServer((req, res) => {
-    if (req.url === '/guide.xml' || req.url === '/guide-enrichment.xml') {
+    if (
+      req.url === '/guide.xml' ||
+      req.url === '/guide-enrichment.xml' ||
+      req.url === '/files/epg-gb.xml.gz'
+    ) {
       res.writeHead(200, { 'content-type': 'application/xml' });
-      res.end(req.url === '/guide-enrichment.xml'
-        ? XMLTV_FIXTURE.replace('<title>News</title>', '<title>The Matrix</title><category>Movie</category><date>1999</date>')
-        : XMLTV_FIXTURE);
+      res.end(
+        req.url === '/guide-enrichment.xml'
+          ? XMLTV_FIXTURE.replace(
+              '<title>News</title>',
+              '<title>The Matrix</title><category>Movie</category><date>1999</date>'
+            )
+          : XMLTV_FIXTURE
+      );
       return;
     }
     if (req.url === '/alternate-guide.xml' || req.url === '/empty-guide.xml') {
@@ -97,7 +106,7 @@ async function startFixtureServer(): Promise<{
       );
       return;
     }
-    if (req.url === '/list.m3u') {
+    if (req.url === '/list.m3u' || req.url === '/iptv/countries/uk.m3u') {
       res.writeHead(200, { 'content-type': 'audio/x-mpegurl' });
       res.end(
         M3U_FIXTURE.replace(
@@ -123,6 +132,14 @@ async function startFixtureServer(): Promise<{
 
 function createBuiltinHandler(core: CoreModule) {
   const { fromUrlSafeBase64, M3uAddon, XmltvAddon } = core;
+  const createAddon = (source: string, config: any) =>
+    source === 'iptv-org'
+      ? new core.IptvOrgAddon(config)
+      : source === 'iptv-epg'
+        ? new core.IptvEpgAddon(config)
+        : source === 'xmltv'
+          ? new XmltvAddon(config)
+          : new M3uAddon(config);
   return async (
     req: import('node:http').IncomingMessage,
     res: import('node:http').ServerResponse
@@ -130,20 +147,19 @@ function createBuiltinHandler(core: CoreModule) {
     try {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       const manifest = url.pathname.match(
-        /^\/builtins\/live-tv\/(xmltv|m3u)\/([^/]+)\/manifest\.json$/
+        /^\/builtins\/live-tv\/(xmltv|m3u|iptv-org|iptv-epg)\/([^/]+)\/manifest\.json$/
       );
       if (manifest) {
         const [, source, encoded] = manifest;
         const config = JSON.parse(fromUrlSafeBase64(encoded));
-        const addon =
-          source === 'xmltv' ? new XmltvAddon(config) : new M3uAddon(config);
+        const addon = createAddon(source, config);
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify(await Promise.resolve(addon.getManifest())));
         return;
       }
 
       const catalog = url.pathname.match(
-        /^\/builtins\/live-tv\/(xmltv|m3u)\/([^/]+)\/catalog\/([^/]+)\/([^/]+)(?:\/([^/]+))?\.json$/
+        /^\/builtins\/live-tv\/(xmltv|m3u|iptv-org|iptv-epg)\/([^/]+)\/catalog\/([^/]+)\/([^/]+)(?:\/([^/]+))?\.json$/
       );
       if (catalog) {
         const [, source, encoded, , , extras] = catalog;
@@ -155,8 +171,7 @@ function createBuiltinHandler(core: CoreModule) {
             10
           ) || 0
         );
-        const addon =
-          source === 'xmltv' ? new XmltvAddon(config) : new M3uAddon(config);
+        const addon = createAddon(source, config);
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(
           JSON.stringify(
@@ -172,30 +187,33 @@ function createBuiltinHandler(core: CoreModule) {
       }
 
       const meta = url.pathname.match(
-        /^\/builtins\/live-tv\/(xmltv|m3u)\/([^/]+)\/meta\/([^/]+)\/([^/]+)\.json$/
+        /^\/builtins\/live-tv\/(xmltv|m3u|iptv-org|iptv-epg)\/([^/]+)\/meta\/([^/]+)\/([^/]+)\.json$/
       );
       if (meta) {
         const [, source, encoded, , channelIdRaw] = meta;
         const channelId = decodeURIComponent(channelIdRaw);
         const config = JSON.parse(fromUrlSafeBase64(encoded));
-        const addon =
-          source === 'xmltv' ? new XmltvAddon(config) : new M3uAddon(config);
+        const addon = createAddon(source, config);
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ meta: await addon.getMeta(channelId) }));
         return;
       }
 
       const stream = url.pathname.match(
-        /^\/builtins\/live-tv\/m3u\/([^/]+)\/stream\/([^/]+)\/([^/]+)\.json$/
+        /^\/builtins\/live-tv\/(m3u|iptv-org)\/([^/]+)\/stream\/([^/]+)\/([^/]+)\.json$/
       );
       if (stream) {
-        const [, encoded, , channelIdRaw] = stream;
+        const [, source, encoded, , channelIdRaw] = stream;
         const channelId = decodeURIComponent(channelIdRaw);
         const config = JSON.parse(fromUrlSafeBase64(encoded));
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(
           JSON.stringify({
-            streams: await new M3uAddon(config).getStreams(channelId),
+            streams: await (
+              createAddon(source, config) as InstanceType<
+                CoreModule['M3uAddon']
+              >
+            ).getStreams(channelId),
           })
         );
         return;
@@ -475,6 +493,69 @@ async function validateWithoutEpg(
   assert(streams.length >= 1, 'expected stream for M3U channel');
 
   console.log('  [ok] sem EPG: catalog, meta e stream apenas via M3U');
+}
+
+async function validateIptvBuiltins(core: CoreModule) {
+  for (const epg of [false, true]) {
+    const userData = liveTvUserData([
+      {
+        type: 'iptv-org',
+        instanceId: `iptv-streams-${epg}`,
+        enabled: true,
+        options: epg ? { resources: ['stream'] } : {},
+      },
+      ...(epg
+        ? [
+            {
+              type: 'iptv-epg',
+              instanceId: 'iptv-guide',
+              enabled: true,
+              options: {},
+            },
+          ]
+        : []),
+    ]);
+    const draft = structuredClone(userData);
+    const aio = await new core.AIOStreams(userData).initialise();
+    assert(
+      aio.hasEpgProvider() === epg,
+      'IPTV EPG support must depend on a real guide'
+    );
+    const catalog = liveTvCatalog(
+      aio,
+      core.constants.TV_TYPE,
+      core.LIVE_TV_MERGED_CATALOG_ID
+    );
+    const channels = (await aio.getCatalog(core.constants.TV_TYPE, catalog.id))
+      .data;
+    assert(
+      channels.length === 2,
+      'IPTV builtins must expose playlist or guide channels'
+    );
+    const bbc = channels.find((channel) => channel.name === 'BBC One');
+    assert(bbc, 'IPTV catalog must contain BBC One');
+    const meta = (await aio.getMeta(core.constants.TV_TYPE, bbc.id)).data;
+    assert(meta?.name === 'BBC One', 'IPTV channel metadata must resolve');
+    assert(meta.logo === 'https://example.com/bbc-logo.png', 'IPTV channel details must retain the channel logo');
+    assert(
+      Boolean(meta.videos?.length) === epg,
+      'only the guide may supply programme metadata'
+    );
+    const streams =
+      (await aio.getStreams(bbc.id, core.constants.TV_TYPE)).data?.streams ??
+      [];
+    assert(
+      streams.some((stream) => stream.url === 'https://example.com/bbc.m3u8'),
+      'IPTV channel must resolve playback'
+    );
+    assert(
+      JSON.stringify(userData.presets) === JSON.stringify(draft.presets),
+      'IPTV loading must preserve preset draft settings'
+    );
+  }
+  console.log(
+    '  [ok] IPTV-org standalone and IPTV-EPG pairing: catalogs, meta, streams and conditional EPG'
+  );
 }
 
 function liveTvCatalog(
@@ -1245,6 +1326,10 @@ async function main() {
   const { server: builtinServer, base: internalBase } = await reservePort();
   process.env.INTERNAL_URL = internalBase;
   process.env.BASE_URL = internalBase;
+  process.env.REQUEST_URL_MAPPINGS = JSON.stringify({
+    'https://iptv-org.github.io': sourceBase,
+    'https://iptv-epg.org': sourceBase,
+  });
 
   try {
     const core = await import('../packages/core/dist/index.js');
@@ -1263,6 +1348,7 @@ async function main() {
 
     await validateWithEpg(sourceBase, deps);
     await validateWithoutEpg(sourceBase, deps);
+    await validateIptvBuiltins(core);
     await validateChannelMappings(sourceBase, deps);
     await validateParallelStreamResolution(core);
     await validateGuideChoicesAndPersistence(sourceBase, core);

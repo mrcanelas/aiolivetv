@@ -78,6 +78,7 @@ Sources are configured as addons in **Addons**, under **Streams** or **Metadata 
 | Source                               | What it provides                                                                                                                                      |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **M3U**                              | Playlist channels and streams, including `tvg-id` and channel metadata when supplied. Can also be used as a stream-only source for an existing guide. |
+| **IPTV-org / IPTV-EPG** | Independent country-selectable builtins: IPTV-org supplies streams; IPTV-EPG supplies channel catalogs, metadata and programme guides. Review coverage and matches in Channels. |
 | **XMLTV**                            | Channel definitions, programme metadata and EPG from `.xml` or `.xml.gz` guides. Pair it with a playback source.                                      |
 | **Xtream Codes**                     | Live channels and streams, plus EPG when available from the provider. Includes category filtering.                                                    |
 | **TVHeadend**                        | Channels, EPG and live playback through its HTTP API. Supports direct playback and an optional instance-controlled proxy.                             |

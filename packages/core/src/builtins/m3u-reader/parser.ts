@@ -9,6 +9,7 @@ export interface M3uEntry {
   group?: string;
   country?: string;
   language?: string;
+  headers?: Record<string, string>;
 }
 
 /** Only playlist-level headers advertise guides; stream attributes do not. */
@@ -70,10 +71,24 @@ export function parseM3u(playlist: string): M3uEntry[] {
       )) {
         metadata[match[1].toLowerCase()] = match[2].replace(/^["']|["']$/g, '');
       }
+    } else if (metadata && line.startsWith('#EXTVLCOPT:')) {
+      const match = line.match(
+        /^#EXTVLCOPT:(http-(?:user-agent|referrer|origin))=(.*)$/i
+      );
+      if (match) metadata[match[1].toLowerCase()] = match[2];
     } else if (line && !line.startsWith('#') && metadata) {
       const name = decodeHtmlEntities(metadata['tvg-name'] || displayName);
       const channelId = metadata['tvg-id'] || name;
       if (name && channelId) {
+        const headers: Record<string, string> = {};
+        for (const [attribute, header] of [
+          ['http-user-agent', 'User-Agent'],
+          ['http-referrer', 'Referer'],
+          ['http-origin', 'Origin'],
+        ]) {
+          const value = metadata[attribute]?.trim();
+          if (value && !/[\r\n]/.test(value)) headers[header] = value;
+        }
         entries.push({
           channelId,
           name,
@@ -82,6 +97,7 @@ export function parseM3u(playlist: string): M3uEntry[] {
           group: normalizeChannelGroup(metadata['group-title']),
           country: metadata['tvg-country'],
           language: metadata['tvg-language'],
+          ...(Object.keys(headers).length ? { headers } : {}),
         });
       }
       metadata = undefined;

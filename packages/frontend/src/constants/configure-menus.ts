@@ -30,6 +30,8 @@ export const CONFIGURE_DEFAULT_MISC_SUB_TAB = 'playback' as const;
 export const LIVE_TV_MARKETPLACE_PRESET_IDS = [
   'm3u',
   'xmltv',
+  'iptv-org',
+  'iptv-epg',
   'xtream',
   'pluto-tv',
   'tvheadend',

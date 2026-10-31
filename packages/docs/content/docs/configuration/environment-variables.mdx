@@ -424,6 +424,7 @@ neither the environment variable nor a stored value is present.
 
 | Environment Variable | UI Setting | Type | Default | Description |
 | --- | --- | --- | --- | --- |
+| `IPTV_EPG_SOURCE_MAX_BYTES` | Iptv Epg Source Max Bytes | number | `104857600` | Maximum downloaded and decompressed IPTV-EPG country guide size. Large guides require more parsing memory; increase only on suitably sized instances. |
 | `LIVE_TV_SOURCE_MAX_BYTES` | Live Tv Source Max Bytes | number | `52428800` | Maximum downloaded and decompressed M3U/XMLTV source size. Increase only when the instance has enough memory to parse larger guides. |
 | `STREAM_URL_MAPPINGS` | Stream URL Mappings | map | — | Origin-level rewrites applied to stream URLs returned to clients. JSON object of `{origin: replacement}` URLs. |
 

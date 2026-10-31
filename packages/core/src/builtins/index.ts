@@ -11,3 +11,4 @@ export * from './xtream/index.js';
 export * from './tvheadend/index.js';
 export * from './plutotv/index.js';
 export * from './spain/addon.js';
+export * from './iptv/index.js';
