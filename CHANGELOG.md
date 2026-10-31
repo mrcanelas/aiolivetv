@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.7.0](https://github.com/mrcanelas/aiolivetv/compare/v1.6.1...v1.7.0) (2026-10-31)
+
+
+### Features
+
+* **iptv:** add country-based playlists and EPG guides ([a216476](https://github.com/mrcanelas/aiolivetv/commit/a21647649dea0f99684a2889b8c11a380549f8dd)), closes [#43](https://github.com/mrcanelas/aiolivetv/issues/43)
+* **services:** configure TMDB enrichment and API languages ([176d5f9](https://github.com/mrcanelas/aiolivetv/commit/176d5f951f9c3c0a6d14b828da5d520665a1927c))
+
+
+### Bug Fixes
+
+* **channels:** accept 404 at the end of catalog pagination ([97892ac](https://github.com/mrcanelas/aiolivetv/commit/97892ac318fa58ecaf2c6bcf5468c02cb9827ce2))
+* **http:** report outbound proxy connection refusals ([7055f42](https://github.com/mrcanelas/aiolivetv/commit/7055f428ada81f67fd4ba2e3f208ec5be04ddcfb))
+* **m3u:** return 404 for missing playlist channels ([21b8541](https://github.com/mrcanelas/aiolivetv/commit/21b85416daeb825ce2e78dd883cc5ab18a3457ab))
+
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.6.1](https://github.com/mrcanelas/aiolivetv/compare/v1.6.0...v1.6.1) (2026-10-29)
 
 
