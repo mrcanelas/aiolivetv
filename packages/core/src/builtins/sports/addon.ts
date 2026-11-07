@@ -90,7 +90,7 @@ const translations = {
   },
 } as const;
 
-export function sportsEventState(event: SportsEvent) {
+export function sportsEventState(event: SportsEvent, now = Date.now()) {
   const state = event.strStatus?.trim().toUpperCase();
   if (/^(PST|POSTPONED)$/.test(state ?? '')) return 'postponed';
   if (/^(CANC|ABD|AWD|WO|CANCELLED|CANCELED|ABANDONED)$/.test(state ?? ''))
@@ -105,8 +105,11 @@ export function sportsEventState(event: SportsEvent) {
     /^(1H|2H|HT|ET|BT|P|LIVE|IN PLAY|IN PROGRESS|Q[1-4]|OT|HALF TIME)$/.test(
       state ?? ''
     )
-  )
-    return 'live';
+  ) {
+    const elapsed = now - sportsKickoff(event);
+    // shortcut: reject stale live flags after five hours until the feed supplies end times.
+    if (elapsed >= 0 && elapsed < 5 * 60 * 60 * 1_000) return 'live';
+  }
   return 'scheduled';
 }
 
@@ -225,6 +228,14 @@ export class SportsAddon {
 
   private toMeta(event: SportsEvent): Meta {
     const kickoff = sportsKickoff(event);
+    const now = Date.now();
+    const state = sportsEventState(event, now);
+    const marker =
+      state === 'live'
+        ? '🔴 '
+        : state === 'scheduled' && kickoff > now
+          ? '🕒 '
+          : '';
     const id = `${SPORTS_EVENT_PREFIX}${event.idEvent}`;
     const artwork = [event.strThumb, event.strFanart]
       .map((value) => value?.trim())
@@ -232,7 +243,7 @@ export class SportsAddon {
     return {
       id,
       type: TV_TYPE,
-      name: event.strEvent,
+      name: `${marker}${event.strEvent}`,
       genres: [event.strLeague],
       posterShape: 'landscape',
       poster:
@@ -246,7 +257,7 @@ export class SportsAddon {
         Number.isFinite(kickoff)
           ? `${this.localTime.format(kickoff)} (${this.settings.timeZone})`
           : this.copy.unknownTime,
-        this.copy[sportsEventState(event)],
+        this.copy[state],
       ].join('\n'),
       behaviorHints: { defaultVideoId: id },
     };

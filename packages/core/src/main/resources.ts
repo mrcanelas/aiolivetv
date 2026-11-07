@@ -22,7 +22,6 @@ import {
 import {
   loadSportsBroadcasters,
   loadSportsEvent,
-  sportsKickoff,
 } from '../builtins/sports/provider.js';
 import {
   selectSportsChannels,
@@ -786,9 +785,6 @@ async function getSportsStreams(
     () => undefined
   );
   if (!event || sportsEventState(event) !== 'live') return empty;
-  const elapsed = Date.now() - sportsKickoff(event);
-  // shortcut: reject stale live flags after five hours until the feed supplies end times.
-  if (!(elapsed >= 0 && elapsed < 5 * 60 * 60 * 1_000)) return empty;
   const broadcasters = await loadSportsBroadcasters(
     theSportsDbApiKey,
     eventId,

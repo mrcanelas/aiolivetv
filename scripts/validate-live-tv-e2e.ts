@@ -1497,8 +1497,8 @@ async function validateSports(
     );
     assert(
       matches.metas?.map((item) => item.name).join(',') ===
-        `${sportsEvent.strEvent},${nextSportsEvent.strEvent}`,
-      'sports catalog must keep kickoff order'
+        `🔴 ${sportsEvent.strEvent},🕒 ${nextSportsEvent.strEvent}`,
+      'sports catalog must show live and upcoming markers in kickoff order'
     );
     const [live, upcoming] = matches.metas;
     assert(
@@ -1515,6 +1515,7 @@ async function validateSports(
       meta.description?.includes('Onde assistir (Reino Unido): BBC One'),
       'meta must use the saved market and locale'
     );
+    assert(meta.name === live.name, 'sports details must keep the live marker');
     assert(
       meta.posterShape === 'landscape' && meta.poster === live.poster,
       'sports details must use the same landscape artwork as the catalog'

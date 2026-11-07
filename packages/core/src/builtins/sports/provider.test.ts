@@ -90,6 +90,7 @@ it('keeps match IDs stable across languages, markets and local calendar days', a
     strEvent: 'Club A vs Club B',
     strLeague: 'International Cup',
     strTimestamp: '2026-11-08T00:30:00Z',
+    strStatus: '1H',
   };
   vi.mocked(makeRequest).mockImplementation(async (rawUrl) => {
     const url = new URL(rawUrl);
@@ -144,6 +145,7 @@ it('keeps match IDs stable across languages, markets and local calendar days', a
       us.getCatalog(football.id, 0, 'Another league')
     ).resolves.toEqual([]);
     expect(preview.description).toContain('7 nov');
+    expect(preview.name).toBe(`🕒 ${event.strEvent}`);
     const usMeta = await us.getMeta(preview.id);
     const gbMeta = await gb.getMeta(preview.id);
     expect(usMeta?.description).toContain('Dónde ver (Estados Unidos): ESPN 2');
