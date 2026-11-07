@@ -249,18 +249,20 @@ export class SportsAddon {
     const artwork = [event.strThumb, event.strFanart]
       .map((value) => value?.trim())
       .find((url) => url && URL.parse(url)?.protocol === 'https:');
+    const poster =
+      artwork ??
+      new URL(
+        '/logo.png',
+        config.bootstrap.baseUrl || config.bootstrap.internalUrl
+      ).toString();
     return {
       id,
       type: TV_TYPE,
       name: `${marker}${event.strEvent}`,
       genres: [event.strLeague],
       posterShape: 'landscape',
-      poster:
-        artwork ??
-        new URL(
-          '/logo.png',
-          config.bootstrap.baseUrl || config.bootstrap.internalUrl
-        ).toString(),
+      poster,
+      background: poster,
       description: [
         event.strLeague,
         Number.isFinite(kickoff)
@@ -311,6 +313,14 @@ export class SportsAddon {
         ? this.copy.unavailable
         : broadcasters.join(', ') || this.copy.unknown;
     meta.description += `\n\n${this.copy.watch} (${country}): ${options}\nTheSportsDB`;
+    meta.videos = [
+      {
+        id: meta.id,
+        title: meta.name,
+        thumbnail: meta.poster,
+        background: meta.poster,
+      },
+    ];
     return meta;
   }
 }

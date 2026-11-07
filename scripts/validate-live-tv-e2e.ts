@@ -1549,8 +1549,14 @@ async function validateSports(
     );
     assert(meta.name === live.name, 'sports details must keep the live marker');
     assert(
-      meta.posterShape === 'landscape' && meta.poster === live.poster,
-      'sports details must use the same landscape artwork as the catalog'
+      meta.posterShape === 'landscape' &&
+        meta.poster === live.poster &&
+        meta.background === live.poster &&
+        meta.videos?.length === 1 &&
+        meta.videos[0].id === live.id &&
+        meta.videos[0].thumbnail === live.poster &&
+        meta.videos[0].background === live.poster,
+      'sports details must reuse the landscape poster as the background and video artwork without changing the playback ID'
     );
     const lineup = await catalog(core.LIVE_TV_MERGED_CATALOG_ID);
     assert(
