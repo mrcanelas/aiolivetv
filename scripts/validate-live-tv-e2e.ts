@@ -40,6 +40,15 @@ const nextSportsEvent = {
   strTimestamp: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
   strStatus: 'NS',
 };
+const liveOnlySportsEvent = {
+  idEvent: '90003',
+  strSport: 'Soccer',
+  strLeague: 'Spanish La Liga',
+  strHomeTeam: 'Valencia',
+  strAwayTeam: 'Real Madrid',
+  strTimestamp: sportsEvent.strTimestamp,
+  strStatus: 'HT',
+};
 
 const XMLTV_FIXTURE = `<tv>
   <channel id="bbc.one"><display-name>BBC One</display-name><icon src="https://example.com/bbc-logo.png" /></channel>
@@ -112,6 +121,22 @@ async function startFixtureServer(): Promise<{
         res.end(JSON.stringify({ Message: 'Invalid Premium API key' }));
         return;
       }
+      if (url.pathname.endsWith('/livescore.php')) {
+        const livescore =
+          url.searchParams.get('s') === 'Soccer'
+            ? [
+                {
+                  ...liveOnlySportsEvent,
+                  idEvent: sportsEvent.idEvent,
+                  strStatus: sportsEvent.strStatus,
+                },
+                liveOnlySportsEvent,
+              ]
+            : [];
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ livescore }));
+        return;
+      }
       const id = url.searchParams.get('id');
       if (
         id === nextSportsEvent.idEvent &&
@@ -124,11 +149,13 @@ async function startFixtureServer(): Promise<{
       const events = [sportsEvent, nextSportsEvent];
       const response = url.pathname.endsWith('/eventsday.php')
         ? {
-            events: events.filter(
-              (event) =>
-                event.strSport === url.searchParams.get('s') &&
-                event.strTimestamp.slice(0, 10) === url.searchParams.get('d')
-            ),
+            events: events
+              .filter(
+                (event) =>
+                  event.strSport === url.searchParams.get('s') &&
+                  event.strTimestamp.slice(0, 10) === url.searchParams.get('d')
+              )
+              .map((event) => ({ ...event, strStatus: 'NS' })),
           }
         : url.pathname.endsWith('/lookupevent.php')
           ? { events: events.filter((event) => event.idEvent === id) }
@@ -1485,7 +1512,9 @@ async function validateSports(
     assert(
       football?.extra?.some(
         (extra) =>
-          extra.name === 'genre' && extra.options?.includes(sportsLeague)
+          extra.name === 'genre' &&
+          extra.options?.includes(sportsLeague) &&
+          extra.options.includes(liveOnlySportsEvent.strLeague)
       ),
       'manifest must retain localized names and championship options'
     );
@@ -1533,6 +1562,17 @@ async function validateSports(
       'sports catalog must show live and upcoming markers in kickoff order'
     );
     const [live, upcoming] = matches.metas;
+    const liveOnly = await catalog(
+      football.id,
+      `genre=${encodeURIComponent(liveOnlySportsEvent.strLeague)}`
+    );
+    assert(
+      liveOnly.metas?.length === 1 &&
+        liveOnly.metas[0].id ===
+          `${core.SPORTS_EVENT_PREFIX}${liveOnlySportsEvent.idEvent}` &&
+        liveOnly.metas[0].name === '🔴 Valencia vs Real Madrid',
+      'the catalog must show live games missing from the daily schedule under their league'
+    );
     assert(
       live.posterShape === 'landscape' &&
         live.poster === sportsEvent.strThumb &&

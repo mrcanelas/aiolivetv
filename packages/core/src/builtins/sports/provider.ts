@@ -46,6 +46,18 @@ const EventSchema = z.object({
   strFanart: z.string().nullish(),
 });
 
+const LivescoreSchema = EventSchema.omit({ strEvent: true })
+  .extend({
+    strHomeTeam: z.string().trim().min(1),
+    strAwayTeam: z.string().trim().min(1),
+    strEventTime: z.string().nullish(),
+  })
+  .transform(({ strHomeTeam, strAwayTeam, strEventTime, ...event }) => ({
+    ...event,
+    strEvent: `${strHomeTeam} vs ${strAwayTeam}`,
+    strTime: event.strTime ?? strEventTime,
+  }));
+
 const BroadcastSchema = z.object({
   idEvent: z.string(),
   strChannel: z.string().trim().min(1),
@@ -61,7 +73,7 @@ const cache = Cache.getInstance<string, { rows: unknown[] }>(
 
 async function request(
   apiKey: string,
-  endpoint: 'eventsday' | 'lookupevent' | 'lookuptv',
+  endpoint: 'eventsday' | 'livescore' | 'lookupevent' | 'lookuptv',
   query: Record<string, string>
 ) {
   const params = new URLSearchParams(query);
@@ -92,7 +104,12 @@ async function request(
         return failed();
       }
       const payload = await response.json().catch(failed);
-      const field = endpoint === 'lookuptv' ? 'tvevent' : 'events';
+      const field =
+        endpoint === 'lookuptv'
+          ? 'tvevent'
+          : endpoint === 'livescore'
+            ? 'livescore'
+            : 'events';
       const result = z
         .object({ [field]: z.array(z.unknown()).nullable() })
         .safeParse(payload);
@@ -119,6 +136,13 @@ export async function loadSportsDay(
   return parseRows(
     await request(apiKey, 'eventsday', { d: date, s: SPORTS[sport] }),
     EventSchema
+  ).filter((event) => event.strSport === SPORTS[sport]);
+}
+
+export async function loadSportsLivescores(apiKey: string, sport: Sport) {
+  return parseRows(
+    await request(apiKey, 'livescore', { s: SPORTS[sport] }),
+    LivescoreSchema
   ).filter((event) => event.strSport === SPORTS[sport]);
 }
 

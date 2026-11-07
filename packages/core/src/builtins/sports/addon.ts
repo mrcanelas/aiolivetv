@@ -12,6 +12,7 @@ import {
   loadSportsBroadcasters,
   loadSportsDay,
   loadSportsEvent,
+  loadSportsLivescores,
   SPORTS,
   SPORTS_MARKETS,
   sportsKickoff,
@@ -94,11 +95,11 @@ const translations = {
 
 export function sportsEventState(event: SportsEvent, now = Date.now()) {
   const state = event.strStatus?.trim().toUpperCase();
-  if (/^(PST|POSTPONED)$/.test(state ?? '')) return 'postponed';
+  if (/^(PST|POST|POSTPONED)$/.test(state ?? '')) return 'postponed';
   if (/^(CANC|ABD|AWD|WO|CANCELLED|CANCELED|ABANDONED)$/.test(state ?? ''))
     return 'cancelled';
   if (
-    /^(FT|AET|AP|FINAL|FINISHED|MATCH FINISHED|AFTER PENALTIES|AFTER EXTRA TIME)$/.test(
+    /^(FT|AET|AP|PEN|AOT|FINAL|FINISHED|MATCH FINISHED|AFTER PENALTIES|AFTER EXTRA TIME)$/.test(
       state ?? ''
     )
   )
@@ -152,11 +153,13 @@ export class SportsAddon {
     const days = Array.from({ length: 6 }, (_, index) =>
       new Date(midnight + (index - 1) * dayMs).toISOString().slice(0, 10)
     );
-    const results = await Promise.allSettled(
-      days.map((date) =>
-        loadSportsDay(this.settings.theSportsDbApiKey, sport, date)
-      )
-    );
+    const { theSportsDbApiKey, timeZone } = this.settings;
+    const [results, scores] = await Promise.all([
+      Promise.allSettled(
+        days.map((date) => loadSportsDay(theSportsDbApiKey, sport, date))
+      ),
+      loadSportsLivescores(theSportsDbApiKey, sport).catch(() => []),
+    ]);
     const unauthorized = results.find(
       (result) =>
         result.status === 'rejected' &&
@@ -164,8 +167,6 @@ export class SportsAddon {
         result.reason.code === ErrorCode.UNAUTHORIZED
     );
     if (unauthorized?.status === 'rejected') throw unauthorized.reason;
-    if (results.every((result) => result.status === 'rejected'))
-      throw new Error('TheSportsDB schedule is unavailable');
     const events = new Map<string, SportsEvent>();
     for (const result of results) {
       if (result.status !== 'fulfilled') continue;
@@ -174,19 +175,29 @@ export class SportsAddon {
         const day = Number.isFinite(kickoff)
           ? this.localDay.format(kickoff)
           : event.dateEvent;
-        if (day && day >= firstDay && day < afterLastDay)
+        if (
+          (day && day >= firstDay && day < afterLastDay) ||
+          sportsEventState(event, now) === 'live'
+        )
           events.set(event.idEvent, event);
       }
     }
-    const schedule = [...events.values()].sort(
-      (a, b) => (sportsKickoff(a) || Infinity) - (sportsKickoff(b) || Infinity)
-    );
-    await cacheSportsCatalog(
-      this.settings.theSportsDbApiKey,
-      sport,
-      this.settings.timeZone,
-      schedule
-    );
+    for (const score of scores) {
+      const event = events.get(score.idEvent);
+      if (event && score.strStatus?.trim())
+        events.set(event.idEvent, { ...event, strStatus: score.strStatus });
+      else if (!event && sportsEventState(score, now) === 'live')
+        events.set(score.idEvent, score);
+    }
+    if (!events.size && results.every((result) => result.status === 'rejected'))
+      throw new Error('TheSportsDB schedule is unavailable');
+    const schedule = [...events.values()].sort((a, b) => {
+      const aLive = sportsEventState(a, now) === 'live';
+      const bLive = sportsEventState(b, now) === 'live';
+      if (aLive !== bLive) return aLive ? -1 : 1;
+      return (sportsKickoff(a) || Infinity) - (sportsKickoff(b) || Infinity);
+    });
+    await cacheSportsCatalog(theSportsDbApiKey, sport, timeZone, schedule);
     return schedule;
   }
 
