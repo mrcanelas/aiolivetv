@@ -13,6 +13,8 @@ vi.mock('../../utils/http.js', () => ({ makeRequest: vi.fn() }));
 
 const { makeRequest } = await import('../../utils/http.js');
 const { SportsAddon } = await import('./addon.js');
+const { selectSportsChannels, sportsTitlesMatch } =
+  await import('./playback.js');
 const { loadSportsBroadcasters, loadSportsDay, sportsKickoff } =
   await import('./provider.js');
 
@@ -146,4 +148,27 @@ it('keeps match IDs stable across languages, markets and local calendar days', a
   } finally {
     clock.mockRestore();
   }
+});
+
+it('uses EPG to disambiguate a network while respecting country and channel numbers', async () => {
+  const channels = [
+    { id: 'us-1', type: 'tv', name: 'ESPN 1', country: 'US' },
+    { id: 'us-2', type: 'tv', name: 'ESPN 2 HD', country: 'United States' },
+    { id: 'ar-2', type: 'tv', name: 'ESPN 2', country: 'Argentina' },
+  ];
+  const noProgramme = async () => false;
+  await expect(
+    selectSportsChannels(channels, ['ESPN 2'], 'US', noProgramme)
+  ).resolves.toEqual(['us-2']);
+  await expect(
+    selectSportsChannels(channels, ['ESPN'], 'US', noProgramme)
+  ).resolves.toEqual([]);
+  await expect(
+    selectSportsChannels(channels, ['ESPN'], 'US', async ({ id }) =>
+      sportsTitlesMatch(
+        'Atlético vs Club B',
+        id === 'us-2' ? 'Atletico x Club B' : 'Atletico x Club C'
+      )
+    )
+  ).resolves.toEqual(['us-2']);
 });

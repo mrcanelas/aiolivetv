@@ -739,7 +739,8 @@ export async function getMergedCatalog(
   ctx: AIOStreamsContext,
   type: string,
   id: string,
-  extras?: string
+  extras?: string,
+  paginateLive = true
 ): Promise<AIOStreamsCatalogResponse> {
   const start = Date.now();
   const mergedCatalog = ctx.userData.mergedCatalogs?.find((mc) => mc.id === id);
@@ -878,21 +879,24 @@ export async function getMergedCatalog(
   }
   const paginate = (
     catalog: AIOStreamsCatalogResponse
-  ): AIOStreamsCatalogResponse => ({
-    ...catalog,
-    data: catalog.data.slice(
-      requestedSkip,
-      requestedSkip + LIVE_TV_CATALOG_PAGE_SIZE
-    ),
-    ...(catalog.metasDetailed
-      ? {
-          metasDetailed: catalog.metasDetailed.slice(
+  ): AIOStreamsCatalogResponse =>
+    !paginateLive
+      ? catalog
+      : {
+          ...catalog,
+          data: catalog.data.slice(
             requestedSkip,
             requestedSkip + LIVE_TV_CATALOG_PAGE_SIZE
           ),
-        }
-      : {}),
-  });
+          ...(catalog.metasDetailed
+            ? {
+                metasDetailed: catalog.metasDetailed.slice(
+                  requestedSkip,
+                  requestedSkip + LIVE_TV_CATALOG_PAGE_SIZE
+                ),
+              }
+            : {}),
+        };
   if (isLiveMerged) {
     const cached = await mergedCatalogCache.get(liveCatalogCacheKey);
     if (cached?.catalog) return paginate(cached.catalog);

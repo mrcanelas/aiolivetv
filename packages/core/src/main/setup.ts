@@ -23,6 +23,8 @@ import {
 import {
   ERROR_META_ID_PREFIX,
   LEGACY_ERROR_META_ID_PREFIX,
+  SPORTS_EVENT_PREFIX,
+  isSportsCatalogId,
 } from '../utils/identity.js';
 
 const logger = createLogger('core');
@@ -614,12 +616,17 @@ export function buildResources(ctx: AIOStreamsContext): void {
 }
 
 function normalizeLiveTvManifest(ctx: AIOStreamsContext): void {
+  const sportsEnabled = ctx.addons.some(
+    (addon) =>
+      addon.preset.type === 'sports' && ctx.manifests[addon.instanceId!]
+  );
   const catalogName =
     ctx.userData.addonName?.trim() ||
     appConfig.branding.addonName ||
     'AIOLiveTV';
 
   ctx.finalCatalogs = ctx.finalCatalogs.map((catalog) => {
+    if (isSportsCatalogId(catalog.id)) return catalog;
     const type =
       catalog.type === constants.CHANNEL_TYPE
         ? constants.TV_TYPE
@@ -638,7 +645,20 @@ function normalizeLiveTvManifest(ctx: AIOStreamsContext): void {
     );
     if (!resource) continue;
     resource.types = [constants.TV_TYPE];
-    resource.idPrefixes = [CHANNEL_ID_PREFIX];
+    resource.idPrefixes =
+      sportsEnabled && resourceName !== 'catalog'
+        ? [CHANNEL_ID_PREFIX, SPORTS_EVENT_PREFIX]
+        : [CHANNEL_ID_PREFIX];
+  }
+  if (
+    sportsEnabled &&
+    !ctx.finalResources.some((resource) => resource.name === 'stream')
+  ) {
+    ctx.finalResources.push({
+      name: 'stream',
+      types: [constants.TV_TYPE],
+      idPrefixes: [SPORTS_EVENT_PREFIX],
+    });
   }
 }
 

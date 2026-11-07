@@ -10,7 +10,24 @@ import { canRunFfprobe } from '../utils/runtime.js';
 import { config as appConfig } from '../config/index.js';
 import { getAddonName } from '../utils/general.js';
 import { Wrapper } from './wrapper.js';
-import { SPORTS_EVENT_PREFIX, isSportsCatalogId } from '../utils/identity.js';
+import {
+  LIVE_TV_MERGED_CATALOG_ID,
+  SPORTS_EVENT_PREFIX,
+  isSportsCatalogId,
+} from '../utils/identity.js';
+import {
+  SportsConfigSchema,
+  sportsEventState,
+} from '../builtins/sports/addon.js';
+import {
+  loadSportsBroadcasters,
+  loadSportsEvent,
+  sportsKickoff,
+} from '../builtins/sports/provider.js';
+import {
+  selectSportsChannels,
+  sportsTitlesMatch,
+} from '../builtins/sports/playback.js';
 import { PresetManager } from '../presets/index.js';
 import { FeatureControl } from '../utils/feature.js';
 import { StreamContext } from '../streams/index.js';
@@ -37,6 +54,7 @@ import { buildStatistics } from './statistics.js';
 import {
   applyPosterModifications,
   convertDiscoverDeepLinks,
+  getMergedCatalog,
 } from './catalog.js';
 import {
   hmac,
@@ -742,6 +760,99 @@ async function resolveLiveStreamFetchPlan(
   };
 }
 
+async function getSportsStreams(
+  ctx: AIOStreamsContext,
+  id: string,
+  type: string
+): ReturnType<typeof getStreams> {
+  const context = StreamContext.create(type, id, ctx.userData);
+  ctx.streamContext = context;
+  const empty = {
+    success: true,
+    data: { streams: [], statistics: [] },
+    errors: [],
+  };
+  const addon = ctx.addons.find(
+    (addon) =>
+      addon.preset.type === 'sports' && ctx.manifests[addon.instanceId!]
+  );
+  const eventId = id.slice(SPORTS_EVENT_PREFIX.length);
+  if (type !== constants.TV_TYPE || !addon || !/^\d+$/.test(eventId))
+    return empty;
+  const { market } = SportsConfigSchema.parse(addon.preset.options);
+  const event = await loadSportsEvent(eventId).catch(() => undefined);
+  if (!event || sportsEventState(event) !== 'live') return empty;
+  const elapsed = Date.now() - sportsKickoff(event);
+  // shortcut: reject stale live flags after five hours until the feed supplies end times.
+  if (!(elapsed >= 0 && elapsed < 5 * 60 * 60 * 1_000)) return empty;
+  const broadcasters = await loadSportsBroadcasters(eventId, market).catch(
+    () => []
+  );
+  if (!broadcasters.length) return empty;
+
+  const inventory = ctx.userData.mergedCatalogs?.some(
+    ({ id }) => id === LIVE_TV_MERGED_CATALOG_ID
+  )
+    ? await getMergedCatalog(
+        ctx,
+        type,
+        LIVE_TV_MERGED_CATALOG_ID,
+        undefined,
+        false
+      )
+    : undefined;
+  // A partial inventory cannot establish whether a channel name is unique.
+  if (inventory?.cacheable === false || inventory?.success === false)
+    return empty;
+  const channels = new Map(
+    (inventory?.data ?? []).map((item) => [item.id, item])
+  );
+  for (const mapping of ctx.userData.channelMappings ?? []) {
+    if (mapping.name && !channels.has(mapping.id)) {
+      channels.set(mapping.id, { id: mapping.id, type, name: mapping.name });
+    }
+  }
+  const confirm = pLimit(LIVE_STREAM_RESOLUTION_CONCURRENCY);
+  const channelIds = await selectSportsChannels(
+    [...channels.values()].filter(
+      (channel) =>
+        !channel.id.startsWith(SPORTS_EVENT_PREFIX) &&
+        isLiveChannelVisible(ctx.userData, channel.id)
+    ),
+    broadcasters,
+    market,
+    ({ id: channelId, type: channelType }) =>
+      confirm(async () => {
+        const meta = await getMeta(ctx, channelType, channelId);
+        const program = currentProgramMetadata(meta.data?.videos ?? []);
+        return [program.programTitle, program.programSubtitle].some(
+          (title) => title && sportsTitlesMatch(event.strEvent, title)
+        );
+      })
+  );
+  if (!channelIds.length) return empty;
+
+  const streams: ParsedStream[] = [];
+  const errors: AIOStreamsError[] = [];
+  for (const channelId of channelIds) {
+    const result = await getStreams(
+      ctx,
+      channelId,
+      channels.get(channelId)?.type ?? type
+    );
+    streams.push(...result.data.streams);
+    errors.push(...result.errors);
+  }
+  ctx.streamContext = context;
+  const unique = await ctx.deduplicator.deduplicate(streams);
+  const sorted = await ctx.sorter.sort(unique, context);
+  return {
+    success: true,
+    data: { streams: await ctx.limiter.limit(sorted), statistics: [] },
+    errors,
+  };
+}
+
 export async function getStreams(
   ctx: AIOStreamsContext,
   id: string,
@@ -753,6 +864,8 @@ export async function getStreams(
   }>
 > {
   logger.debug({ type, id }, 'handling stream request');
+  if (id.startsWith(SPORTS_EVENT_PREFIX))
+    return getSportsStreams(ctx, id, type);
   const statistics: { title: string; description: string; forced?: boolean }[] =
     [];
 
