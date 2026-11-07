@@ -14,7 +14,6 @@ import {
   M3uAddon,
   XmltvAddon,
   SportsAddon,
-  SportsConfigSchema,
   VivoTvAddon,
   MovistarTvAddon,
   TvpAddon,
@@ -56,8 +55,11 @@ function config(encodedConfig: string): LiveTvSourceConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
 }
 
-function sportsAddon(encodedConfig: string) {
-  return new SportsAddon(SportsConfigSchema.parse(config(encodedConfig)));
+function sportsAddon(encodedConfig: string, authorization?: string) {
+  return new SportsAddon({
+    ...JSON.parse(fromUrlSafeBase64(encodedConfig)),
+    theSportsDbApiKey: /^Bearer (.+)$/i.exec(authorization ?? '')?.[1],
+  });
 }
 
 function vivoConfig(encodedConfig: string): VivoTvConfig {
@@ -180,7 +182,12 @@ router.get(
 
 router.get('/sports/:encodedConfig/manifest.json', async (req, res, next) => {
   try {
-    res.json(await sportsAddon(req.params.encodedConfig).getManifest());
+    res.json(
+      await sportsAddon(
+        req.params.encodedConfig,
+        req.get('authorization')
+      ).getManifest()
+    );
   } catch (error) {
     next(error);
   }
@@ -191,11 +198,10 @@ router.get(
   async (req: Request<ResourceParams>, res, next) => {
     try {
       const { skip, genre } = parseCatalogExtras(getEncodedExtras(req));
-      const metas = await sportsAddon(req.params.encodedConfig).getCatalog(
-        req.params.id,
-        skip,
-        genre
-      );
+      const metas = await sportsAddon(
+        req.params.encodedConfig,
+        req.get('authorization')
+      ).getCatalog(req.params.id, skip, genre);
       res.json({ metas, cacheMaxAge: 60 });
     } catch (error) {
       next(error);
@@ -207,9 +213,10 @@ router.get(
   '/sports/:encodedConfig/meta/:type/:id.json',
   async (req: Request<ResourceParams>, res, next) => {
     try {
-      const meta = await sportsAddon(req.params.encodedConfig).getMeta(
-        req.params.id
-      );
+      const meta = await sportsAddon(
+        req.params.encodedConfig,
+        req.get('authorization')
+      ).getMeta(req.params.id);
       if (meta) res.json({ meta, cacheMaxAge: 60 });
       else res.sendStatus(404);
     } catch (error) {

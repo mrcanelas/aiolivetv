@@ -1,8 +1,11 @@
 import { expect, it, vi } from 'vitest';
 
+vi.hoisted(() => {
+  process.env.BASE_URL = 'http://127.0.0.1';
+});
+
 vi.mock('../../config/index.js', () => ({
   config: {
-    metadata: { theSportsDb: { apiKey: 'test' } },
     bootstrap: { baseUrl: 'https://addon.example' },
   },
 }));
@@ -45,11 +48,11 @@ it('uses the global sport schedule and reads unqualified kickoff timestamps as U
       },
     ],
   });
-  const events = await loadSportsDay('football', '2026-11-07');
+  const events = await loadSportsDay('test', 'football', '2026-11-07');
   expect(events.map((event) => event.idEvent)).toEqual(['1']);
   expect(sportsKickoff(events[0])).toBe(Date.UTC(2026, 10, 7, 0, 30));
   expect(vi.mocked(makeRequest).mock.lastCall?.[0]).toContain(
-    'eventsday.php?d=2026-11-07&s=Soccer'
+    '/test/eventsday.php?d=2026-11-07&s=Soccer'
   );
 });
 
@@ -67,12 +70,14 @@ it('uses the broadcast territory rather than the event country and preserves cha
       { idEvent: '2', strChannel: 'BBC Two', strCountry: 'United Kingdom' },
     ],
   });
-  await expect(loadSportsBroadcasters('1', 'US')).resolves.toEqual([
+  await expect(loadSportsBroadcasters('test', '1', 'US')).resolves.toEqual([
     'ESPN 2',
     'ESPN 3',
   ]);
-  await expect(loadSportsBroadcasters('1', 'GB')).resolves.toEqual(['BBC One']);
-  await expect(loadSportsBroadcasters('1', 'ES')).resolves.toEqual([]);
+  await expect(loadSportsBroadcasters('test', '1', 'GB')).resolves.toEqual([
+    'BBC One',
+  ]);
+  await expect(loadSportsBroadcasters('test', '1', 'ES')).resolves.toEqual([]);
 });
 
 it('keeps match IDs stable across languages, markets and local calendar days', async () => {
@@ -112,11 +117,13 @@ it('keeps match IDs stable across languages, markets and local calendar days', a
   });
   try {
     const us = new SportsAddon({
+      theSportsDbApiKey: 'test',
       locale: 'es',
       market: 'US',
       timeZone: 'America/New_York',
     });
     const gb = new SportsAddon({
+      theSportsDbApiKey: 'test',
       locale: 'pt',
       market: 'GB',
       timeZone: 'Europe/London',

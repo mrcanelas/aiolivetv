@@ -21,6 +21,7 @@ const EPG_STOP = new Date(EPG_START.getTime() + 2 * 60 * 60 * 1000);
 const EPG_START_ISO = EPG_START.toISOString();
 
 const sportsLeague = 'International Test Cup';
+const sportsApiKey = 'sports-fixture-key';
 const sportsEvent = {
   idEvent: '90001',
   strSport: 'Soccer',
@@ -102,6 +103,11 @@ async function startFixtureServer(): Promise<{
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     if (url.pathname.startsWith('/api/v1/json/')) {
+      if (!url.pathname.startsWith(`/api/v1/json/${sportsApiKey}/`)) {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ Message: 'Invalid Premium API key' }));
+        return;
+      }
       const id = url.searchParams.get('id');
       const events = [sportsEvent, nextSportsEvent];
       const response = url.pathname.endsWith('/eventsday.php')
@@ -1387,7 +1393,12 @@ async function validateSports(
       type: 'sports',
       instanceId: 'sports-1',
       enabled: true,
-      options: { locale: 'pt', market: 'GB', timeZone: 'UTC' },
+      options: {
+        locale: 'pt',
+        market: 'GB',
+        timeZone: 'UTC',
+        theSportsDbApiKey: sportsApiKey,
+      },
     },
     {
       ...m3uPreset,
@@ -1430,12 +1441,28 @@ async function validateSports(
       headers: auth,
     });
     assert(
-      restored.presets[0]?.options.market === 'GB',
-      'sports preferences must persist in the preset'
+      restored.presets[0]?.options.market === 'GB' &&
+        restored.presets[0]?.options.theSportsDbApiKey === sportsApiKey,
+      'sports preferences and the supplied key must persist in the preset'
     );
     const manifest = await json<
       import('../packages/core/dist/index.js').Manifest
     >(`${stremio}/manifest.json`);
+    assert(
+      !JSON.stringify(manifest).includes(sportsApiKey),
+      'the Stremio manifest must not expose the API key'
+    );
+    const invalidDraft = structuredClone(draft);
+    invalidDraft.presets[0].options.theSportsDbApiKey = 'invalid-fixture-key';
+    const rejected = await fetch(userUrl, {
+      method: 'PUT',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ config: invalidDraft }),
+    });
+    assert(
+      !rejected.ok && !(await rejected.text()).includes('invalid-fixture-key'),
+      'an invalid key must be rejected without exposing it or using the valid key’s cache'
+    );
     assert(
       !manifest.behaviorHints?.epgProvider,
       'sports schedule must not enable Native EPG'
@@ -1537,7 +1564,6 @@ async function main() {
   const { server: builtinServer, base: internalBase } = await reservePort();
   process.env.INTERNAL_URL = internalBase;
   process.env.BASE_URL = internalBase;
-  process.env.THESPORTSDB_API_KEY = 'sports-fixture-key';
   process.env.REQUEST_URL_MAPPINGS = JSON.stringify({
     'https://iptv-org.github.io': sourceBase,
     'https://iptv-epg.org': sourceBase,

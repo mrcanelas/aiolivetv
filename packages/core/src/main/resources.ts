@@ -779,15 +779,21 @@ async function getSportsStreams(
   const eventId = id.slice(SPORTS_EVENT_PREFIX.length);
   if (type !== constants.TV_TYPE || !addon || !/^\d+$/.test(eventId))
     return empty;
-  const { market } = SportsConfigSchema.parse(addon.preset.options);
-  const event = await loadSportsEvent(eventId).catch(() => undefined);
+  const { market, theSportsDbApiKey } = SportsConfigSchema.parse(
+    addon.preset.options
+  );
+  const event = await loadSportsEvent(theSportsDbApiKey, eventId).catch(
+    () => undefined
+  );
   if (!event || sportsEventState(event) !== 'live') return empty;
   const elapsed = Date.now() - sportsKickoff(event);
   // shortcut: reject stale live flags after five hours until the feed supplies end times.
   if (!(elapsed >= 0 && elapsed < 5 * 60 * 60 * 1_000)) return empty;
-  const broadcasters = await loadSportsBroadcasters(eventId, market).catch(
-    () => []
-  );
+  const broadcasters = await loadSportsBroadcasters(
+    theSportsDbApiKey,
+    eventId,
+    market
+  ).catch(() => []);
   if (!broadcasters.length) return empty;
 
   const inventory = ctx.userData.mergedCatalogs?.some(

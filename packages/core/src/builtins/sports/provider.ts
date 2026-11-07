@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { config } from '../../config/index.js';
 import { Cache } from '../../utils/cache.js';
+import { getSimpleTextHash } from '../../utils/crypto.js';
+import { APIError, ErrorCode } from '../../utils/constants.js';
 import { makeRequest } from '../../utils/http.js';
 import { normalizeChannelName } from '../../utils/channelName.js';
 import { IPTV_ORG_COUNTRIES } from '../iptv/config.js';
@@ -57,38 +58,43 @@ const cache = Cache.getInstance<string, { rows: unknown[] }>(
 );
 
 async function request(
+  apiKey: string,
   endpoint: 'eventsday' | 'lookupevent' | 'lookuptv',
   query: Record<string, string>
 ) {
-  const apiKey = config.metadata.theSportsDb.apiKey?.trim();
-  if (!apiKey) throw new Error('TheSportsDB API key is missing');
   const params = new URLSearchParams(query);
-  const key = `${endpoint}?${params}`;
+  const key = `${getSimpleTextHash(apiKey)}:${endpoint}?${params}`;
   const { rows } = await cache.wrap(
     async () => {
-      try {
-        const response = await makeRequest(
-          `https://www.thesportsdb.com/api/v1/json/${encodeURIComponent(apiKey)}/${endpoint}.php?${params}`,
-          {
-            timeout: 4_000,
-            ignoreRecursion: true,
-            rawOptions: { redirect: 'error' },
-          }
-        );
-        if (!response.ok) {
-          await response.body?.cancel();
-          throw new Error(`HTTP ${response.status}`);
-        }
-        const payload = await response.json();
-        const field = endpoint === 'lookuptv' ? 'tvevent' : 'events';
-        const result = z
-          .object({ [field]: z.array(z.unknown()).nullable() })
-          .parse(payload);
-        return { rows: result[field] ?? [] };
-      } catch {
-        // The v1 URL contains the key. Keep upstream errors out of addon responses.
+      // The v1 URL contains the key. Keep upstream errors out of addon responses.
+      const failed = () => {
         throw new Error(`TheSportsDB ${endpoint} request failed`);
+      };
+      const response = await makeRequest(
+        `https://www.thesportsdb.com/api/v1/json/${encodeURIComponent(apiKey)}/${endpoint}.php?${params}`,
+        {
+          timeout: 4_000,
+          ignoreRecursion: true,
+          rawOptions: { redirect: 'error' },
+        }
+      ).catch(failed);
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        if (response.status === 400 || response.status === 401) {
+          throw new APIError(
+            ErrorCode.UNAUTHORIZED,
+            401,
+            'TheSportsDB rejected the API key'
+          );
+        }
+        return failed();
       }
+      const payload = await response.json().catch(failed);
+      const field = endpoint === 'lookuptv' ? 'tvevent' : 'events';
+      const result = z
+        .object({ [field]: z.array(z.unknown()).nullable() })
+        .safeParse(payload);
+      return result.success ? { rows: result.data[field] ?? [] } : failed();
     },
     key,
     endpoint === 'eventsday' ? 300 : 60
@@ -103,25 +109,36 @@ function parseRows<T>(rows: unknown[], schema: z.ZodType<T>): T[] {
   });
 }
 
-export async function loadSportsDay(sport: Sport, date: string) {
+export async function loadSportsDay(
+  apiKey: string,
+  sport: Sport,
+  date: string
+) {
   return parseRows(
-    await request('eventsday', { d: date, s: SPORTS[sport] }),
+    await request(apiKey, 'eventsday', { d: date, s: SPORTS[sport] }),
     EventSchema
   ).filter((event) => event.strSport === SPORTS[sport]);
 }
 
-export async function loadSportsEvent(id: string) {
-  return parseRows(await request('lookupevent', { id }), EventSchema).find(
+export async function loadSportsEvent(apiKey: string, id: string) {
+  return parseRows(
+    await request(apiKey, 'lookupevent', { id }),
+    EventSchema
+  ).find(
     (event) =>
       event.idEvent === id &&
       Object.values(SPORTS).some((sport) => sport === event.strSport)
   );
 }
 
-export async function loadSportsBroadcasters(id: string, market: string) {
+export async function loadSportsBroadcasters(
+  apiKey: string,
+  id: string,
+  market: string
+) {
   return [
     ...new Set(
-      parseRows(await request('lookuptv', { id }), BroadcastSchema)
+      parseRows(await request(apiKey, 'lookuptv', { id }), BroadcastSchema)
         .filter(
           (row) => row.idEvent === id && isSportsMarket(row.strCountry, market)
         )

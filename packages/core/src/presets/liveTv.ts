@@ -24,8 +24,13 @@ import {
   plutoTvRegionLabel,
 } from '../builtins/plutotv/index.js';
 import StreamParser from '../parser/streams.js';
-import { appConfig, constants, toUrlSafeBase64 } from '../utils/index.js';
-import { Preset, baseOptions } from './preset.js';
+import {
+  appConfig,
+  constants,
+  getSimpleTextHash,
+  toUrlSafeBase64,
+} from '../utils/index.js';
+import { Preset, baseOptions, type CacheKeyRequestOptions } from './preset.js';
 
 class LiveTvStreamParser extends StreamParser {
   protected override getStreamType(
@@ -221,6 +226,15 @@ export class SportsPreset extends Preset {
   static override get METADATA() {
     const options: Option[] = [
       {
+        id: 'theSportsDbApiKey',
+        name: 'TheSportsDB API key',
+        description:
+          'Enter your own TheSportsDB API key. It is used for fixtures and broadcaster listings.',
+        type: 'password',
+        required: true,
+        showInSimpleMode: true,
+      },
+      {
         id: 'locale',
         name: 'Catalog language',
         description:
@@ -274,14 +288,17 @@ export class SportsPreset extends Preset {
       ],
       BUILTIN: true,
       CATEGORY: constants.PresetCategory.META_CATALOGS,
-      DISABLED: appConfig.metadata.theSportsDb.apiKey?.trim()
-        ? undefined
-        : {
-            disabled: true,
-            reason:
-              'Set THESPORTSDB_API_KEY on this instance to enable sports.',
-          },
     };
+  }
+
+  static override getCacheKey({
+    resource,
+    type,
+    id,
+    extras,
+    options,
+  }: CacheKeyRequestOptions): string {
+    return `sports:${getSimpleTextHash(JSON.stringify([resource, type, id, extras, options]))}`;
   }
 
   static override async generateAddons(
@@ -289,7 +306,8 @@ export class SportsPreset extends Preset {
     options: Record<string, any>
   ): Promise<Addon[]> {
     const metadata = this.METADATA;
-    const settings = SportsConfigSchema.parse(options);
+    const { theSportsDbApiKey, ...settings } =
+      SportsConfigSchema.parse(options);
     return [
       {
         name: metadata.NAME,
@@ -299,7 +317,10 @@ export class SportsPreset extends Preset {
         timeout: metadata.TIMEOUT,
         resultPassthrough: true,
         preset: { id: '', type: metadata.ID, options },
-        headers: { 'User-Agent': metadata.USER_AGENT },
+        headers: {
+          'User-Agent': metadata.USER_AGENT,
+          Authorization: `Bearer ${theSportsDbApiKey}`,
+        },
       },
     ];
   }

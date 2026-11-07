@@ -5,18 +5,6 @@ import type { RuntimeConfigSection } from '../types.js';
 const nullableString = z.string().nullable();
 
 export const metadataSchema = {
-  theSportsDb: {
-    apiKey: {
-      schema: nullableString,
-      default: null,
-      label: 'TheSportsDB API key',
-      description:
-        'Production key for the international sports schedule and TV listings.',
-      env: 'THESPORTSDB_API_KEY',
-      requiresRestart: false,
-      secret: true,
-    },
-  },
   tmdb: {
     accessToken: {
       schema: nullableString,

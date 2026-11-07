@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Manifest, Meta } from '../../db/index.js';
 import { config } from '../../config/index.js';
-import { TV_TYPE } from '../../utils/constants.js';
+import { APIError, ErrorCode, TV_TYPE } from '../../utils/constants.js';
 import {
   SPORTS_CATALOG_PREFIX,
   SPORTS_EVENT_PREFIX,
@@ -21,6 +21,10 @@ export const SPORTS_LOCALES = ['en', 'es', 'pt'] as const;
 const dayMs = 86_400_000;
 
 export const SportsConfigSchema = z.object({
+  theSportsDbApiKey: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_-]{1,128}$/, 'Enter a valid TheSportsDB API key'),
   locale: z.enum(SPORTS_LOCALES).default('en'),
   market: z
     .string()
@@ -144,8 +148,17 @@ export class SportsAddon {
       new Date(midnight + (index - 1) * dayMs).toISOString().slice(0, 10)
     );
     const results = await Promise.allSettled(
-      days.map((date) => loadSportsDay(sport, date))
+      days.map((date) =>
+        loadSportsDay(this.settings.theSportsDbApiKey, sport, date)
+      )
     );
+    const unauthorized = results.find(
+      (result) =>
+        result.status === 'rejected' &&
+        result.reason instanceof APIError &&
+        result.reason.code === ErrorCode.UNAUTHORIZED
+    );
+    if (unauthorized?.status === 'rejected') throw unauthorized.reason;
     if (results.every((result) => result.status === 'rejected'))
       throw new Error('TheSportsDB schedule is unavailable');
     const events = new Map<string, SportsEvent>();
@@ -168,7 +181,14 @@ export class SportsAddon {
   async getManifest(): Promise<Manifest> {
     const catalogs = await Promise.all(
       (Object.keys(SPORTS) as Sport[]).map(async (sport) => {
-        const events = await this.getEvents(sport).catch(() => []);
+        const events = await this.getEvents(sport).catch((error) => {
+          if (
+            error instanceof APIError &&
+            error.code === ErrorCode.UNAUTHORIZED
+          )
+            throw error;
+          return [];
+        });
         const leagues = [
           ...new Set(events.map((event) => event.strLeague)),
         ].sort(new Intl.Collator(this.settings.locale).compare);
@@ -230,9 +250,13 @@ export class SportsAddon {
     if (!id.startsWith(SPORTS_EVENT_PREFIX)) return undefined;
     const eventId = id.slice(SPORTS_EVENT_PREFIX.length);
     if (!/^\d+$/.test(eventId)) return undefined;
-    const event = await loadSportsEvent(eventId);
+    const event = await loadSportsEvent(
+      this.settings.theSportsDbApiKey,
+      eventId
+    );
     if (!event) return undefined;
     const broadcasters = await loadSportsBroadcasters(
+      this.settings.theSportsDbApiKey,
       eventId,
       this.settings.market
     ).catch(() => null);
