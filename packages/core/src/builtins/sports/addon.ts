@@ -226,15 +226,21 @@ export class SportsAddon {
   private toMeta(event: SportsEvent): Meta {
     const kickoff = sportsKickoff(event);
     const id = `${SPORTS_EVENT_PREFIX}${event.idEvent}`;
+    const artwork = [event.strThumb, event.strFanart]
+      .map((value) => value?.trim())
+      .find((url) => url && URL.parse(url)?.protocol === 'https:');
     return {
       id,
       type: TV_TYPE,
       name: event.strEvent,
       genres: [event.strLeague],
-      poster: new URL(
-        '/logo.png',
-        config.bootstrap.baseUrl || config.bootstrap.internalUrl
-      ).toString(),
+      posterShape: 'landscape',
+      poster:
+        artwork ??
+        new URL(
+          '/logo.png',
+          config.bootstrap.baseUrl || config.bootstrap.internalUrl
+        ).toString(),
       description: [
         event.strLeague,
         Number.isFinite(kickoff)

@@ -42,6 +42,8 @@ const EventSchema = z.object({
   dateEvent: z.string().nullish(),
   strTime: z.string().nullish(),
   strStatus: z.string().nullish(),
+  strThumb: z.string().nullish(),
+  strFanart: z.string().nullish(),
 });
 
 const BroadcastSchema = z.object({

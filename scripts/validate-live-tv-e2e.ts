@@ -27,6 +27,8 @@ const sportsEvent = {
   strSport: 'Soccer',
   strEvent: 'Zulu FC vs Club A',
   strLeague: sportsLeague,
+  strThumb: 'https://example.com/match-thumb.jpg',
+  strFanart: 'https://example.com/match-fanart.jpg',
   strTimestamp: new Date().toISOString(),
   strStatus: '1H',
 };
@@ -34,6 +36,7 @@ const nextSportsEvent = {
   ...sportsEvent,
   idEvent: '90002',
   strEvent: 'Alpha FC vs Club B',
+  strThumb: '',
   strTimestamp: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
   strStatus: 'NS',
 };
@@ -1498,12 +1501,23 @@ async function validateSports(
       'sports catalog must keep kickoff order'
     );
     const [live, upcoming] = matches.metas;
+    assert(
+      live.posterShape === 'landscape' &&
+        live.poster === sportsEvent.strThumb &&
+        upcoming.posterShape === 'landscape' &&
+        upcoming.poster === nextSportsEvent.strFanart,
+      'sports catalog must use the event thumbnail or fanart in landscape'
+    );
     const { meta } = await json<
       import('../packages/core/dist/index.js').MetaResponse
     >(`${stremio}/meta/tv/${encodeURIComponent(live.id)}.json`);
     assert(
       meta.description?.includes('Onde assistir (Reino Unido): BBC One'),
       'meta must use the saved market and locale'
+    );
+    assert(
+      meta.posterShape === 'landscape' && meta.poster === live.poster,
+      'sports details must use the same landscape artwork as the catalog'
     );
     const lineup = await catalog(core.LIVE_TV_MERGED_CATALOG_ID);
     assert(
