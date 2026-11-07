@@ -184,9 +184,14 @@ export class SportsAddon {
     }
     for (const score of scores) {
       const event = events.get(score.idEvent);
-      if (event && score.strStatus?.trim())
-        events.set(event.idEvent, { ...event, strStatus: score.strStatus });
-      else if (!event && sportsEventState(score, now) === 'live')
+      if (event)
+        events.set(event.idEvent, {
+          ...event,
+          strStatus: score.strStatus?.trim() || event.strStatus,
+          strHomeTeamBadge: event.strHomeTeamBadge || score.strHomeTeamBadge,
+          strAwayTeamBadge: event.strAwayTeamBadge || score.strAwayTeamBadge,
+        });
+      else if (sportsEventState(score, now) === 'live')
         events.set(score.idEvent, score);
     }
     if (!events.size && results.every((result) => result.status === 'rejected'))
@@ -257,7 +262,12 @@ export class SportsAddon {
           ? '🕒 '
           : '';
     const id = `${SPORTS_EVENT_PREFIX}${event.idEvent}`;
-    const artwork = [event.strThumb, event.strFanart]
+    const artwork = [
+      event.strThumb,
+      event.strFanart,
+      event.strHomeTeamBadge,
+      event.strAwayTeamBadge,
+    ]
       .map((value) => value?.trim())
       .find((url) => url && URL.parse(url)?.protocol === 'https:');
     const poster =

@@ -44,6 +44,8 @@ const EventSchema = z.object({
   strStatus: z.string().nullish(),
   strThumb: z.string().nullish(),
   strFanart: z.string().nullish(),
+  strHomeTeamBadge: z.string().nullish(),
+  strAwayTeamBadge: z.string().nullish(),
 });
 
 const LivescoreSchema = EventSchema.omit({ strEvent: true })

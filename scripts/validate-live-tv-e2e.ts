@@ -46,6 +46,8 @@ const liveOnlySportsEvent = {
   strLeague: 'Spanish La Liga',
   strHomeTeam: 'Valencia',
   strAwayTeam: 'Real Madrid',
+  strHomeTeamBadge: 'https://example.com/valencia.png',
+  strAwayTeamBadge: 'https://example.com/real-madrid.png',
   strTimestamp: sportsEvent.strTimestamp,
   strStatus: 'HT',
 };
@@ -1572,6 +1574,11 @@ async function validateSports(
           `${core.SPORTS_EVENT_PREFIX}${liveOnlySportsEvent.idEvent}` &&
         liveOnly.metas[0].name === '🔴 Valencia vs Real Madrid',
       'the catalog must show live games missing from the daily schedule under their league'
+    );
+    assert(
+      liveOnly.metas[0].posterShape === 'landscape' &&
+        liveOnly.metas[0].poster === liveOnlySportsEvent.strHomeTeamBadge,
+      'live games without event artwork must use the team badge instead of the addon logo'
     );
     assert(
       live.posterShape === 'landscape' &&
