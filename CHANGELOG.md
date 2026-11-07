@@ -7,6 +7,11 @@
 
 * **channels:** support manual order and M3U channel numbers ([8ac3075](https://github.com/mrcanelas/aiolivetv/commit/8ac30758901ae5192527e6520f1c0e4b6a5bfa03)), closes [#45](https://github.com/mrcanelas/aiolivetv/issues/45)
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.7.0](https://github.com/mrcanelas/aiolivetv/compare/v1.6.1...v1.7.0) (2026-10-31)
 
 
