@@ -133,6 +133,39 @@ export async function loadSportsEvent(apiKey: string, id: string) {
   );
 }
 
+function catalogKey(apiKey: string, sport: Sport, timeZone: string) {
+  return `${getSimpleTextHash(apiKey)}:catalog:${sport}:${timeZone}`;
+}
+
+export async function cacheSportsCatalog(
+  apiKey: string,
+  sport: Sport,
+  timeZone: string,
+  events: SportsEvent[]
+) {
+  if (events.length)
+    await cache.set(
+      catalogKey(apiKey, sport, timeZone),
+      { rows: events },
+      3600
+    );
+}
+
+export async function findCachedSportsEvent(
+  apiKey: string,
+  timeZone: string,
+  id: string
+) {
+  const catalogs = await Promise.all(
+    (Object.keys(SPORTS) as Sport[]).map((sport) =>
+      cache.get(catalogKey(apiKey, sport, timeZone))
+    )
+  );
+  return catalogs
+    .flatMap((catalog) => parseRows(catalog?.rows ?? [], EventSchema))
+    .find((event) => event.idEvent === id);
+}
+
 export async function loadSportsBroadcasters(
   apiKey: string,
   id: string,

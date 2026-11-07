@@ -7,6 +7,8 @@ import {
   SPORTS_EVENT_PREFIX,
 } from '../../utils/identity.js';
 import {
+  cacheSportsCatalog,
+  findCachedSportsEvent,
   loadSportsBroadcasters,
   loadSportsDay,
   loadSportsEvent,
@@ -220,7 +222,14 @@ export class SportsAddon {
   async getCatalog(id: string, skip: number, league?: string) {
     const sport = sportForCatalog(id);
     if (!sport) return [];
-    return (await this.getEvents(sport))
+    const events = await this.getEvents(sport);
+    await cacheSportsCatalog(
+      this.settings.theSportsDbApiKey,
+      sport,
+      this.settings.timeZone,
+      events
+    );
+    return events
       .filter((event) => !league || event.strLeague === league)
       .slice(skip, skip + 100)
       .map((event) => this.toMeta(event));
@@ -267,20 +276,28 @@ export class SportsAddon {
     if (!id.startsWith(SPORTS_EVENT_PREFIX)) return undefined;
     const eventId = id.slice(SPORTS_EVENT_PREFIX.length);
     if (!/^\d+$/.test(eventId)) return undefined;
-    const event = await loadSportsEvent(
-      this.settings.theSportsDbApiKey,
-      eventId
-    );
-    if (!event) return undefined;
+    const { theSportsDbApiKey, timeZone, market } = this.settings;
+    let lookupError: unknown;
+    const event =
+      (await loadSportsEvent(theSportsDbApiKey, eventId).catch((error) => {
+        if (error instanceof APIError && error.code === ErrorCode.UNAUTHORIZED)
+          throw error;
+        lookupError = error;
+      })) ??
+      (await findCachedSportsEvent(theSportsDbApiKey, timeZone, eventId));
+    if (!event) {
+      if (lookupError) throw lookupError;
+      return undefined;
+    }
     const broadcasters = await loadSportsBroadcasters(
-      this.settings.theSportsDbApiKey,
+      theSportsDbApiKey,
       eventId,
-      this.settings.market
+      market
     ).catch(() => null);
     const meta = this.toMeta(event);
     const country = new Intl.DisplayNames(this.settings.locale, {
       type: 'region',
-    }).of(this.settings.market);
+    }).of(market);
     const options =
       broadcasters === null
         ? this.copy.unavailable

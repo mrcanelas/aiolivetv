@@ -103,6 +103,7 @@ async function startFixtureServer(): Promise<{
   server: Server;
   sourceBase: string;
 }> {
+  const failUpcomingLookupOnce = new Set(['lookupevent.php', 'lookuptv.php']);
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     if (url.pathname.startsWith('/api/v1/json/')) {
@@ -112,6 +113,14 @@ async function startFixtureServer(): Promise<{
         return;
       }
       const id = url.searchParams.get('id');
+      if (
+        id === nextSportsEvent.idEvent &&
+        failUpcomingLookupOnce.delete(url.pathname.split('/').at(-1) ?? '')
+      ) {
+        res.writeHead(503, { 'content-type': 'text/plain' });
+        res.end('Service unavailable');
+        return;
+      }
       const events = [sportsEvent, nextSportsEvent];
       const response = url.pathname.endsWith('/eventsday.php')
         ? {
@@ -1519,6 +1528,17 @@ async function validateSports(
     assert(
       meta.posterShape === 'landscape' && meta.poster === live.poster,
       'sports details must use the same landscape artwork as the catalog'
+    );
+    const { meta: upcomingMeta } = await json<
+      import('../packages/core/dist/index.js').MetaResponse
+    >(`${stremio}/meta/tv/${encodeURIComponent(upcoming.id)}.json`);
+    assert(
+      upcomingMeta.name === upcoming.name &&
+        upcomingMeta.poster === upcoming.poster &&
+        upcomingMeta.description?.includes(
+          'Informação de transmissão temporariamente indisponível'
+        ),
+      `sports details must survive a failed lookup: ${upcomingMeta.name} (${upcomingMeta.description})`
     );
     const lineup = await catalog(core.LIVE_TV_MERGED_CATALOG_ID);
     assert(

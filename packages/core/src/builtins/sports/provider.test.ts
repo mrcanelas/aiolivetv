@@ -10,7 +10,13 @@ vi.mock('../../config/index.js', () => ({
   },
 }));
 vi.mock('../../utils/cache.js', () => ({
-  Cache: { getInstance: () => ({ wrap: (load: () => unknown) => load() }) },
+  Cache: {
+    getInstance: () => ({
+      wrap: (load: () => unknown) => load(),
+      get: vi.fn(),
+      set: vi.fn(),
+    }),
+  },
 }));
 vi.mock('../../utils/http.js', () => ({ makeRequest: vi.fn() }));
 
