@@ -53,6 +53,8 @@ vi.mock('@aiolivetv/core', async () => {
     await import('../../../../core/src/utils/channelName.js');
   const { decodeHtmlEntities } =
     await import('../../../../core/src/utils/text.js');
+  const { isSportsCatalogId } =
+    await import('../../../../core/src/utils/identity.js');
   const { parseDeclaredStreamInfo } =
     await import('../../../../core/src/streams/declared.js');
   const addons = [
@@ -95,6 +97,7 @@ vi.mock('@aiolivetv/core', async () => {
     constants,
     APIError: constants.APIError,
     normalizeChannelGroup,
+    isSportsCatalogId,
     decodeHtmlEntities,
     parseDeclaredStreamInfo,
     getSimpleTextHash: (value: string) => value,
@@ -695,6 +698,12 @@ describe('Channels prepared matching', () => {
     const channels = await scan(false);
     expect(channels).toHaveLength(2);
     expect(fixture.catalogCalls).toBe(2);
+  });
+
+  it('excludes sports fixtures from the channel inventory', async () => {
+    fixture.streamCatalog = 'aiolivetv-sports-football';
+    expect(await scan(false)).toHaveLength(2);
+    expect(fixture.catalogCalls).toBe(1);
   });
 
   it.each(['roundedPages', 'shiftedPages'] as const)(

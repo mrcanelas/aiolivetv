@@ -20,6 +20,23 @@ EPG_START.setUTCMilliseconds(0);
 const EPG_STOP = new Date(EPG_START.getTime() + 2 * 60 * 60 * 1000);
 const EPG_START_ISO = EPG_START.toISOString();
 
+const sportsLeague = 'International Test Cup';
+const sportsEvent = {
+  idEvent: '90001',
+  strSport: 'Soccer',
+  strEvent: 'Zulu FC vs Club A',
+  strLeague: sportsLeague,
+  strTimestamp: new Date().toISOString(),
+  strStatus: '1H',
+};
+const nextSportsEvent = {
+  ...sportsEvent,
+  idEvent: '90002',
+  strEvent: 'Alpha FC vs Club B',
+  strTimestamp: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  strStatus: 'NS',
+};
+
 const XMLTV_FIXTURE = `<tv>
   <channel id="bbc.one"><display-name>BBC One</display-name><icon src="https://example.com/bbc-logo.png" /></channel>
   <channel id="rtp1"><display-name>RTP 1</display-name></channel>
@@ -83,6 +100,38 @@ async function startFixtureServer(): Promise<{
   sourceBase: string;
 }> {
   const server = createServer((req, res) => {
+    const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    if (url.pathname.startsWith('/api/v1/json/')) {
+      const id = url.searchParams.get('id');
+      const events = [sportsEvent, nextSportsEvent];
+      const response = url.pathname.endsWith('/eventsday.php')
+        ? {
+            events: events.filter(
+              (event) =>
+                event.strSport === url.searchParams.get('s') &&
+                event.strTimestamp.slice(0, 10) === url.searchParams.get('d')
+            ),
+          }
+        : url.pathname.endsWith('/lookupevent.php')
+          ? { events: events.filter((event) => event.idEvent === id) }
+          : {
+              tvevent: [
+                {
+                  idEvent: id,
+                  strChannel: 'BBC One',
+                  strCountry: 'United Kingdom',
+                },
+                {
+                  idEvent: id,
+                  strChannel: 'ESPN 2',
+                  strCountry: 'United States',
+                },
+              ],
+            };
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(response));
+      return;
+    }
     if (
       req.url === '/guide.xml' ||
       req.url === '/guide-enrichment.xml' ||
@@ -1328,15 +1377,171 @@ async function validateDetailsOnlyEnrichment(sourceBase: string, core: CoreModul
   console.log('  [ok] TMDB enrichment: discovery skips lookups, channel details enrich on demand');
 }
 
+async function validateSports(
+  sourceBase: string,
+  internalBase: string,
+  core: CoreModule
+) {
+  const draft = liveTvUserData([
+    {
+      type: 'sports',
+      instanceId: 'sports-1',
+      enabled: true,
+      options: { locale: 'pt', market: 'GB', timeZone: 'UTC' },
+    },
+    {
+      ...m3uPreset,
+      options: { ...m3uPreset.options, sourceUrl: `${sourceBase}/list.m3u` },
+    },
+  ]);
+  const userUrl = `${internalBase}/api/v${core.constants.API_VERSION}/user`;
+  const password = 'sports-fixture-password';
+  const json = async <T>(url: string, init?: RequestInit): Promise<T> => {
+    const response = await fetch(url, init);
+    assert(
+      response.ok,
+      `${init?.method ?? 'GET'} returned ${response.status} in sports validation`
+    );
+    return (await response.json()) as T;
+  };
+  const saved = (
+    await json<{ data: { uuid: string; encryptedPassword: string } }>(userUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ config: draft, password }),
+    })
+  ).data;
+  const auth = {
+    authorization: `Basic ${Buffer.from(`${saved.uuid}:${password}`).toString('base64')}`,
+  };
+  const stremio = `${internalBase}/stremio/${saved.uuid}/${encodeURIComponent(saved.encryptedPassword)}`;
+  const catalog = (id: string, extras = '') =>
+    json<import('../packages/core/dist/index.js').CatalogResponse>(
+      `${stremio}/catalog/tv/${id}${extras ? `/${extras}` : ''}.json`
+    );
+  const streams = (id: string) =>
+    json<import('../packages/core/dist/index.js').AIOStreamResponse>(
+      `${stremio}/stream/tv/${encodeURIComponent(id)}.json`
+    );
+  try {
+    const {
+      data: { userData: restored },
+    } = await json<{ data: { userData: UserData } }>(`${userUrl}?raw=true`, {
+      headers: auth,
+    });
+    assert(
+      restored.presets[0]?.options.market === 'GB',
+      'sports preferences must persist in the preset'
+    );
+    const manifest = await json<
+      import('../packages/core/dist/index.js').Manifest
+    >(`${stremio}/manifest.json`);
+    assert(
+      !manifest.behaviorHints?.epgProvider,
+      'sports schedule must not enable Native EPG'
+    );
+    const football = manifest.catalogs.find(
+      (catalog) => catalog.name === 'Futebol'
+    );
+    assert(
+      football?.extra?.some(
+        (extra) =>
+          extra.name === 'genre' && extra.options?.includes(sportsLeague)
+      ),
+      'manifest must retain localized names and championship options'
+    );
+    for (const resourceName of ['meta', 'stream']) {
+      assert(
+        manifest.resources.some(
+          (resource) =>
+            typeof resource !== 'string' &&
+            resource.name === resourceName &&
+            resource.idPrefixes?.includes(core.SPORTS_EVENT_PREFIX)
+        ),
+        `manifest must advertise ${resourceName} for sports IDs`
+      );
+    }
+    const matches = await catalog(
+      football.id,
+      `genre=${encodeURIComponent(sportsLeague)}`
+    );
+    assert(
+      matches.metas?.map((item) => item.name).join(',') ===
+        `${sportsEvent.strEvent},${nextSportsEvent.strEvent}`,
+      'sports catalog must keep kickoff order'
+    );
+    const [live, upcoming] = matches.metas;
+    const { meta } = await json<
+      import('../packages/core/dist/index.js').MetaResponse
+    >(`${stremio}/meta/tv/${encodeURIComponent(live.id)}.json`);
+    assert(
+      meta.description?.includes('Onde assistir (Reino Unido): BBC One'),
+      'meta must use the saved market and locale'
+    );
+    const lineup = await catalog(core.LIVE_TV_MERGED_CATALOG_ID);
+    assert(
+      lineup.metas?.every(
+        (item) => !item.id.startsWith(core.SPORTS_EVENT_PREFIX)
+      ),
+      'channel catalog must exclude sports matches'
+    );
+    const bbc = lineup.metas.find((item) => item.name === 'BBC One');
+    assert(bbc, 'fixture must expose BBC One');
+    assert(
+      (await streams(live.id)).streams.some((stream) =>
+        stream.url?.includes('/bbc.m3u8')
+      ),
+      'live fixture must resolve the configured channel stream'
+    );
+    assert(
+      (await streams(upcoming.id)).streams.length === 0,
+      'upcoming fixtures must not return streams'
+    );
+    const guide = {
+      ...xmltvPreset,
+      options: { ...xmltvPreset.options, sourceUrl: `${sourceBase}/guide.xml` },
+    };
+    await json(userUrl, {
+      method: 'PUT',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        config: {
+          ...restored,
+          presets: [...restored.presets, guide],
+          channelMappings: [{ id: bbc.id, enabled: false }],
+        },
+      }),
+    });
+    const withGuide = await json<
+      import('../packages/core/dist/index.js').Manifest
+    >(`${stremio}/manifest.json`);
+    assert(
+      withGuide.behaviorHints?.epgProvider,
+      'a configured guide must still enable Native EPG'
+    );
+    assert(
+      (await streams(live.id)).streams.length === 0,
+      'disabled channels must not play from a sports catalog'
+    );
+  } finally {
+    await json(userUrl, { method: 'DELETE', headers: auth });
+  }
+  console.log(
+    '  [ok] Sports: saved preferences, localized manifest, genre, meta, live streams and EPG isolation'
+  );
+}
+
 async function main() {
   console.log('Validando Live TV E2E...');
   const { server: fixtureServer, sourceBase } = await startFixtureServer();
   const { server: builtinServer, base: internalBase } = await reservePort();
   process.env.INTERNAL_URL = internalBase;
   process.env.BASE_URL = internalBase;
+  process.env.THESPORTSDB_API_KEY = 'sports-fixture-key';
   process.env.REQUEST_URL_MAPPINGS = JSON.stringify({
     'https://iptv-org.github.io': sourceBase,
     'https://iptv-epg.org': sourceBase,
+    'https://www.thesportsdb.com': sourceBase,
   });
 
   try {
@@ -1361,6 +1566,10 @@ async function main() {
     await validateParallelStreamResolution(core);
     await validateGuideChoicesAndPersistence(sourceBase, core);
     await validateDetailsOnlyEnrichment(sourceBase, core);
+    const { default: app } = await import('../packages/server/src/app.js');
+    builtinServer.removeAllListeners('request');
+    builtinServer.on('request', app);
+    await validateSports(sourceBase, internalBase, core);
     console.log('Live TV E2E: todos os checks passaram.');
   } finally {
     await Promise.all([
