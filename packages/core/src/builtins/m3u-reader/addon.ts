@@ -20,6 +20,7 @@ import {
 import { parseM3u, parseM3uEpgUrls, type M3uEntry } from './parser.js';
 import { normalizeChannelGroup } from '../../utils/channelName.js';
 import { APIError, ErrorCode } from '../../utils/constants.js';
+import { compareChannelOrder } from '../../main/channelMappings.js';
 
 const SOURCE_CACHE_TTL_MS = 300_000;
 type M3uData = {
@@ -67,13 +68,10 @@ function prepareM3u(entries: M3uEntry[], epgUrls: string[]): M3uData {
         country: entry.country,
         language: entry.language,
         genres: channelGenres(entry.group),
+        channelNumber: entry.channelNumber,
       })
     )
-    .sort((a, b) =>
-      (a.name ?? a.id).localeCompare(b.name ?? b.id, undefined, {
-        sensitivity: 'base',
-      })
-    );
+    .sort(compareChannelOrder);
   const catalogByGenre = new Map<string | undefined, MetaPreview[]>();
   for (const item of catalog) {
     const genre = item.genres?.[0];
@@ -210,6 +208,7 @@ export class M3uAddon {
       country: entry.country,
       language: entry.language,
       genres: entry.group ? [entry.group] : undefined,
+      channelNumber: entry.channelNumber,
     };
   }
 

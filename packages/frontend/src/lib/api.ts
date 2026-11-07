@@ -293,6 +293,7 @@ export interface ChannelInfo {
   sourceGroup?: string;
   country?: string;
   language?: string;
+  channelNumber?: number;
   rejectedStreams?: Array<{ addonId: string; channelId: string }>;
   availableStreamSources?: ChannelStreamSource[];
   mappings: Array<{

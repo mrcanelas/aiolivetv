@@ -189,6 +189,25 @@ describe('channel group overlay', () => {
     ).toEqual(['a', 'b']);
   });
 
+  it('prefers saved order, then the current source number and name', () => {
+    const items = [
+      { id: 'a', name: 'Alpha', channelNumber: 5 },
+      { id: 'b', name: 'Beta', channelNumber: 99 },
+      { id: 'c', name: 'Charlie', channelNumber: '1' },
+      { id: 'd', name: 'Delta' },
+    ];
+    expect(
+      sortLiveCatalogItems(items, { channelOrder: ['b'] }).map(({ id }) => id)
+    ).toEqual(['b', 'c', 'a', 'd']);
+    items[0].channelNumber = 0;
+    expect(sortLiveCatalogItems(items).map(({ id }) => id)).toEqual([
+      'a',
+      'c',
+      'b',
+      'd',
+    ]);
+  });
+
   it('keeps the source group when there is no override', () => {
     expect(
       getEffectiveChannelGroup(baseUserData, 'aiolivetv:globo', 'VARIEDADES')

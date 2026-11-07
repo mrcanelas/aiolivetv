@@ -1,5 +1,8 @@
 import { decodeHtmlEntities } from '../../utils/text.js';
-import { normalizeChannelGroup } from '../../utils/channelName.js';
+import {
+  normalizeChannelGroup,
+  readChannelNumber,
+} from '../../utils/channelName.js';
 
 export interface M3uEntry {
   channelId: string;
@@ -9,6 +12,8 @@ export interface M3uEntry {
   group?: string;
   country?: string;
   language?: string;
+  /** Parsed from `tvg-chno` when present and valid. */
+  channelNumber?: number;
   headers?: Record<string, string>;
 }
 
@@ -89,6 +94,7 @@ export function parseM3u(playlist: string): M3uEntry[] {
           const value = metadata[attribute]?.trim();
           if (value && !/[\r\n]/.test(value)) headers[header] = value;
         }
+        const channelNumber = readChannelNumber(metadata['tvg-chno']);
         entries.push({
           channelId,
           name,
@@ -97,6 +103,7 @@ export function parseM3u(playlist: string): M3uEntry[] {
           group: normalizeChannelGroup(metadata['group-title']),
           country: metadata['tvg-country'],
           language: metadata['tvg-language'],
+          ...(channelNumber !== undefined ? { channelNumber } : {}),
           ...(Object.keys(headers).length ? { headers } : {}),
         });
       }

@@ -191,7 +191,7 @@ try {
     ['mobile', { width: 390, height: 844 }],
     ['mobile-narrow', { width: 320, height: 740 }],
   ]) {
-    const context = await browser.newContext({ viewport });
+    const context = await browser.newContext({ viewport, hasTouch: viewport.width < 640 });
     await context.addInitScript((draft) => {
       if (!localStorage.getItem('aiolivetv-user-data'))
         localStorage.setItem('aiolivetv-user-data', JSON.stringify(draft));
@@ -667,6 +667,41 @@ try {
     releaseRefresh();
     await spinner.waitFor({ state: 'hidden' });
     await page.getByText(/^Last refresh:/).waitFor();
+    await page.getByTitle('Sort by channel number or custom order').click();
+    const moveChannel = list
+      .getByRole('button', { name: /^Move channel / })
+      .first();
+    const firstChannelName = (await moveChannel.getAttribute('aria-label')).slice(
+      'Move channel '.length
+    );
+    const beforeMove = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+    );
+    if (viewport.width < 640) {
+      await moveChannel.tap();
+    } else {
+      await moveChannel.focus();
+      await page.keyboard.press('Enter');
+    }
+    const position = page.getByRole('spinbutton', {
+      name: 'Position for ' + firstChannelName,
+    });
+    await page.waitForFunction(
+      () => document.activeElement?.getAttribute('name') === 'position'
+    );
+    await position.fill('3');
+    await position.press('Enter');
+    await list
+      .locator('li[data-index="2"]')
+      .getByText(firstChannelName, { exact: true })
+      .waitFor();
+    assert((await list.locator('li[data-index]').count()) < 60);
+    const afterMove = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('aiolivetv-user-data'))
+    );
+    assert.equal(afterMove.channelOrder.length, channels.length);
+    assert.deepEqual(afterMove.channelMappings, beforeMove.channelMappings);
+    assert.deepEqual(writes, [], 'Reordering must stay in the draft');
     await page.getByText('Removed (1000)', { exact: true }).click();
     await list.locator('li[data-index]').first().waitFor();
     assert((await list.locator('li[data-index]').count()) < 60);
@@ -909,6 +944,7 @@ try {
     ])
       assert(!(key in cleanDraft), `${key} must not survive import`);
     assert.deepEqual(cleanDraft.channelMappings, afterSorting.channelMappings);
+    assert.deepEqual(cleanDraft.channelOrder, afterSorting.channelOrder);
     assert.deepEqual(cleanDraft.presets, afterSorting.presets);
     await page.getByRole('button', { name: 'Export', exact: true }).click();
     const downloadReady = page.waitForEvent('download');
@@ -926,6 +962,7 @@ try {
     ])
       assert(!(key in exported), `${key} must not survive export`);
     assert.deepEqual(exported.channelMappings, cleanDraft.channelMappings);
+    assert.deepEqual(exported.channelOrder, cleanDraft.channelOrder);
     assert.deepEqual(exported.presets, cleanDraft.presets);
     assert.deepEqual(writes, [], 'Import/export must not save the draft');
     console.log(
@@ -938,6 +975,7 @@ try {
         search: true,
         groups: true,
         removedVirtualized: true,
+        channelOrder: true,
         draftPersistence: true,
         epgChoice: true,
         countryLanguageBulkActions: true,

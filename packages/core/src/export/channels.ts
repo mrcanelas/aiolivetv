@@ -3,6 +3,7 @@ import {
   getCanonicalChannelId,
   getEffectiveChannelGroup,
   isLiveChannelVisible,
+  sortLiveCatalogItems,
 } from '../main/channelMappings.js';
 
 export type ExportChannel = {
@@ -11,6 +12,7 @@ export type ExportChannel = {
   name: string;
   logo?: string;
   group?: string;
+  channelNumber?: number;
   /** True when at least one enabled stream source is mapped */
   hasStreamSource: boolean;
   warning?: string;
@@ -48,10 +50,7 @@ export function collectExportChannels(userData: UserData): ExportChannel[] {
     });
   }
 
-  channels.sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  );
-  return channels;
+  return sortLiveCatalogItems(channels, userData);
 }
 
 /** Sanitize a value for use as M3U attribute / XMLTV channel id. */

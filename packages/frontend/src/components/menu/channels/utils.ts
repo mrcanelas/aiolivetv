@@ -220,7 +220,7 @@ export function getChannelSourceLabel(channel: ChannelInfo) {
   return canonical?.addonName ?? channel.mappings[0]?.addonName ?? 'Other';
 }
 
-export type ChannelSortMode = 'alphabetical' | 'source';
+export type ChannelSortMode = 'alphabetical' | 'source' | 'number';
 
 export const MANUAL_STREAM_ADDON_ID = 'manual';
 
@@ -318,14 +318,31 @@ export function isValidStreamUrl(url: string) {
   }
 }
 
+function compareChannelsByNumber(a: ChannelInfo, b: ChannelInfo) {
+  const left = a.channelNumber ?? Infinity;
+  const right = b.channelNumber ?? Infinity;
+  return left === right
+    ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    : left - right;
+}
+
 export function sortChannels(
   channels: ChannelInfo[],
-  mode: ChannelSortMode
+  mode: ChannelSortMode,
+  channelOrder?: readonly string[]
 ): ChannelInfo[] {
   if (mode === 'alphabetical') {
     return [...channels].sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
     );
+  }
+  if (mode === 'number') {
+    const order = new Map(channelOrder?.map((id, index) => [id, index]));
+    return [...channels].sort((a, b) => {
+      const left = order.get(a.id) ?? Infinity;
+      const right = order.get(b.id) ?? Infinity;
+      return left === right ? compareChannelsByNumber(a, b) : left - right;
+    });
   }
   return [...channels].sort((a, b) => {
     const sourceCompare = getChannelSourceLabel(a).localeCompare(
@@ -336,6 +353,21 @@ export function sortChannels(
     if (sourceCompare !== 0) return sourceCompare;
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
+}
+
+/** Reorder the visible channels in their existing slots, preserving absent IDs. */
+export function moveChannelInOrder(
+  channelOrder: readonly string[],
+  visibleIds: readonly string[],
+  from: number,
+  to: number
+): string[] {
+  const reordered = [...visibleIds];
+  const [moved] = reordered.splice(from, 1);
+  reordered.splice(to, 0, moved);
+  const visible = new Set(visibleIds);
+  let index = 0;
+  return channelOrder.map((id) => (visible.has(id) ? reordered[index++] : id));
 }
 
 export function groupChannelsBySource(channels: ChannelInfo[]) {

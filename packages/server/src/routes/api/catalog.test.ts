@@ -69,6 +69,9 @@ vi.mock('@aiolivetv/core', async () => {
   ];
   return {
     ...matching,
+    readChannelNumber: (
+      await import('../../../../core/src/utils/channelName.js')
+    ).readChannelNumber,
     TMDBMetadata: class {
       constructor(auth: unknown) {
         fixture.languages(auth);
@@ -211,7 +214,12 @@ vi.mock('@aiolivetv/core', async () => {
           success: true,
           data: id.startsWith('guide.')
             ? [
-                { id: 'bbc', name: 'BBC News', tvgId: 'bbc.news' },
+                {
+                  id: 'bbc',
+                  name: 'BBC News',
+                  tvgId: 'bbc.news',
+                  channelNumber: '24',
+                },
                 {
                   id: 'hbo',
                   name: 'HBO West',
@@ -306,6 +314,9 @@ async function scan(
         userData: {
           presets: [],
           sourceConfig,
+          ...(sourceConfig === 'manual-order'
+            ? { channelOrder: ['hbo', 'bbc'] }
+            : {}),
           channelMappings: [
             {
               id: 'bbc',
@@ -372,6 +383,7 @@ async function scan(
       channels: Array<{
         id: string;
         epgProvider: boolean;
+        channelNumber?: number;
         enabled: boolean;
         mappings: Array<{ channelId: string; confidence: number }>;
         availableStreamSources: Array<{
@@ -388,6 +400,12 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('returns saved order and current source numbers', async () => {
+    const data = await scan(false, false, undefined, 200, 'manual-order');
+    expect(data.map(({ id }) => id)).toEqual(['hbo', 'bbc']);
+    expect(data[1].channelNumber).toBe(24);
+  });
+
   it('accepts a 404 after valid catalog pages as the end of pagination', async () => {
     fixture.pagedChannels = 25;
     fixture.pagedStreams = 25;

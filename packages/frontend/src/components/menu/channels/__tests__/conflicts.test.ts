@@ -18,6 +18,8 @@ import {
   normalizeChannelGroup,
   compareChannelScans,
   matchesChannelFilters,
+  moveChannelInOrder,
+  sortChannels,
 } from '../utils';
 
 describe('clearAutomaticChannelMappings', () => {
@@ -319,6 +321,43 @@ describe('buildVisibleChannelMappings', () => {
       new WeakMap()
     );
     expect(mapping.streams?.[0].channelId).toBe('m3u:bbc');
+  });
+
+  it('keeps source numbers out of saved mappings', () => {
+    const item = channel({
+      id: 'bbc',
+      name: 'BBC',
+      channelNumber: 7,
+      enabled: true,
+      mappings: [],
+    });
+    expect(
+      buildVisibleChannelMappings([item], [], new Set(), new WeakMap())
+    ).toEqual([]);
+  });
+});
+
+describe('channel order', () => {
+  it('moves filtered channels while preserving other and unavailable channels', () => {
+    const order = moveChannelInOrder(
+      ['a', 'hidden', 'b', 'unavailable', 'c'],
+      ['a', 'b', 'c'],
+      2,
+      0
+    );
+    expect(order).toEqual(['c', 'hidden', 'a', 'unavailable', 'b']);
+    expect(
+      sortChannels(
+        [
+          channel({ id: 'a', name: 'Alpha', channelNumber: 1 }),
+          channel({ id: 'b', name: 'Beta', channelNumber: 2 }),
+          channel({ id: 'c', name: 'Charlie', channelNumber: 3 }),
+          channel({ id: 'new', name: 'New', channelNumber: 0 }),
+        ],
+        'number',
+        order
+      ).map(({ id }) => id)
+    ).toEqual(['c', 'a', 'b', 'new']);
   });
 });
 

@@ -1,7 +1,15 @@
-import { useState, type HTMLAttributes, type Ref } from 'react';
+import { useRef, useState, type HTMLAttributes, type Ref } from 'react';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { LuLink, LuEllipsis, LuPower, LuSquareCheck } from 'react-icons/lu';
-import { IconButton } from '../../../ui/button';
+import {
+  LuArrowUpDown,
+  LuLink,
+  LuEllipsis,
+  LuPower,
+  LuSquareCheck,
+} from 'react-icons/lu';
+import { Button, IconButton } from '../../../ui/button';
+import { Popover } from '../../../ui/popover';
+import { TextInput } from '../../../ui/text-input';
 import { Switch } from '../../../ui/switch';
 import {
   DropdownMenu,
@@ -27,6 +35,11 @@ export type ChannelListItemProps = {
   onOpenMappings: () => void;
   onEdit: () => void;
   onRemove: () => void;
+  reorder?: {
+    position: number;
+    count: number;
+    onMove: (position: number) => void;
+  };
 };
 
 function MappingBadge({
@@ -86,10 +99,12 @@ export function ChannelListItem({
   onOpenMappings,
   onEdit,
   onRemove,
+  reorder,
 }: ChannelListItemProps) {
   const { accepted, pending, total } = getMappingStats(channel);
   const sourceLabel = getChannelSourceLabel(channel);
   const [logoFailed, setLogoFailed] = useState(false);
+  const displayNumber = channel.channelNumber;
 
   const confirmDelete = useConfirmationDialog({
     title: 'Remove Channel',
@@ -108,6 +123,15 @@ export function ChannelListItem({
             : 'border-[--border] bg-[var(--background)]'
         }`}
       >
+        {reorder && <MoveChannel name={channel.name} {...reorder} />}
+        {displayNumber !== undefined ? (
+          <span
+            title={`Channel ${displayNumber}`}
+            className="w-8 flex-shrink-0 text-center font-mono text-xs font-semibold text-[--muted] tabular-nums"
+          >
+            {displayNumber}
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={onToggleSelect}
@@ -246,5 +270,64 @@ export function ChannelListItem({
       </div>
       <ConfirmationDialog {...confirmDelete} />
     </li>
+  );
+}
+
+function MoveChannel({
+  name,
+  position,
+  count,
+  onMove,
+}: NonNullable<ChannelListItemProps['reorder']> & { name: string }) {
+  const [open, setOpen] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      align="start"
+      onOpenAutoFocus={(event) => {
+        event.preventDefault();
+        input.current?.focus();
+      }}
+      trigger={
+        <IconButton
+          className="h-9 w-9 flex-shrink-0 rounded-full"
+          icon={<LuArrowUpDown />}
+          intent="primary-subtle"
+          title={`Move channel ${name}`}
+          aria-label={`Move channel ${name}`}
+        />
+      }
+    >
+      <form
+        className="space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const next = Number(
+            new FormData(event.currentTarget).get('position')
+          );
+          if (!Number.isInteger(next) || next < 1 || next > count) return;
+          onMove(next);
+          setOpen(false);
+        }}
+      >
+        <TextInput
+          ref={input}
+          label={`Position for ${name}`}
+          name="position"
+          type="number"
+          min={1}
+          max={count}
+          step={1}
+          required
+          defaultValue={position}
+        />
+        <Button type="submit" size="sm">
+          Move
+        </Button>
+      </form>
+    </Popover>
   );
 }

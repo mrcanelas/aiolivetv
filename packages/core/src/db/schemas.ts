@@ -643,6 +643,8 @@ export const UserDataSchema = z.object({
   addonCategoryColors: z.record(z.string(), z.string()).optional(), // maps custom category name → colour key
   catalogModifications: z.array(CatalogModification).optional(),
   channelMappings: z.array(ChannelMapping).optional(),
+  /** Canonical channel IDs in the order set by the user. */
+  channelOrder: z.array(z.string().min(1)).optional(),
   mergedCatalogs: z.array(MergedCatalog).optional(),
 });
 

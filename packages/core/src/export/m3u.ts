@@ -44,6 +44,7 @@ function attr(name: string, value: string | undefined): string {
 
 export type M3uGenerateOptions = {
   channels: ExportChannel[];
+  renumberChannels?: boolean;
   playUrlForChannel: (channelId: string) => string;
   /** Optional absolute XMLTV URL for the #EXTM3U header (informational). */
   xmltvUrl?: string;
@@ -55,14 +56,21 @@ export function generateM3uPlaylist(options: M3uGenerateOptions): string {
     : '';
   const lines = [`#EXTM3U${headerAttrs}`];
 
+  let exportIndex = 0;
   for (const channel of options.channels) {
     if (!channel.hasStreamSource) continue;
+    exportIndex += 1;
     const tvgId = toTvgId(channel.id);
     const name = sanitizeM3uText(channel.name) || tvgId;
     const logo = channel.logo ? sanitizeM3uText(channel.logo) : undefined;
     const group = channel.group ? sanitizeM3uText(channel.group) : undefined;
+    const channelNumber = options.renumberChannels
+      ? exportIndex
+      : channel.channelNumber;
+    const chno =
+      channelNumber === undefined ? undefined : String(channelNumber);
     lines.push(
-      `#EXTINF:-1${attr('tvg-id', tvgId)}${attr('tvg-name', name)}${attr('tvg-logo', logo)}${attr('group-title', group)},${name}`
+      `#EXTINF:-1${attr('tvg-id', tvgId)}${attr('tvg-name', name)}${attr('tvg-logo', logo)}${attr('tvg-chno', chno)}${attr('group-title', group)},${name}`
     );
     lines.push(options.playUrlForChannel(channel.id));
   }

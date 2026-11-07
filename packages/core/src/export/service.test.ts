@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserData } from '../db/schemas.js';
+import { parseM3u } from '../builtins/m3u-reader/parser.js';
 import { buildM3uForUser, getCachedM3u, getCachedXmltv } from './service.js';
 import { resolveExportStream } from './playback.js';
 
@@ -86,6 +87,39 @@ beforeEach(() => {
 });
 
 describe('export saved configuration', () => {
+  it('reads current numbers and preserves manual order when the M3U is reimported', async () => {
+    const saved = user();
+    const first = saved.channelMappings![0];
+    const second = { ...first, id: 'aiolivetv:two' };
+    saved.channelMappings!.push(second);
+    fixture.meta.mockImplementation(async (_type, id) => ({
+      data: { name: id, channelNumber: id === first.id ? 20 : 10 },
+    }));
+
+    const original = await buildM3uForUser('token', saved);
+    expect(
+      parseM3u(original.body).map(({ channelId, channelNumber }) => [
+        channelId,
+        channelNumber,
+      ])
+    ).toEqual([
+      [second.id, 10],
+      [first.id, 20],
+    ]);
+
+    saved.channelOrder = [first.id, second.id];
+    const reordered = await buildM3uForUser('token', saved);
+    expect(
+      parseM3u(reordered.body).map(({ channelId, channelNumber }) => [
+        channelId,
+        channelNumber,
+      ])
+    ).toEqual([
+      [first.id, 1],
+      [second.id, 2],
+    ]);
+  });
+
   it('loads default metadata and preserves saved customizations', async () => {
     const first = await buildM3uForUser('token', user());
     expect(first.body).toContain('tvg-name="One"');

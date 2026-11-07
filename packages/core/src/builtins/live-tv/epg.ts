@@ -274,6 +274,7 @@ export function bareChannelPreview(channel: {
   language?: string;
   country?: string;
   genres?: string[];
+  channelNumber?: number;
 }): MetaPreview {
   return {
     id: channel.id,
@@ -286,6 +287,9 @@ export function bareChannelPreview(channel: {
     language: channel.language,
     country: channel.country,
     genres: channel.genres,
+    ...(channel.channelNumber !== undefined
+      ? { channelNumber: channel.channelNumber }
+      : {}),
   };
 }
 

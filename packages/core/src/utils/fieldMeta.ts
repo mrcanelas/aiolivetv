@@ -181,6 +181,7 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   dynamicAddonFetching: { label: 'Dynamic Addon Fetching', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'addons', sectionId: 'fetchStrategy', keywords: ['exit condition', 'dynamic fetching', 'fetch strategy'] },
   addonCategoryColors: { label: 'Addon Category Colors', group: 'misc', type: 'scalar', menu: 'addons', subTab: 'addons' },
   catalogModifications: { label: 'Catalog Modifications', group: 'misc', type: 'scalar', menu: 'channels' },
+  channelOrder: { label: 'Channel Order', group: 'metadata', type: 'scalar', menu: 'channels' },
   channelMappings: { label: 'Channel Mappings', group: 'metadata', type: 'list', identityKey: 'id', menu: 'channels', keywords: ['live tv', 'm3u', 'xmltv'] },
   mergedCatalogs: { label: 'Merged Catalogs', group: 'misc', type: 'scalar', menu: 'channels' },
 

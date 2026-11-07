@@ -36,6 +36,8 @@ import {
   clearM3uSourceCache,
   clearXmltvSourceCache,
   TMDBMetadata,
+  sortLiveCatalogItems,
+  readChannelNumber,
 } from '@aiolivetv/core';
 
 const router: Router = Router();
@@ -63,7 +65,9 @@ type Candidate = {
   country?: string;
   language?: string;
   categories?: string[];
+  channelNumber?: number;
 };
+
 type SourceDiagnostic = {
   instanceId: string;
   name: string;
@@ -361,12 +365,14 @@ router.post(
         });
         if (Date.now() >= sourceScanDeadline) return 'deadline' as const;
         const configuredMappings = validatedUserData.channelMappings ?? [];
+        const channelOrder = validatedUserData.channelOrder;
         validatedUserData.channelMappings = undefined;
+        validatedUserData.channelOrder = undefined;
         const aio = await new AIOStreams(validatedUserData, {
           bypassCatalogCache: req.body.refresh === true,
           bypassManifestCache: !alternativesFor,
         }).initialise();
-        return { validatedUserData, configuredMappings, aio };
+        return { validatedUserData, channelOrder, configuredMappings, aio };
       });
       if (prepared === 'deadline') {
         respond(
@@ -382,7 +388,11 @@ router.post(
         );
         return;
       }
-      const { validatedUserData, configuredMappings, aio } = prepared;
+      const { validatedUserData, channelOrder, configuredMappings, aio } =
+        prepared;
+      const configuredById = new Map(
+        configuredMappings.map((mapping) => [mapping.id, mapping])
+      );
       const hiddenChannelIds = new Set(
         configuredMappings
           .filter((mapping) => mapping.hidden)
@@ -398,6 +408,7 @@ router.post(
         epgProvider: boolean;
         group?: string;
         sourceGroup?: string;
+        channelNumber?: number;
         rejectedStreams: Array<{ addonId: string; channelId: string }>;
         mappings: Array<
           Candidate & {
@@ -656,6 +667,9 @@ router.post(
               if (foundKeys.has(key)) continue;
               foundKeys.add(key);
               addonCandidateCount++;
+              const channelNumber = readChannelNumber(
+                (item as { channelNumber?: unknown }).channelNumber
+              );
               found.push({
                 id: item.id,
                 name: decodeHtmlEntities(item.name ?? item.id),
@@ -677,6 +691,7 @@ router.post(
                 categories: Array.isArray(item.genres)
                   ? item.genres
                   : undefined,
+                ...(channelNumber !== undefined ? { channelNumber } : {}),
               });
             }
             if (
@@ -1232,85 +1247,82 @@ router.post(
           a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
         );
 
-      const visibleChannels = (
-        await Promise.all(
-          channels
-            .filter(
-              (channel) =>
-                !hiddenChannelIds.has(channel.id) &&
-                (!alternativesFor || channel.id === alternativesFor)
-            )
-            .map(async (channel) => {
-              const canonical = resolveCanonical(channel);
-              const configured = configuredMappings.find(
-                (mapping) => mapping.id === channel.id
-              );
-              const sourceGroup = normalizeChannelGroup(
-                canonical.categories?.[0] ??
-                  channel.mappings.find((mapping) => mapping.categories?.[0])
-                    ?.categories?.[0]
-              );
-              return {
-                ...channel,
-                epgSource: configured?.epgSource,
-                availableEpgSources: alternativesFor
-                  ? [...candidates.values()]
-                      .filter(
-                        (candidate) =>
-                          candidate.epgProvider && candidate.contributesChannels
-                      )
-                      .map((candidate) => ({
-                        addonId: candidate.addonId,
-                        addonName: candidate.addonName,
-                        channelId: candidate.id,
-                        name: candidate.name,
-                      }))
-                  : [],
-                sourceName:
-                  canonical.addonName ||
-                  sources.get(channel.canonicalAddonId)?.name ||
-                  undefined,
-                sourceGroup,
-                country:
-                  canonical.country ??
-                  channel.mappings.find((mapping) => mapping.country)?.country,
-                language:
-                  canonical.language ??
-                  channel.mappings.find((mapping) => mapping.language)
-                    ?.language,
-                group: normalizeChannelGroup(configured?.group) ?? sourceGroup,
-                epgProvider: configured?.epgSource
-                  ? Boolean(
-                      candidates.get(
-                        candidateKey(
-                          configured.epgSource.addonId,
-                          configured.epgSource.channelId
-                        )
-                      )?.epgProvider
+      const visibleChannels = await Promise.all(
+        channels
+          .filter(
+            (channel) =>
+              !hiddenChannelIds.has(channel.id) &&
+              (!alternativesFor || channel.id === alternativesFor)
+          )
+          .map(async (channel) => {
+            const canonical = resolveCanonical(channel);
+            const configured = configuredById.get(channel.id);
+            const sourceGroup = normalizeChannelGroup(
+              canonical.categories?.[0] ??
+                channel.mappings.find((mapping) => mapping.categories?.[0])
+                  ?.categories?.[0]
+            );
+            return {
+              ...channel,
+              epgSource: configured?.epgSource,
+              availableEpgSources: alternativesFor
+                ? [...candidates.values()]
+                    .filter(
+                      (candidate) =>
+                        candidate.epgProvider && candidate.contributesChannels
                     )
-                  : canonical.epgProvider ||
-                    channel.mappings.some((mapping) => mapping.epgProvider),
-                availableStreamSources: alternativesFor
-                  ? await buildAvailableStreamSources(channel)
-                  : [],
-              };
-            })
-        )
-      ).sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                    .map((candidate) => ({
+                      addonId: candidate.addonId,
+                      addonName: candidate.addonName,
+                      channelId: candidate.id,
+                      name: candidate.name,
+                    }))
+                : [],
+              sourceName:
+                canonical.addonName ||
+                sources.get(channel.canonicalAddonId)?.name ||
+                undefined,
+              sourceGroup,
+              country:
+                canonical.country ??
+                channel.mappings.find((mapping) => mapping.country)?.country,
+              language:
+                canonical.language ??
+                channel.mappings.find((mapping) => mapping.language)?.language,
+              group: normalizeChannelGroup(configured?.group) ?? sourceGroup,
+              channelNumber: canonical.channelNumber,
+              epgProvider: configured?.epgSource
+                ? Boolean(
+                    candidates.get(
+                      candidateKey(
+                        configured.epgSource.addonId,
+                        configured.epgSource.channelId
+                      )
+                    )?.epgProvider
+                  )
+                : canonical.epgProvider ||
+                  channel.mappings.some((mapping) => mapping.epgProvider),
+              availableStreamSources: alternativesFor
+                ? await buildAvailableStreamSources(channel)
+                : [],
+            };
+          })
       );
+      const sortedVisibleChannels = sortLiveCatalogItems(visibleChannels, {
+        channelOrder,
+      });
       respond(
         200,
         createResponse({
           success: true,
           data: {
-            channels: visibleChannels,
+            channels: sortedVisibleChannels,
             sources: [...sources.values()].sort((a, b) =>
               a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
             ),
             unmatchedStreams: [],
             unavailableStreams,
-            duplicates: findPossibleDuplicateChannels(visibleChannels),
+            duplicates: findPossibleDuplicateChannels(sortedVisibleChannels),
             removedChannels,
             scan: {
               durationMs: Date.now() - scanStartedAt,

@@ -31,9 +31,9 @@ const XMLTV_FIXTURE = `<tv>
 </tv>`;
 
 const M3U_FIXTURE = `#EXTM3U
-#EXTINF:-1 tvg-id="bbc.one" tvg-name="BBC One" tvg-logo="https://example.com/bbc-logo.png",BBC One
+#EXTINF:-1 tvg-id="bbc.one" tvg-chno="20" tvg-name="BBC One" tvg-logo="https://example.com/bbc-logo.png",BBC One
 https://example.com/bbc.m3u8
-#EXTINF:-1 tvg-id="rtp-1" tvg-name="RTP-1",RTP-1
+#EXTINF:-1 tvg-id="rtp-1" tvg-chno="10" tvg-name="RTP-1",RTP-1
 https://example.com/rtp.m3u8`;
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -480,9 +480,17 @@ async function validateWithoutEpg(
   const channels = (await aio.getCatalog(constants.TV_TYPE, catalog.id)).data;
   assert(channels.length === 2, 'expected two M3U channels');
 
-  const bbcId = channels.find((item) => item.name === 'BBC One')!.id;
+  assert(channels[0].name === 'RTP-1', 'catalog must follow source channel numbers');
+  const bbcId = channels[1].id;
+  const ordered = await new AIOStreams({
+    ...userData,
+    channelOrder: [bbcId, channels[0].id],
+  }).initialise();
+  const reordered = await ordered.getCatalog(constants.TV_TYPE, catalog.id);
+  assert(reordered.data[0]?.id === bbcId, 'saved order must win over source channel numbers');
   const meta = (await aio.getMeta(constants.TV_TYPE, bbcId)).data;
   assert(meta?.name === 'BBC One', 'expected M3U channel meta');
+  assert(meta.channelNumber === 20, 'meta must keep the playlist channel number');
   assert(
     meta?.videos === undefined,
     'M3U-only meta must not include EPG videos'
@@ -1179,6 +1187,7 @@ async function validateGuideChoicesAndPersistence(
   const password = 'live-tv-validation-only';
   const legacyDraft: UserData = {
     ...draft,
+    channelOrder: [mapping.id],
     preferredResolutions: ['720p', '1080p'],
     enableSeadex: true,
     checkOwned: true,
@@ -1240,6 +1249,7 @@ async function validateGuideChoicesAndPersistence(
           mapping.streams![0].addonId,
       'presets and stream order must survive persistence'
     );
+    assert(restored.channelOrder?.[0] === mapping.id, 'channel order must survive UserData persistence');
     await core.UserRepository.updateUser(saved.uuid, password, {
       ...restored,
       enableSeadex: true,

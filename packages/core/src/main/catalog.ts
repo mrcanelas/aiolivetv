@@ -527,7 +527,7 @@ function applyLiveTvCatalogOverlay<
   const overlaid = applyLiveChannelGroupOverlay(ctx.userData, items).filter(
     (item) => itemMatchesCatalogGenre(item, genre)
   );
-  return sortByName ? sortLiveCatalogItems(overlaid) : overlaid;
+  return sortByName ? sortLiveCatalogItems(overlaid, ctx.userData) : overlaid;
 }
 
 /**

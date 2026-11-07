@@ -3,6 +3,8 @@ import type { UserData } from '../db/schemas.js';
 import { Cache, createLogger } from '../utils/index.js';
 import { AIOStreams } from '../main/index.js';
 import { TV_TYPE } from '../utils/constants.js';
+import { readChannelNumber } from '../utils/channelName.js';
+import { sortLiveCatalogItems } from '../main/channelMappings.js';
 import { collectExportChannels, type ExportChannel } from './channels.js';
 import { generateM3uPlaylist } from './m3u.js';
 import {
@@ -84,13 +86,18 @@ export async function buildM3uForUser(
   assertExportEnabled();
   const channels = collectExportChannels(userData);
   await loadProgrammesForChannels(userData, channels);
+  const sortedChannels = sortLiveCatalogItems(channels, userData);
+  const orderedIds = new Set(userData.channelOrder);
   const { xmltvUrl } = buildExportUrls(token);
   const body = generateM3uPlaylist({
-    channels,
+    channels: sortedChannels,
+    renumberChannels: sortedChannels.some(
+      (channel) => channel.hasStreamSource && orderedIds.has(channel.id)
+    ),
     xmltvUrl,
     playUrlForChannel: (channelId) => buildExportPlayUrl(token, channelId),
   });
-  return { body, channels };
+  return { body, channels: sortedChannels };
 }
 
 export async function getCachedM3u(
@@ -129,14 +136,18 @@ async function loadProgrammesForChannels(
 
   // Bound concurrency to avoid hammering providers when building the guide.
   const concurrency = 4;
+  const mappingsById = new Map(
+    userData.channelMappings?.map((mapping) => [mapping.id, mapping])
+  );
   for (let i = 0; i < channels.length; i += concurrency) {
     const slice = channels.slice(i, i + concurrency);
     const results = await Promise.all(
       slice.map(async (channel) => {
         try {
           const response = await aio.getMeta(TV_TYPE, channel.id);
-          const mapping = userData.channelMappings?.find(
-            (item) => item.id === channel.id
+          const mapping = mappingsById.get(channel.id);
+          channel.channelNumber = readChannelNumber(
+            response.data?.channelNumber
           );
           if (!mapping?.name && response.data?.name)
             channel.name = response.data.name;
@@ -180,9 +191,6 @@ async function loadProgrammesForChannels(
     }
   }
 
-  channels.sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  );
   return { programmes, channelsWithEpg };
 }
 
@@ -200,13 +208,14 @@ export async function buildXmltvForUser(
     userData,
     channels
   );
+  const sortedChannels = sortLiveCatalogItems(channels, userData);
   const body = generateXmltvGuide({
-    channels,
+    channels: sortedChannels,
     programmes,
     generatorName: 'AIOLiveTV',
   });
   void token;
-  return { body, channelsWithEpg, channels };
+  return { body, channelsWithEpg, channels: sortedChannels };
 }
 
 export async function getCachedXmltv(

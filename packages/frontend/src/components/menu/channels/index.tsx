@@ -2,6 +2,7 @@ import React from 'react';
 import { BiRefresh, BiReset, BiUndo } from 'react-icons/bi';
 import {
   LuArrowDownAZ,
+  LuHash,
   LuLayers,
   LuPower,
   LuPowerOff,
@@ -45,6 +46,7 @@ import {
   type ChannelSortMode,
   countSuggestions,
   asChannelsResponse,
+  moveChannelInOrder,
   buildVisibleChannelMappings,
   clearAutomaticChannelMappings,
   type ChannelMappingProjectionCache,
@@ -77,8 +79,7 @@ export function ChannelsMenu() {
   const [scanChanges, setScanChanges] = React.useState<ReturnType<
     typeof compareChannelScans
   > | null>(null);
-  const [sortMode, setSortMode] =
-    React.useState<ChannelSortMode>('alphabetical');
+  const [preferredSortMode, setSortMode] = React.useState<ChannelSortMode>();
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [linkStreamTargets, setLinkStreamTargets] = React.useState<
     Record<string, string>
@@ -770,6 +771,15 @@ export function ChannelsMenu() {
       ].sort(),
     [channels]
   );
+  const hasSourceNumbers = React.useMemo(
+    () => channels.some((channel) => channel.channelNumber !== undefined),
+    [channels]
+  );
+  const sortMode =
+    preferredSortMode ??
+    (userData.channelOrder?.length || hasSourceNumbers
+      ? 'number'
+      : 'alphabetical');
   const filteredChannels = React.useMemo(
     () =>
       sortChannels(
@@ -786,7 +796,8 @@ export function ChannelsMenu() {
             language: languageFilter,
           });
         }),
-        sortMode
+        sortMode,
+        userData.channelOrder
       ),
     [
       reviewedChannels,
@@ -795,6 +806,7 @@ export function ChannelsMenu() {
       countryFilter,
       languageFilter,
       sortMode,
+      userData.channelOrder,
     ]
   );
   const groupedChannels = React.useMemo(
@@ -802,7 +814,27 @@ export function ChannelsMenu() {
       sortMode === 'source' ? groupChannelsBySource(filteredChannels) : null,
     [sortMode, filteredChannels]
   );
+
   const visibleIds = filteredChannels.map((channel) => channel.id);
+
+  const moveChannel = (from: number, to: number) => {
+    if (from === to) return;
+    setUserData((current) => {
+      const orderedIds = sortChannels(
+        channels,
+        'number',
+        current.channelOrder
+      ).map((channel) => channel.id);
+      const channelOrder = [
+        ...new Set([...(current.channelOrder ?? []), ...orderedIds]),
+      ];
+      return {
+        ...current,
+        channelOrder: moveChannelInOrder(channelOrder, visibleIds, from, to),
+      };
+    });
+  };
+
   const isAllSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const hasSelection = selectedIds.size > 0;
@@ -899,21 +931,35 @@ export function ChannelsMenu() {
   const renderChannel = (
     channel: ChannelInfo,
     rowProps?: ChannelListItemProps['rowProps']
-  ) => (
-    <ChannelListItem
-      key={`${channel.canonicalAddonId}:${channel.id}`}
-      rowProps={rowProps}
-      channel={channel}
-      isSelected={selectedIds.has(channel.id)}
-      onToggleSelect={() => toggleSelection(channel.id)}
-      onToggleEnabled={(enabled) => {
-        updateChannel(channel.id, (item) => ({ ...item, enabled }));
-      }}
-      onOpenMappings={() => openMappings(channel.id)}
-      onEdit={() => openEdit(channel.id)}
-      onRemove={() => removeChannel(channel.id)}
-    />
-  );
+  ) => {
+    const index = rowProps?.['data-index'];
+    return (
+      <ChannelListItem
+        key={`${channel.canonicalAddonId}:${channel.id}`}
+        rowProps={rowProps}
+        channel={channel}
+        reorder={
+          sortMode === 'number' &&
+          filteredChannels.length > 1 &&
+          index !== undefined
+            ? {
+                position: index + 1,
+                count: filteredChannels.length,
+                onMove: (position) => moveChannel(index, position - 1),
+              }
+            : undefined
+        }
+        isSelected={selectedIds.has(channel.id)}
+        onToggleSelect={() => toggleSelection(channel.id)}
+        onToggleEnabled={(enabled) => {
+          updateChannel(channel.id, (item) => ({ ...item, enabled }));
+        }}
+        onOpenMappings={() => openMappings(channel.id)}
+        onEdit={() => openEdit(channel.id)}
+        onRemove={() => removeChannel(channel.id)}
+      />
+    );
+  };
 
   return (
     <PageWrapper className="space-y-4 p-4 sm:p-8">
@@ -971,6 +1017,15 @@ export function ChannelsMenu() {
                 onClick={() => setSortMode('alphabetical')}
                 disabled={channels.length === 0}
                 title="Sort alphabetically"
+              />
+              <IconButton
+                className="h-8 w-8 sm:h-10 sm:w-10"
+                rounded
+                intent={sortMode === 'number' ? 'primary' : 'primary-subtle'}
+                icon={<LuHash className="h-5 w-5" />}
+                onClick={() => setSortMode('number')}
+                disabled={channels.length === 0}
+                title="Sort by channel number or custom order"
               />
               <IconButton
                 className="h-8 w-8 sm:h-10 sm:w-10"
@@ -1286,12 +1341,20 @@ export function ChannelsMenu() {
                     : 'No channels match your search.'}
               </p>
             ) : (
-              <ChannelList
-                channels={filteredChannels}
-                groups={groupedChannels}
-                resetKey={`${searchQuery}\0${groupFilter}\0${reviewFilter}\0${sortMode}`}
-                renderChannel={renderChannel}
-              />
+              <>
+                {sortMode === 'number' && (
+                  <p className="mb-2 text-xs text-[--muted]">
+                    Use Move channel to change its position in this list. Save
+                    to apply the order.
+                  </p>
+                )}
+                <ChannelList
+                  channels={filteredChannels}
+                  groups={groupedChannels}
+                  resetKey={`${searchQuery}\0${groupFilter}\0${reviewFilter}\0${sortMode}`}
+                  renderChannel={renderChannel}
+                />
+              </>
             )}
           </>
         )}

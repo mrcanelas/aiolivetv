@@ -1,5 +1,14 @@
 import { decodeHtmlEntities } from './text.js';
 
+/** Accept numeric channel metadata, including M3U tvg-chno strings. */
+export function readChannelNumber(value: unknown): number | undefined {
+  const number =
+    typeof value === 'string' && value.trim() ? Number(value) : value;
+  return typeof number === 'number' && Number.isFinite(number) && number >= 0
+    ? number
+    : undefined;
+}
+
 /**
  * Normalises live channel names for matching by stripping provider prefixes,
  * quality markers and audio/language hints while preserving regional identifiers.

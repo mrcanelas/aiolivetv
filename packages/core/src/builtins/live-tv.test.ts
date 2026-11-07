@@ -434,6 +434,24 @@ describe('live TV sources', () => {
     expect(encodeChannelId(channel.id)).toBe(encodeChannelId(stream.channelId));
   });
 
+  it('parses tvg-chno and ignores invalid values', () => {
+    const entries = parseM3u(`#EXTM3U
+#EXTINF:-1 tvg-id="a" tvg-chno="12" tvg-name="A",A
+https://example.com/a.m3u8
+#EXTINF:-1 tvg-id="b" tvg-chno="-1" tvg-name="B",B
+https://example.com/b.m3u8
+#EXTINF:-1 tvg-id="c" tvg-chno="nope" tvg-name="C",C
+https://example.com/c.m3u8
+#EXTINF:-1 tvg-id="d" tvg-chno="3.5" tvg-name="D",D
+https://example.com/d.m3u8`);
+    expect(entries.map((entry) => entry.channelNumber)).toEqual([
+      12,
+      undefined,
+      undefined,
+      3.5,
+    ]);
+  });
+
   it('parses extra XMLTV display-names as aliases and indexes programs by tvg-id', async () => {
     const data = await parseXmltvData(`<tv>
       <channel id="rtp1">
