@@ -62,6 +62,7 @@ export {
   TvheadendPolicyError,
 } from './builtins/index.js';
 export { PresetManager } from './presets/index.js';
+export { SportsAddon, SportsConfigSchema } from './builtins/sports/addon.js';
 export * from './export/index.js';
 export * from './main/channelMappings.js';
 export {

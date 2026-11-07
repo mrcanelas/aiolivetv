@@ -33,6 +33,12 @@ export async function applyPresets(ctx: AIOStreamsContext): Promise<void> {
   }
 
   for (const preset of ctx.userData.presets.filter((p) => p.enabled)) {
+    // Sport IDs are shared across locales and broadcast markets.
+    if (
+      preset.type === 'sports' &&
+      ctx.addons.some((addon) => addon.preset.type === 'sports')
+    )
+      continue;
     try {
       if (!PresetManager.has(preset.type)) {
         logger.warn(

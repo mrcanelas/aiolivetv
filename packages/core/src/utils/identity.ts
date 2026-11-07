@@ -6,6 +6,14 @@ export const LEGACY_LIVE_TV_MERGED_CATALOG_ID = `${LEGACY_MERGED_CATALOG_PREFIX}
 
 export const ERROR_META_ID_PREFIX = 'aiolivetverror';
 export const LEGACY_ERROR_META_ID_PREFIX = 'aiostreamserror';
+export const SPORTS_CATALOG_PREFIX = 'aiolivetv-sports-';
+export const SPORTS_EVENT_PREFIX = 'aiolivetv:sports:';
+
+export function isSportsCatalogId(id: string): boolean {
+  return (id.includes('.') ? id.slice(id.indexOf('.') + 1) : id).startsWith(
+    SPORTS_CATALOG_PREFIX
+  );
+}
 
 export function isMergedCatalogId(id: string): boolean {
   return (

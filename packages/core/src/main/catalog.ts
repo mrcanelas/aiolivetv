@@ -40,6 +40,7 @@ import { isMergedCatalogId } from './liveTvMergedCatalog.js';
 import { LIVE_TV_CATALOG_PAGE_SIZE } from '../builtins/live-tv/epg.js';
 import { config as appConfig } from '../config/index.js';
 import { addonProvidesNativeEpg } from './epgProvider.js';
+import { isSportsCatalogId } from '../utils/identity.js';
 
 export {
   LIVE_TV_MERGED_CATALOG_ID,
@@ -1351,15 +1352,18 @@ export async function getCatalog(
 
   return {
     success: true,
-    data: isLiveChannelType(type)
-      ? applyLiveTvCatalogOverlay(
-          ctx,
-          type,
-          catalog.filter((item) => isLiveChannelVisible(ctx.userData, item.id)),
-          parsedExtras.genre,
-          !modification?.shuffle && !modification?.reverse
-        )
-      : catalog,
+    data:
+      isLiveChannelType(type) && !isSportsCatalogId(actualCatalogId)
+        ? applyLiveTvCatalogOverlay(
+            ctx,
+            type,
+            catalog.filter((item) =>
+              isLiveChannelVisible(ctx.userData, item.id)
+            ),
+            parsedExtras.genre,
+            !modification?.shuffle && !modification?.reverse
+          )
+        : catalog,
     errors: [],
   };
 }

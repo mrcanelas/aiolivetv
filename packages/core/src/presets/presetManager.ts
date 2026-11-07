@@ -17,6 +17,7 @@ import {
   TvpPreset,
   DirectvPreset,
   XmltvPreset,
+  SportsPreset,
   XtreamPreset,
   TvheadendPreset,
   PlutoTvPreset,
@@ -29,6 +30,7 @@ import {
 const PRESETS = {
   m3u: M3uPreset,
   xmltv: XmltvPreset,
+  sports: SportsPreset,
   'iptv-org': IptvOrgPreset,
   'iptv-epg': IptvEpgPreset,
   xtream: XtreamPreset,

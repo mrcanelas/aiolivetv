@@ -13,6 +13,8 @@ import {
   appConfig,
   M3uAddon,
   XmltvAddon,
+  SportsAddon,
+  SportsConfigSchema,
   VivoTvAddon,
   MovistarTvAddon,
   TvpAddon,
@@ -52,6 +54,10 @@ interface ResourceParams {
 
 function config(encodedConfig: string): LiveTvSourceConfig {
   return JSON.parse(fromUrlSafeBase64(encodedConfig));
+}
+
+function sportsAddon(encodedConfig: string) {
+  return new SportsAddon(SportsConfigSchema.parse(config(encodedConfig)));
 }
 
 function vivoConfig(encodedConfig: string): VivoTvConfig {
@@ -166,6 +172,46 @@ router.get(
           req.params.id
         ),
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get('/sports/:encodedConfig/manifest.json', async (req, res, next) => {
+  try {
+    res.json(await sportsAddon(req.params.encodedConfig).getManifest());
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get(
+  '/sports/:encodedConfig/catalog/:type/:id{/:extras}.json',
+  async (req: Request<ResourceParams>, res, next) => {
+    try {
+      const { skip, genre } = parseCatalogExtras(getEncodedExtras(req));
+      const metas = await sportsAddon(req.params.encodedConfig).getCatalog(
+        req.params.id,
+        skip,
+        genre
+      );
+      res.json({ metas, cacheMaxAge: 60 });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/sports/:encodedConfig/meta/:type/:id.json',
+  async (req: Request<ResourceParams>, res, next) => {
+    try {
+      const meta = await sportsAddon(req.params.encodedConfig).getMeta(
+        req.params.id
+      );
+      if (meta) res.json({ meta, cacheMaxAge: 60 });
+      else res.sendStatus(404);
     } catch (error) {
       next(error);
     }

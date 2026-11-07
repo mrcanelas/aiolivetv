@@ -9,6 +9,7 @@ import { normalizeChannelGroup } from '../utils/channelName.js';
 import {
   LIVE_TV_MERGED_CATALOG_ID,
   isMergedCatalogId,
+  isSportsCatalogId,
 } from '../utils/identity.js';
 
 export {
@@ -26,7 +27,8 @@ export function buildLiveTvMergedCatalog(
 ): MergedCatalog | undefined {
   const tvCatalogs = catalogs.filter((catalog) => {
     if (catalog.type !== TV_TYPE) return false;
-    if (isMergedCatalogId(catalog.id)) return false;
+    if (isMergedCatalogId(catalog.id) || isSportsCatalogId(catalog.id))
+      return false;
     const modification = catalogModifications?.find(
       (mod) => mod.id === catalog.id && mod.type === catalog.type
     );

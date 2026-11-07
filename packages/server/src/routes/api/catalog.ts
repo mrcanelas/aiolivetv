@@ -26,6 +26,7 @@ import {
   MANUAL_STREAM_ADDON_ID,
   isManualStreamSource,
   isLiveChannelType,
+  isSportsCatalogId,
   normalizeChannelGroup,
   parseDeclaredStreamInfo,
   type DeclaredStreamInfo,
@@ -524,6 +525,7 @@ router.post(
         const startedAt = Date.now();
         const manifest = aio.getManifest(instanceId);
         if (!manifest) return undefined;
+        if (addon.preset.type === 'sports') return undefined;
         const contributesChannels = addonProvidesResource(addon, 'catalog');
         const supportsStream = manifest.resources.some((resource) =>
           typeof resource === 'string'
@@ -564,8 +566,8 @@ router.post(
         };
         let stopped = false;
 
-        for (const catalog of manifest.catalogs.filter((item) =>
-          isLiveChannelType(item.type)
+        for (const catalog of manifest.catalogs.filter(
+          (item) => isLiveChannelType(item.type) && !isSportsCatalogId(item.id)
         )) {
           const addonId = instanceId;
           if (

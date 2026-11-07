@@ -10,6 +10,7 @@ import { canRunFfprobe } from '../utils/runtime.js';
 import { config as appConfig } from '../config/index.js';
 import { getAddonName } from '../utils/general.js';
 import { Wrapper } from './wrapper.js';
+import { SPORTS_EVENT_PREFIX, isSportsCatalogId } from '../utils/identity.js';
 import { PresetManager } from '../presets/index.js';
 import { FeatureControl } from '../utils/feature.js';
 import { StreamContext } from '../streams/index.js';
@@ -590,8 +591,8 @@ async function resolveStreamChannelIdForAddon(
     return channelId;
   }
 
-  const catalog = ctx.manifests[addon.instanceId!]?.catalogs.find((entry) =>
-    isLiveChannelType(entry.type)
+  const catalog = ctx.manifests[addon.instanceId!]?.catalogs.find(
+    (entry) => isLiveChannelType(entry.type) && !isSportsCatalogId(entry.id)
   );
   if (!catalog) return acceptsChannelId ? channelId : undefined;
 
@@ -995,7 +996,8 @@ export async function getMeta(
 ): Promise<AIOStreamsResponse<ParsedMeta | null>> {
   logger.debug({ type, id }, 'handling meta request');
 
-  const isLiveChannel = isLiveChannelType(type);
+  const isSportsEvent = id.startsWith(SPORTS_EVENT_PREFIX);
+  const isLiveChannel = isLiveChannelType(type) && !isSportsEvent;
   const channelId = isLiveChannel ? getCanonicalChannelId(id) : id;
   const channelMapping = isLiveChannel
     ? getChannelMapping(ctx.userData, channelId)
@@ -1007,11 +1009,13 @@ export async function getMeta(
 
   const candidates = isLiveChannel
     ? collectLiveChannelMetaCandidates(ctx, type, channelId)
-    : getMetaCandidates(ctx, type, id).map((candidate) => ({
-        ...candidate,
-        metaType: type,
-        metaId: id,
-      }));
+    : getMetaCandidates(ctx, type, id)
+        .filter(({ addon }) => !isSportsEvent || addon.preset.type === 'sports')
+        .map((candidate) => ({
+          ...candidate,
+          metaType: type,
+          metaId: id,
+        }));
 
   if (candidates.length === 0) {
     logger.warn({ type, id }, 'no supported addon found for meta request');
