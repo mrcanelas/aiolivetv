@@ -1500,6 +1500,29 @@ async function validateSports(
         `manifest must advertise ${resourceName} for sports IDs`
       );
     }
+    // A saved Stremio link can be opened after a restart without loading the catalog.
+    await core.Cache.clearPrefix('sports-data');
+    const upcomingId = `${core.SPORTS_EVENT_PREFIX}${nextSportsEvent.idEvent}`;
+    const { meta: upcomingMeta } = await json<
+      import('../packages/core/dist/index.js').MetaResponse
+    >(`${stremio}/meta/tv/${encodeURIComponent(upcomingId)}.json`);
+    assert(
+      upcomingMeta.name === `🕒 ${nextSportsEvent.strEvent}` &&
+        upcomingMeta.poster === nextSportsEvent.strFanart &&
+        upcomingMeta.description?.includes(
+          'Informação de transmissão temporariamente indisponível'
+        ),
+      `sports details must survive a failed lookup before opening the catalog: ${upcomingMeta.name} (${upcomingMeta.description})`
+    );
+    const missingId = `${core.SPORTS_EVENT_PREFIX}99999`;
+    const missing = await fetch(
+      `${stremio}/meta/tv/${encodeURIComponent(missingId)}.json`
+    );
+    assert(
+      missing.headers.get('cache-control')?.includes('no-store') &&
+        !(await missing.json()).cacheMaxAge,
+      'failed meta responses must not be cached by Stremio or CDNs'
+    );
     const matches = await catalog(
       football.id,
       `genre=${encodeURIComponent(sportsLeague)}`
@@ -1528,17 +1551,6 @@ async function validateSports(
     assert(
       meta.posterShape === 'landscape' && meta.poster === live.poster,
       'sports details must use the same landscape artwork as the catalog'
-    );
-    const { meta: upcomingMeta } = await json<
-      import('../packages/core/dist/index.js').MetaResponse
-    >(`${stremio}/meta/tv/${encodeURIComponent(upcoming.id)}.json`);
-    assert(
-      upcomingMeta.name === upcoming.name &&
-        upcomingMeta.poster === upcoming.poster &&
-        upcomingMeta.description?.includes(
-          'Informação de transmissão temporariamente indisponível'
-        ),
-      `sports details must survive a failed lookup: ${upcomingMeta.name} (${upcomingMeta.description})`
     );
     const lineup = await catalog(core.LIVE_TV_MERGED_CATALOG_ID);
     assert(

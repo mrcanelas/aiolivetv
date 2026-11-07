@@ -178,9 +178,16 @@ export class SportsAddon {
           events.set(event.idEvent, event);
       }
     }
-    return [...events.values()].sort(
+    const schedule = [...events.values()].sort(
       (a, b) => (sportsKickoff(a) || Infinity) - (sportsKickoff(b) || Infinity)
     );
+    await cacheSportsCatalog(
+      this.settings.theSportsDbApiKey,
+      sport,
+      this.settings.timeZone,
+      schedule
+    );
+    return schedule;
   }
 
   async getManifest(): Promise<Manifest> {
@@ -222,14 +229,7 @@ export class SportsAddon {
   async getCatalog(id: string, skip: number, league?: string) {
     const sport = sportForCatalog(id);
     if (!sport) return [];
-    const events = await this.getEvents(sport);
-    await cacheSportsCatalog(
-      this.settings.theSportsDbApiKey,
-      sport,
-      this.settings.timeZone,
-      events
-    );
-    return events
+    return (await this.getEvents(sport))
       .filter((event) => !league || event.strLeague === league)
       .slice(skip, skip + 100)
       .map((event) => this.toMeta(event));
@@ -278,17 +278,25 @@ export class SportsAddon {
     if (!/^\d+$/.test(eventId)) return undefined;
     const { theSportsDbApiKey, timeZone, market } = this.settings;
     let lookupError: unknown;
-    const event =
+    let event =
       (await loadSportsEvent(theSportsDbApiKey, eventId).catch((error) => {
         if (error instanceof APIError && error.code === ErrorCode.UNAUTHORIZED)
           throw error;
         lookupError = error;
       })) ??
       (await findCachedSportsEvent(theSportsDbApiKey, timeZone, eventId));
-    if (!event) {
-      if (lookupError) throw lookupError;
-      return undefined;
+    if (!event && lookupError) {
+      const schedules = await Promise.allSettled(
+        (Object.keys(SPORTS) as Sport[]).map((sport) => this.getEvents(sport))
+      );
+      event = schedules
+        .flatMap((result) =>
+          result.status === 'fulfilled' ? result.value : []
+        )
+        .find((candidate) => candidate.idEvent === eventId);
+      if (!event) throw lookupError;
     }
+    if (!event) return undefined;
     const broadcasters = await loadSportsBroadcasters(
       theSportsDbApiKey,
       eventId,
