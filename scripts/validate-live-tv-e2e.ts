@@ -51,6 +51,8 @@ const liveOnlySportsEvent = {
   strTimestamp: sportsEvent.strTimestamp,
   strStatus: 'HT',
 };
+const sportsBroadcastArtwork = 'https://example.com/match-broadcast.jpg';
+const sportsDetailArtwork = 'https://example.com/match-detail.jpg';
 
 const XMLTV_FIXTURE = `<tv>
   <channel id="bbc.one"><display-name>BBC One</display-name><icon src="https://example.com/bbc-logo.png" /></channel>
@@ -139,6 +141,26 @@ async function startFixtureServer(): Promise<{
         res.end(JSON.stringify({ livescore }));
         return;
       }
+      if (url.pathname.endsWith('/eventstv.php')) {
+        const tvevents =
+          url.searchParams.get('a') === 'United_Kingdom'
+            ? [
+                {
+                  idEvent: liveOnlySportsEvent.idEvent,
+                  strCountry: 'United States',
+                  strEventThumb: 'https://example.com/wrong-market.jpg',
+                },
+                {
+                  idEvent: liveOnlySportsEvent.idEvent,
+                  strCountry: 'United Kingdom',
+                  strEventThumb: sportsBroadcastArtwork,
+                },
+              ]
+            : [];
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ tvevents }));
+        return;
+      }
       const id = url.searchParams.get('id');
       if (
         id === nextSportsEvent.idEvent &&
@@ -160,7 +182,16 @@ async function startFixtureServer(): Promise<{
               .map((event) => ({ ...event, strStatus: 'NS' })),
           }
         : url.pathname.endsWith('/lookupevent.php')
-          ? { events: events.filter((event) => event.idEvent === id) }
+          ? {
+              events: [
+                ...events,
+                {
+                  ...liveOnlySportsEvent,
+                  strEvent: 'Valencia vs Real Madrid',
+                  strThumb: sportsDetailArtwork,
+                },
+              ].filter((event) => event.idEvent === id),
+            }
           : {
               tvevent: [
                 {
@@ -1577,8 +1608,24 @@ async function validateSports(
     );
     assert(
       liveOnly.metas[0].posterShape === 'landscape' &&
-        liveOnly.metas[0].poster === liveOnlySportsEvent.strHomeTeamBadge,
-      'live games without event artwork must use the team badge instead of the addon logo'
+        liveOnly.metas[0].poster === sportsBroadcastArtwork,
+      'live games without event artwork must use the matching broadcast thumbnail from the saved market'
+    );
+    const { meta: liveOnlyMeta } = await json<
+      import('../packages/core/dist/index.js').MetaResponse
+    >(`${stremio}/meta/tv/${encodeURIComponent(liveOnly.metas[0].id)}.json`);
+    assert(
+      liveOnlyMeta.poster === sportsDetailArtwork,
+      'details must prefer the official match artwork'
+    );
+    await core.Cache.clearPrefix('catalog');
+    const refreshed = await catalog(
+      football.id,
+      `genre=${encodeURIComponent(liveOnlySportsEvent.strLeague)}`
+    );
+    assert(
+      refreshed.metas?.[0]?.poster === sportsDetailArtwork,
+      'the catalog must reuse official artwork from the match details when refreshed'
     );
     assert(
       live.posterShape === 'landscape' &&

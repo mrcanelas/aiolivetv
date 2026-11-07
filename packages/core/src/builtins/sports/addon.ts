@@ -9,12 +9,15 @@ import {
 import {
   cacheSportsCatalog,
   findCachedSportsEvent,
+  getCachedSportsArtwork,
   loadSportsBroadcasters,
   loadSportsDay,
   loadSportsEvent,
   loadSportsLivescores,
+  loadSportsTvArtwork,
   SPORTS,
   SPORTS_MARKETS,
+  sportsImage,
   sportsKickoff,
   type Sport,
   type SportsEvent,
@@ -245,13 +248,62 @@ export class SportsAddon {
   async getCatalog(id: string, skip: number, league?: string) {
     const sport = sportForCatalog(id);
     if (!sport) return [];
-    return (await this.getEvents(sport))
+    const { theSportsDbApiKey, market } = this.settings;
+    const page = (await this.getEvents(sport))
       .filter((event) => !league || event.strLeague === league)
-      .slice(skip, skip + 100)
-      .map((event) => this.toMeta(event));
+      .slice(skip, skip + 100);
+    const now = Date.now();
+    const entries = await Promise.all(
+      page.map(async (event) => ({
+        event,
+        artwork:
+          sportsImage(event.strThumb, event.strFanart) ??
+          (await getCachedSportsArtwork(theSportsDbApiKey, event.idEvent)),
+      }))
+    );
+    const dates = new Set(
+      entries
+        .filter(
+          ({ event, artwork }) =>
+            !artwork && sportsEventState(event, now) === 'live'
+        )
+        .map(({ event }) =>
+          new Date(sportsKickoff(event)).toISOString().slice(0, 10)
+        )
+    );
+    const listings = await Promise.all(
+      [...dates].map((date) =>
+        loadSportsTvArtwork(theSportsDbApiKey, sport, date, market).catch(
+          () => []
+        )
+      )
+    );
+    const artworkByEvent = new Map<
+      string,
+      { thumbnail?: string; logo?: string }
+    >();
+    for (const row of listings.flat()) {
+      const previous = artworkByEvent.get(row.idEvent);
+      artworkByEvent.set(row.idEvent, {
+        thumbnail: previous?.thumbnail ?? sportsImage(row.strEventThumb),
+        logo: previous?.logo ?? sportsImage(row.strLogo),
+      });
+    }
+    return entries.map(({ event, artwork }) => {
+      const broadcast = artworkByEvent.get(event.idEvent);
+      return this.toMeta(
+        event,
+        artwork ?? broadcast?.thumbnail,
+        broadcast?.logo
+      );
+    });
   }
 
-  private toMeta(event: SportsEvent): Meta {
+  private toMeta(
+    event: SportsEvent,
+    artwork?: string,
+    channelLogo?: string
+  ): Meta {
     const kickoff = sportsKickoff(event);
     const now = Date.now();
     const state = sportsEventState(event, now);
@@ -262,16 +314,15 @@ export class SportsAddon {
           ? '🕒 '
           : '';
     const id = `${SPORTS_EVENT_PREFIX}${event.idEvent}`;
-    const artwork = [
-      event.strThumb,
-      event.strFanart,
-      event.strHomeTeamBadge,
-      event.strAwayTeamBadge,
-    ]
-      .map((value) => value?.trim())
-      .find((url) => url && URL.parse(url)?.protocol === 'https:');
     const poster =
-      artwork ??
+      sportsImage(
+        event.strThumb,
+        event.strFanart,
+        artwork,
+        event.strHomeTeamBadge,
+        event.strAwayTeamBadge,
+        channelLogo
+      ) ??
       new URL(
         '/logo.png',
         config.bootstrap.baseUrl || config.bootstrap.internalUrl

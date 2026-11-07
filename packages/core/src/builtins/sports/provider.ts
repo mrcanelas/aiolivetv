@@ -66,16 +66,39 @@ const BroadcastSchema = z.object({
   strCountry: z.string().nullish(),
 });
 
+const BroadcastArtworkSchema = BroadcastSchema.pick({
+  idEvent: true,
+  strCountry: true,
+}).extend({
+  strEventThumb: z.string().nullish(),
+  strLogo: z.string().nullish(),
+});
+
 export type SportsEvent = z.infer<typeof EventSchema>;
 
 const cache = Cache.getInstance<string, { rows: unknown[] }>(
   'sports-data',
   512
 );
+const artworkCache = Cache.getInstance<string, string>('sports-artwork', 512);
+
+export function sportsImage(...urls: (string | null | undefined)[]) {
+  return urls
+    .map((url) => url?.trim())
+    .find((url) => url && URL.parse(url)?.protocol === 'https:');
+}
+
+function artworkKey(apiKey: string, id: string) {
+  return `${getSimpleTextHash(apiKey)}:${id}`;
+}
+
+export function getCachedSportsArtwork(apiKey: string, id: string) {
+  return artworkCache.get(artworkKey(apiKey, id));
+}
 
 async function request(
   apiKey: string,
-  endpoint: 'eventsday' | 'livescore' | 'lookupevent' | 'lookuptv',
+  endpoint: 'eventsday' | 'eventstv' | 'livescore' | 'lookupevent' | 'lookuptv',
   query: Record<string, string>
 ) {
   const params = new URLSearchParams(query);
@@ -106,19 +129,20 @@ async function request(
         return failed();
       }
       const payload = await response.json().catch(failed);
-      const field =
-        endpoint === 'lookuptv'
-          ? 'tvevent'
-          : endpoint === 'livescore'
-            ? 'livescore'
-            : 'events';
+      const field = {
+        eventsday: 'events',
+        eventstv: 'tvevents',
+        livescore: 'livescore',
+        lookupevent: 'events',
+        lookuptv: 'tvevent',
+      }[endpoint];
       const result = z
         .object({ [field]: z.array(z.unknown()).nullable() })
         .safeParse(payload);
       return result.success ? { rows: result.data[field] ?? [] } : failed();
     },
     key,
-    endpoint === 'eventsday' ? 300 : 60
+    endpoint === 'eventsday' || endpoint === 'eventstv' ? 300 : 60
   );
   return rows;
 }
@@ -149,7 +173,7 @@ export async function loadSportsLivescores(apiKey: string, sport: Sport) {
 }
 
 export async function loadSportsEvent(apiKey: string, id: string) {
-  return parseRows(
+  const event = parseRows(
     await request(apiKey, 'lookupevent', { id }),
     EventSchema
   ).find(
@@ -157,6 +181,26 @@ export async function loadSportsEvent(apiKey: string, id: string) {
       event.idEvent === id &&
       Object.values(SPORTS).some((sport) => sport === event.strSport)
   );
+  const artwork = sportsImage(event?.strThumb, event?.strFanart);
+  if (artwork) await artworkCache.set(artworkKey(apiKey, id), artwork, 86_400);
+  return event;
+}
+
+export async function loadSportsTvArtwork(
+  apiKey: string,
+  sport: Sport,
+  date: string,
+  market: string
+) {
+  const country = englishRegions.of(market) ?? market;
+  return parseRows(
+    await request(apiKey, 'eventstv', {
+      d: date,
+      s: SPORTS[sport],
+      a: country.replaceAll(' ', '_'),
+    }),
+    BroadcastArtworkSchema
+  ).filter((row) => isSportsMarket(row.strCountry, market));
 }
 
 function catalogKey(apiKey: string, sport: Sport, timeZone: string) {
