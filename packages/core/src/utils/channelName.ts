@@ -31,7 +31,7 @@ export function normalizeChannelName(name: string): string {
   const wordsToRemove = [
     /\btv\b/g,
     /\bhd[2]?\b/g,
-    /\bfhd\b/g,
+    /\bfhd2?\b/g,
     /\buhd\b/g,
     /\b4k\b/g,
     /\bsd\b/g,

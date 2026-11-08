@@ -47,6 +47,7 @@ describe('declared stream metadata', () => {
     for (const [name, resolution] of [
       ['A&E UHD', '2160p'],
       ['A&E FHD', '1080p'],
+      ['A&E FHD²', '1080p'],
       ['A&E HD', '720p'],
       ['A&E HD²', '720p'],
       ['A&E SD', '480p'],
