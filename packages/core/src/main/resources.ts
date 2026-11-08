@@ -588,22 +588,25 @@ async function resolveStreamChannelIdForAddon(
   addon: Addon,
   canonical: PreparedChannelMatchCandidate
 ): Promise<string | undefined> {
+  const rejectedIds = new Set(
+    getChannelMapping(ctx.userData, channelId)?.rejectedStreams?.flatMap(
+      (stream) =>
+        stream.addonId === addon.instanceId ? [stream.channelId] : []
+    )
+  );
   const streamResource = ctx.supportedResources[addon.instanceId!]?.find(
     (resource) => resource.name === 'stream'
   );
   const acceptsChannelId =
-    !streamResource?.idPrefixes?.length ||
-    streamResource.idPrefixes.some((prefix) => channelId.startsWith(prefix));
+    !rejectedIds.has(channelId) &&
+    (!streamResource?.idPrefixes?.length ||
+      streamResource.idPrefixes.some((prefix) =>
+        channelId.startsWith(prefix)
+      ));
   if (
-    streamResource?.idPrefixes?.length &&
-    streamResource.idPrefixes.some((prefix) => channelId.startsWith(prefix))
-  ) {
-    return channelId;
-  }
-
-  if (
-    addonProvidesResource(addon, constants.CATALOG_RESOURCE) &&
-    acceptsChannelId
+    acceptsChannelId &&
+    (streamResource?.idPrefixes?.length ||
+      addonProvidesResource(addon, constants.CATALOG_RESOURCE))
   ) {
     return channelId;
   }
@@ -620,6 +623,7 @@ async function resolveStreamChannelIdForAddon(
   );
   let best: { id: string; confidence: number } | undefined;
   for (const item of response.slice(0, LIVE_STREAM_CATALOG_SCAN_LIMIT)) {
+    if (rejectedIds.has(item.id)) continue;
     const confidence = getPreparedChannelMatchConfidence(
       prepareChannelMatchCandidate({
         id: item.id,
@@ -676,7 +680,6 @@ async function resolveLiveStreamFetchPlan(
   const addAddon = (addon: Addon, mappedChannelId: string) => {
     if (!addon.instanceId) return;
     if (
-      channelMapping?.streams?.length &&
       !isChannelAddonEnabled(
         ctx.userData,
         channelId,

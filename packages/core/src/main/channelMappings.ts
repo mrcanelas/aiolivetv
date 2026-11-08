@@ -352,8 +352,18 @@ export function isChannelAddonEnabled(
   addonId: string,
   streamChannelId?: string
 ) {
+  const mapping = getChannelMapping(userData, channelId);
+  if (
+    streamChannelId &&
+    mapping?.rejectedStreams?.some(
+      (stream) =>
+        stream.addonId === addonId && stream.channelId === streamChannelId
+    )
+  ) {
+    return false;
+  }
   return (
-    getChannelMapping(userData, channelId)?.streams?.find(
+    mapping?.streams?.find(
       (stream) =>
         stream.addonId === addonId &&
         (!streamChannelId || stream.channelId === streamChannelId)

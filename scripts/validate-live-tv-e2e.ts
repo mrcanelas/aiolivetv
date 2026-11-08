@@ -1155,6 +1155,31 @@ async function validateParallelStreamResolution(core: CoreModule) {
       catalogRequests === 6,
       'disabled channels must not resolve provider catalogs'
     );
+    const unlinked = await new core.AIOStreams(
+      liveTvUserData(presets.slice(0, 1), [
+        {
+          id: 'canonical-bbc',
+          name: 'BBC News',
+          streams: [],
+          rejectedStreams: [
+            {
+              addonId: addonInstanceId(aio, 'provider-0'),
+              channelId: 'provider-0:bbc',
+            },
+          ],
+        },
+      ])
+    ).initialise();
+    const beforeUnlinked = streamIds.length;
+    const unlinkedResult = await unlinked.getStreams(
+      'canonical-bbc',
+      core.constants.TV_TYPE
+    );
+    assert(
+      unlinkedResult.data.streams.length === 0 &&
+        streamIds.length === beforeUnlinked,
+      'removing the last linked stream must prevent playback from automatically matching it again'
+    );
     const unmatched = await new core.AIOStreams(
       liveTvUserData(presets, [
         {

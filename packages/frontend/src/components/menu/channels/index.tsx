@@ -49,6 +49,7 @@ import {
   moveChannelInOrder,
   buildVisibleChannelMappings,
   clearAutomaticChannelMappings,
+  unlinkChannelStream,
   type ChannelMappingProjectionCache,
   filterChannelsByReview,
   findDuplicateGroups,
@@ -448,53 +449,9 @@ export function ChannelsMenu() {
     addonId: string,
     streamChannelId: string
   ) => {
-    setChannels((current) => {
-      const channel = current.find((item) => item.id === channelId);
-      const mapping = channel?.mappings.find(
-        (item) => item.addonId === addonId && item.channelId === streamChannelId
-      );
-      if (!channel || !mapping || channel.mappings.length === 1) return current;
-      const withoutMapping = (item: ChannelInfo) =>
-        item.id === channelId
-          ? {
-              ...item,
-              mappings: item.mappings.filter(
-                (candidate) =>
-                  !(
-                    candidate.addonId === addonId &&
-                    candidate.channelId === streamChannelId
-                  )
-              ),
-            }
-          : item;
-      if (isManualStreamMapping(mapping)) {
-        return current.map(withoutMapping);
-      }
-      return current.map((item) => {
-        const next = withoutMapping(item);
-        if (item.id !== channelId) return next;
-        return {
-          ...next,
-          availableStreamSources: [
-            {
-              addonId: mapping.addonId,
-              addonName: mapping.addonName,
-              channelId: mapping.channelId,
-              name: mapping.name,
-              poster: mapping.poster,
-              confidence: mapping.confidence,
-            },
-            ...(item.availableStreamSources ?? []).filter(
-              (source) =>
-                !(
-                  source.addonId === addonId &&
-                  source.channelId === streamChannelId
-                )
-            ),
-          ],
-        };
-      });
-    });
+    updateChannel(channelId, (channel) =>
+      unlinkChannelStream(channel, addonId, streamChannelId)
+    );
   };
 
   const linkStreamSource = (channelId: string) => {

@@ -14,6 +14,7 @@ import { Switch } from '../../../ui/switch';
 import { Spinner } from '../../../ui/loading-spinner';
 import type { ChannelInfo } from '@/lib/api';
 import {
+  canUnlinkChannelStream,
   isChannelSuggestion,
   isVisibleChannelSuggestion,
   isManualStreamMapping,
@@ -322,9 +323,7 @@ export function ChannelMappingModal({
                           Canonical
                         </Button>
                       ) : null}
-                      {channel.mappings.length > 1 &&
-                      !manual &&
-                      mapping.addonId !== channel.canonicalAddonId ? (
+                      {canUnlinkChannelStream(channel, mapping) ? (
                         <Button
                           size="sm"
                           aria-label={`Unlink ${mapping.addonName} from ${channel.name}`}

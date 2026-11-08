@@ -186,6 +186,51 @@ export function isVisibleChannelSuggestion(confidence: number) {
   return confidence > 0.75 && isChannelSuggestion(confidence);
 }
 
+export function canUnlinkChannelStream(
+  channel: ChannelInfo,
+  mapping: ChannelInfo['mappings'][number]
+) {
+  return (
+    !isManualStreamMapping(mapping) &&
+    !isChannelSuggestion(mapping.confidence) &&
+    (mapping.addonId !== channel.canonicalAddonId ||
+      mapping.channelId !== channel.id)
+  );
+}
+
+export function unlinkChannelStream(
+  channel: ChannelInfo,
+  addonId: string,
+  channelId: string
+): ChannelInfo {
+  const matches = (source: { addonId: string; channelId: string }) =>
+    source.addonId === addonId && source.channelId === channelId;
+  const mapping = channel.mappings.find(matches);
+  if (!mapping || !canUnlinkChannelStream(channel, mapping)) return channel;
+
+  return {
+    ...channel,
+    mappings: channel.mappings.filter((source) => !matches(source)),
+    rejectedStreams: [
+      ...(channel.rejectedStreams ?? []).filter((source) => !matches(source)),
+      { addonId, channelId },
+    ],
+    availableStreamSources: [
+      {
+        addonId,
+        addonName: mapping.addonName,
+        channelId,
+        name: mapping.name,
+        poster: mapping.poster,
+        confidence: mapping.confidence,
+      },
+      ...(channel.availableStreamSources ?? []).filter(
+        (source) => !matches(source)
+      ),
+    ],
+  };
+}
+
 export { normalizeChannelGroup } from '../../../../../core/src/utils/channelName';
 
 export function countSuggestions(channels: ChannelInfo[]) {
