@@ -30,6 +30,11 @@
 * **sports:** show the preset in the addon marketplace ([921f240](https://github.com/mrcanelas/aiolivetv/commit/921f24071eb0e85267cc8ef39f2aa30d6b846cf4))
 * **sports:** use team badges when match artwork is missing ([f3e52ba](https://github.com/mrcanelas/aiolivetv/commit/f3e52babcb82c8395b7e19a9b522dba83c91ebfa))
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.7.0](https://github.com/mrcanelas/aiolivetv/compare/v1.6.1...v1.7.0) (2026-10-31)
 
 
