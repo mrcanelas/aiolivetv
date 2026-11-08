@@ -3,6 +3,8 @@ import {
   AIOStreams,
   CatalogResponse,
   createLogger,
+  isSportsCatalogId,
+  SPORTS_CATALOG_CACHE_SECONDS,
   StremioTransformer,
 } from '@aiolivetv/core';
 import { stremioCatalogRateLimiter } from '../../middlewares/ratelimit.js';
@@ -49,6 +51,9 @@ router.get(
         await new AIOStreams(req.userData).initialise()
       ).getCatalog(type, id, extras);
       const catalog = transformer.transformCatalog(result);
+      const sports = isSportsCatalogId(id);
+      const cacheMaxAge = sports ? SPORTS_CATALOG_CACHE_SECONDS : 300;
+      const staleRevalidate = sports ? 0 : 1800;
       const itemCount =
         (catalog.metas?.length ?? 0) + (catalog.metasDetailed?.length ?? 0);
       setStremioCatalogCacheHeaders(res, {
@@ -57,13 +62,15 @@ router.get(
           result.cacheable !== false &&
           itemCount > 0 &&
           catalogExtrasAreCdnCacheable(extras),
+        maxAge: cacheMaxAge,
+        staleRevalidate,
       });
       res.status(200).json(
         result.success && result.cacheable !== false
           ? {
               ...catalog,
-              cacheMaxAge: 300,
-              staleRevalidate: 1800,
+              cacheMaxAge,
+              staleRevalidate,
               staleError: 604800,
             }
           : catalog

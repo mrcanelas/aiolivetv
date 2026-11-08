@@ -41,6 +41,7 @@ import {
   getTimeTakenSincePoint,
   RequestOptions,
   isEphemeralRuntime,
+  SPORTS_CATALOG_CACHE_SECONDS,
 } from '../utils/index.js';
 import { Preset, PresetManager } from '../presets/index.js';
 import {
@@ -419,11 +420,15 @@ export class Wrapper {
       };
     };
 
-    const catalogTtl = resolveTtl(
+    const configuredTtl = resolveTtl(
       appConfig.resources.cache.catalog.ttl,
       this.addon.preset.type,
       this.manifestUrl
     );
+    const catalogTtl =
+      this.addon.preset.type === 'sports'
+        ? Math.min(configuredTtl, SPORTS_CATALOG_CACHE_SECONDS)
+        : configuredTtl;
     return await this.makeResourceRequest(
       'catalog',
       { type, id, extras },

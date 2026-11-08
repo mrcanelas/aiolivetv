@@ -14,6 +14,8 @@ vi.mock('../../middlewares/analytics.js', () => ({
 }));
 vi.mock('@aiolivetv/core', () => ({
   createLogger: () => ({ error: vi.fn() }),
+  isSportsCatalogId: (id: string) => id.startsWith('aiolivetv-sports-'),
+  SPORTS_CATALOG_CACHE_SECONDS: 60,
   AIOStreams: class {
     async initialise() {
       return this;

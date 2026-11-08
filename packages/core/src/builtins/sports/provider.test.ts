@@ -62,6 +62,17 @@ it('uses the global sport schedule and reads unqualified kickoff timestamps as U
   );
 });
 
+it('shares concurrent schedule requests for the same key and date', async () => {
+  respond({ events: [] });
+  vi.mocked(makeRequest).mockClear();
+  await Promise.all([
+    loadSportsDay('same-key', 'football', '2026-11-08'),
+    loadSportsDay('same-key', 'football', '2026-11-08'),
+    loadSportsDay('other-key', 'football', '2026-11-08'),
+  ]);
+  expect(makeRequest).toHaveBeenCalledTimes(2);
+});
+
 it('uses the broadcast territory rather than the event country and preserves channel numbers', async () => {
   respond({
     tvevent: [

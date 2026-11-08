@@ -68,6 +68,13 @@ const artworkLookupFixtures = [
     strHomeTeam: 'Badge FC',
     strEvent: 'Badge FC vs Real Madrid',
   },
+  {
+    ...liveOnlySportsEvent,
+    idEvent: '90006',
+    strLeague: 'Artwork Test Cup',
+    strHomeTeam: 'Busy FC',
+    strEvent: 'Busy FC vs Real Madrid',
+  },
 ];
 let artworkLookups = 0;
 
@@ -183,8 +190,13 @@ async function startFixtureServer(): Promise<{
       if (
         url.pathname.endsWith('/lookupevent.php') &&
         artworkLookupFixtures.some((event) => event.idEvent === id)
-      )
+      ) {
         artworkLookups++;
+        if (id === artworkLookupFixtures[2].idEvent) {
+          res.writeHead(429).end();
+          return;
+        }
+      }
       if (
         id === nextSportsEvent.idEvent &&
         failUpcomingLookupOnce.delete(url.pathname.split('/').at(-1) ?? '')
@@ -1656,11 +1668,12 @@ async function validateSports(
     const expectedPosters = [
       sportsDetailArtwork,
       artworkLookupFixtures[1].strHomeTeamBadge,
+      artworkLookupFixtures[2].strHomeTeamBadge,
     ].join(',');
     const firstArtworkPage = await catalog(football.id, artworkExtras);
     assert(
       firstArtworkPage.metas?.map((item) => item.poster).join(',') === expectedPosters &&
-        artworkLookups === 2,
+        artworkLookups === 3,
       'the catalog must fetch missing match artwork and fall back when no artwork exists'
     );
     await core.Cache.clearPrefix('catalog');
@@ -1668,8 +1681,16 @@ async function validateSports(
     const cachedArtworkPage = await catalog(football.id, artworkExtras);
     assert(
       cachedArtworkPage.metas?.map((item) => item.poster).join(',') === expectedPosters &&
-        artworkLookups === 2,
-      'rebuilding the catalog must reuse cached hits and misses without looking up matches again'
+        artworkLookups === 3,
+      'rebuilding the catalog must reuse artwork and defer unavailable lookups, including rate limits'
+    );
+    const sportsCacheResponse = await fetch(
+      `${stremio}/catalog/tv/${football.id}/${artworkExtras}.json`
+    );
+    assert(
+      sportsCacheResponse.headers.get('cache-control')?.includes('s-maxage=60') &&
+        (await sportsCacheResponse.json()).cacheMaxAge === 60,
+      'sports catalog responses must expire quickly so refreshed artwork can be shown'
     );
     assert(
       live.posterShape === 'landscape' &&

@@ -84,7 +84,7 @@ const artworkCache = Cache.getInstance<string, string | null>(
   'sports-artwork',
   512
 );
-const pendingEvents = new Map<string, Promise<SportsEvent | undefined>>();
+const pendingRequests = new Map<string, Promise<{ rows: unknown[] }>>();
 const artworkLookupTimes: number[] = [];
 
 export function sportsImage(...urls: (string | null | undefined)[]) {
@@ -101,14 +101,21 @@ export function getCachedSportsArtwork(apiKey: string, id: string) {
   return artworkCache.get(artworkKey(apiKey, id));
 }
 
+function requestKey(apiKey: string, endpoint: string, params: URLSearchParams) {
+  return `${getSimpleTextHash(apiKey)}:${endpoint}?${params}`;
+}
+
 async function request(
   apiKey: string,
   endpoint: 'eventsday' | 'eventstv' | 'livescore' | 'lookupevent' | 'lookuptv',
   query: Record<string, string>
 ) {
   const params = new URLSearchParams(query);
-  const key = `${getSimpleTextHash(apiKey)}:${endpoint}?${params}`;
-  const { rows } = await cache.wrap(
+  const key = requestKey(apiKey, endpoint, params);
+  const pending = pendingRequests.get(key);
+  if (pending) return (await pending).rows;
+
+  const fetchRows = cache.wrap(
     async () => {
       // The v1 URL contains the key. Keep upstream errors out of addon responses.
       const failed = () => {
@@ -149,7 +156,11 @@ async function request(
     key,
     endpoint === 'eventsday' || endpoint === 'eventstv' ? 300 : 60
   );
-  return rows;
+  const lookup = Promise.resolve(fetchRows).finally(() =>
+    pendingRequests.delete(key)
+  );
+  pendingRequests.set(key, lookup);
+  return (await lookup).rows;
 }
 
 function parseRows<T>(rows: unknown[], schema: z.ZodType<T>): T[] {
@@ -177,18 +188,8 @@ export async function loadSportsLivescores(apiKey: string, sport: Sport) {
   ).filter((event) => event.strSport === SPORTS[sport]);
 }
 
-export function loadSportsEvent(apiKey: string, id: string) {
+export async function loadSportsEvent(apiKey: string, id: string) {
   const key = artworkKey(apiKey, id);
-  const pending = pendingEvents.get(key);
-  if (pending) return pending;
-  const lookup = fetchSportsEvent(apiKey, id, key).finally(() => {
-    pendingEvents.delete(key);
-  });
-  pendingEvents.set(key, lookup);
-  return lookup;
-}
-
-async function fetchSportsEvent(apiKey: string, id: string, key: string) {
   const event = parseRows(
     await request(apiKey, 'lookupevent', { id }),
     EventSchema
@@ -208,8 +209,12 @@ export async function lookupSportsArtwork(apiKey: string, id: string) {
   const cached = await getCachedSportsArtwork(apiKey, id);
   if (cached !== undefined) return cached;
 
-  const pending = pendingEvents.get(artworkKey(apiKey, id));
-  if (!pending) {
+  const lookupKey = requestKey(
+    apiKey,
+    'lookupevent',
+    new URLSearchParams({ id })
+  );
+  if (!pendingRequests.has(lookupKey)) {
     const now = Date.now();
     while (artworkLookupTimes.length && artworkLookupTimes[0] <= now - 60_000)
       artworkLookupTimes.shift();
@@ -217,10 +222,15 @@ export async function lookupSportsArtwork(apiKey: string, id: string) {
     if (artworkLookupTimes.length >= 8) return undefined;
     artworkLookupTimes.push(now);
   }
-  const event = await (pending ?? loadSportsEvent(apiKey, id)).catch(
-    () => undefined
-  );
-  return sportsImage(event?.strThumb, event?.strFanart);
+  try {
+    const event = await loadSportsEvent(apiKey, id);
+    return sportsImage(event?.strThumb, event?.strFanart);
+  } catch {
+    const key = artworkKey(apiKey, id);
+    if ((await artworkCache.get(key)) === undefined)
+      await artworkCache.set(key, null, 120);
+    return undefined;
+  }
 }
 
 export async function loadSportsTvArtwork(
