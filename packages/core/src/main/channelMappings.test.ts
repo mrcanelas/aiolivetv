@@ -29,6 +29,8 @@ describe('prepared channel matching', () => {
     ['TNT SPORTS 1', 'TNT Sports 10', 0],
     ['GloboPlay Novelas FHD²', 'GloboPlay Novelas FHD', 0.9],
     ['ESPN 2 FHD²', 'ESPN 3 FHD', 0],
+    ['GloboPlay Novelas SD²', 'GloboPlay Novelas SD', 0.9],
+    ['ESPN 2 SD²', 'ESPN 3 SD', 0],
     ['Channel 44', 'Channel 4', 0],
     ['CHANNEL 4+1', 'Channel 4', 0],
     ['CHANNEL 4', 'Channel 4 +1', 0],

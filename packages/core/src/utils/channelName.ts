@@ -34,7 +34,7 @@ export function normalizeChannelName(name: string): string {
     /\bfhd2?\b/g,
     /\buhd\b/g,
     /\b4k\b/g,
-    /\bsd\b/g,
+    /\bsd2?\b/g,
     /\blive\b/g,
     /\bao\s+vivo\b/g,
     /\bchannel\b/g,

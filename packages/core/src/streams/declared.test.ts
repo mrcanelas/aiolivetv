@@ -51,6 +51,7 @@ describe('declared stream metadata', () => {
       ['A&E HD', '720p'],
       ['A&E HD²', '720p'],
       ['A&E SD', '480p'],
+      ['A&E SD²', '480p'],
     ] as const) {
       const declared = parseDeclaredStreamInfo({ name });
       expect(declared?.parsedFile.resolution, name).toBe(resolution);

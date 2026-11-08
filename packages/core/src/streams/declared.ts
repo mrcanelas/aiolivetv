@@ -117,7 +117,7 @@ export function parseLiveStreamHints(label: string): Partial<ParsedFile> {
     !/\buhd\b/.test(normalized)
   ) {
     hints.resolution = '720p';
-  } else if (/\b(sd|480p?)\b/.test(normalized)) {
+  } else if (/\b(sd2?|480p?)\b/.test(normalized)) {
     hints.resolution = '480p';
   } else {
     hints.resolution = matchPattern(normalized, PARSE_REGEX.resolutions);
