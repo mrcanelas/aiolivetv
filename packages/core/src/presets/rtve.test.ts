@@ -34,6 +34,8 @@ vi.mock('../parser/streams.js', () => ({
 vi.mock('../builtins/mitv/index.js', () => ({ MI_TV_COUNTRIES: [] }));
 vi.mock('../builtins/movistartv/index.js', () => ({ MOVISTAR_COUNTRIES: [] }));
 vi.mock('../builtins/spain/addon.js', () => ({ SpainTvConfigSchema: {} }));
+vi.mock('../builtins/sports/addon.js', () => ({ SportsConfigSchema: {} }));
+vi.mock('../builtins/sports/provider.js', () => ({ SPORTS_MARKETS: [] }));
 vi.mock('../builtins/tvheadend/index.js', () => ({}));
 vi.mock('../builtins/plutotv/index.js', () => ({}));
 
