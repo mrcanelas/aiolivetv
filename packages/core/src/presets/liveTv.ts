@@ -272,14 +272,14 @@ export class SportsPreset extends Preset {
     ];
     return {
       ID: 'sports',
-      NAME: 'Sports',
+      NAME: 'Sports (Beta)',
       LOGO: '',
       URL: [`${appConfig.bootstrap.internalUrl}/builtins/live-tv/sports`],
       TIMEOUT: appConfig.presets.defaultTimeout,
       USER_AGENT: appConfig.http.defaultUserAgent,
       SUPPORTED_SERVICES: [],
       DESCRIPTION:
-        'International football and basketball fixtures and regional broadcaster listings from TheSportsDB.',
+        'International football and basketball fixtures and regional broadcaster listings from TheSportsDB. Artwork and broadcast coverage vary by event and country.',
       OPTIONS: options,
       SUPPORTED_STREAM_TYPES: [],
       SUPPORTED_RESOURCES: [
