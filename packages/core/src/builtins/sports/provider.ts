@@ -80,7 +80,12 @@ const cache = Cache.getInstance<string, { rows: unknown[] }>(
   'sports-data',
   512
 );
-const artworkCache = Cache.getInstance<string, string>('sports-artwork', 512);
+const artworkCache = Cache.getInstance<string, string | null>(
+  'sports-artwork',
+  512
+);
+const pendingEvents = new Map<string, Promise<SportsEvent | undefined>>();
+const artworkLookupTimes: number[] = [];
 
 export function sportsImage(...urls: (string | null | undefined)[]) {
   return urls
@@ -172,7 +177,18 @@ export async function loadSportsLivescores(apiKey: string, sport: Sport) {
   ).filter((event) => event.strSport === SPORTS[sport]);
 }
 
-export async function loadSportsEvent(apiKey: string, id: string) {
+export function loadSportsEvent(apiKey: string, id: string) {
+  const key = artworkKey(apiKey, id);
+  const pending = pendingEvents.get(key);
+  if (pending) return pending;
+  const lookup = fetchSportsEvent(apiKey, id, key).finally(() => {
+    pendingEvents.delete(key);
+  });
+  pendingEvents.set(key, lookup);
+  return lookup;
+}
+
+async function fetchSportsEvent(apiKey: string, id: string, key: string) {
   const event = parseRows(
     await request(apiKey, 'lookupevent', { id }),
     EventSchema
@@ -182,8 +198,29 @@ export async function loadSportsEvent(apiKey: string, id: string) {
       Object.values(SPORTS).some((sport) => sport === event.strSport)
   );
   const artwork = sportsImage(event?.strThumb, event?.strFanart);
-  if (artwork) await artworkCache.set(artworkKey(apiKey, id), artwork, 86_400);
+  if (artwork) await artworkCache.set(key, artwork, 86_400);
+  else if ((await artworkCache.get(key)) === undefined)
+    await artworkCache.set(key, null, 900);
   return event;
+}
+
+export async function lookupSportsArtwork(apiKey: string, id: string) {
+  const cached = await getCachedSportsArtwork(apiKey, id);
+  if (cached !== undefined) return cached;
+
+  const pending = pendingEvents.get(artworkKey(apiKey, id));
+  if (!pending) {
+    const now = Date.now();
+    while (artworkLookupTimes.length && artworkLookupTimes[0] <= now - 60_000)
+      artworkLookupTimes.shift();
+    // shortcut: cap optional lookups per process, share the budget if replicas need to coordinate.
+    if (artworkLookupTimes.length >= 8) return undefined;
+    artworkLookupTimes.push(now);
+  }
+  const event = await (pending ?? loadSportsEvent(apiKey, id)).catch(
+    () => undefined
+  );
+  return sportsImage(event?.strThumb, event?.strFanart);
 }
 
 export async function loadSportsTvArtwork(

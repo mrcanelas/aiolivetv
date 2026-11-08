@@ -15,6 +15,7 @@ import {
   loadSportsEvent,
   loadSportsLivescores,
   loadSportsTvArtwork,
+  lookupSportsArtwork,
   SPORTS,
   SPORTS_MARKETS,
   sportsImage,
@@ -289,14 +290,18 @@ export class SportsAddon {
         logo: previous?.logo ?? sportsImage(row.strLogo),
       });
     }
-    return entries.map(({ event, artwork }) => {
-      const broadcast = artworkByEvent.get(event.idEvent);
-      return this.toMeta(
-        event,
-        artwork ?? broadcast?.thumbnail,
-        broadcast?.logo
-      );
-    });
+    return Promise.all(
+      entries.map(async ({ event, artwork }) => {
+        const broadcast = artworkByEvent.get(event.idEvent);
+        const thumbnail =
+          artwork ??
+          broadcast?.thumbnail ??
+          (artwork === undefined
+            ? await lookupSportsArtwork(theSportsDbApiKey, event.idEvent)
+            : undefined);
+        return this.toMeta(event, thumbnail ?? undefined, broadcast?.logo);
+      })
+    );
   }
 
   private toMeta(

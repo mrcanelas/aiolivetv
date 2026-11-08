@@ -53,6 +53,23 @@ const liveOnlySportsEvent = {
 };
 const sportsBroadcastArtwork = 'https://example.com/match-broadcast.jpg';
 const sportsDetailArtwork = 'https://example.com/match-detail.jpg';
+const artworkLookupFixtures = [
+  {
+    ...liveOnlySportsEvent,
+    idEvent: '90004',
+    strLeague: 'Artwork Test Cup',
+    strHomeTeam: 'Artwork FC',
+    strEvent: 'Artwork FC vs Real Madrid',
+  },
+  {
+    ...liveOnlySportsEvent,
+    idEvent: '90005',
+    strLeague: 'Artwork Test Cup',
+    strHomeTeam: 'Badge FC',
+    strEvent: 'Badge FC vs Real Madrid',
+  },
+];
+let artworkLookups = 0;
 
 const XMLTV_FIXTURE = `<tv>
   <channel id="bbc.one"><display-name>BBC One</display-name><icon src="https://example.com/bbc-logo.png" /></channel>
@@ -135,6 +152,7 @@ async function startFixtureServer(): Promise<{
                   strStatus: sportsEvent.strStatus,
                 },
                 liveOnlySportsEvent,
+                ...artworkLookupFixtures,
               ]
             : [];
         res.writeHead(200, { 'content-type': 'application/json' });
@@ -163,6 +181,11 @@ async function startFixtureServer(): Promise<{
       }
       const id = url.searchParams.get('id');
       if (
+        url.pathname.endsWith('/lookupevent.php') &&
+        artworkLookupFixtures.some((event) => event.idEvent === id)
+      )
+        artworkLookups++;
+      if (
         id === nextSportsEvent.idEvent &&
         failUpcomingLookupOnce.delete(url.pathname.split('/').at(-1) ?? '')
       ) {
@@ -190,6 +213,8 @@ async function startFixtureServer(): Promise<{
                   strEvent: 'Valencia vs Real Madrid',
                   strThumb: sportsDetailArtwork,
                 },
+                { ...artworkLookupFixtures[0], strThumb: sportsDetailArtwork },
+                artworkLookupFixtures[1],
               ].filter((event) => event.idEvent === id),
             }
           : {
@@ -1626,6 +1651,25 @@ async function validateSports(
     assert(
       refreshed.metas?.[0]?.poster === sportsDetailArtwork,
       'the catalog must reuse official artwork from the match details when refreshed'
+    );
+    const artworkExtras = `genre=${encodeURIComponent(artworkLookupFixtures[0].strLeague)}`;
+    const expectedPosters = [
+      sportsDetailArtwork,
+      artworkLookupFixtures[1].strHomeTeamBadge,
+    ].join(',');
+    const firstArtworkPage = await catalog(football.id, artworkExtras);
+    assert(
+      firstArtworkPage.metas?.map((item) => item.poster).join(',') === expectedPosters &&
+        artworkLookups === 2,
+      'the catalog must fetch missing match artwork and fall back when no artwork exists'
+    );
+    await core.Cache.clearPrefix('catalog');
+    await core.Cache.clearPrefix('sports-data');
+    const cachedArtworkPage = await catalog(football.id, artworkExtras);
+    assert(
+      cachedArtworkPage.metas?.map((item) => item.poster).join(',') === expectedPosters &&
+        artworkLookups === 2,
+      'rebuilding the catalog must reuse cached hits and misses without looking up matches again'
     );
     assert(
       live.posterShape === 'landscape' &&
