@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.8.0](https://github.com/mrcanelas/aiolivetv/compare/v1.7.0...v1.8.0) (2026-11-08)
+
+
+### Features
+
+* **channels:** support manual order and M3U channel numbers ([8ac3075](https://github.com/mrcanelas/aiolivetv/commit/8ac30758901ae5192527e6520f1c0e4b6a5bfa03)), closes [#45](https://github.com/mrcanelas/aiolivetv/issues/45)
+* **sports:** accept a user-provided TheSportsDB API key ([22079c8](https://github.com/mrcanelas/aiolivetv/commit/22079c821c96dc5581323f3668b79217d6d3d291))
+* **sports:** add TheSportsDB schedule and broadcast data ([6359b86](https://github.com/mrcanelas/aiolivetv/commit/6359b8690e545becb87cc21bded8a5c3c85bfd7f))
+* **sports:** cache per-match artwork lookups from catalogs ([0617b68](https://github.com/mrcanelas/aiolivetv/commit/0617b68eddce57c3c0df99c4f5a186b55403c562))
+* **sports:** expose localized fixture catalogs and match details ([a2afaa9](https://github.com/mrcanelas/aiolivetv/commit/a2afaa9817e4461bf5f8f08251494b234f8fc3a0))
+* **sports:** mark live and upcoming matches ([cdde362](https://github.com/mrcanelas/aiolivetv/commit/cdde362131a1eace029c710b92efb96fdd56dfd9))
+* **sports:** mark the sports preset as beta ([4d514ed](https://github.com/mrcanelas/aiolivetv/commit/4d514ed0866d835beefedbdca554ca43db9d0bd8))
+* **sports:** resolve live matches to configured channels ([738aca4](https://github.com/mrcanelas/aiolivetv/commit/738aca4132735c76989f4039eaff0099999305a5))
+* **sports:** reuse broadcast and cached match artwork ([e9cef29](https://github.com/mrcanelas/aiolivetv/commit/e9cef29c229c34434623ebf8300d3c798e87083a))
+* **sports:** reuse match posters as thumbnails and backgrounds ([ce3cac6](https://github.com/mrcanelas/aiolivetv/commit/ce3cac60f0982d4df40edb596ac5490a87d014de))
+
+
+### Bug Fixes
+
+* **channels:** allow unlinking the last mapped stream ([729f188](https://github.com/mrcanelas/aiolivetv/commit/729f1887a79573f5e3e01356f9a06ad839dbc2cc))
+* **channels:** recognize FHD2 as a quality suffix ([2ae000d](https://github.com/mrcanelas/aiolivetv/commit/2ae000d83897cdbab5f9abc9f5e03b75ea2e0b51))
+* **channels:** recognize SD2 as a quality suffix ([a8a7be0](https://github.com/mrcanelas/aiolivetv/commit/a8a7be0857aab4a2454c3e85c6150c5712f6fa6e))
+* **sports:** include live matches missing from the daily schedule ([8da01e1](https://github.com/mrcanelas/aiolivetv/commit/8da01e18968112044d4b88b1c442a70c140a72e8))
+* **sports:** keep match details available when lookups fail ([da8c416](https://github.com/mrcanelas/aiolivetv/commit/da8c4166b98e36758ed0d5768ea95e17d342023d))
+* **sports:** recover direct match details with a cold cache ([408f8c2](https://github.com/mrcanelas/aiolivetv/commit/408f8c2d30deb601e4b9b2b3a37793aad95a28d2))
+* **sports:** refresh artwork without repeating throttled requests ([062ad04](https://github.com/mrcanelas/aiolivetv/commit/062ad04b7f77c298050b26eea7c48346fdf6ce80))
+* **sports:** show landscape event artwork ([48387c2](https://github.com/mrcanelas/aiolivetv/commit/48387c2bd476eed2e0faf00fdd7a268417a6b4e5))
+* **sports:** show the preset in the addon marketplace ([921f240](https://github.com/mrcanelas/aiolivetv/commit/921f24071eb0e85267cc8ef39f2aa30d6b846cf4))
+* **sports:** use team badges when match artwork is missing ([f3e52ba](https://github.com/mrcanelas/aiolivetv/commit/f3e52babcb82c8395b7e19a9b522dba83c91ebfa))
+
 ## [1.7.0](https://github.com/mrcanelas/aiolivetv/compare/v1.6.1...v1.7.0) (2026-10-31)
 
 
