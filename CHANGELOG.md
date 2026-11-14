@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.9.0](https://github.com/mrcanelas/aiolivetv/compare/v1.8.0...v1.9.0) (2026-11-14)
+
+
+### Features
+
+* **channels:** improve channel ordering and catalog handling ([#51](https://github.com/mrcanelas/aiolivetv/issues/51)) ([d368831](https://github.com/mrcanelas/aiolivetv/commit/d3688317590a499fd14e9a403fa75ce07ca24f1e))
+* **channels:** merge channel groups ([3efa065](https://github.com/mrcanelas/aiolivetv/commit/3efa0650dd7fb4c5a05cc7795a0d42654c1ddd1d)), closes [#48](https://github.com/mrcanelas/aiolivetv/issues/48)
+
+
+### Bug Fixes
+
+* **tdtchannels:** expose genre filters in Stremio ([c18740f](https://github.com/mrcanelas/aiolivetv/commit/c18740fe179f0a690b46d9efaf0c55930939cb4b)), closes [#47](https://github.com/mrcanelas/aiolivetv/issues/47)
+
 ## [1.8.0](https://github.com/mrcanelas/aiolivetv/compare/v1.7.0...v1.8.0) (2026-11-08)
 
 
