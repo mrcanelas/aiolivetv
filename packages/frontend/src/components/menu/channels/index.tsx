@@ -20,6 +20,7 @@ import {
 } from '@/components/shared/confirmation-dialog';
 import { Button, IconButton } from '@/components/ui/button';
 import { LoadingSpinner, Spinner } from '@/components/ui/loading-spinner';
+import { Modal } from '@/components/ui/modal';
 import { TextInput } from '@/components/ui/text-input';
 import { Select } from '@/components/ui/select';
 import { StaticTabs } from '@/components/ui/tabs';
@@ -66,6 +67,7 @@ import {
   channelHasSchedule,
   MANUAL_STREAM_ADDON_ID,
   normalizeChannelGroup,
+  resolveChannelGroup,
   parseStreamSourceKey,
   compareChannelScans,
   matchesChannelFilters,
@@ -75,6 +77,9 @@ export function ChannelsMenu() {
   const { userData, setUserData } = useUserData();
   const [search, setSearch] = React.useState('');
   const [groupFilter, setGroupFilter] = React.useState('');
+  const [groupToMerge, setGroupToMerge] = React.useState('');
+  const [groupToKeep, setGroupToKeep] = React.useState('');
+  const groupMerges = userData.channelGroupMerges;
   const [countryFilter, setCountryFilter] = React.useState('');
   const [languageFilter, setLanguageFilter] = React.useState('');
   const [scanChanges, setScanChanges] = React.useState<ReturnType<
@@ -692,19 +697,50 @@ export function ChannelsMenu() {
     );
   };
 
-  const reviewedChannels = React.useMemo(
-    () => filterChannelsByReview(channels, reviewFilter, duplicateIds),
-    [channels, reviewFilter, duplicateIds]
-  );
+  const reviewedChannels = React.useMemo(() => {
+    const reviewed = filterChannelsByReview(
+      channels,
+      reviewFilter,
+      duplicateIds
+    );
+    if (!groupMerges) return reviewed;
+    return reviewed.map((channel) => {
+      const group = resolveChannelGroup(channel.group, groupMerges);
+      return group === channel.group ? channel : { ...channel, group };
+    });
+  }, [channels, reviewFilter, duplicateIds, groupMerges]);
   const knownGroups = React.useMemo(() => {
     const groups = new Set<string>();
     for (const channel of channels) {
-      if (channel.group) groups.add(channel.group);
+      const group = resolveChannelGroup(channel.group, groupMerges);
+      if (group) groups.add(group);
     }
     return [...groups].sort((left, right) =>
       left.localeCompare(right, undefined, { sensitivity: 'base' })
     );
-  }, [channels]);
+  }, [channels, groupMerges]);
+  const groupOptions = knownGroups.map((group) => ({
+    value: group,
+    label: group,
+  }));
+  const groupMergeEntries = Object.entries(groupMerges ?? {});
+
+  const updateGroupMerge = (from: string, to?: string) => {
+    setUserData((current) => {
+      const channelGroupMerges = { ...current.channelGroupMerges };
+      if (to) channelGroupMerges[from] = to;
+      else delete channelGroupMerges[from];
+      return {
+        ...current,
+        channelGroupMerges: Object.keys(channelGroupMerges).length
+          ? channelGroupMerges
+          : undefined,
+      };
+    });
+    setGroupFilter('');
+    setGroupToMerge('');
+    setGroupToKeep('');
+  };
   const searchQuery = React.useDeferredValue(search.trim().toLowerCase());
   const knownCountries = React.useMemo(
     () =>
@@ -1060,7 +1096,7 @@ export function ChannelsMenu() {
                 />
               </div>
             ) : null}
-            {channels.length > 0 ? (
+            {channels.length > 0 || groupMergeEntries.length > 0 ? (
               <div className="mb-4 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="min-w-[140px] flex-1">
@@ -1079,10 +1115,7 @@ export function ChannelsMenu() {
                       <Select
                         options={[
                           { value: 'all', label: 'All groups' },
-                          ...knownGroups.map((group) => ({
-                            value: group,
-                            label: group,
-                          })),
+                          ...groupOptions,
                         ]}
                         value={groupFilter || 'all'}
                         onValueChange={(value) =>
@@ -1092,6 +1125,85 @@ export function ChannelsMenu() {
                         aria-label="Filter by group"
                       />
                     </div>
+                  ) : null}
+                  {knownGroups.length > 1 || groupMergeEntries.length > 0 ? (
+                    <Modal
+                      trigger={
+                        <Button id="channelGroupMerges" size="sm" intent="gray">
+                          Merge groups
+                        </Button>
+                      }
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setGroupToMerge('');
+                          setGroupToKeep('');
+                        }
+                      }}
+                      title="Merge groups"
+                      description="Choose which group name to keep in Channels and Stremio. Use Save to apply your changes."
+                    >
+                      <div className="space-y-4">
+                        {knownGroups.length > 1 ? (
+                          <>
+                            <Select
+                              label="Group to merge"
+                              aria-label="Group to merge"
+                              options={groupOptions}
+                              value={groupToMerge}
+                              onValueChange={(group) => {
+                                setGroupToMerge(group);
+                                if (group === groupToKeep) setGroupToKeep('');
+                              }}
+                              placeholder="Select a group"
+                            />
+                            <Select
+                              label="Group to keep"
+                              aria-label="Group to keep"
+                              options={groupOptions.filter(
+                                ({ value }) => value !== groupToMerge
+                              )}
+                              value={groupToKeep}
+                              onValueChange={setGroupToKeep}
+                              placeholder="Select a group"
+                            />
+                            <Button
+                              disabled={
+                                !knownGroups.includes(groupToMerge) ||
+                                !knownGroups.includes(groupToKeep) ||
+                                groupToMerge === groupToKeep
+                              }
+                              onClick={() =>
+                                updateGroupMerge(groupToMerge, groupToKeep)
+                              }
+                            >
+                              Merge
+                            </Button>
+                          </>
+                        ) : null}
+                        {groupMergeEntries.length > 0 ? (
+                          <ul className="space-y-2" aria-label="Group merges">
+                            {groupMergeEntries.map(([from, to]) => (
+                              <li
+                                key={from}
+                                className="flex items-center justify-between gap-2"
+                              >
+                                <span className="min-w-0 break-words">
+                                  {from} → {to}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  intent="gray"
+                                  aria-label={`Undo merge of ${from} into ${to}`}
+                                  onClick={() => updateGroupMerge(from)}
+                                >
+                                  Undo
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    </Modal>
                   ) : null}
                   {[
                     {

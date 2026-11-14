@@ -9,6 +9,7 @@ import {
   normalizeChannelGroup,
   readChannelNumber,
   normalizeChannelName,
+  resolveChannelGroup,
 } from '../utils/channelName.js';
 import { decodeHtmlEntities } from '../utils/text.js';
 
@@ -122,7 +123,10 @@ export function getEffectiveChannelGroup(
   const override = normalizeChannelGroup(
     getChannelMapping(userData, channelId)?.group
   );
-  return override || normalizeChannelGroup(sourceGroup);
+  return resolveChannelGroup(
+    override || normalizeChannelGroup(sourceGroup),
+    userData.channelGroupMerges
+  );
 }
 
 export function applyLiveChannelGroupOverlay<
@@ -133,7 +137,7 @@ export function applyLiveChannelGroupOverlay<
     logo?: string | null;
     genres?: string[] | null;
   },
->(userData: UserData, items: T[]): T[] {
+>(userData: UserData, items: T[], mergeGroups = false): T[] {
   const byId = new Map<
     string,
     NonNullable<UserData['channelMappings']>[number]
@@ -143,11 +147,15 @@ export function applyLiveChannelGroupOverlay<
   }
   return items.map((item) => {
     const mapping = byId.get(getCanonicalChannelId(item.id));
-    const group =
+    const originalGroup =
       normalizeChannelGroup(mapping?.group) ||
       normalizeChannelGroup(
         Array.isArray(item.genres) ? item.genres[0] : undefined
       );
+    const group = resolveChannelGroup(
+      originalGroup,
+      mergeGroups ? userData.channelGroupMerges : undefined
+    );
     const name = mapping?.name?.trim();
     const poster = mapping?.poster?.trim();
     return {

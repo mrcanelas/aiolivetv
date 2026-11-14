@@ -495,7 +495,8 @@ export function buildResources(ctx: AIOStreamsContext): void {
       if (isLiveTvMergedCatalogId(mc.id)) {
         addLiveTvChannelMappingGenreOptions(
           mergedExtras,
-          ctx.userData.channelMappings
+          ctx.userData.channelMappings,
+          ctx.userData.channelGroupMerges
         );
       }
       ctx.finalCatalogs.push({

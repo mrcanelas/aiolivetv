@@ -183,6 +183,7 @@ export const FIELD_META: Omit<Record<keyof UserData, FieldMeta>, IgnoredKeys> = 
   catalogModifications: { label: 'Catalog Modifications', group: 'misc', type: 'scalar', menu: 'channels' },
   channelOrder: { label: 'Channel Order', group: 'metadata', type: 'scalar', menu: 'channels' },
   channelMappings: { label: 'Channel Mappings', group: 'metadata', type: 'list', identityKey: 'id', menu: 'channels', keywords: ['live tv', 'm3u', 'xmltv'] },
+  channelGroupMerges: { label: 'Merge Groups', group: 'metadata', type: 'scalar', menu: 'channels', keywords: ['genre', 'group filter'] },
   mergedCatalogs: { label: 'Merged Catalogs', group: 'misc', type: 'scalar', menu: 'channels' },
 
   accessKey: { label: 'Config Access Key', group: 'misc', type: 'scalar', menu: 'save-install' },

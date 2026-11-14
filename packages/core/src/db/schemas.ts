@@ -2,6 +2,10 @@ import { z } from 'zod';
 import * as constants from '../utils/constants.js';
 import { config } from '../config/index.js';
 import { ChannelMapping } from './channelMapping.js';
+import {
+  normalizeChannelGroup,
+  resolveChannelGroup,
+} from '../utils/channelName.js';
 
 /**
  * Stream Expression Language string with a runtime-configurable maximum length
@@ -643,6 +647,25 @@ export const UserDataSchema = z.object({
   addonCategoryColors: z.record(z.string(), z.string()).optional(), // maps custom category name → colour key
   catalogModifications: z.array(CatalogModification).optional(),
   channelMappings: z.array(ChannelMapping).optional(),
+  channelGroupMerges: z
+    .record(
+      z
+        .string()
+        .min(1)
+        .refine((group) => normalizeChannelGroup(group) === group),
+      z
+        .string()
+        .min(1)
+        .refine((group) => normalizeChannelGroup(group) === group)
+    )
+    .refine(
+      (merges) =>
+        Object.keys(merges).every(
+          (group) => resolveChannelGroup(group, merges) !== group
+        ),
+      'Channel group merges must not form a cycle'
+    )
+    .optional(),
   /** Canonical channel IDs in the order set by the user. */
   channelOrder: z.array(z.string().min(1)).optional(),
   mergedCatalogs: z.array(MergedCatalog).optional(),

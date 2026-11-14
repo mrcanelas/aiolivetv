@@ -132,6 +132,8 @@ try {
     epgProvider: true,
     country: index % 2 ? 'PT' : 'BR',
     language: index % 2 ? 'pt-PT' : 'pt-BR',
+    group: index % 2 ? 'Infantil' : 'Infantiles',
+    sourceGroup: index % 2 ? 'Infantil' : 'Infantiles',
     mappings:
       index === 0
         ? [
@@ -610,6 +612,45 @@ try {
           mapping.epgSource?.channelId === 'different-channel-id'
       )
     );
+    await page.getByRole('button', { name: 'Merge groups' }).click();
+    const mergeGroups = page.getByRole('dialog', { name: 'Merge groups' });
+    for (const [select, option] of [
+      ['Group to merge', 'Infantiles'],
+      ['Group to keep', 'Infantil'],
+    ]) {
+      await mergeGroups.getByRole('combobox', { name: select }).click();
+      await page.getByRole('option', { name: option, exact: true }).click();
+    }
+    await mergeGroups.getByRole('button', { name: 'Merge', exact: true }).click();
+    await page.waitForFunction(() => {
+      const draft = JSON.parse(localStorage.getItem('aiolivetv-user-data'));
+      return (
+        draft.channelGroupMerges?.Infantiles === 'Infantil' &&
+        !draft.channelMappings.some((mapping) => mapping.group === 'Infantil')
+      );
+    });
+    await mergeGroups.locator('.UI-Modal__close').click();
+    await page.getByRole('combobox', { name: 'Filter by group' }).click();
+    assert.equal(
+      await page.getByRole('option', { name: 'Infantiles', exact: true }).count(),
+      0
+    );
+    await page.getByRole('option', { name: 'Infantil', exact: true }).click();
+    await list
+      .locator('[data-index]')
+      .first()
+      .getByText('Infantil', { exact: true })
+      .waitFor({ state: 'attached' });
+    await page.getByRole('button', { name: 'Merge groups' }).click();
+    await mergeGroups
+      .getByRole('button', { name: 'Undo merge of Infantiles into Infantil' })
+      .click();
+    await page.waitForFunction(
+      () =>
+        !JSON.parse(localStorage.getItem('aiolivetv-user-data')).channelGroupMerges
+    );
+    await mergeGroups.locator('.UI-Modal__close').click();
+    assert.deepEqual(writes, [], 'Group merges must stay in the draft');
     await page.getByRole('combobox', { name: 'Filter by country' }).click();
     await page.getByRole('option', { name: 'BR', exact: true }).click();
     await page.getByRole('combobox', { name: 'Filter by language' }).click();

@@ -121,6 +121,21 @@ export function normalizeChannelGroup(group?: string): string | undefined {
   return titleCaseGroupWords(cleaned) || undefined;
 }
 
+export function resolveChannelGroup(
+  group: string | undefined,
+  merges?: Record<string, string>
+): string | undefined {
+  if (!group || !merges || !Object.hasOwn(merges, group)) return group;
+  const visited = new Set<string>();
+  let current = group;
+  while (Object.hasOwn(merges, current)) {
+    if (visited.has(current)) return group;
+    visited.add(current);
+    current = merges[current];
+  }
+  return current;
+}
+
 function tokenizeChannelName(name: string) {
   return name.split(/\s+/).filter(Boolean);
 }

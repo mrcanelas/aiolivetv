@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AIOStreamsContext } from './types.js';
 import type { MetaPreview } from '../db/schemas.js';
+import { UserDataSchema } from '../db/schemas.js';
 vi.mock('../config/index.js', () => ({
   config: { resources: { timeouts: { catalog: 30000 } } },
 }));
@@ -322,6 +323,48 @@ describe('merged Live TV pagination', () => {
     );
     expect([...first.data, ...second.data].map((item) => item.id)).toEqual(
       expected.map((item) => item.id)
+    );
+  });
+
+  it('merges groups in the manifest, catalog and guide and restores them when undone', async () => {
+    const ctx = context();
+    const items = provideChannels(4, true);
+    const schema = UserDataSchema.shape.channelGroupMerges;
+    expect(schema.safeParse({ Sports: 'News', News: 'Sports' }).success).toBe(
+      false
+    );
+    ctx.userData.channelGroupMerges = schema.parse({
+      Sports: 'News',
+      News: 'Live',
+    });
+    const extras = addLiveTvChannelMappingGenreOptions(
+      [{ name: 'genre', options: ['News', 'SPORTS', 'LIVE', 'Weather'] }],
+      undefined,
+      ctx.userData.channelGroupMerges
+    );
+    expect(extras[0].options).toEqual(['Live', 'Weather']);
+
+    const catalog = (extras: string) =>
+      getMergedCatalog(ctx, 'tv', LIVE_TV_MERGED_CATALOG_ID, extras);
+    expect((await catalog('genre=Live')).data).toEqual(
+      items.map((item) =>
+        expect.objectContaining({ id: item.id, genres: ['Live'] })
+      )
+    );
+    expect((await catalog('genre=Live&date=2026-10-07')).metasDetailed).toEqual(
+      items.map((item) =>
+        expect.objectContaining({
+          id: item.id,
+          genres: ['Live'],
+          videos: item.videos,
+        })
+      )
+    );
+    expect((await catalog('genre=Sports')).data).toEqual([]);
+
+    delete ctx.userData.channelGroupMerges!.Sports;
+    expect((await catalog('genre=Sports')).data.map((item) => item.id)).toEqual(
+      ['channel:0', 'channel:2']
     );
   });
 

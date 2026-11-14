@@ -36,7 +36,10 @@ import {
   type MergedCatalogSkipState,
 } from './caches.js';
 
-import { isMergedCatalogId } from './liveTvMergedCatalog.js';
+import {
+  isLiveTvMergedCatalogId,
+  isMergedCatalogId,
+} from './liveTvMergedCatalog.js';
 import { LIVE_TV_CATALOG_PAGE_SIZE } from '../builtins/live-tv/epg.js';
 import { config as appConfig } from '../config/index.js';
 import { addonProvidesNativeEpg } from './epgProvider.js';
@@ -522,12 +525,15 @@ function applyLiveTvCatalogOverlay<
   type: string,
   items: T[],
   genre?: string,
-  sortByName = true
+  sortByName = true,
+  mergeGroups = false
 ): T[] {
   if (!isLiveChannelType(type)) return items;
-  const overlaid = applyLiveChannelGroupOverlay(ctx.userData, items).filter(
-    (item) => itemMatchesCatalogGenre(item, genre)
-  );
+  const overlaid = applyLiveChannelGroupOverlay(
+    ctx.userData,
+    items,
+    mergeGroups
+  ).filter((item) => itemMatchesCatalogGenre(item, genre));
   return sortByName ? sortLiveCatalogItems(overlaid, ctx.userData) : overlaid;
 }
 
@@ -1207,7 +1213,8 @@ export async function getMergedCatalog(
       type,
       allItems,
       requestedGenre,
-      !modification?.shuffle && !modification?.reverse
+      !modification?.shuffle && !modification?.reverse,
+      isLiveTvMergedCatalogId(id)
     );
     if (isLiveMerged) {
       const catalog = {

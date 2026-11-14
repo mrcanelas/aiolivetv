@@ -231,7 +231,10 @@ export function unlinkChannelStream(
   };
 }
 
-export { normalizeChannelGroup } from '../../../../../core/src/utils/channelName';
+export {
+  normalizeChannelGroup,
+  resolveChannelGroup,
+} from '../../../../../core/src/utils/channelName';
 
 export function countSuggestions(channels: ChannelInfo[]) {
   return channels.reduce(
