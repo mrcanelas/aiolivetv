@@ -913,6 +913,9 @@ router.post(
         if (!candidate.canStream) return;
         channel.mappings.push({
           ...candidate,
+          categories: candidate.contributesChannels
+            ? candidate.categories
+            : undefined,
           channelId: candidate.id,
           confidence,
           enabled,
@@ -1259,11 +1262,9 @@ router.post(
           .map(async (channel) => {
             const canonical = resolveCanonical(channel);
             const configured = configuredById.get(channel.id);
-            const sourceGroup = normalizeChannelGroup(
-              canonical.categories?.[0] ??
-                channel.mappings.find((mapping) => mapping.categories?.[0])
-                  ?.categories?.[0]
-            );
+            const sourceGroup = canonical.contributesChannels
+              ? normalizeChannelGroup(canonical.categories?.[0])
+              : undefined;
             return {
               ...channel,
               epgSource: configured?.epgSource,

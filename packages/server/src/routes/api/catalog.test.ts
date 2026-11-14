@@ -226,6 +226,7 @@ vi.mock('@aiolivetv/core', async () => {
                 {
                   id: 'hbo',
                   name: 'HBO West',
+                  genres: ['Movies'],
                   ...(fixture.hybridGuide
                     ? { behaviorHints: { hasStreams: false } }
                     : {}),
@@ -241,8 +242,17 @@ vi.mock('@aiolivetv/core', async () => {
                   : []),
               ]
             : [
-                { id: 'bbc-stream', name: 'BBC News HD', tvgId: 'BBC.NEWS' },
-                { id: 'hbo-stream', name: 'HBO West FHD' },
+                {
+                  id: 'bbc-stream',
+                  name: 'BBC News HD',
+                  tvgId: 'BBC.NEWS',
+                  genres: ['Playlist Group'],
+                },
+                {
+                  id: 'hbo-stream',
+                  name: 'HBO West FHD',
+                  genres: ['Playlist Group'],
+                },
                 { id: 'bbc-alt', name: 'BBC News International' },
                 ...Array.from({ length: fixture.extraStreams }, (_, index) => ({
                   id: 'extra-' + index,
@@ -387,6 +397,8 @@ async function scan(
         id: string;
         epgProvider: boolean;
         channelNumber?: number;
+        group?: string;
+        sourceGroup?: string;
         enabled: boolean;
         mappings: Array<{ channelId: string; confidence: number }>;
         availableStreamSources: Array<{
@@ -403,6 +415,23 @@ async function scan(
 }
 
 describe('Channels prepared matching', () => {
+  it('takes channel groups only from the catalog when linking streams', async () => {
+    const channels = await scan(true);
+    const bbc = channels.find((channel) => channel.id === 'bbc')!;
+    expect(bbc.group).toBeUndefined();
+    expect(bbc.sourceGroup).toBeUndefined();
+    expect(bbc.mappings).toContainEqual(
+      expect.objectContaining({ addonId: 'streams', channelId: 'bbc-stream' })
+    );
+    expect(
+      bbc.mappings.find((mapping) => mapping.channelId === 'bbc-stream')
+    ).not.toHaveProperty('categories');
+    expect(channels.find((channel) => channel.id === 'hbo')).toMatchObject({
+      group: 'Movies',
+      sourceGroup: 'Movies',
+    });
+  });
+
   it('returns saved order and current source numbers', async () => {
     const data = await scan(false, false, undefined, 200, 'manual-order');
     expect(data.map(({ id }) => id)).toEqual(['hbo', 'bbc']);
