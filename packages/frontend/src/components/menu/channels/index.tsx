@@ -923,36 +923,24 @@ export function ChannelsMenu() {
 
   const renderChannel = (
     channel: ChannelInfo,
-    rowProps?: ChannelListItemProps['rowProps']
-  ) => {
-    const index = rowProps?.['data-index'];
-    return (
-      <ChannelListItem
-        key={`${channel.canonicalAddonId}:${channel.id}`}
-        rowProps={rowProps}
-        channel={channel}
-        reorder={
-          sortMode === 'number' &&
-          filteredChannels.length > 1 &&
-          index !== undefined
-            ? {
-                position: index + 1,
-                count: filteredChannels.length,
-                onMove: (position) => moveChannel(index, position - 1),
-              }
-            : undefined
-        }
-        isSelected={selectedIds.has(channel.id)}
-        onToggleSelect={() => toggleSelection(channel.id)}
-        onToggleEnabled={(enabled) => {
-          updateChannel(channel.id, (item) => ({ ...item, enabled }));
-        }}
-        onOpenMappings={() => openMappings(channel.id)}
-        onEdit={() => openEdit(channel.id)}
-        onRemove={() => removeChannel(channel.id)}
-      />
-    );
-  };
+    rowProps: ChannelListItemProps['rowProps'],
+    sortableId?: string
+  ) => (
+    <ChannelListItem
+      key={`${channel.canonicalAddonId}:${channel.id}`}
+      rowProps={rowProps}
+      channel={channel}
+      sortableId={sortableId}
+      isSelected={selectedIds.has(channel.id)}
+      onToggleSelect={() => toggleSelection(channel.id)}
+      onToggleEnabled={(enabled) => {
+        updateChannel(channel.id, (item) => ({ ...item, enabled }));
+      }}
+      onOpenMappings={() => openMappings(channel.id)}
+      onEdit={() => openEdit(channel.id)}
+      onRemove={() => removeChannel(channel.id)}
+    />
+  );
 
   return (
     <PageWrapper className="space-y-4 p-4 sm:p-8">
@@ -1411,10 +1399,9 @@ export function ChannelsMenu() {
               </p>
             ) : (
               <>
-                {sortMode === 'number' && (
+                {sortMode === 'number' && filteredChannels.length > 1 && (
                   <p className="mb-2 text-xs text-[--muted]">
-                    Use Move channel to change its position in this list. Save
-                    to apply the order.
+                    Drag channels into order, then Save to apply it.
                   </p>
                 )}
                 <ChannelList
@@ -1422,6 +1409,11 @@ export function ChannelsMenu() {
                   groups={groupedChannels}
                   resetKey={`${searchQuery}\0${groupFilter}\0${reviewFilter}\0${sortMode}`}
                   renderChannel={renderChannel}
+                  onReorder={
+                    sortMode === 'number' && filteredChannels.length > 1
+                      ? moveChannel
+                      : undefined
+                  }
                 />
               </>
             )}

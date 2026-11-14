@@ -1,15 +1,11 @@
-import { useRef, useState, type HTMLAttributes, type Ref } from 'react';
+import { useMemo, useState, type HTMLAttributes, type Ref } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import {
-  LuArrowUpDown,
-  LuLink,
-  LuEllipsis,
-  LuPower,
-  LuSquareCheck,
-} from 'react-icons/lu';
-import { Button, IconButton } from '../../../ui/button';
-import { Popover } from '../../../ui/popover';
-import { TextInput } from '../../../ui/text-input';
+import { LuLink, LuEllipsis, LuPower, LuSquareCheck } from 'react-icons/lu';
+import { IconButton } from '../../../ui/button';
+import { mergeRefs } from '../../../ui/core/utils';
 import { Switch } from '../../../ui/switch';
 import {
   DropdownMenu,
@@ -35,11 +31,7 @@ export type ChannelListItemProps = {
   onOpenMappings: () => void;
   onEdit: () => void;
   onRemove: () => void;
-  reorder?: {
-    position: number;
-    count: number;
-    onMove: (position: number) => void;
-  };
+  sortableId?: string;
 };
 
 function MappingBadge({
@@ -99,12 +91,34 @@ export function ChannelListItem({
   onOpenMappings,
   onEdit,
   onRemove,
-  reorder,
+  sortableId,
 }: ChannelListItemProps) {
   const { accepted, pending, total } = getMappingStats(channel);
   const sourceLabel = getChannelSourceLabel(channel);
   const [logoFailed, setLogoFailed] = useState(false);
   const displayNumber = channel.channelNumber;
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sortableId ?? channel.id, disabled: !sortableId });
+  const measureRow = rowProps?.ref;
+  const rowRef = useMemo(
+    () => (sortableId ? mergeRefs([measureRow, setNodeRef]) : measureRow),
+    [measureRow, setNodeRef, sortableId]
+  );
+  const rowStyle = sortableId
+    ? {
+        ...rowProps?.style,
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.35 : undefined,
+      }
+    : rowProps?.style;
 
   const confirmDelete = useConfirmationDialog({
     title: 'Remove Channel',
@@ -115,7 +129,7 @@ export function ChannelListItem({
   });
 
   return (
-    <li {...rowProps}>
+    <li {...rowProps} ref={rowRef} style={rowStyle}>
       <div
         className={`flex items-center gap-2 rounded-[--radius-md] border px-2.5 py-2 transition-colors sm:gap-3 ${
           isSelected
@@ -123,7 +137,18 @@ export function ChannelListItem({
             : 'border-[--border] bg-[var(--background)]'
         }`}
       >
-        {reorder && <MoveChannel name={channel.name} {...reorder} />}
+        {sortableId ? (
+          <IconButton
+            {...attributes}
+            {...listeners}
+            ref={setActivatorNodeRef}
+            className="h-9 w-9 flex-shrink-0 cursor-grab touch-none rounded-full active:cursor-grabbing"
+            icon={<GripVertical />}
+            intent="primary-subtle"
+            title={`Reorder ${channel.name}`}
+            aria-label={`Reorder ${channel.name}`}
+          />
+        ) : null}
         {displayNumber !== undefined ? (
           <span
             title={`Channel ${displayNumber}`}
@@ -270,64 +295,5 @@ export function ChannelListItem({
       </div>
       <ConfirmationDialog {...confirmDelete} />
     </li>
-  );
-}
-
-function MoveChannel({
-  name,
-  position,
-  count,
-  onMove,
-}: NonNullable<ChannelListItemProps['reorder']> & { name: string }) {
-  const [open, setOpen] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-
-  return (
-    <Popover
-      open={open}
-      onOpenChange={setOpen}
-      align="start"
-      onOpenAutoFocus={(event) => {
-        event.preventDefault();
-        input.current?.focus();
-      }}
-      trigger={
-        <IconButton
-          className="h-9 w-9 flex-shrink-0 rounded-full"
-          icon={<LuArrowUpDown />}
-          intent="primary-subtle"
-          title={`Move channel ${name}`}
-          aria-label={`Move channel ${name}`}
-        />
-      }
-    >
-      <form
-        className="space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const next = Number(
-            new FormData(event.currentTarget).get('position')
-          );
-          if (!Number.isInteger(next) || next < 1 || next > count) return;
-          onMove(next);
-          setOpen(false);
-        }}
-      >
-        <TextInput
-          ref={input}
-          label={`Position for ${name}`}
-          name="position"
-          type="number"
-          min={1}
-          max={count}
-          step={1}
-          required
-          defaultValue={position}
-        />
-        <Button type="submit" size="sm">
-          Move
-        </Button>
-      </form>
-    </Popover>
   );
 }

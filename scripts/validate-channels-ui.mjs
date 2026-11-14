@@ -709,33 +709,82 @@ try {
     await spinner.waitFor({ state: 'hidden' });
     await page.getByText(/^Last refresh:/).waitFor();
     await page.getByTitle('Sort by channel number or custom order').click();
-    const moveChannel = list
-      .getByRole('button', { name: /^Move channel / })
-      .first();
-    const firstChannelName = (await moveChannel.getAttribute('aria-label')).slice(
-      'Move channel '.length
-    );
+    const firstDragHandle = list
+      .locator('li[data-index="0"]')
+      .getByRole('button', { name: /^Reorder / });
+    const firstChannelName = (
+      await firstDragHandle.getAttribute('aria-label')
+    ).slice('Reorder '.length);
     const beforeMove = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('aiolivetv-user-data'))
     );
     if (viewport.width < 640) {
-      await moveChannel.tap();
+      await list.scrollIntoViewIfNeeded();
+      const from = await firstDragHandle.boundingBox();
+      const to = await list.locator('li[data-index="2"]').boundingBox();
+      const session = await context.newCDPSession(page);
+      const x = Math.round(from.x + from.width / 2);
+      const start = Math.round(from.y + from.height / 2);
+      const end = Math.round(to.y + to.height / 2);
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x, y: start }],
+      });
+      for (let step = 1; step <= 8; step++) {
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [
+            { x, y: Math.round(start + ((end - start) * step) / 8) },
+          ],
+        });
+      }
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
+      await session.detach();
     } else {
-      await moveChannel.focus();
-      await page.keyboard.press('Enter');
+      await firstDragHandle.focus();
+      for (const position of [1, 2, 3]) {
+        await page.keyboard.press(position === 1 ? 'Space' : 'ArrowDown');
+        await page
+          .getByText(`Position ${position} of ${channels.length}.`, { exact: true })
+          .waitFor();
+      }
+      await page.keyboard.press('Space');
     }
-    const position = page.getByRole('spinbutton', {
-      name: 'Position for ' + firstChannelName,
-    });
-    await page.waitForFunction(
-      () => document.activeElement?.getAttribute('name') === 'position'
-    );
-    await position.fill('3');
-    await position.press('Enter');
     await list
       .locator('li[data-index="2"]')
       .getByText(firstChannelName, { exact: true })
       .waitFor();
+    if (viewport.width >= 640) {
+      await list.scrollIntoViewIfNeeded();
+      const movedId = await page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem('aiolivetv-user-data')).channelOrder[2]
+      );
+      const handle = list.getByRole('button', {
+        name: 'Reorder ' + firstChannelName,
+        exact: true,
+      });
+      const from = await handle.boundingBox();
+      const scrollArea = await list.boundingBox();
+      const x = from.x + from.width / 2;
+      await page.mouse.move(x, from.y + from.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(x, scrollArea.y + scrollArea.height - 10, {
+        steps: 10,
+      });
+      await page.waitForFunction(
+        () =>
+          document.querySelector('div[aria-label="Channels"]').scrollTop > 1500
+      );
+      await page.mouse.up();
+      await page.waitForFunction((id) => {
+        const draft = JSON.parse(localStorage.getItem('aiolivetv-user-data'));
+        return draft.channelOrder.indexOf(id) > 20;
+      }, movedId);
+    }
     assert((await list.locator('li[data-index]').count()) < 60);
     const afterMove = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('aiolivetv-user-data'))
