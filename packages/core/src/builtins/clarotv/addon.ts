@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Manifest, Meta, MetaPreview } from '../../db/index.js';
-import { TV_TYPE } from '../../utils/constants.js';
+import { APIError, ErrorCode, TV_TYPE } from '../../utils/constants.js';
 import { Cache, decodeHtmlEntities, makeRequest } from '../../utils/index.js';
 import { normalizeChannelGroup } from '../../utils/channelName.js';
 import {
@@ -142,19 +142,32 @@ async function fetchJson(
   url: string,
   timeout: number
 ): Promise<ClaroLiveChannelsResponse> {
-  const response = await makeRequest(url, { timeout });
-  if (!response.ok) {
-    throw new Error(`Claro TV+ API returned HTTP ${response.status}`);
+  try {
+    const response = await makeRequest(url, { timeout });
+    if (!response.ok) {
+      throw new Error(`Claro TV+ API returned HTTP ${response.status}`);
+    }
+    const body = (await response.json()) as ClaroLiveChannelsResponse | null;
+    if (
+      !body ||
+      (body.status !== undefined && body.status !== 'OK') ||
+      !Array.isArray(body.response?.liveChannels)
+    ) {
+      throw new Error(
+        'Claro TV+ API returned an invalid liveChannels response'
+      );
+    }
+    return body;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      throw new APIError(
+        ErrorCode.INTERNAL_SERVER_ERROR,
+        504,
+        'Claro TV+ API request timed out'
+      );
+    }
+    throw error;
   }
-  const body = (await response.json()) as ClaroLiveChannelsResponse | null;
-  if (
-    !body ||
-    (body.status !== undefined && body.status !== 'OK') ||
-    !Array.isArray(body.response?.liveChannels)
-  ) {
-    throw new Error('Claro TV+ API returned an invalid liveChannels response');
-  }
-  return body;
 }
 
 function parseSchedules(body: ClaroLiveChannelsResponse | undefined) {

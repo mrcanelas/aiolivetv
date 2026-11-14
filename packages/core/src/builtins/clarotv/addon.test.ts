@@ -88,6 +88,21 @@ describe('Claro TV+ builtin', () => {
     expect(sourceCache.set).not.toHaveBeenCalled();
   });
 
+  it('reports an upstream timeout as a 504 with the provider name', async () => {
+    vi.mocked(makeRequest).mockRejectedValue(
+      new DOMException(
+        'The operation was aborted due to timeout',
+        'TimeoutError'
+      )
+    );
+    const addon = new ClaroTvAddon({ timeout: 1000 });
+    await expect(addon.getCatalog()).rejects.toMatchObject({
+      statusCode: 504,
+      message: 'Claro TV+ API request timed out',
+    });
+    expect(sourceCache.set).not.toHaveBeenCalled();
+  });
+
   it('retries an empty catalog cached by an earlier failed request', async () => {
     sourceCache.get.mockResolvedValueOnce([]);
     vi.mocked(makeRequest).mockResolvedValueOnce({
