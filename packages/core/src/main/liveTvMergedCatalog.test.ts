@@ -655,10 +655,13 @@ describe('merged Live TV pagination', () => {
   it('does not cache upstream failures or partial scans', async () => {
     const ctx = context();
     const items = provideChannels(30);
-    fixture.fetch.mockRejectedValueOnce(new Error('Unavailable'));
-    expect(
-      (await getMergedCatalog(ctx, 'tv', LIVE_TV_MERGED_CATALOG_ID)).success
-    ).toBe(false);
+    const timeout = new Error('504 - Claro TV+ API request timed out');
+    fixture.fetch.mockRejectedValueOnce(timeout);
+    const failed = await getMergedCatalog(ctx, 'tv', LIVE_TV_MERGED_CATALOG_ID);
+    expect(failed.success).toBe(false);
+    expect(failed.errors).toContainEqual(
+      expect.objectContaining({ description: timeout.message })
+    );
     fixture.fetch
       .mockResolvedValueOnce({ metas: items.slice(0, 25) })
       .mockRejectedValueOnce(new Error('Unavailable'));

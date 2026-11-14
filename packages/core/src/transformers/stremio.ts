@@ -258,7 +258,10 @@ export class StremioTransformer {
 
   transformCatalog(response: AIOStreamsCatalogResponse): CatalogResponse {
     if (response.metasDetailed !== undefined) {
-      if (this.showError('catalog', response.errors)) {
+      if (
+        !response.metasDetailed.length &&
+        this.showError('catalog', response.errors)
+      ) {
         return {
           metasDetailed: response.errors.map((error) =>
             StremioTransformer.createErrorMeta({

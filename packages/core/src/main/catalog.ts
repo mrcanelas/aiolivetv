@@ -1108,6 +1108,7 @@ export async function getMergedCatalog(
           fetched: 0,
           success: false,
           skipped: false,
+          error: result.error,
         };
       }
 
@@ -1155,6 +1156,11 @@ export async function getMergedCatalog(
           description:
             'Unable to fetch items from any source catalog. Please try again later.',
         },
+        ...(isLiveMerged
+          ? nonSkippedResults.flatMap((result) =>
+              result.error ? [result.error] : []
+            )
+          : []),
       ],
     };
   }
