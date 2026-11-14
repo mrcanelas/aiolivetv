@@ -1,11 +1,11 @@
 import { useMemo, useState, type HTMLAttributes, type Ref } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
 import { BiEdit, BiTrash } from 'react-icons/bi';
 import { LuLink, LuEllipsis, LuPower, LuSquareCheck } from 'react-icons/lu';
 import { IconButton } from '../../../ui/button';
 import { mergeRefs } from '../../../ui/core/utils';
+import { DragHandle } from '../../../shared/drag-handle';
 import { Switch } from '../../../ui/switch';
 import {
   DropdownMenu,
@@ -138,15 +138,11 @@ export function ChannelListItem({
         }`}
       >
         {sortableId ? (
-          <IconButton
+          <DragHandle
             {...attributes}
             {...listeners}
             ref={setActivatorNodeRef}
-            className="h-9 w-9 flex-shrink-0 cursor-grab touch-none rounded-full active:cursor-grabbing"
-            icon={<GripVertical />}
-            intent="primary-subtle"
-            title={`Reorder ${channel.name}`}
-            aria-label={`Reorder ${channel.name}`}
+            label={`Reorder ${channel.name}`}
           />
         ) : null}
         {displayNumber !== undefined ? (

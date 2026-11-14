@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { PageControls } from '../shared/page-controls';
 import { PageWrapper } from '../shared/page-wrapper';
 import { SettingsCard } from '../shared/settings-card';
+import { DragHandle } from '../shared/drag-handle';
 import { Combobox } from '../ui/combobox';
 import { useUserData, useParentInheritance } from '@/context/userData';
 import { useStatus } from '@/context/status';
@@ -59,6 +60,7 @@ function SortableItem({
   const {
     attributes,
     listeners,
+    setActivatorNodeRef,
     setNodeRef,
     transform,
     transition,
@@ -73,11 +75,11 @@ function SortableItem({
   return (
     <div ref={setNodeRef} style={style}>
       <div className="px-2.5 py-2 bg-[var(--background)] rounded-[--radius-md] border flex gap-3 relative">
-        <div
-          aria-label={`Reorder ${name}`}
-          className="rounded-full w-6 h-auto bg-[--muted] md:bg-[--subtle] md:hover:bg-[--subtle-highlight] cursor-move touch-none"
+        <DragHandle
           {...attributes}
           {...listeners}
+          ref={setActivatorNodeRef}
+          label={`Reorder ${name}`}
         />
         <div className="flex-1 flex flex-col justify-center min-w-0">
           <span className="font-mono text-base truncate">{name}</span>

@@ -712,6 +712,7 @@ try {
     const firstDragHandle = list
       .locator('li[data-index="0"]')
       .getByRole('button', { name: /^Reorder / });
+    const channelHandleClass = await firstDragHandle.getAttribute('class');
     const firstChannelName = (
       await firstDragHandle.getAttribute('aria-label')
     ).slice('Reorder '.length);
@@ -951,6 +952,7 @@ try {
       name: 'Reorder Resolution',
       exact: true,
     });
+    assert.equal(await handle.getAttribute('class'), channelHandleClass);
     await handle.focus();
     await page.keyboard.press('Space');
     await page.waitForTimeout(100);
