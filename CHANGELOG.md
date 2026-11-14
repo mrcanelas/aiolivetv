@@ -13,6 +13,11 @@
 
 * **tdtchannels:** expose genre filters in Stremio ([c18740f](https://github.com/mrcanelas/aiolivetv/commit/c18740fe179f0a690b46d9efaf0c55930939cb4b)), closes [#47](https://github.com/mrcanelas/aiolivetv/issues/47)
 
+<!-- release-contributors -->
+### Contributors
+
+Thanks to @mrcanelas for the contributions included in this release.
+
 ## [1.8.0](https://github.com/mrcanelas/aiolivetv/compare/v1.7.0...v1.8.0) (2026-11-08)
 
 
