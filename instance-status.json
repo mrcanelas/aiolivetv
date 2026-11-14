@@ -1,6 +1,8 @@
 {
   "monitorId": "804194980",
   "since": 1794601870,
-  "sent": [],
-  "downSince": null
+  "sent": [
+    "804194980:1794608537:1"
+  ],
+  "downSince": 1794608537
 }
